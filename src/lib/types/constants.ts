@@ -222,13 +222,40 @@ export const NAV_ITEMS: NavItem[] = [
 ]
 
 export const NAV_ITEMS_MOBILE: NavItem[] = [
-  { label: 'Dashboard',  href: '/dashboard', iconName: 'LayoutDashboard' },
-  { label: 'Projekte',   href: '/projects',  iconName: 'FolderOpen' },
-  { label: 'Kontakte',   href: '/partners',  iconName: 'Users' },
-  { label: 'Aufgaben',   href: '/tasks',     iconName: 'CheckSquare' },
+  {
+    label: 'Dashboard',
+    href: '/dashboard',
+    iconName: 'LayoutDashboard',
+  },
+  {
+    label: 'Projekte',
+    href: '/projects',
+    iconName: 'FolderOpen',
+  },
+  {
+    label: 'Investoren',
+    href: '/investors',
+    iconName: 'Building2',
+  },
+  {
+    label: 'Partner',
+    href: '/partners',
+    iconName: 'Users',
+  },
+  {
+    label: 'CAPEX',
+    href: '/capex',
+    iconName: 'Calculator',
+  },
+  {
+    label: 'Aufgaben',
+    href: '/tasks',
+    iconName: 'CheckSquare',
+  },
 ]
 
 export const NAV_ITEMS_SECONDARY: NavItem[] = [
-  { label: 'KI Tools',     href: '/ai',       iconName: 'Sparkles' },
+  { label: 'CAPEX Rechner', href: '/capex', iconName: 'Calculator' },
+  { label: 'KI Tools', href: '/ai', iconName: 'Sparkles' },
   { label: 'Einstellungen', href: '/settings', iconName: 'Settings' },
 ]

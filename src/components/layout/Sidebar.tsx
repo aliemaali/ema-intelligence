@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
-  Building2, CheckSquare, Sparkles, Settings,
+  Building2, CheckSquare, Sparkles, Settings, Calculator,
   LogOut, ChevronRight,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
@@ -29,6 +29,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   CheckSquare,
   Sparkles,
   Settings,
+  Calculator,
 }
 
 export function Sidebar({ user }: SidebarProps) {
