@@ -1,0 +1,362 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Google Fonts Import ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ── CSS Design Tokens ───────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    /* Background */
+    --background:           220 20% 97%;
+    --foreground:           220 30% 8%;
+
+    /* Card */
+    --card:                 0 0% 100%;
+    --card-foreground:      220 30% 8%;
+
+    /* Popover */
+    --popover:              0 0% 100%;
+    --popover-foreground:   220 30% 8%;
+
+    /* Primary – EMA Navy */
+    --primary:              220 37% 19%;  /* #1F2A44 */
+    --primary-foreground:   0 0% 100%;
+
+    /* Secondary – EMA Green */
+    --secondary:            88 100% 36%; /* #5CB800 */
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted */
+    --muted:                220 14% 92%;
+    --muted-foreground:     220 10% 46%;
+
+    /* Accent */
+    --accent:               220 14% 92%;
+    --accent-foreground:    220 30% 8%;
+
+    /* Destructive */
+    --destructive:          0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border / Input / Ring */
+    --border:               220 13% 88%;
+    --input:                220 13% 88%;
+    --ring:                 88 100% 36%;
+
+    /* Radius */
+    --radius:               0.625rem;
+
+    /* Toast */
+    --toast-bg:             hsl(0 0% 100%);
+    --toast-border:         hsl(220 13% 88%);
+    --toast-color:          hsl(220 30% 8%);
+
+    /* Sidebar */
+    --sidebar-width:        240px;
+    --sidebar-width-collapsed: 64px;
+    --header-height:        56px;
+    --bottom-nav-height:    72px;
+  }
+
+  .light {
+    /* Background */
+    --background:           220 30% 7%;   /* near-black navy */
+    --foreground:           210 20% 94%;
+
+    /* Card */
+    --card:                 220 28% 10%;
+    --card-foreground:      210 20% 94%;
+
+    /* Popover */
+    --popover:              220 28% 10%;
+    --popover-foreground:   210 20% 94%;
+
+    /* Primary – EMA Navy (lighter in dark) */
+    --primary:              220 37% 30%;
+    --primary-foreground:   0 0% 100%;
+
+    /* Secondary – EMA Green */
+    --secondary:            88 100% 36%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted */
+    --muted:                220 20% 15%;
+    --muted-foreground:     220 10% 55%;
+
+    /* Accent */
+    --accent:               220 20% 15%;
+    --accent-foreground:    210 20% 94%;
+
+    /* Destructive */
+    --destructive:          0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border / Input / Ring */
+    --border:               220 20% 18%;
+    --input:                220 20% 18%;
+    --ring:                 88 100% 36%;
+
+    /* Toast */
+    --toast-bg:             hsl(220 28% 10%);
+    --toast-border:         hsl(220 20% 18%);
+    --toast-color:          hsl(210 20% 94%);
+  }
+}
+
+/* ── Base Styles ─────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: 'opsz' 32;
+  }
+
+  /* Focus ring */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Scrollbar (WebKit) */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/30;
+  }
+}
+
+/* ── Component Layer ─────────────────────────────────────────────────────── */
+@layer components {
+
+  /* ── AppShell ────────────────────────────────────────────── */
+  .app-shell {
+    @apply flex h-screen overflow-hidden bg-background;
+  }
+
+  .app-sidebar {
+    @apply hidden md:flex flex-col w-[var(--sidebar-width)]
+           border-r border-border bg-card
+           shrink-0 overflow-y-auto;
+    transition: width 0.2s ease;
+  }
+
+  .app-main {
+    @apply flex-1 flex flex-col min-w-0 overflow-hidden;
+  }
+
+  .app-header {
+    @apply flex items-center justify-between
+           h-[var(--header-height)] px-4
+           border-b border-border bg-card
+           md:hidden shrink-0;
+  }
+
+  .app-content {
+    @apply flex-1 overflow-y-auto;
+    /* Account for bottom nav on mobile */
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 768px) {
+    .app-content {
+      padding-bottom: 0;
+    }
+  }
+
+  .app-bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 z-50
+           flex items-center justify-around
+           bg-card border-t border-border
+           md:hidden;
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── Page layouts ────────────────────────────────────────── */
+  .page-container {
+    @apply mx-auto max-w-screen-xl px-4 py-4 md:px-6 md:py-6;
+  }
+
+  .page-header {
+    @apply flex items-center justify-between mb-6;
+  }
+
+  .page-title {
+    @apply text-xl font-semibold tracking-tight text-foreground;
+  }
+
+  /* ── Cards ───────────────────────────────────────────────── */
+  .card {
+    @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+  }
+
+  .card-padded {
+    @apply card p-4 md:p-5;
+  }
+
+  /* ── Stat card ───────────────────────────────────────────── */
+  .stat-card {
+    @apply card-padded flex flex-col gap-1;
+  }
+
+  .stat-value {
+    @apply text-2xl font-bold tracking-tight text-foreground;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium text-muted-foreground uppercase tracking-wider;
+  }
+
+  /* ── Nav items ───────────────────────────────────────────── */
+  .nav-item {
+    @apply flex items-center gap-3 rounded-md px-3 py-2
+           text-sm font-medium text-muted-foreground
+           transition-colors duration-150
+           hover:bg-accent hover:text-accent-foreground;
+  }
+
+  .nav-item-active {
+    @apply bg-accent text-foreground;
+  }
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-md text-sm font-medium
+           transition-colors duration-150
+           disabled:pointer-events-none disabled:opacity-50
+           focus-visible:outline-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-[#5CB800] text-white
+           hover:bg-[#4E9F00] active:bg-[#4E9F00]
+           px-4 py-2.5;
+  }
+
+  .btn-secondary {
+    @apply btn bg-accent text-accent-foreground
+           hover:bg-accent/80
+           px-4 py-2.5;
+  }
+
+  .btn-ghost {
+    @apply btn hover:bg-accent hover:text-accent-foreground
+           px-3 py-2;
+  }
+
+  .btn-destructive {
+    @apply btn bg-destructive text-destructive-foreground
+           hover:bg-destructive/90
+           px-4 py-2.5;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-lg {
+    @apply px-6 py-3 text-base;
+  }
+
+  .btn-icon {
+    @apply btn p-2;
+  }
+
+  /* ── Form inputs ─────────────────────────────────────────── */
+  .form-input {
+    @apply w-full rounded-md border border-input
+           bg-background px-3 py-2
+           text-sm text-foreground
+           placeholder:text-muted-foreground
+           transition-colors duration-150
+           focus:outline-none focus:ring-2 focus:ring-ring
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-foreground mb-1.5;
+  }
+
+  .form-error {
+    @apply text-xs text-destructive mt-1;
+  }
+
+  .form-hint {
+    @apply text-xs text-muted-foreground mt-1;
+  }
+
+  /* ── Badges ──────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5
+           text-xs font-medium;
+  }
+
+  /* ── Loading skeleton ────────────────────────────────────── */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-muted;
+  }
+
+  /* ── Empty state ─────────────────────────────────────────── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center
+           gap-3 py-16 text-center text-muted-foreground;
+  }
+
+  /* ── Divider ─────────────────────────────────────────────── */
+  .divider {
+    @apply border-t border-border my-4;
+  }
+}
+
+/* ── Utility Layer ───────────────────────────────────────────────────────── */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* iPhone notch safe areas */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* EMA green text */
+  .text-ema-green {
+    color: #5CB800;
+  }
+
+  /* EMA navy text */
+  .text-ema-navy {
+    color: #1F2A44;
+  }
+}

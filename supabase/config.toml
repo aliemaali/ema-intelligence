@@ -1,0 +1,39 @@
+# For use with Supabase CLI
+# Install: npm install -g supabase
+# Docs: https://supabase.com/docs/reference/cli
+
+[project]
+project_id = "YOUR_PROJECT_ID"  # Replace with your Supabase project ID
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/dashboard"]
+jwt_expiry = 3600
+enable_signup = false  # Single user – disable public signup
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
