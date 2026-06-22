@@ -11,7 +11,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getInvestors, getInvestorDashboardKpis } from "@/lib/actions/investorActions";
-import { InvestorBoard } from "@/components/investors/InvestorBoard";
+import { InvestorBoard } from "@/components/investors-crm/InvestorBoard";
 
 export const dynamic = "force-dynamic"; // CRM-Daten sollen nicht statisch gecacht werden
 
