@@ -1,27 +1,18 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { toast } from 'sonner'
+import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
 import { upsertDeal } from '@/lib/actions/deal.actions'
 import { calculateDeal, calculateSensitivity, formatCurrency, formatPercent, cn } from '@/lib/utils'
 import { LoadingSpinner } from '@/components/ui'
 import type { Deal, Expense, Project, MarginType } from '@/lib/types/database.types'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
 interface DealFormProps {
-  projectId:  string
-  project:    Pick<Project, 'pv_mwp' | 'bess_mwh' | 'project_type' | 'project_number'>
-  deal?:      Deal | null
-  expenses?:  Expense[]
-}
-
-type ExpenseCategory = 'aussenprovision' | 'reise' | 'beratung' | 'sonstiges'
-
-const EXPENSE_LABELS: Record<ExpenseCategory, string> = {
-  aussenprovision: 'Außenprovision',
-  reise:           'Reisekosten',
-  beratung:        'Beratungskosten',
-  sonstiges:       'Sonstige Kosten',
+  projectId: string
+  project: Pick<Project, 'pv_mwp' | 'bess_mwh' | 'project_type' | 'project_number'>
+  deal?: Deal | null
+  expenses?: Expense[]
 }
 
 function parseGermanInput(value: string): number {
@@ -34,53 +25,54 @@ function formatGermanInteger(value: number): string {
 }
 
 function formatPerUnit(value: number): string {
+  if (!Number.isFinite(value)) return '0'
   return Math.round(value).toLocaleString('de-DE')
 }
 
 export function DealForm({ projectId, project, deal, expenses = [] }: DealFormProps) {
   const [pending, startTransition] = useTransition()
 
-  // Live calculation state
+  const pvKwp = Number(project.pv_mwp ?? 0)
+  const hasPv = pvKwp > 0
+
+  const getExpenseAmount = (category: string) =>
+    expenses.find((expense) => expense.category === category)?.amount_eur ?? 0
+
+  const existingExternalCommission = getExpenseAmount('aussenprovision')
+  const existingExternalCommissionPerKwp = hasPv
+    ? existingExternalCommission / pvKwp
+    : 0
+
   const [purchasePrice, setPurchasePrice] = useState<number>(deal?.purchase_price ?? 0)
-  const [marginType,    setMarginType]    = useState<MarginType>(deal?.margin_type ?? 'percent')
-  const [marginValue,   setMarginValue]   = useState<number>(deal?.margin_value ?? 0)
+  const [marginType, setMarginType] = useState<MarginType>(deal?.margin_type === 'per_mwh' ? 'percent' : deal?.margin_type ?? 'percent')
+  const [marginValue, setMarginValue] = useState<number>(deal?.margin_type === 'per_mwh' ? 0 : deal?.margin_value ?? 0)
+  const [externalCommissionPerKwp, setExternalCommissionPerKwp] = useState<number>(existingExternalCommissionPerKwp)
+  const [otherCosts, setOtherCosts] = useState<number>(getExpenseAmount('sonstiges'))
 
-  // Expenses
-  const getExpenseAmount = (cat: ExpenseCategory) =>
-    expenses.find((e) => e.category === cat)?.amount_eur ?? 0
+  const externalCommissionTotal = hasPv
+    ? Math.round(externalCommissionPerKwp * pvKwp)
+    : 0
 
-  const [expAussen,  setExpAussen]   = useState(getExpenseAmount('aussenprovision'))
-  const [expReise,   setExpReise]    = useState(getExpenseAmount('reise'))
-  const [expBeratung, setExpBeratung] = useState(getExpenseAmount('beratung'))
-  const [expSonstiges, setExpSonstiges] = useState(getExpenseAmount('sonstiges'))
+  const totalExpenses = externalCommissionTotal + otherCosts
 
-  const totalExpenses = expAussen + expReise + expBeratung + expSonstiges
-
-  // Live calculation
   const calc = calculateDeal({
-    purchase_price:  purchasePrice,
-    margin_type:     marginType,
-    margin_value:    marginValue,
-    pv_mwp:          project.pv_mwp,
-    bess_mwh:        project.bess_mwh,
-    expenses_total:  totalExpenses,
+    purchase_price: purchasePrice,
+    margin_type: marginType,
+    margin_value: marginValue,
+    pv_mwp: project.pv_mwp,
+    bess_mwh: project.bess_mwh,
+    expenses_total: totalExpenses,
   })
 
-  // Sensitivity rows
   const sensitivity = calculateSensitivity({
-    purchase_price:  purchasePrice,
-    margin_type:     marginType,
-    margin_value:    marginValue,
-    pv_mwp:          project.pv_mwp,
-    bess_mwh:        project.bess_mwh,
-    expenses_total:  totalExpenses,
+    purchase_price: purchasePrice,
+    margin_type: marginType,
+    margin_value: marginValue,
+    pv_mwp: project.pv_mwp,
+    bess_mwh: project.bess_mwh,
+    expenses_total: totalExpenses,
   })
 
-  // `upsertDeal` braucht zusätzlich `projectId`. Dafür wird die offiziell
-  // unterstützte `.bind()`-Methode verwendet statt einer rohen Closure als
-  // action-Prop – letzteres erzeugt bei jedem Hot-Reload eine neue Funktion,
-  // deren interne Server-Action-Referenz dann nicht mehr zum aktuellen
-  // Server-Manifest passt ("Failed to find Server Action").
   const upsertDealWithProjectId = upsertDeal.bind(null, projectId)
 
   const handleSubmit = async (formData: FormData) => {
@@ -101,18 +93,10 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
     })
   }
 
-  const showPerKwp = (project.project_type === 'pv_freiflaeche' || project.project_type === 'pv_dach' || project.project_type === 'hybrid') && project.pv_mwp
-  const showPerMwh = (project.project_type === 'bess' || project.project_type === 'hybrid') && project.bess_mwh
-
-  const marginUnit =
-    marginType === 'percent'  ? '%'
-    : marginType === 'per_kwp' ? '€/kWp'
-    :                            '€/MWh'
+  const marginUnit = marginType === 'percent' ? '%' : '€/kWp'
 
   return (
     <form action={handleSubmit} className="space-y-5">
-
-      {/* ── Einkauf ────────────────────────────────────────────── */}
       <div className="card-padded space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Einkauf
@@ -132,58 +116,45 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
               className="form-input pl-7"
             />
           </div>
-          {/* Show derived €/kWp or €/MWh */}
-          {purchasePrice > 0 && (
-            <div className="flex gap-4 mt-1">
-              {showPerKwp && project.pv_mwp && (
-                <span className="text-xs text-muted-foreground">
-                  = {formatPerUnit(purchasePrice / project.pv_mwp)} €/kWp
-                </span>
-              )}
-              {showPerMwh && project.bess_mwh && (
-                <span className="text-xs text-muted-foreground">
-                  = {formatPerUnit(purchasePrice / project.bess_mwh)} €/MWh
-                </span>
-              )}
-            </div>
+          {purchasePrice > 0 && hasPv && (
+            <p className="text-xs text-muted-foreground mt-1">
+              = {formatPerUnit(purchasePrice / pvKwp)} €/kWp
+            </p>
           )}
         </div>
       </div>
 
-      {/* ── Marge ──────────────────────────────────────────────── */}
       <div className="card-padded space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Marge
         </h3>
 
-        {/* Margin type selector */}
         <div>
           <label className="form-label">Margentyp</label>
           <div className="flex rounded-lg border border-border overflow-hidden">
             {([
               { value: 'percent', label: '%', disabled: false },
-              { value: 'per_kwp', label: '€/kWp', disabled: !showPerKwp },
-              { value: 'per_mwh', label: '€/MWh', disabled: !showPerMwh },
-            ] as const).map((opt) => (
+              { value: 'per_kwp', label: '€/kWp', disabled: !hasPv },
+            ] as const).map((option) => (
               <button
-                key={opt.value}
+                key={option.value}
                 type="button"
-                disabled={opt.disabled}
+                disabled={option.disabled}
                 onClick={() => {
-                  if (!opt.disabled) {
-                    setMarginType(opt.value as MarginType)
+                  if (!option.disabled) {
+                    setMarginType(option.value as MarginType)
                     setMarginValue(0)
                   }
                 }}
                 className={cn(
                   'flex-1 py-2 text-sm font-medium transition-colors',
-                  marginType === opt.value
+                  marginType === option.value
                     ? 'bg-[#5CB800] text-white'
                     : 'bg-card text-muted-foreground hover:text-foreground',
-                  opt.disabled && 'opacity-30 cursor-not-allowed'
+                  option.disabled && 'opacity-30 cursor-not-allowed'
                 )}
               >
-                {opt.label}
+                {option.label}
               </button>
             ))}
           </div>
@@ -207,7 +178,6 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
               {marginUnit}
             </span>
           </div>
-          {/* Calculated margin EUR */}
           {calc.margin_eur !== null && calc.margin_eur > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
               = {formatCurrency(calc.margin_eur)}
@@ -216,47 +186,68 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
         </div>
       </div>
 
-      {/* ── Kosten ─────────────────────────────────────────────── */}
       <div className="card-padded space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Kosten
         </h3>
 
-        {(
-          [
-            { key: 'aussenprovision', setter: setExpAussen,   val: expAussen },
-            { key: 'reise',           setter: setExpReise,    val: expReise },
-            { key: 'beratung',        setter: setExpBeratung, val: expBeratung },
-            { key: 'sonstiges',       setter: setExpSonstiges,val: expSonstiges },
-          ] as const
-        ).map(({ key, setter, val }) => (
-          <div key={key}>
-            <label className="form-label text-xs">
-              {EXPENSE_LABELS[key as ExpenseCategory]}
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
-                <input type="hidden" name={`exp_${key}`} value={val || ''} />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatGermanInteger(val)}
-                  onChange={(e) => setter(parseGermanInput(e.target.value))}
-                  placeholder="0"
-                  className="form-input pl-7"
-                />
-              </div>
+        <div>
+          <label className="form-label text-xs">Außenprovision</label>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
+            <div className="relative">
+              <input type="hidden" name="exp_aussenprovision" value={externalCommissionTotal || ''} />
               <input
-                name={`exp_${key}_desc`}
+                type="number"
+                step="0.01"
+                min="0"
+                value={externalCommissionPerKwp || ''}
+                onChange={(e) => setExternalCommissionPerKwp(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                className="form-input pr-16"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
+                €/kWp
+              </span>
+            </div>
+            <input
+              name="exp_aussenprovision_desc"
+              type="text"
+              placeholder="Beschreibung"
+              defaultValue={expenses.find((e) => e.category === 'aussenprovision')?.description ?? ''}
+              className="form-input text-xs"
+            />
+          </div>
+          {externalCommissionTotal > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              = {formatCurrency(externalCommissionTotal)}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="form-label text-xs">Sonstige Kosten</label>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr] gap-2">
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
+              <input type="hidden" name="exp_sonstiges" value={otherCosts || ''} />
+              <input
                 type="text"
-                placeholder="Beschreibung"
-                defaultValue={expenses.find((e) => e.category === key)?.description ?? ''}
-                className="form-input flex-1 text-xs"
+                inputMode="numeric"
+                value={formatGermanInteger(otherCosts)}
+                onChange={(e) => setOtherCosts(parseGermanInput(e.target.value))}
+                placeholder="0"
+                className="form-input pl-7"
               />
             </div>
+            <input
+              name="exp_sonstiges_desc"
+              type="text"
+              placeholder="Beschreibung"
+              defaultValue={expenses.find((e) => e.category === 'sonstiges')?.description ?? ''}
+              className="form-input text-xs"
+            />
           </div>
-        ))}
+        </div>
 
         {totalExpenses > 0 && (
           <div className="flex justify-between pt-2 border-t border-border">
@@ -268,7 +259,6 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
         )}
       </div>
 
-      {/* ── Ergebnis ───────────────────────────────────────────── */}
       {calc.net_profit !== null && (
         <div className={cn(
           'card-padded space-y-2 border-2',
@@ -281,14 +271,8 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
           </h3>
 
           <div className="space-y-1.5">
-            <ResultRow
-              label="Verkaufspreis"
-              value={formatCurrency(calc.sales_price)}
-            />
-            <ResultRow
-              label={`Bruttomarge (${formatPercent(calc.gross_margin_pct)})`}
-              value={formatCurrency(calc.gross_margin)}
-            />
+            <ResultRow label="Verkaufspreis" value={formatCurrency(calc.sales_price)} />
+            <ResultRow label={`Bruttomarge (${formatPercent(calc.gross_margin_pct)})`} value={formatCurrency(calc.gross_margin)} />
             <div className="divider my-1" />
             <ResultRow
               label={`Nettogewinn (${formatPercent(calc.net_profit_pct)})`}
@@ -300,7 +284,6 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
         </div>
       )}
 
-      {/* ── Sensitivitätsanalyse ────────────────────────────────── */}
       {calc.net_profit !== null && calc.net_profit > 0 && (
         <div className="card-padded">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
@@ -318,16 +301,13 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
               <tbody>
                 {sensitivity.map((row) => {
                   const isBase = row.label === 'Base'
-                  const isPos  = row.label.startsWith('+')
+                  const isPositiveScenario = row.label.startsWith('+')
                   return (
-                    <tr key={row.label} className={cn(
-                      'border-b border-border/50 last:border-0',
-                      isBase && 'bg-muted/50'
-                    )}>
+                    <tr key={row.label} className={cn('border-b border-border/50 last:border-0', isBase && 'bg-muted/50')}>
                       <td className="py-1.5 font-medium flex items-center gap-1">
                         {isBase ? <Minus className="w-3 h-3 text-muted-foreground" /> :
-                         isPos  ? <TrendingUp className="w-3 h-3 text-emerald-500" /> :
-                                  <TrendingDown className="w-3 h-3 text-red-500" />}
+                          isPositiveScenario ? <TrendingUp className="w-3 h-3 text-emerald-500" /> :
+                          <TrendingDown className="w-3 h-3 text-red-500" />}
                         {row.label}
                       </td>
                       <td className="py-1.5 text-right text-muted-foreground">
@@ -335,8 +315,7 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
                       </td>
                       <td className={cn(
                         'py-1.5 text-right font-medium',
-                        isBase ? 'text-[#5CB800]' :
-                        isPos  ? 'text-emerald-500' : 'text-red-500'
+                        isBase ? 'text-[#5CB800]' : isPositiveScenario ? 'text-emerald-500' : 'text-red-500'
                       )}>
                         {formatCurrency(row.net, { compact: true })}
                       </td>
@@ -349,7 +328,6 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
         </div>
       )}
 
-      {/* ── Notes ──────────────────────────────────────────────── */}
       <div>
         <label className="form-label">Deal-Notizen</label>
         <textarea
@@ -361,26 +339,23 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="btn-primary w-full"
-      >
+      <button type="submit" disabled={pending} className="btn-primary w-full">
         {pending ? <LoadingSpinner size="sm" /> : '✓ Deal speichern'}
       </button>
     </form>
   )
 }
 
-// ── Helper component ──────────────────────────────────────────────────────────
-
 function ResultRow({
-  label, value, highlight = false, positive = true,
+  label,
+  value,
+  highlight = false,
+  positive = true,
 }: {
-  label:      string
-  value:      string
+  label: string
+  value: string
   highlight?: boolean
-  positive?:  boolean
+  positive?: boolean
 }) {
   return (
     <div className="flex items-center justify-between">
