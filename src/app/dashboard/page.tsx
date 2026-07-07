@@ -9,7 +9,6 @@ export default async function DashboardPage() {
   const totalProjects = projects.length
   const totalKwp = projects.reduce((sum: number, p: any) => sum + Number(p.pv_mwp ?? 0), 0)
   const totalBess = projects.reduce((sum: number, p: any) => sum + Number(p.bess_mwh ?? 0), 0)
-  const totalProfit = projects.reduce((sum: number, p: any) => sum + Number(p.net_profit ?? 0), 0)
 
   const investorSearch = projects.filter((p: any) => p.status === 'investorensuche').length
   const leadProjects = projects.filter((p: any) => p.status === 'lead').length
@@ -29,7 +28,7 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="card-padded">
           <p className="text-xs text-muted-foreground">Projekte gesamt</p>
           <p className="text-2xl font-semibold mt-1">{totalProjects}</p>
@@ -43,13 +42,6 @@ export default async function DashboardPage() {
         <div className="card-padded">
           <p className="text-xs text-muted-foreground">BESS-Kapazität</p>
           <p className="text-2xl font-semibold mt-1">{totalBess.toFixed(1)} MWh</p>
-        </div>
-
-        <div className="card-padded">
-          <p className="text-xs text-muted-foreground">Nettogewinn</p>
-          <p className="text-2xl font-semibold mt-1">
-            {totalProfit > 0 ? `${totalProfit.toLocaleString('de-DE')} €` : '—'}
-          </p>
         </div>
       </div>
 
