@@ -7,7 +7,6 @@ import {
   Layers,
   MapPin,
   Search,
-  SunMedium,
   Zap,
 } from 'lucide-react'
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
@@ -98,24 +97,27 @@ function KpiCard({
 
 function SolarHeroArt() {
   return (
-    <div className="pointer-events-none absolute inset-y-5 right-5 z-0 hidden w-[46%] overflow-hidden rounded-[1.9rem] border border-white/70 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.16)] md:block">
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-0 hidden w-[54%] overflow-hidden rounded-r-[2.2rem] md:block">
       <img
         src="/hero-dashboard.png"
         alt=""
         className="h-full w-full object-cover object-center saturate-[1.18] contrast-[1.05] brightness-[1.02]"
       />
+      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/35 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
     </div>
   )
 }
 
 function MobileHeroImage() {
   return (
-    <div className="mt-7 block h-60 overflow-hidden rounded-[1.8rem] border border-white/70 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.14)] md:hidden">
+    <div className="relative -mx-1 mt-7 block h-60 overflow-hidden rounded-[1.8rem] md:hidden">
       <img
         src="/hero-dashboard.png"
         alt="Solarfeld mit Windkraft und Batteriespeicher"
         className="h-full w-full object-cover object-center saturate-[1.18] contrast-[1.05] brightness-[1.02]"
       />
+      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white to-transparent" />
     </div>
   )
 }
@@ -150,8 +152,8 @@ export default async function DashboardPage() {
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
 
   return (
-    <div className="-mx-5 space-y-7 md:mx-auto md:max-w-[1480px] md:space-y-8">
-      <section className="relative overflow-hidden bg-white/0 px-4 pt-8 md:rounded-[2.2rem] md:bg-white/80 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+    <div className="w-full max-w-full overflow-x-hidden space-y-7 md:mx-auto md:max-w-[1480px] md:space-y-8">
+      <section className="relative overflow-hidden px-3 pt-8 md:rounded-[2.2rem] md:bg-white/80 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
         <SolarHeroArt />
 
         <div className="relative z-10 max-w-2xl md:max-w-[52%]">
