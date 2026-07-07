@@ -13,6 +13,11 @@ async function requireUser() {
   return { supabase, userId: user.id }
 }
 
+function parseMoney(value: FormDataEntryValue | null): number {
+  if (typeof value !== 'string') return 0
+  return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FETCH DEAL FOR PROJECT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,11 +64,11 @@ export async function getDealForProject(projectId: string) {
 export async function upsertDeal(projectId: string, formData: FormData) {
   const { supabase, userId } = await requireUser()
 
-  const marginType   = formData.get('margin_type') as MarginType
-  const marginValue  = parseFloat(formData.get('margin_value') as string) || 0
-  const purchasePrice = parseFloat(formData.get('purchase_price') as string) || 0
+  const marginType    = formData.get('margin_type') as MarginType
+  const marginValue   = parseMoney(formData.get('margin_value'))
+  const purchasePrice = parseMoney(formData.get('purchase_price'))
 
-  // Fetch project for MWp / MWh values needed for calculation
+  // Fetch project for kWp / MWh values needed for calculation
   const { data: project } = await supabase
     .from('projects')
     .select('pv_mwp, bess_mwh, project_type')
@@ -72,10 +77,10 @@ export async function upsertDeal(projectId: string, formData: FormData) {
 
   // Sum all expenses from form
   const expensesTotal =
-    (parseFloat(formData.get('exp_aussenprovision') as string) || 0) +
-    (parseFloat(formData.get('exp_reise') as string) || 0) +
-    (parseFloat(formData.get('exp_beratung') as string) || 0) +
-    (parseFloat(formData.get('exp_sonstiges') as string) || 0)
+    parseMoney(formData.get('exp_aussenprovision')) +
+    parseMoney(formData.get('exp_reise')) +
+    parseMoney(formData.get('exp_beratung')) +
+    parseMoney(formData.get('exp_sonstiges'))
 
   // Calculate financials
   const calc = calculateDeal({
@@ -104,7 +109,7 @@ export async function upsertDeal(projectId: string, formData: FormData) {
       .from('deals')
       .update({
         purchase_price:    purchasePrice || null,
-        purchase_per_kwp:  project?.pv_mwp ? purchasePrice / (project.pv_mwp * 1000) : null,
+        purchase_per_kwp:  project?.pv_mwp ? purchasePrice / project.pv_mwp : null,
         purchase_per_mwh:  project?.bess_mwh ? purchasePrice / project.bess_mwh : null,
         margin_type:       marginType,
         margin_value:      marginValue,
@@ -141,7 +146,7 @@ export async function upsertDeal(projectId: string, formData: FormData) {
         is_active:        true,
         deal_status:      'open',
         purchase_price:   purchasePrice || null,
-        purchase_per_kwp: project?.pv_mwp ? purchasePrice / (project.pv_mwp * 1000) : null,
+        purchase_per_kwp: project?.pv_mwp ? purchasePrice / project.pv_mwp : null,
         purchase_per_mwh: project?.bess_mwh ? purchasePrice / project.bess_mwh : null,
         margin_type:      marginType,
         margin_value:     marginValue,
@@ -165,10 +170,10 @@ export async function upsertDeal(projectId: string, formData: FormData) {
   await supabase.from('expenses').delete().eq('deal_id', dealId)
 
   const expenseRows = [
-    { category: 'aussenprovision', amount: parseFloat(formData.get('exp_aussenprovision') as string) || 0, desc: formData.get('exp_aussenprovision_desc') as string },
-    { category: 'reise',           amount: parseFloat(formData.get('exp_reise') as string) || 0,           desc: formData.get('exp_reise_desc') as string },
-    { category: 'beratung',        amount: parseFloat(formData.get('exp_beratung') as string) || 0,        desc: formData.get('exp_beratung_desc') as string },
-    { category: 'sonstiges',       amount: parseFloat(formData.get('exp_sonstiges') as string) || 0,       desc: formData.get('exp_sonstiges_desc') as string },
+    { category: 'aussenprovision', amount: parseMoney(formData.get('exp_aussenprovision')), desc: formData.get('exp_aussenprovision_desc') as string },
+    { category: 'reise',           amount: parseMoney(formData.get('exp_reise')),           desc: formData.get('exp_reise_desc') as string },
+    { category: 'beratung',        amount: parseMoney(formData.get('exp_beratung')),        desc: formData.get('exp_beratung_desc') as string },
+    { category: 'sonstiges',       amount: parseMoney(formData.get('exp_sonstiges')),       desc: formData.get('exp_sonstiges_desc') as string },
   ].filter((e) => e.amount > 0)
 
   if (expenseRows.length > 0) {
