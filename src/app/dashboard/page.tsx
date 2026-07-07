@@ -100,13 +100,13 @@ function KpiCard({
 
 function SolarHeroArt() {
   return (
-    <div className="pointer-events-none absolute inset-y-0 right-0 z-0 block h-full w-[68%] overflow-hidden rounded-[2rem] md:w-1/2 md:rounded-[2.2rem]">
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-0 block h-full w-[72%] overflow-hidden rounded-[2rem] md:w-1/2 md:rounded-[2.2rem]">
       <img
-        src="/energy-hero.svg"
+        src="/hero-dashboard.png"
         alt=""
-        className="absolute bottom-0 right-[-34%] h-full w-[150%] max-w-none object-cover opacity-95 md:right-0 md:w-full"
+        className="absolute inset-0 h-full w-full object-cover object-center opacity-95"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/55 to-transparent md:from-white/85 md:via-white/40" />
+      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-white/5 md:from-white/90 md:via-white/45 md:to-transparent" />
     </div>
   )
 }
