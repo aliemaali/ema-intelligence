@@ -11,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
+import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
 
 export const metadata = { title: 'Dashboard' }
@@ -166,7 +167,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.28em] text-[#5CB800] md:text-sm">Guten Morgen</p>
+          <TimeGreeting />
           <h1 className="text-4xl font-extrabold leading-[0.98] tracking-[-0.055em] text-[#07142F] sm:text-5xl md:text-5xl xl:text-6xl">
             Willkommen zurück,<br />
             <span className="text-[#2F8A00]">Ali Ünlüer</span> 👋
