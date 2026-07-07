@@ -1,0 +1,54 @@
+<svg width="900" height="520" viewBox="0 0 900 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="900" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#EAF7FF"/>
+      <stop offset="0.55" stop-color="#FFF7E8"/>
+      <stop offset="1" stop-color="#E8F8D8"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#174EA6"/>
+      <stop offset="1" stop-color="#07142F"/>
+    </linearGradient>
+    <linearGradient id="grass" x1="0" y1="250" x2="0" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9E889"/>
+      <stop offset="1" stop-color="#4CA300"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#07142F" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="900" height="520" rx="48" fill="url(#sky)"/>
+  <circle cx="470" cy="240" r="54" fill="#FFD36A" opacity="0.8"/>
+  <circle cx="470" cy="240" r="95" fill="#FFD36A" opacity="0.16"/>
+  <path d="M0 350C115 305 220 326 330 300C465 268 586 250 900 315V520H0V350Z" fill="url(#grass)" opacity="0.9"/>
+  <path d="M0 405C170 360 300 392 430 352C585 306 715 330 900 368V520H0V405Z" fill="#2F8A00" opacity="0.28"/>
+
+  <g opacity="0.55">
+    <path d="M650 84V258" stroke="#6F8494" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="650" cy="84" r="10" fill="#6F8494"/>
+    <path d="M650 84L574 42" stroke="#6F8494" stroke-width="5" stroke-linecap="round"/>
+    <path d="M650 84L728 42" stroke="#6F8494" stroke-width="5" stroke-linecap="round"/>
+    <path d="M650 84L653 176" stroke="#6F8494" stroke-width="5" stroke-linecap="round"/>
+  </g>
+  <g opacity="0.42" transform="translate(-92 68) scale(.75)">
+    <path d="M650 84V258" stroke="#6F8494" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="650" cy="84" r="10" fill="#6F8494"/>
+    <path d="M650 84L574 42" stroke="#6F8494" stroke-width="5" stroke-linecap="round"/>
+    <path d="M650 84L728 42" stroke="#6F8494" stroke-width="5" stroke-linecap="round"/>
+    <path d="M650 84L653 176" stroke="#6F8494" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <path d="M330 330L884 240L900 378L380 486L330 330Z" fill="#0A1A44" opacity="0.22"/>
+    <path d="M300 302L855 218L890 354L357 464L300 302Z" fill="url(#panel)"/>
+    <path d="M321 320L838 241" stroke="#86B9FF" stroke-width="7" opacity="0.62"/>
+    <path d="M337 363L854 283" stroke="#86B9FF" stroke-width="7" opacity="0.62"/>
+    <path d="M352 406L867 326" stroke="#86B9FF" stroke-width="7" opacity="0.62"/>
+    <path d="M420 284L475 445" stroke="#86B9FF" stroke-width="6" opacity="0.52"/>
+    <path d="M548 264L603 423" stroke="#86B9FF" stroke-width="6" opacity="0.52"/>
+    <path d="M678 244L733 402" stroke="#86B9FF" stroke-width="6" opacity="0.52"/>
+  </g>
+
+  <rect width="900" height="520" rx="48" fill="url(#sky)" opacity="0.08"/>
+  <rect width="900" height="520" rx="48" fill="white" opacity="0.05"/>
+</svg>
