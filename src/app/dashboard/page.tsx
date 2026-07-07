@@ -17,7 +17,7 @@ const STATE_POSITIONS: Record<string, { left: number; top: number }> = {
   Thüringen: { left: 53, top: 61 },
   Hessen: { left: 43, top: 63 },
   'Nordrhein-Westfalen': { left: 29, top: 51 },
-  Rheinland-Pfalz: { left: 34, top: 70 },
+  'Rheinland-Pfalz': { left: 34, top: 70 },
   Saarland: { left: 29, top: 79 },
   'Baden-Württemberg': { left: 42, top: 84 },
   Bayern: { left: 58, top: 82 },
