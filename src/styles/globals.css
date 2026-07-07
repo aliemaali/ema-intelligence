@@ -31,8 +31,8 @@
     --toast-color:          hsl(225 52% 10%);
     --sidebar-width:        272px;
     --sidebar-width-collapsed: 64px;
-    --header-height:        60px;
-    --bottom-nav-height:    72px;
+    --header-height:        92px;
+    --bottom-nav-height:    86px;
     --ema-blue:             #132060;
     --ema-blue-dark:        #07142F;
     --ema-green:            #5CB800;
@@ -112,13 +112,20 @@
   }
 
   .app-header {
-    @apply flex items-center justify-between h-[var(--header-height)] px-4 border-b border-border bg-white/90 md:hidden shrink-0;
-    backdrop-filter: blur(12px);
+    @apply flex items-center justify-between border-b border-border bg-white/95 px-5 md:hidden shrink-0;
+    min-height: calc(var(--header-height) + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  }
+
+  .mobile-header-action {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white text-[#07142F] shadow-sm transition-all active:scale-95;
   }
 
   .app-content {
     @apply flex-1 overflow-y-auto;
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
   }
 
   @media (min-width: 768px) {
@@ -126,14 +133,24 @@
   }
 
   .app-bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-white/95 border-t border-border md:hidden;
-    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
-    padding-bottom: env(safe-area-inset-bottom);
-    backdrop-filter: blur(14px);
+    @apply fixed z-50 flex items-center justify-around bg-white/95 border border-border md:hidden;
+    left: 1rem;
+    right: 1rem;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    height: var(--bottom-nav-height);
+    border-radius: 1.8rem;
+    backdrop-filter: blur(18px);
+    box-shadow: 0 18px 55px rgba(15, 23, 42, 0.13);
   }
 
   .page-container {
     @apply mx-auto max-w-[1480px] px-4 py-5 md:px-8 md:py-8;
+  }
+
+  @media (max-width: 767px) {
+    .page-container {
+      @apply px-5 py-7;
+    }
   }
 
   .page-header {
@@ -143,6 +160,13 @@
   .page-title {
     @apply text-3xl md:text-4xl font-extrabold tracking-tight text-[#07142F];
     letter-spacing: -0.035em;
+  }
+
+  @media (max-width: 767px) {
+    .page-title {
+      @apply text-5xl leading-none;
+      letter-spacing: -0.055em;
+    }
   }
 
   .card {
