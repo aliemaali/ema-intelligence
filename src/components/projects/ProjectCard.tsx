@@ -73,7 +73,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
       if (project.bess_mwh) parts.push(formatMW(project.bess_mwh, 'MWh'))
       return parts.join(' / ')
     }
-    if (project.pv_mwp) return formatMW(project.pv_mwp, 'MWp')
+    if (project.pv_mwp) return formatMW(project.pv_mwp, 'kWp')
     return null
   })()
 
@@ -161,7 +161,7 @@ export function ProjectRow({ project }: ProjectCardProps) {
       if (project.bess_mwh) parts.push(`${project.bess_mwh} MWh`)
       return parts.join(' / ')
     }
-    if (project.pv_mwp) return `${project.pv_mwp} MWp`
+    if (project.pv_mwp) return `${project.pv_mwp} kWp`
     return '–'
   })()
 
