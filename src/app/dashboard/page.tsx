@@ -100,13 +100,24 @@ function KpiCard({
 
 function SolarHeroArt() {
   return (
-    <div className="pointer-events-none absolute inset-y-0 right-0 z-0 block h-full w-[72%] overflow-hidden rounded-[2rem] md:w-1/2 md:rounded-[2.2rem]">
+    <div className="pointer-events-none absolute inset-y-5 right-5 z-0 hidden w-[46%] overflow-hidden rounded-[1.9rem] border border-white/70 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.16)] md:block">
       <img
         src="/hero-dashboard.png"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center opacity-100 saturate-[1.35] contrast-[1.08] brightness-[1.03]"
+        className="h-full w-full object-cover object-center saturate-[1.18] contrast-[1.05] brightness-[1.02]"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/42 to-transparent md:from-white/80 md:via-white/24 md:to-transparent" />
+    </div>
+  )
+}
+
+function MobileHeroImage() {
+  return (
+    <div className="mt-7 block h-56 overflow-hidden rounded-[1.8rem] border border-white/70 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.14)] md:hidden">
+      <img
+        src="/hero-dashboard.png"
+        alt="Solarfeld mit Windkraft und Batteriespeicher"
+        className="h-full w-full object-cover object-center saturate-[1.18] contrast-[1.05] brightness-[1.02]"
+      />
     </div>
   )
 }
@@ -143,10 +154,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="page-container space-y-7 md:space-y-8">
-      <section className="relative min-h-[430px] overflow-hidden rounded-[2rem] bg-white/0 pt-8 md:min-h-0 md:rounded-[2.2rem] md:bg-white/70 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+      <section className="relative overflow-hidden rounded-[2rem] bg-white/0 pt-8 md:min-h-[330px] md:rounded-[2.2rem] md:bg-white/80 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
         <SolarHeroArt />
 
-        <div className="relative z-10 max-w-2xl">
+        <div className="relative z-10 max-w-2xl md:max-w-[52%]">
           <div className="mb-6 hidden items-center justify-between md:flex">
             <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-20 w-auto object-contain" />
             <div className="flex items-center gap-2">
@@ -156,7 +167,7 @@ export default async function DashboardPage() {
           </div>
 
           <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.28em] text-[#5CB800] md:text-sm">Guten Morgen</p>
-          <h1 className="text-4xl font-extrabold leading-[0.98] tracking-[-0.055em] text-[#07142F] sm:text-5xl md:text-6xl">
+          <h1 className="text-4xl font-extrabold leading-[0.98] tracking-[-0.055em] text-[#07142F] sm:text-5xl md:text-5xl xl:text-6xl">
             Willkommen zurück,<br />
             <span className="text-[#2F8A00]">Ali Ünlüer</span> 👋
           </h1>
@@ -171,6 +182,7 @@ export default async function DashboardPage() {
               Projekte ansehen
             </Link>
           </div>
+          <MobileHeroImage />
         </div>
       </section>
 
