@@ -7,7 +7,7 @@ export default async function DashboardPage() {
   const projects = await getProjects({})
 
   const totalProjects = projects.length
-  const totalMwp = projects.reduce((sum: number, p: any) => sum + Number(p.pv_mwp ?? 0), 0)
+  const totalKwp = projects.reduce((sum: number, p: any) => sum + Number(p.pv_mwp ?? 0), 0)
   const totalBess = projects.reduce((sum: number, p: any) => sum + Number(p.bess_mwh ?? 0), 0)
   const totalProfit = projects.reduce((sum: number, p: any) => sum + Number(p.net_profit ?? 0), 0)
 
@@ -37,7 +37,7 @@ export default async function DashboardPage() {
 
         <div className="card-padded">
           <p className="text-xs text-muted-foreground">PV-Leistung</p>
-          <p className="text-2xl font-semibold mt-1">{totalMwp.toFixed(1)} MWp</p>
+          <p className="text-2xl font-semibold mt-1">{totalKwp.toLocaleString('de-DE')} kWp</p>
         </div>
 
         <div className="card-padded">
