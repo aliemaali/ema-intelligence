@@ -110,7 +110,14 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
 
   const stepIndex = STEPS.findIndex((s) => s.key === step)
 
- const showPvFields = projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid'; const showBessFields = projectType === 'bess' || projectType === 'hybrid';
+  const showPvFields =
+    projectType === 'pv_freiflaeche' ||
+    projectType === 'pv_dach' ||
+    projectType === 'hybrid';
+
+  const showBessFields =
+    projectType === 'bess' ||
+    projectType === 'hybrid';
 
   // CREATE: useFormState-Action direkt am <form>. EDIT: lokaler Handler (siehe oben).
   const formAction = mode === 'create' ? createFormAction : handleEditSubmit;
@@ -375,7 +382,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
                       placeholder="0"
                       className="form-input pr-10"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kW/span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kW</span>
                   </div>
                 </div>
               </div>
