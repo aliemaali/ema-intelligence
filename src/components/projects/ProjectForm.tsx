@@ -110,8 +110,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
 
   const stepIndex = STEPS.findIndex((s) => s.key === step)
 
-  const showPvFields   = projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid'
-  const showBessFields = projectType === 'bess' || projectType === 'hybrid'
+ const showPvFields = projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid'; const showBessFields = projectType === 'bess' || projectType === 'hybrid';
 
   // CREATE: useFormState-Action direkt am <form>. EDIT: lokaler Handler (siehe oben).
   const formAction = mode === 'create' ? createFormAction : handleEditSubmit;
