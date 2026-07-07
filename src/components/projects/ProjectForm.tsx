@@ -361,7 +361,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
                       placeholder="0"
                       className="form-input pr-12"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">MWp</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kWp</span>
                   </div>
                 </div>
                 <div>
@@ -376,7 +376,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
                       placeholder="0"
                       className="form-input pr-10"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">MW</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kW/span>
                   </div>
                 </div>
               </div>
