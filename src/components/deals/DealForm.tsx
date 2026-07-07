@@ -24,6 +24,19 @@ const EXPENSE_LABELS: Record<ExpenseCategory, string> = {
   sonstiges:       'Sonstige Kosten',
 }
 
+function parseGermanInput(value: string): number {
+  return parseFloat(value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0
+}
+
+function formatGermanInteger(value: number): string {
+  if (!value) return ''
+  return Math.round(value).toLocaleString('de-DE')
+}
+
+function formatPerUnit(value: number): string {
+  return Math.round(value).toLocaleString('de-DE')
+}
+
 export function DealForm({ projectId, project, deal, expenses = [] }: DealFormProps) {
   const [pending, startTransition] = useTransition()
 
@@ -36,8 +49,8 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
   const getExpenseAmount = (cat: ExpenseCategory) =>
     expenses.find((e) => e.category === cat)?.amount_eur ?? 0
 
-  const [expAussen,  setExpAussen]  = useState(getExpenseAmount('aussenprovision'))
-  const [expReise,   setExpReise]   = useState(getExpenseAmount('reise'))
+  const [expAussen,  setExpAussen]   = useState(getExpenseAmount('aussenprovision'))
+  const [expReise,   setExpReise]    = useState(getExpenseAmount('reise'))
   const [expBeratung, setExpBeratung] = useState(getExpenseAmount('beratung'))
   const [expSonstiges, setExpSonstiges] = useState(getExpenseAmount('sonstiges'))
 
@@ -109,13 +122,12 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
           <label className="form-label">EK-Preis gesamt</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
+            <input type="hidden" name="purchase_price" value={purchasePrice || ''} />
             <input
-              name="purchase_price"
-              type="number"
-              step="1"
-              min="0"
-              value={purchasePrice || ''}
-              onChange={(e) => setPurchasePrice(parseFloat(e.target.value) || 0)}
+              type="text"
+              inputMode="numeric"
+              value={formatGermanInteger(purchasePrice)}
+              onChange={(e) => setPurchasePrice(parseGermanInput(e.target.value))}
               placeholder="0"
               className="form-input pl-7"
             />
@@ -125,12 +137,12 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
             <div className="flex gap-4 mt-1">
               {showPerKwp && project.pv_mwp && (
                 <span className="text-xs text-muted-foreground">
-                  = {(purchasePrice / (project.pv_mwp * 1000)).toFixed(0)} €/kWp
+                  = {formatPerUnit(purchasePrice / project.pv_mwp)} €/kWp
                 </span>
               )}
               {showPerMwh && project.bess_mwh && (
                 <span className="text-xs text-muted-foreground">
-                  = {(purchasePrice / project.bess_mwh).toFixed(0)} €/MWh
+                  = {formatPerUnit(purchasePrice / project.bess_mwh)} €/MWh
                 </span>
               )}
             </div>
@@ -225,13 +237,12 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">€</span>
+                <input type="hidden" name={`exp_${key}`} value={val || ''} />
                 <input
-                  name={`exp_${key}`}
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={val || ''}
-                  onChange={(e) => setter(parseFloat(e.target.value) || 0)}
+                  type="text"
+                  inputMode="numeric"
+                  value={formatGermanInteger(val)}
+                  onChange={(e) => setter(parseGermanInput(e.target.value))}
                   placeholder="0"
                   className="form-input pl-7"
                 />
