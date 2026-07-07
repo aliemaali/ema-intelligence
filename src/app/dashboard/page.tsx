@@ -34,10 +34,20 @@ const CITY_POSITIONS: Record<string, { left: number; top: number }> = {
   Dresden: { left: 69, top: 61 },
   Köln: { left: 29, top: 57 },
   Hannover: { left: 45, top: 36 },
-  Poßßen: { left: 70, top: 40 },
-  Poßen: { left: 70, top: 40 },
+  'Poßßen': { left: 70, top: 40 },
+  'Poßen': { left: 70, top: 40 },
   Possen: { left: 70, top: 40 },
+  Polßen: { left: 70, top: 40 },
 }
+
+const MAP_TILES = [
+  'https://tile.openstreetmap.org/6/32/20.png',
+  'https://tile.openstreetmap.org/6/33/20.png',
+  'https://tile.openstreetmap.org/6/34/20.png',
+  'https://tile.openstreetmap.org/6/32/21.png',
+  'https://tile.openstreetmap.org/6/33/21.png',
+  'https://tile.openstreetmap.org/6/34/21.png',
+]
 
 function formatKwp(value: number | null | undefined) {
   if (!value) return '–'
@@ -60,20 +70,27 @@ function getLocation(project: any) {
   return [project.location_city, project.location_state].filter(Boolean).join(', ') || 'Standort offen'
 }
 
+function getProjectKind(project: any) {
+  if (project.project_type === 'bess') return 'bess'
+  if (project.project_type === 'hybrid') return 'hybrid'
+  return 'pv'
+}
+
 function getMapPosition(project: any, index: number) {
   const city = project.location_city ? String(project.location_city) : ''
   const state = project.location_state ? String(project.location_state) : ''
   const base = CITY_POSITIONS[city] ?? STATE_POSITIONS[state] ?? { left: 50, top: 50 }
-  const offset = (index % 4) * 1.6
+  const offset = (index % 4) * 1.4
   return {
-    left: Math.min(90, Math.max(8, base.left + offset)),
-    top: Math.min(88, Math.max(8, base.top + offset)),
+    left: Math.min(92, Math.max(8, base.left + offset)),
+    top: Math.min(90, Math.max(8, base.top + offset)),
   }
 }
 
 function getMarkerStyle(project: any) {
-  if (project.project_type === 'bess') return 'bg-blue-600 border-blue-100'
-  if (project.project_type === 'hybrid') return 'bg-violet-600 border-violet-100'
+  const kind = getProjectKind(project)
+  if (kind === 'bess') return 'bg-blue-600 border-blue-100'
+  if (kind === 'hybrid') return 'bg-violet-600 border-violet-100'
   return 'bg-[#5CB800] border-green-100'
 }
 
@@ -93,7 +110,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Willkommen zurück, Ali. Hier ist dein aktueller Überblick.
+            Überblick über deine EMA Intelligence Projekte
           </p>
         </div>
 
@@ -151,27 +168,30 @@ export default async function DashboardPage() {
               <p className="text-sm text-muted-foreground py-6">Noch keine Projekte vorhanden.</p>
             )}
 
-            {latestProjects.map((project: any) => (
-              <Link
-                key={project.id}
-                href={`/projects/${project.id}/overview`}
-                className="grid grid-cols-[44px_1fr_auto] items-center gap-3 py-4 hover:bg-muted/40 rounded-xl transition-colors px-2 -mx-2"
-              >
-                <div className="w-11 h-11 rounded-xl bg-[#5CB800]/12 text-[#2F8A00] flex items-center justify-center shrink-0">
-                  <SunMedium className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{project.project_name}</p>
-                  <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-1">
-                    <MapPin className="w-3 h-3" /> {getLocation(project)}
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-bold text-foreground">{getProjectPower(project)}</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">{project.project_number}</p>
-                </div>
-              </Link>
-            ))}
+            {latestProjects.map((project: any) => {
+              const kind = getProjectKind(project)
+              return (
+                <Link
+                  key={project.id}
+                  href={`/projects/${project.id}/overview`}
+                  className="grid grid-cols-[44px_1fr_auto] items-center gap-3 py-4 hover:bg-muted/40 rounded-xl transition-colors px-2 -mx-2"
+                >
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${kind === 'bess' ? 'bg-blue-600/10 text-blue-700' : kind === 'hybrid' ? 'bg-violet-600/10 text-violet-700' : 'bg-[#5CB800]/12 text-[#2F8A00]'}`}>
+                    {kind === 'bess' ? <BatteryCharging className="w-5 h-5" /> : <SunMedium className="w-5 h-5" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-foreground truncate">{project.project_name}</p>
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3" /> {getLocation(project)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-bold text-foreground">{getProjectPower(project)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">{project.project_number}</p>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
 
           <div className="pt-4 mt-3 border-t border-border">
@@ -189,15 +209,13 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="relative min-h-[430px] rounded-2xl border border-border overflow-hidden bg-[#EAF4E4]">
-            <div
-              className="absolute inset-0 opacity-95 bg-cover bg-center"
-              style={{
-                backgroundImage:
-                  "url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Germany_location_map.svg/800px-Germany_location_map.svg.png')",
-              }}
-            />
-            <div className="absolute inset-0 bg-white/10" />
+          <div className="relative min-h-[430px] rounded-2xl border border-border overflow-hidden bg-[#dfe9d9]">
+            <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 scale-110 opacity-95">
+              {MAP_TILES.map((tile) => (
+                <img key={tile} src={tile} alt="" className="h-full w-full object-cover" />
+              ))}
+            </div>
+            <div className="absolute inset-0 bg-white/5" />
 
             {mapProjects.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
@@ -207,6 +225,7 @@ export default async function DashboardPage() {
 
             {mapProjects.map((project: any, index: number) => {
               const position = getMapPosition(project, index)
+              const kind = getProjectKind(project)
               return (
                 <Link
                   key={project.id}
@@ -215,21 +234,26 @@ export default async function DashboardPage() {
                   style={{ left: `${position.left}%`, top: `${position.top}%` }}
                   title={`${project.project_name} · ${getLocation(project)}`}
                 >
-                  <span className={`flex items-center justify-center w-9 h-9 rounded-full border-4 text-white shadow-lg ${getMarkerStyle(project)}`}>
-                    <SunMedium className="w-4 h-4" />
+                  <span className={`flex items-center justify-center w-10 h-10 rounded-full border-4 text-white shadow-lg ${getMarkerStyle(project)}`}>
+                    {kind === 'bess' ? <BatteryCharging className="w-4 h-4" /> : <SunMedium className="w-4 h-4" />}
                   </span>
-                  <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-56 -translate-x-1/2 rounded-xl border border-border bg-white p-3 text-left shadow-xl group-hover:block">
+                  <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-60 -translate-x-1/2 rounded-xl border border-border bg-white p-3 text-left shadow-xl group-hover:block">
                     <span className="block text-sm font-bold text-foreground">{project.project_name}</span>
                     <span className="mt-1 block text-xs text-muted-foreground">{getLocation(project)}</span>
                     <span className="mt-2 block text-xs font-semibold text-[#132060]">{getProjectPower(project)}</span>
+                    <span className="mt-2 block text-xs font-semibold text-[#5CB800]">Details anzeigen</span>
                   </span>
                 </Link>
               )
             })}
 
-            <div className="absolute left-4 top-4 rounded-lg bg-white/90 border border-border shadow-sm overflow-hidden">
+            <div className="absolute left-4 top-4 rounded-lg bg-white/95 border border-border shadow-sm overflow-hidden">
               <div className="px-3 py-1.5 text-lg font-bold border-b border-border">+</div>
               <div className="px-3 py-1.5 text-lg font-bold">−</div>
+            </div>
+
+            <div className="absolute bottom-2 right-3 rounded bg-white/80 px-2 py-1 text-[10px] text-muted-foreground">
+              © OpenStreetMap contributors
             </div>
           </div>
 
