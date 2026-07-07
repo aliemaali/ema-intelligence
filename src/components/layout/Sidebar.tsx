@@ -44,11 +44,7 @@ export function Sidebar({ user }: SidebarProps) {
     <aside className="app-sidebar">
       <div className="px-5 py-6 border-b border-border">
         <Link href="/dashboard" className="block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/ema-logo.svg" alt="EMA Intelligence" className="h-16 w-auto object-contain" />
-          <p className="mt-2 text-sm font-extrabold tracking-wide text-[#132060] leading-tight">
-            EMA<br />INTELLIGENCE
-          </p>
+          <img src="/ema-logo.svg" alt="EMA" className="h-16 w-auto object-contain" />
         </Link>
       </div>
 
@@ -117,7 +113,6 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="flex items-center gap-3 px-2 py-2 rounded-md">
           <div className="w-9 h-9 rounded-full bg-[#EEF2F7] flex items-center justify-center shrink-0">
             {user.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={user.avatarUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover" />
             ) : (
               <span className="text-xs font-semibold text-[#132060]">{getInitials(user.name)}</span>
