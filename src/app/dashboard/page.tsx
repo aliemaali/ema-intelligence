@@ -100,18 +100,13 @@ function KpiCard({
 
 function SolarHeroArt() {
   return (
-    <div className="pointer-events-none absolute inset-y-0 right-0 block h-full w-[62%] overflow-hidden rounded-[2rem] opacity-90 md:w-1/2 md:rounded-[2.2rem]">
-      <div className="absolute inset-0 bg-gradient-to-l from-green-100/80 via-blue-50/65 to-transparent" />
-      <div className="absolute bottom-0 right-0 h-40 w-64 rounded-tl-full bg-[#5CB800]/14 md:h-48 md:w-80" />
-      <div className="absolute bottom-0 right-0 h-24 w-full bg-gradient-to-t from-green-500/20 to-transparent md:h-28" />
-      <div className="absolute bottom-7 right-[-14px] h-20 w-40 rotate-[-10deg] rounded-xl bg-blue-800/55 shadow-2xl md:bottom-12 md:right-10 md:h-24 md:w-44" />
-      <div className="absolute bottom-12 right-4 h-1 w-28 rotate-[-10deg] bg-white/60 md:bottom-18 md:right-16 md:w-34" />
-      <div className="absolute bottom-17 right-8 h-1 w-24 rotate-[-10deg] bg-white/50 md:bottom-24 md:right-20 md:w-28" />
-      <div className="absolute right-12 top-12 h-20 w-px bg-slate-500/35 md:right-20 md:top-16 md:h-24" />
-      <div className="absolute right-[40px] top-10 h-14 w-14 rounded-full border-t-2 border-slate-500/45 md:right-[72px] md:top-14 md:h-16 md:w-16" />
-      <div className="absolute right-[52px] top-6 h-14 w-px rotate-45 bg-slate-500/45 md:right-[84px] md:top-9 md:h-16" />
-      <div className="absolute right-[28px] top-14 h-14 w-px rotate-[-55deg] bg-slate-500/45 md:right-[58px] md:top-18 md:h-16" />
-      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent md:from-white/80 md:via-white/45" />
+    <div className="pointer-events-none absolute inset-y-0 right-0 z-0 block h-full w-[68%] overflow-hidden rounded-[2rem] md:w-1/2 md:rounded-[2.2rem]">
+      <img
+        src="/energy-hero.svg"
+        alt=""
+        className="absolute bottom-0 right-[-34%] h-full w-[150%] max-w-none object-cover opacity-95 md:right-0 md:w-full"
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/55 to-transparent md:from-white/85 md:via-white/40" />
     </div>
   )
 }
@@ -148,10 +143,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="page-container space-y-7 md:space-y-8">
-      <section className="relative min-h-[520px] overflow-hidden rounded-[2rem] bg-white/0 pt-8 md:min-h-0 md:rounded-[2.2rem] md:bg-white/70 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+      <section className="relative min-h-[430px] overflow-hidden rounded-[2rem] bg-white/0 pt-8 md:min-h-0 md:rounded-[2.2rem] md:bg-white/70 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
         <SolarHeroArt />
 
-        <div className="relative max-w-2xl">
+        <div className="relative z-10 max-w-2xl">
           <div className="mb-6 hidden items-center justify-between md:flex">
             <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-20 w-auto object-contain" />
             <div className="flex items-center gap-2">
