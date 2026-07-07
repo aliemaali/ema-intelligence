@@ -2,114 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Google Fonts Import ─────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* ── CSS Design Tokens ───────────────────────────────────────────────────── */
 @layer base {
   :root {
-    /* Background */
-    --background:           220 20% 97%;
-    --foreground:           220 30% 8%;
-
-    /* Card */
+    --background:           220 30% 98%;
+    --foreground:           225 45% 9%;
     --card:                 0 0% 100%;
-    --card-foreground:      220 30% 8%;
-
-    /* Popover */
+    --card-foreground:      225 45% 9%;
     --popover:              0 0% 100%;
-    --popover-foreground:   220 30% 8%;
-
-    /* Primary – EMA Navy */
-    --primary:              220 37% 19%;  /* #1F2A44 */
+    --popover-foreground:   225 45% 9%;
+    --primary:              231 67% 23%;
     --primary-foreground:   0 0% 100%;
-
-    /* Secondary – EMA Green */
-    --secondary:            88 100% 36%; /* #5CB800 */
+    --secondary:            91 100% 39%;
     --secondary-foreground: 0 0% 100%;
-
-    /* Muted */
-    --muted:                220 14% 92%;
-    --muted-foreground:     220 10% 46%;
-
-    /* Accent */
-    --accent:               220 14% 92%;
-    --accent-foreground:    220 30% 8%;
-
-    /* Destructive */
+    --muted:                220 20% 94%;
+    --muted-foreground:     220 14% 43%;
+    --accent:               220 28% 96%;
+    --accent-foreground:    225 45% 9%;
     --destructive:          0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    /* Border / Input / Ring */
-    --border:               220 13% 88%;
-    --input:                220 13% 88%;
-    --ring:                 88 100% 36%;
-
-    /* Radius */
-    --radius:               0.625rem;
-
-    /* Toast */
+    --border:               220 18% 90%;
+    --input:                220 18% 90%;
+    --ring:                 91 100% 39%;
+    --radius:               1rem;
     --toast-bg:             hsl(0 0% 100%);
-    --toast-border:         hsl(220 13% 88%);
-    --toast-color:          hsl(220 30% 8%);
-
-    /* Sidebar */
-    --sidebar-width:        240px;
+    --toast-border:         hsl(220 18% 90%);
+    --toast-color:          hsl(225 45% 9%);
+    --sidebar-width:        260px;
     --sidebar-width-collapsed: 64px;
     --header-height:        56px;
     --bottom-nav-height:    72px;
   }
 
   .light {
-    /* Background */
-    --background:           220 30% 7%;   /* near-black navy */
-    --foreground:           210 20% 94%;
-
-    /* Card */
-    --card:                 220 28% 10%;
-    --card-foreground:      210 20% 94%;
-
-    /* Popover */
-    --popover:              220 28% 10%;
-    --popover-foreground:   210 20% 94%;
-
-    /* Primary – EMA Navy (lighter in dark) */
-    --primary:              220 37% 30%;
+    --background:           220 30% 98%;
+    --foreground:           225 45% 9%;
+    --card:                 0 0% 100%;
+    --card-foreground:      225 45% 9%;
+    --popover:              0 0% 100%;
+    --popover-foreground:   225 45% 9%;
+    --primary:              231 67% 23%;
     --primary-foreground:   0 0% 100%;
-
-    /* Secondary – EMA Green */
-    --secondary:            88 100% 36%;
+    --secondary:            91 100% 39%;
     --secondary-foreground: 0 0% 100%;
-
-    /* Muted */
-    --muted:                220 20% 15%;
-    --muted-foreground:     220 10% 55%;
-
-    /* Accent */
-    --accent:               220 20% 15%;
-    --accent-foreground:    210 20% 94%;
-
-    /* Destructive */
-    --destructive:          0 72% 51%;
+    --muted:                220 20% 94%;
+    --muted-foreground:     220 14% 43%;
+    --accent:               220 28% 96%;
+    --accent-foreground:    225 45% 9%;
+    --destructive:          0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    /* Border / Input / Ring */
-    --border:               220 20% 18%;
-    --input:                220 20% 18%;
-    --ring:                 88 100% 36%;
-
-    /* Toast */
-    --toast-bg:             hsl(220 28% 10%);
-    --toast-border:         hsl(220 20% 18%);
-    --toast-color:          hsl(210 20% 94%);
+    --border:               220 18% 90%;
+    --input:                220 18% 90%;
+    --ring:                 91 100% 39%;
+    --toast-bg:             hsl(0 0% 100%);
+    --toast-border:         hsl(220 18% 90%);
+    --toast-color:          hsl(225 45% 9%);
   }
 }
 
-/* ── Base Styles ─────────────────────────────────────────────────────────── */
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
 
   html {
     @apply scroll-smooth;
@@ -122,38 +75,23 @@
     font-variation-settings: 'opsz' 32;
   }
 
-  /* Focus ring */
   *:focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Scrollbar (WebKit) */
-  ::-webkit-scrollbar {
-    @apply w-1.5;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-border;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/30;
-  }
+  ::-webkit-scrollbar { @apply w-1.5; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-border; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
 }
 
-/* ── Component Layer ─────────────────────────────────────────────────────── */
 @layer components {
-
-  /* ── AppShell ────────────────────────────────────────────── */
   .app-shell {
     @apply flex h-screen overflow-hidden bg-background;
   }
 
   .app-sidebar {
-    @apply hidden md:flex flex-col w-[var(--sidebar-width)]
-           border-r border-border bg-card
-           shrink-0 overflow-y-auto;
+    @apply hidden md:flex flex-col w-[var(--sidebar-width)] border-r border-border bg-white shrink-0 overflow-y-auto;
     transition: width 0.2s ease;
   }
 
@@ -162,201 +100,111 @@
   }
 
   .app-header {
-    @apply flex items-center justify-between
-           h-[var(--header-height)] px-4
-           border-b border-border bg-card
-           md:hidden shrink-0;
+    @apply flex items-center justify-between h-[var(--header-height)] px-4 border-b border-border bg-white md:hidden shrink-0;
   }
 
   .app-content {
     @apply flex-1 overflow-y-auto;
-    /* Account for bottom nav on mobile */
     padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
   }
 
   @media (min-width: 768px) {
-    .app-content {
-      padding-bottom: 0;
-    }
+    .app-content { padding-bottom: 0; }
   }
 
   .app-bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 z-50
-           flex items-center justify-around
-           bg-card border-t border-border
-           md:hidden;
+    @apply fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-white border-t border-border md:hidden;
     height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* ── Page layouts ────────────────────────────────────────── */
   .page-container {
-    @apply mx-auto max-w-screen-xl px-4 py-4 md:px-6 md:py-6;
+    @apply mx-auto max-w-[1440px] px-4 py-5 md:px-8 md:py-8;
   }
 
   .page-header {
-    @apply flex items-center justify-between mb-6;
+    @apply flex items-center justify-between mb-7;
   }
 
   .page-title {
-    @apply text-xl font-semibold tracking-tight text-foreground;
+    @apply text-3xl font-bold tracking-tight text-[#07142F];
   }
 
-  /* ── Cards ───────────────────────────────────────────────── */
   .card {
-    @apply rounded-lg border border-border bg-card text-card-foreground shadow-sm;
+    @apply rounded-2xl border border-border bg-white text-card-foreground shadow-sm;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
   }
 
   .card-padded {
-    @apply card p-4 md:p-5;
+    @apply card p-5 md:p-6;
   }
 
-  /* ── Stat card ───────────────────────────────────────────── */
   .stat-card {
     @apply card-padded flex flex-col gap-1;
   }
 
   .stat-value {
-    @apply text-2xl font-bold tracking-tight text-foreground;
+    @apply text-3xl font-bold tracking-tight text-foreground;
   }
 
   .stat-label {
     @apply text-xs font-medium text-muted-foreground uppercase tracking-wider;
   }
 
-  /* ── Nav items ───────────────────────────────────────────── */
   .nav-item {
-    @apply flex items-center gap-3 rounded-md px-3 py-2
-           text-sm font-medium text-muted-foreground
-           transition-colors duration-150
-           hover:bg-accent hover:text-accent-foreground;
+    @apply flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-[#07142F] transition-colors duration-150 hover:bg-[#EEF4FF];
   }
 
   .nav-item-active {
-    @apply bg-accent text-foreground;
+    @apply bg-[#132060] text-white shadow-sm hover:bg-[#132060];
   }
 
-  /* ── Buttons ─────────────────────────────────────────────── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2
-           rounded-md text-sm font-medium
-           transition-colors duration-150
-           disabled:pointer-events-none disabled:opacity-50
-           focus-visible:outline-none;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-colors duration-150 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none;
   }
 
   .btn-primary {
-    @apply btn bg-[#5CB800] text-white
-           hover:bg-[#4E9F00] active:bg-[#4E9F00]
-           px-4 py-2.5;
+    @apply btn bg-[#5CB800] text-white hover:bg-[#4E9F00] active:bg-[#4E9F00] px-4 py-2.5;
   }
 
   .btn-secondary {
-    @apply btn bg-accent text-accent-foreground
-           hover:bg-accent/80
-           px-4 py-2.5;
+    @apply btn bg-accent text-accent-foreground hover:bg-accent/80 px-4 py-2.5;
   }
 
   .btn-ghost {
-    @apply btn hover:bg-accent hover:text-accent-foreground
-           px-3 py-2;
+    @apply btn hover:bg-accent hover:text-accent-foreground px-3 py-2;
   }
 
   .btn-destructive {
-    @apply btn bg-destructive text-destructive-foreground
-           hover:bg-destructive/90
-           px-4 py-2.5;
+    @apply btn bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2.5;
   }
 
-  .btn-sm {
-    @apply px-3 py-1.5 text-xs;
-  }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .btn-lg { @apply px-6 py-3 text-base; }
+  .btn-icon { @apply btn p-2; }
 
-  .btn-lg {
-    @apply px-6 py-3 text-base;
-  }
-
-  .btn-icon {
-    @apply btn p-2;
-  }
-
-  /* ── Form inputs ─────────────────────────────────────────── */
   .form-input {
-    @apply w-full rounded-md border border-input
-           bg-background px-3 py-2
-           text-sm text-foreground
-           placeholder:text-muted-foreground
-           transition-colors duration-150
-           focus:outline-none focus:ring-2 focus:ring-ring
-           disabled:cursor-not-allowed disabled:opacity-50;
+    @apply w-full rounded-xl border border-input bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .form-label {
-    @apply block text-sm font-medium text-foreground mb-1.5;
+    @apply block text-sm font-semibold text-foreground mb-1.5;
   }
 
-  .form-error {
-    @apply text-xs text-destructive mt-1;
-  }
+  .form-error { @apply text-xs text-destructive mt-1; }
+  .form-hint { @apply text-xs text-muted-foreground mt-1; }
 
-  .form-hint {
-    @apply text-xs text-muted-foreground mt-1;
-  }
-
-  /* ── Badges ──────────────────────────────────────────────── */
   .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5
-           text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
   }
 
-  /* ── Loading skeleton ────────────────────────────────────── */
-  .skeleton {
-    @apply animate-pulse rounded-md bg-muted;
-  }
-
-  /* ── Empty state ─────────────────────────────────────────── */
-  .empty-state {
-    @apply flex flex-col items-center justify-center
-           gap-3 py-16 text-center text-muted-foreground;
-  }
-
-  /* ── Divider ─────────────────────────────────────────────── */
-  .divider {
-    @apply border-t border-border my-4;
-  }
+  .skeleton { @apply animate-pulse rounded-md bg-muted; }
+  .empty-state { @apply flex flex-col items-center justify-center gap-3 py-16 text-center text-muted-foreground; }
+  .divider { @apply border-t border-border my-4; }
 }
 
-/* ── Utility Layer ───────────────────────────────────────────────────────── */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  /* Hide scrollbar but keep functionality */
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* iPhone notch safe areas */
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  /* EMA green text */
-  .text-ema-green {
-    color: #5CB800;
-  }
-
-  /* EMA navy text */
-  .text-ema-navy {
-    color: #1F2A44;
-  }
+  .text-balance { text-wrap: balance; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
 }
