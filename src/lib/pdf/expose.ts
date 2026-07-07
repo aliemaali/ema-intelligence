@@ -36,7 +36,7 @@ interface NormalizedProjectData {
   projectNumber: string;
   projectType: string;
   location: string;
-  pvPowerMWp: string | null;
+  pvPowerKWp: string | null;
   bessCapacityMWh: string | null;
   status: string;
   priority: string;
@@ -148,9 +148,12 @@ function normalizeProjectData(
   // auch mit anderen Projektobjekten robust bleibt.
   const pvRaw =
     project?.pv_mwp ??
+    project?.pvPowerKWp ??
     project?.pvPowerMWp ??
+    project?.pvLeistungKWp ??
     project?.pvLeistungMWp ??
     project?.pvPower ??
+    project?.leistungKWp ??
     project?.leistungMWp ??
     null;
   const pvFormatted = formatNumberDe(pvRaw, 2);
@@ -215,7 +218,7 @@ function normalizeProjectData(
       "k. A."
     ),
     location: buildLocationString(project),
-    pvPowerMWp: pvFormatted ? `${pvFormatted} MWp` : null,
+    pvPowerKWp: pvFormatted ? `${pvFormatted} kWp` : null,
     bessCapacityMWh: bessFormatted ? `${bessFormatted} MWh` : null,
     status: labelFromMap(
       PROJECT_STATUS_LABELS as Record<string, string>,
@@ -421,7 +424,7 @@ export function generateExposePdf(project: ExposeProjectInput): void {
   );
 
   const coverFacts: { label: string; value: string | null }[] = [
-    { label: "PV-Leistung", value: data.pvPowerMWp },
+    { label: "PV-Leistung", value: data.pvPowerKWp },
     { label: "BESS-Kapazität", value: data.bessCapacityMWh },
     { label: "Status", value: data.status },
   ];
@@ -516,7 +519,7 @@ export function generateExposePdf(project: ExposeProjectInput): void {
   y2 = drawDataTable(
     doc,
     [
-      { label: "PV-Leistung", value: data.pvPowerMWp ?? "k. A." },
+      { label: "PV-Leistung", value: data.pvPowerKWp ?? "k. A." },
       {
         label: "BESS-Kapazität",
         value: data.bessCapacityMWh ?? "k. A.",
