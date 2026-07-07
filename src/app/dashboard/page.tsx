@@ -104,9 +104,9 @@ function SolarHeroArt() {
       <img
         src="/hero-dashboard.png"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center opacity-95"
+        className="absolute inset-0 h-full w-full object-cover object-center opacity-100 saturate-[1.35] contrast-[1.08] brightness-[1.03]"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-white/5 md:from-white/90 md:via-white/45 md:to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-white via-white/42 to-transparent md:from-white/80 md:via-white/24 md:to-transparent" />
     </div>
   )
 }
