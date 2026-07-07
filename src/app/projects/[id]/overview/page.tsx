@@ -84,8 +84,8 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         <div className="space-y-0">
           {hasPv && (
             <>
-              <InfoRow label="DC-Leistung" value={formatMW(project.pv_mwp, 'MWp')} />
-              {project.pv_ac_mw && <InfoRow label="AC-Leistung" value={formatMW(project.pv_ac_mw, 'MW')} />}
+              <InfoRow label="DC-Leistung" value={formatMW(project.pv_mwp, 'kWp')} />
+              {project.pv_ac_mw && <InfoRow label="AC-Leistung" value={formatMW(project.pv_ac_mw, 'kWp')} />}
             </>
           )}
           {hasBess && (
