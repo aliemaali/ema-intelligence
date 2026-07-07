@@ -114,7 +114,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
   const showBessFields = projectType === 'bess' || projectType === 'hybrid'
 
   // CREATE: useFormState-Action direkt am <form>. EDIT: lokaler Handler (siehe oben).
-  const formAction = mode === 'create' ? createFormAction : handleEditSubmit
+  const formAction = mode === 'create' ? createFormAction : handleEditSubmit;
 
   return (
     <form action={formAction} className="space-y-0">
