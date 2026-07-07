@@ -165,7 +165,7 @@ export interface DealCalculationInput {
   purchase_price:   number | null
   margin_type:      MarginType
   margin_value:     number | null
-  pv_mwp?:          number | null  // For per_kwp calculation
+  pv_mwp?:          number | null  // PV capacity value is used as kWp in the UI and deal calculator
   bess_mwh?:        number | null  // For per_mwh calculation
   expenses_total?:  number         // Sum of all expense amounts
 }
@@ -205,7 +205,7 @@ export function calculateDeal(
 
     case 'per_kwp':
       if (pv_mwp) {
-        margin_eur = pv_mwp * 1000 * margin_value
+        margin_eur = pv_mwp * margin_value
       }
       break
 
@@ -343,7 +343,7 @@ export function truncate(str: string | null | undefined, maxLength: number): str
   return str.length <= maxLength ? str : `${str.slice(0, maxLength)}…`
 }
 
-// ── Initials ──────────────────────────────────────────────────────────────────
+// ── Initials ─────────────────────────────────────────────────────────────────
 
 export function getInitials(name: string | null | undefined): string {
   if (!name) return '?'
