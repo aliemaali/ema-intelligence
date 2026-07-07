@@ -83,17 +83,34 @@ function KpiCard({
   }[tone]
 
   return (
-    <div className={`premium-lift relative min-w-[220px] overflow-hidden rounded-[1.45rem] border bg-gradient-to-br ${toneClass} p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] md:min-w-0 md:p-6`}>
-      <div className="absolute right-0 top-0 h-28 w-28 translate-x-8 -translate-y-8 rounded-full bg-current opacity-[0.07]" />
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-black/5">
+    <div className={`premium-lift relative overflow-hidden rounded-[1.25rem] border bg-gradient-to-br ${toneClass} p-3 shadow-[0_14px_36px_rgba(15,23,42,0.07)] md:rounded-[1.45rem] md:p-6 md:shadow-[0_18px_50px_rgba(15,23,42,0.08)]`}>
+      <div className="absolute right-0 top-0 h-16 w-16 translate-x-5 -translate-y-5 rounded-full bg-current opacity-[0.07] md:h-28 md:w-28 md:translate-x-8 md:-translate-y-8" />
+      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-black/5 md:h-14 md:w-14">
         {icon}
       </div>
-      <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">{title}</p>
-      <p className="mt-3 text-3xl font-extrabold tracking-tight text-[#07142F] md:text-4xl">{value}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-      <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-slate-200/70">
+      <p className="mt-4 min-h-[28px] text-[10px] font-extrabold uppercase leading-tight tracking-[0.16em] text-slate-500 md:mt-6 md:text-xs md:tracking-[0.18em]">{title}</p>
+      <p className="mt-2 text-2xl font-extrabold tracking-tight text-[#07142F] md:mt-3 md:text-4xl">{value}</p>
+      <p className="mt-1 text-[11px] leading-tight text-muted-foreground md:text-sm">{subtitle}</p>
+      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-200/70 md:mt-5">
         <div className="h-full w-2/3 rounded-full bg-current opacity-70" />
       </div>
+    </div>
+  )
+}
+
+function SolarHeroArt() {
+  return (
+    <div className="pointer-events-none absolute bottom-0 right-0 hidden h-full w-1/2 overflow-hidden rounded-[2.2rem] md:block">
+      <div className="absolute inset-0 bg-gradient-to-l from-green-100/70 via-blue-50/60 to-transparent" />
+      <div className="absolute bottom-0 right-0 h-48 w-80 rounded-tl-full bg-[#5CB800]/12" />
+      <div className="absolute bottom-0 right-0 h-28 w-full bg-gradient-to-t from-green-500/20 to-transparent" />
+      <div className="absolute bottom-12 right-10 h-24 w-44 rotate-[-10deg] rounded-xl bg-blue-800/55 shadow-2xl" />
+      <div className="absolute bottom-18 right-16 h-1 w-34 rotate-[-10deg] bg-white/60" />
+      <div className="absolute bottom-24 right-20 h-1 w-28 rotate-[-10deg] bg-white/50" />
+      <div className="absolute right-20 top-16 h-24 w-px bg-slate-500/35" />
+      <div className="absolute right-[72px] top-14 h-16 w-16 rounded-full border-t-2 border-slate-500/45" />
+      <div className="absolute right-[84px] top-9 h-16 w-px rotate-45 bg-slate-500/45" />
+      <div className="absolute right-[58px] top-18 h-16 w-px rotate-[-55deg] bg-slate-500/45" />
     </div>
   )
 }
@@ -131,13 +148,7 @@ export default async function DashboardPage() {
   return (
     <div className="page-container space-y-7 md:space-y-8">
       <section className="relative overflow-hidden rounded-[2rem] bg-white/0 md:rounded-[2.2rem] md:bg-white/70 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-        <div className="pointer-events-none absolute right-0 top-0 hidden h-full w-1/2 overflow-hidden rounded-[2.2rem] md:block">
-          <div className="absolute inset-0 bg-gradient-to-l from-green-100/70 via-blue-50/60 to-transparent" />
-          <div className="absolute bottom-0 right-0 h-44 w-72 rounded-tl-full bg-[#5CB800]/12" />
-          <div className="absolute bottom-8 right-12 h-24 w-40 rotate-[-10deg] rounded-xl bg-blue-700/45 shadow-2xl" />
-          <div className="absolute bottom-16 right-24 h-1 w-28 rotate-[-10deg] bg-white/60" />
-          <div className="absolute bottom-22 right-28 h-1 w-24 rotate-[-10deg] bg-white/50" />
-        </div>
+        <SolarHeroArt />
 
         <div className="relative max-w-2xl">
           <div className="mb-6 hidden items-center justify-between md:flex">
@@ -167,30 +178,28 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="-mx-5 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0">
-        <div className="flex gap-4 md:contents">
-          <KpiCard
-            title="Projekte gesamt"
-            value={totalProjects}
-            subtitle="aktive Projekte"
-            tone="blue"
-            icon={<FolderOpen className="h-7 w-7" />}
-          />
-          <KpiCard
-            title="PV-Leistung"
-            value={totalKwp.toLocaleString('de-DE')}
-            subtitle="kWp Gesamtleistung"
-            tone="green"
-            icon={<Zap className="h-7 w-7" />}
-          />
-          <KpiCard
-            title="BESS-Kapazität"
-            value={totalBess.toLocaleString('de-DE')}
-            subtitle="MWh Gesamtkapazität"
-            tone="violet"
-            icon={<BatteryCharging className="h-7 w-7" />}
-          />
-        </div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-3 md:gap-5">
+        <KpiCard
+          title="Projekte gesamt"
+          value={totalProjects}
+          subtitle="aktive Projekte"
+          tone="blue"
+          icon={<FolderOpen className="h-5 w-5 md:h-7 md:w-7" />}
+        />
+        <KpiCard
+          title="PV-Leistung"
+          value={totalKwp.toLocaleString('de-DE')}
+          subtitle="kWp Gesamtleistung"
+          tone="green"
+          icon={<Zap className="h-5 w-5 md:h-7 md:w-7" />}
+        />
+        <KpiCard
+          title="BESS-Kapazität"
+          value={totalBess.toLocaleString('de-DE')}
+          subtitle="MWh Gesamtkapazität"
+          tone="violet"
+          icon={<BatteryCharging className="h-5 w-5 md:h-7 md:w-7" />}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.92fr_1.45fr]">
