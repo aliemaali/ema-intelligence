@@ -26,11 +26,29 @@ function formatMwh(value: number | null | undefined) {
   return `${Number(value).toLocaleString('de-DE')} MWh`
 }
 
+function formatMoney(value: number | null | undefined) {
+  if (!value) return '–'
+  return `${Number(value).toLocaleString('de-DE')} €`
+}
+
 function getProjectPower(project: any) {
   const parts = []
   if (project.pv_mwp) parts.push(formatKwp(project.pv_mwp))
   if (project.bess_mwh) parts.push(formatMwh(project.bess_mwh))
   return parts.join(' / ') || '–'
+}
+
+function getPurchasePrice(project: any) {
+  return project.purchase_price ?? project.deal_purchase_price ?? project.active_deal_purchase_price ?? null
+}
+
+function getFeedInType(project: any) {
+  const raw = project.feed_in_type ?? project.einspeiseart ?? project.feed_in_model ?? project.offtake_type ?? null
+  if (!raw) return 'Voll'
+  const value = String(raw).toLowerCase()
+  if (value.includes('ppa')) return 'PPA'
+  if (value.includes('voll')) return 'Voll'
+  return String(raw)
 }
 
 function getLocation(project: any) {
@@ -41,27 +59,6 @@ function getProjectKind(project: any) {
   if (project.project_type === 'bess') return 'bess'
   if (project.project_type === 'hybrid') return 'hybrid'
   return 'pv'
-}
-
-function getStatusLabel(status?: string | null) {
-  const labels: Record<string, string> = {
-    lead: 'Lead',
-    qualifizierung: 'Qualifizierung',
-    investorsuche: 'Investorensuche',
-    verhandlung: 'Verhandlung',
-    verkauft: 'Verkauft',
-    pausiert: 'Pausiert',
-    verloren: 'Verloren',
-  }
-  return labels[status ?? ''] ?? status ?? 'Offen'
-}
-
-function getStatusClass(status?: string | null) {
-  if (status === 'verkauft') return 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
-  if (status === 'investorsuche' || status === 'verhandlung') return 'bg-[#5CB800]/10 text-[#2F8A00] border-[#5CB800]/20'
-  if (status === 'pausiert') return 'bg-amber-500/10 text-amber-700 border-amber-500/20'
-  if (status === 'verloren') return 'bg-red-500/10 text-red-700 border-red-500/20'
-  return 'bg-blue-500/10 text-blue-700 border-blue-500/20'
 }
 
 function KpiCard({
@@ -84,14 +81,14 @@ function KpiCard({
   }[tone]
 
   return (
-    <div className={`premium-lift relative overflow-hidden rounded-[1.25rem] border bg-gradient-to-br ${toneClass} p-3 shadow-[0_14px_36px_rgba(15,23,42,0.07)] md:rounded-[1.45rem] md:p-6 md:shadow-[0_18px_50px_rgba(15,23,42,0.08)]`}>
+    <div className={`premium-lift relative overflow-hidden rounded-[1.15rem] border bg-gradient-to-br ${toneClass} p-2.5 shadow-[0_14px_36px_rgba(15,23,42,0.07)] md:rounded-[1.45rem] md:p-6 md:shadow-[0_18px_50px_rgba(15,23,42,0.08)]`}>
       <div className="absolute right-0 top-0 h-16 w-16 translate-x-5 -translate-y-5 rounded-full bg-current opacity-[0.07] md:h-28 md:w-28 md:translate-x-8 md:-translate-y-8" />
       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-black/5 md:h-14 md:w-14">
         {icon}
       </div>
-      <p className="mt-4 min-h-[28px] text-[10px] font-extrabold uppercase leading-tight tracking-[0.16em] text-slate-500 md:mt-6 md:text-xs md:tracking-[0.18em]">{title}</p>
+      <p className="mt-4 min-h-[28px] text-[9px] font-extrabold uppercase leading-tight tracking-[0.14em] text-slate-500 md:mt-6 md:text-xs md:tracking-[0.18em]">{title}</p>
       <p className="mt-2 text-2xl font-extrabold tracking-tight text-[#07142F] md:mt-3 md:text-4xl">{value}</p>
-      <p className="mt-1 text-[11px] leading-tight text-muted-foreground md:text-sm">{subtitle}</p>
+      <p className="mt-1 text-[10px] leading-tight text-muted-foreground md:text-sm">{subtitle}</p>
       <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-200/70 md:mt-5">
         <div className="h-full w-2/3 rounded-full bg-current opacity-70" />
       </div>
@@ -113,7 +110,7 @@ function SolarHeroArt() {
 
 function MobileHeroImage() {
   return (
-    <div className="mt-7 block h-56 overflow-hidden rounded-[1.8rem] border border-white/70 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.14)] md:hidden">
+    <div className="mt-7 block h-60 overflow-hidden rounded-[1.8rem] border border-white/70 bg-white shadow-[0_18px_55px_rgba(15,23,42,0.14)] md:hidden">
       <img
         src="/hero-dashboard.png"
         alt="Solarfeld mit Windkraft und Batteriespeicher"
@@ -131,11 +128,10 @@ function ProjectImage({ kind }: { kind: string }) {
     : 'from-green-100 via-emerald-50 to-blue-100'
 
   return (
-    <div className={`relative h-28 w-32 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} sm:h-32 sm:w-40`}>
+    <div className={`relative h-24 w-28 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} sm:h-32 sm:w-40`}>
       <div className="absolute inset-x-0 bottom-0 h-10 bg-green-500/20" />
       <div className="absolute left-4 top-8 h-12 w-20 rotate-[-10deg] rounded bg-blue-700/70 shadow-md" />
       <div className="absolute left-7 top-11 h-1 w-16 rotate-[-10deg] bg-white/50" />
-      <div className="absolute left-8 top-15 h-1 w-14 rotate-[-10deg] bg-white/40" />
       <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-[#2F8A00] shadow-sm">
         {kind === 'bess' ? 'BESS' : kind === 'hybrid' ? 'HYB' : 'PV'}
       </div>
@@ -154,8 +150,8 @@ export default async function DashboardPage() {
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
 
   return (
-    <div className="page-container space-y-7 md:space-y-8">
-      <section className="relative overflow-hidden rounded-[2rem] bg-white/0 pt-8 md:min-h-[330px] md:rounded-[2.2rem] md:bg-white/80 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+    <div className="-mx-5 space-y-7 md:mx-auto md:max-w-[1480px] md:space-y-8">
+      <section className="relative overflow-hidden bg-white/0 px-4 pt-8 md:rounded-[2.2rem] md:bg-white/80 md:p-8 md:shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
         <SolarHeroArt />
 
         <div className="relative z-10 max-w-2xl md:max-w-[52%]">
@@ -187,7 +183,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-2 sm:gap-4 md:grid-cols-3 md:gap-5">
+      <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:px-0 md:grid-cols-3 md:gap-5">
         <KpiCard
           title="Projekte gesamt"
           value={totalProjects}
@@ -211,7 +207,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.92fr_1.45fr]">
+      <div className="grid grid-cols-1 gap-5 px-3 md:px-0 xl:grid-cols-[0.92fr_1.45fr]">
         <div className="card-padded rounded-[2rem]">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
@@ -230,6 +226,8 @@ export default async function DashboardPage() {
 
             {latestProjects.map((project: any) => {
               const kind = getProjectKind(project)
+              const purchasePrice = getPurchasePrice(project)
+              const feedInType = getFeedInType(project)
 
               return (
                 <Link
@@ -237,35 +235,35 @@ export default async function DashboardPage() {
                   href={`/projects/${project.id}/overview`}
                   className="premium-lift block rounded-[1.6rem] border border-border/80 bg-white p-3 shadow-sm hover:border-[#5CB800]/25 md:p-4"
                 >
-                  <div className="flex gap-4">
+                  <div className="flex gap-3 sm:gap-4">
                     <ProjectImage kind={kind} />
                     <div className="min-w-0 flex-1 py-1">
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-lg font-extrabold text-[#07142F] md:text-base">{project.project_number ?? project.project_name}</p>
                           <p className="mt-1 flex items-center gap-1 truncate text-sm text-muted-foreground">
                             <MapPin className="h-4 w-4" /> {getLocation(project)}
                           </p>
                         </div>
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00] shadow-sm">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00] shadow-sm">
                           <ArrowRight className="h-5 w-5" />
                         </span>
                       </div>
 
-                      <div className="mt-5 grid grid-cols-3 gap-2 text-xs">
-                        <div>
+                      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                        <div className="min-w-0">
                           <p className="text-muted-foreground">Leistung</p>
-                          <p className="mt-1 font-extrabold text-[#132060]">{getProjectPower(project)}</p>
+                          <p className="mt-1 truncate font-extrabold text-[#132060]">{getProjectPower(project)}</p>
                         </div>
-                        <div>
-                          <p className="text-muted-foreground">Status</p>
-                          <p className={`mt-1 w-fit rounded-lg border px-2 py-1 font-extrabold ${getStatusClass(project.status)}`}>
-                            {getStatusLabel(project.status)}
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground">Kaufpreis</p>
+                          <p className="mt-1 truncate font-extrabold text-[#132060]">{formatMoney(purchasePrice)}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground">Einspeiseart</p>
+                          <p className="mt-1 w-fit rounded-lg border border-[#5CB800]/20 bg-[#5CB800]/10 px-2 py-1 font-extrabold text-[#2F8A00]">
+                            {feedInType}
                           </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground">Bundesland</p>
-                          <p className="mt-1 truncate font-extrabold text-[#132060]">{project.location_state ?? '–'}</p>
                         </div>
                       </div>
                     </div>
