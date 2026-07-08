@@ -1,4 +1,4 @@
-import { ProjectImportUploaderV2 } from '@/components/project-import/ProjectImportUploaderV2'
+import { ProjectImportClient } from '@/components/project-import/ProjectImportClient'
 
 export const metadata = { title: 'Projekt-Import' }
 
@@ -38,7 +38,7 @@ export default function ProjectImportPage() {
         ))}
       </div>
 
-      <ProjectImportUploaderV2 />
+      <ProjectImportClient />
     </div>
   )
 }
