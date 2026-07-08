@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud, Cable,
+  LogOut, ChevronRight, UploadCloud,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -31,7 +31,6 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Settings,
   Calculator,
   UploadCloud,
-  Cable,
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -55,16 +54,9 @@ export function Sidebar({ user }: SidebarProps) {
           const Icon   = ICON_MAP[item.iconName]
           const active = isActive(item.href)
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn('nav-item group', active && 'nav-item-active')}
-            >
+            <Link key={item.href} href={item.href} className={cn('nav-item group', active && 'nav-item-active')}>
               {Icon && (
-                <Icon className={cn(
-                  'w-5 h-5 shrink-0 transition-colors',
-                  active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]'
-                )} />
+                <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
               )}
               <span className="truncate">{item.label}</span>
               {active && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
@@ -87,23 +79,14 @@ export function Sidebar({ user }: SidebarProps) {
                 key={item.href}
                 href={isComingSoon ? '#' : item.href}
                 aria-disabled={isComingSoon}
-                className={cn(
-                  'nav-item group relative',
-                  active && !isComingSoon && 'nav-item-active',
-                  isComingSoon && 'opacity-50 cursor-not-allowed pointer-events-none'
-                )}
+                className={cn('nav-item group relative', active && !isComingSoon && 'nav-item-active', isComingSoon && 'opacity-50 cursor-not-allowed pointer-events-none')}
               >
                 {Icon && (
-                  <Icon className={cn(
-                    'w-5 h-5 shrink-0 transition-colors',
-                    active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]'
-                  )} />
+                  <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
                 )}
                 <span className="truncate">{item.label}</span>
                 {isComingSoon && (
-                  <span className="ml-auto text-2xs text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded font-medium">
-                    v1.1
-                  </span>
+                  <span className="ml-auto text-2xs text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded font-medium">v1.1</span>
                 )}
               </Link>
             )
@@ -125,11 +108,7 @@ export function Sidebar({ user }: SidebarProps) {
             <p className="text-xs text-muted-foreground truncate">Administrator</p>
           </div>
           <form action={logout}>
-            <button
-              type="submit"
-              title="Abmelden"
-              className="btn-icon text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-            >
+            <button type="submit" title="Abmelden" className="btn-icon text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors">
               <LogOut className="w-4 h-4" />
             </button>
           </form>
