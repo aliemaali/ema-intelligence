@@ -42,6 +42,10 @@ export default async function DealTab({ params }: DealTabProps) {
           bess_mwh: project.bess_mwh,
           project_type: project.project_type,
           project_number: project.project_number,
+          notes: project.notes,
+          purchase_price: project.purchase_price,
+          deal_purchase_price: project.deal_purchase_price,
+          active_deal_purchase_price: project.active_deal_purchase_price,
         }}
         deal={deal as any}
         expenses={expenses as any}
