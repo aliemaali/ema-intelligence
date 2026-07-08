@@ -50,7 +50,6 @@ const LIGHT: RGB = [247, 249, 252];
 const BORDER: RGB = [221, 226, 235];
 const RED: RGB = [218, 64, 32];
 const SOFT_GREEN: RGB = [238, 248, 229];
-const SOFT_RED: RGB = [255, 238, 235];
 
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -60,6 +59,7 @@ const CW = PAGE_W - MX * 2;
 function num(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "string") return null;
+
   const cleaned = value
     .replace(/\s/g, "")
     .replace(/€/g, "")
@@ -72,6 +72,7 @@ function num(value: unknown): number | null {
     .replace(/\./g, "")
     .replace(",", ".")
     .replace(/[^\d.-]/g, "");
+
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -112,16 +113,22 @@ function extractFromNotes(project: ExposeProjectInput, key: string): string | nu
 }
 
 function getLocation(project: ExposeProjectInput): string {
-  return (
-    str(project?.location) ??
-    str(project?.standort) ??
-    [project?.location_zip, project?.location_city, project?.location_state]
-      .filter(Boolean)
-      .join(" ")
-      .trim() ||
-    [project?.zip, project?.city, project?.state].filter(Boolean).join(" ").trim() ||
-    "Deutschland"
-  );
+  const direct = str(project?.location) ?? str(project?.standort);
+  if (direct) return direct;
+
+  const emaLocation = [project?.location_zip, project?.location_city, project?.location_state]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (emaLocation) return emaLocation;
+
+  const genericLocation = [project?.zip, project?.city, project?.state]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (genericLocation) return genericLocation;
+
+  return "Deutschland";
 }
 
 function normalize(project: ExposeProjectInput): NormalizedProjectData {
@@ -137,8 +144,7 @@ function normalize(project: ExposeProjectInput): NormalizedProjectData {
   const bessMWh = num(project?.bess_mwh ?? project?.bessCapacityMWh ?? null);
   const purchasePrice = num(project?.deal_purchase_price ?? project?.purchase_price ?? project?.ek_kaufpreis ?? extractFromNotes(project, "EK-Kaufpreis"));
 
-  const feedInType =
-    str(project?.feed_in_type ?? project?.einspeiseart ?? extractFromNotes(project, "Einspeiseart")) ?? null;
+  const feedInType = str(project?.feed_in_type ?? project?.einspeiseart ?? extractFromNotes(project, "Einspeiseart"));
 
   let tariff = num(project?.tariff ?? project?.verguetung ?? project?.vergütung ?? extractFromNotes(project, "Vergütung"));
   if (tariff !== null && tariff > 1) tariff = tariff / 100;
@@ -238,6 +244,19 @@ function onlyExisting(rows: Array<{ label: string; value: string | null | undefi
   return rows.filter((r) => r.value && r.value !== "k. A.").map((r) => ({ label: r.label, value: String(r.value) }));
 }
 
+function buildKpis(data: NormalizedProjectData): KPI[] {
+  const kpis: Array<KPI | null> = [
+    data.pvPowerLabel ? { label: "Anlagenleistung", value: data.pvPowerLabel, sub: "DC" } : null,
+    data.purchasePriceLabel ? { label: "EK-Kaufpreis", value: data.purchasePriceLabel } : null,
+    data.tariffLabel ? { label: "Vergütung", value: data.tariffLabel } : null,
+    data.specificYieldLabel ? { label: "Spezifischer Ertrag", value: data.specificYieldLabel } : null,
+    data.amortizationYears ? { label: "Amortisation", value: `${de(data.amortizationYears, 1)} Jahre` } : null,
+    data.annualYieldKWh ? { label: "Jährlicher Ertrag", value: `${de(data.annualYieldKWh, 0)} kWh` } : null,
+  ];
+
+  return kpis.filter((kpi): kpi is KPI => kpi !== null);
+}
+
 function drawAmortizationChart(doc: jsPDF, data: NormalizedProjectData, x: number, y: number, w: number, h: number) {
   const purchase = data.purchasePrice;
   const annual = data.annualRevenue;
@@ -247,7 +266,6 @@ function drawAmortizationChart(doc: jsPDF, data: NormalizedProjectData, x: numbe
   const values = Array.from({ length: years + 1 }, (_, year) => -purchase + annual * year);
   const min = Math.min(...values, -purchase);
   const max = Math.max(...values, annual * years - purchase);
-  const pad = 10;
   const chartX = x + 8;
   const chartY = y + 12;
   const chartW = w - 16;
@@ -256,7 +274,7 @@ function drawAmortizationChart(doc: jsPDF, data: NormalizedProjectData, x: numbe
 
   doc.setDrawColor(...BORDER);
   doc.setLineWidth(0.25);
-  for (let i = 0; i <= 4; i++) {
+  for (let i = 0; i <= 4; i += 1) {
     const gy = chartY + (chartH / 4) * i;
     doc.line(chartX, gy, chartX + chartW, gy);
   }
@@ -286,17 +304,15 @@ function drawAmortizationChart(doc: jsPDF, data: NormalizedProjectData, x: numbe
 
   doc.setFillColor(...SOFT_GREEN);
   doc.setDrawColor(...GREEN);
-  doc.roundedRect(be.px + 6, zeroY + 12, 34, 16, 3, 3, "FD");
+  doc.roundedRect(Math.min(be.px + 6, chartX + chartW - 38), zeroY + 12, 34, 16, 3, 3, "FD");
   set(doc, DARK_GREEN, "bold", 8);
-  doc.text("Amortisation", be.px + 9, zeroY + 18);
-  doc.text(`${de(data.amortizationYears ?? breakEven, 1)} Jahre`, be.px + 9, zeroY + 24);
+  doc.text("Amortisation", Math.min(be.px + 9, chartX + chartW - 35), zeroY + 18);
+  doc.text(`${de(data.amortizationYears ?? breakEven, 1)} Jahre`, Math.min(be.px + 9, chartX + chartW - 35), zeroY + 24);
 
   set(doc, TEXT, "normal", 7);
   doc.text("0", chartX, chartY + chartH + 7);
   doc.text("10", chartX + chartW / 2, chartY + chartH + 7, { align: "center" });
   doc.text("20 Jahre", chartX + chartW, chartY + chartH + 7, { align: "right" });
-  doc.text(euro(max, 0), chartX, chartY - 3);
-  doc.text(euro(min, 0), chartX, chartY + chartH + 14);
 }
 
 function footer(doc: jsPDF, data: NormalizedProjectData) {
@@ -320,10 +336,10 @@ export function generateExposePdf(project: ExposeProjectInput): void {
 
   logo(doc, MX, 18, 1.25);
   set(doc, NAVY, "bold", 22);
-  doc.text(data.projectName, 54, 18);
+  doc.text(doc.splitTextToSize(data.projectName, 95), 54, 18);
   set(doc, TEXT, "normal", 10);
-  doc.text(data.projectType, 54, 28);
-  doc.text(data.location, 54, 36);
+  doc.text(data.projectType, 54, 31);
+  doc.text(data.location, 54, 39);
 
   roundedCard(doc, PAGE_W - MX - 48, 12, 48, 25, LIGHT);
   set(doc, TEXT, "normal", 7);
@@ -336,25 +352,18 @@ export function generateExposePdf(project: ExposeProjectInput): void {
   try {
     const heroW = CW;
     const heroH = heroW / EMA_BANNER_ASPECT_RATIO;
-    doc.addImage(EMA_BANNER_BASE64, "JPEG", MX, 46, heroW, heroH, undefined, "FAST");
+    doc.addImage(EMA_BANNER_BASE64, "JPEG", MX, 48, heroW, heroH, undefined, "FAST");
   } catch {
     doc.setFillColor(...LIGHT);
-    doc.roundedRect(MX, 46, CW, 72, 3, 3, "F");
+    doc.roundedRect(MX, 48, CW, 72, 3, 3, "F");
   }
 
-  const kpis: KPI[] = onlyExisting([
-    { label: "Anlagenleistung", value: data.pvPowerLabel, sub: "DC" },
-    { label: "EK-Kaufpreis", value: data.purchasePriceLabel },
-    { label: "Vergütung", value: data.tariffLabel },
-    { label: "Spezifischer Ertrag", value: data.specificYieldLabel },
-    { label: "Amortisation", value: data.amortizationYears ? `${de(data.amortizationYears, 1)} Jahre` : null },
-    { label: "Jährlicher Ertrag", value: data.annualYieldKWh ? `${de(data.annualYieldKWh, 0)} kWh` : null },
-  ]).map((r) => ({ label: r.label, value: r.value }));
-
-  const kpiY = 125;
+  const kpis = buildKpis(data);
+  const kpiY = 126;
   const kpiGap = 3;
-  const kpiW = (CW - kpiGap * (kpis.length - 1)) / Math.max(kpis.length, 1);
-  kpis.slice(0, 6).forEach((kpi, i) => kpiCard(doc, kpi, MX + i * (kpiW + kpiGap), kpiY, kpiW, 32));
+  const visibleKpis = kpis.slice(0, 6);
+  const kpiW = visibleKpis.length ? (CW - kpiGap * (visibleKpis.length - 1)) / visibleKpis.length : CW;
+  visibleKpis.forEach((kpi, i) => kpiCard(doc, kpi, MX + i * (kpiW + kpiGap), kpiY, kpiW, 32));
 
   const chartY = 166;
   roundedCard(doc, MX, chartY, CW, 70);
@@ -389,11 +398,12 @@ export function generateExposePdf(project: ExposeProjectInput): void {
 
   roundedCard(doc, MX + colW + 3, lowerY, colW, 38);
   sectionTitle(doc, "Wirtschaftlich", MX + colW + 7, lowerY + 10);
-  table(doc, onlyExisting([
+  const economyRows = onlyExisting([
     { label: "EK-Kaufpreis", value: data.purchasePriceLabel },
     { label: "Jährliche Vergütung", value: data.annualRevenue ? euro(data.annualRevenue, 0) : null },
     { label: "Amortisation", value: data.amortizationYears ? `${de(data.amortizationYears, 1)} Jahre` : null },
-  ]), MX + colW + 7, lowerY + 19, colW - 8);
+  ]);
+  table(doc, economyRows, MX + colW + 7, lowerY + 19, colW - 8);
 
   roundedCard(doc, MX + (colW + 3) * 2, lowerY, colW, 38);
   sectionTitle(doc, "Hinweis", MX + (colW + 3) * 2 + 4, lowerY + 10);
