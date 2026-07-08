@@ -47,15 +47,16 @@ export function ProjectImportUploaderV2() {
     resetImportState()
   }
 
-  const upload = () => {
+  const uploadOnly = () => {
+    if (files.length === 0) return
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
 
     startTransition(async () => {
-      setMessage('')
+      setMessage('Dateien werden gespeichert ...')
       const response = await uploadProjectImportFiles(formData)
       if ('error' in response && response.error) {
-        setMessage(response.error)
+        setMessage(`Fehler beim Speichern: ${response.error}`)
         return
       }
       const id = 'importId' in response ? response.importId : null
@@ -64,13 +65,53 @@ export function ProjectImportUploaderV2() {
     })
   }
 
-  const analyze = () => {
+  const analyzeOnly = (id: string) => {
+    return analyzeProjectImport(id)
+  }
+
+  const uploadAndAnalyze = () => {
+    if (files.length === 0) return
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    startTransition(async () => {
+      setResult(null)
+      setMessage('Datei wird gespeichert ...')
+
+      let id = importId
+      if (!id) {
+        const uploadResponse = await uploadProjectImportFiles(formData)
+        if ('error' in uploadResponse && uploadResponse.error) {
+          setMessage(`Fehler beim Speichern: ${uploadResponse.error}`)
+          return
+        }
+        id = 'importId' in uploadResponse ? uploadResponse.importId ?? null : null
+        setImportId(id)
+      }
+
+      if (!id) {
+        setMessage('Import-ID fehlt. Bitte Datei erneut auswählen.')
+        return
+      }
+
+      setMessage('KI analysiert die Datei ...')
+      const analysisResponse = await analyzeOnly(id)
+      if ('error' in analysisResponse && analysisResponse.error) {
+        setMessage(`Fehler bei der KI-Analyse: ${analysisResponse.error}`)
+        return
+      }
+      setResult('result' in analysisResponse ? (analysisResponse.result as Record<string, any>) : null)
+      setMessage('KI-Analyse abgeschlossen. Bitte Daten prüfen.')
+    })
+  }
+
+  const analyzeExisting = () => {
     if (!importId) return
     startTransition(async () => {
-      setMessage('')
-      const response = await analyzeProjectImport(importId)
+      setMessage('KI analysiert die Datei ...')
+      const response = await analyzeOnly(importId)
       if ('error' in response && response.error) {
-        setMessage(response.error)
+        setMessage(`Fehler bei der KI-Analyse: ${response.error}`)
         return
       }
       setResult('result' in response ? (response.result as Record<string, any>) : null)
@@ -89,7 +130,7 @@ export function ProjectImportUploaderV2() {
           </div>
         </div>
 
-        <label className="flex min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-[#5CB800]/35 bg-gradient-to-br from-[#5CB800]/8 via-white to-blue-50/70 p-6 text-center">
+        <label className="flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-[#5CB800]/35 bg-gradient-to-br from-[#5CB800]/8 via-white to-blue-50/70 p-6 text-center sm:min-h-[280px]">
           <input
             type="file"
             multiple
@@ -127,13 +168,19 @@ export function ProjectImportUploaderV2() {
         )}
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button type="button" onClick={upload} disabled={files.length === 0 || isPending} className="btn-primary justify-center py-3 disabled:opacity-50">
-            {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <CloudUpload className="h-5 w-5" />} Speichern
+          <button type="button" onClick={uploadOnly} disabled={files.length === 0 || isPending} className="rounded-xl bg-white px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-sm ring-1 ring-border disabled:opacity-50">
+            Nur speichern
           </button>
-          <button type="button" onClick={analyze} disabled={!importId || isPending} className="rounded-xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50">
-            {isPending ? 'Bitte warten ...' : 'KI analysieren'}
+          <button type="button" onClick={uploadAndAnalyze} disabled={files.length === 0 || isPending} className="btn-primary justify-center py-3 disabled:opacity-50">
+            {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Speichern & KI analysieren
           </button>
         </div>
+
+        {importId && (
+          <button type="button" onClick={analyzeExisting} disabled={isPending} className="mt-3 w-full rounded-xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50">
+            KI erneut analysieren
+          </button>
+        )}
 
         {message && <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-sm font-bold text-[#07142F]">{message}</p>}
       </div>
