@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import {
   BadgeEuro,
   Building2,
@@ -9,12 +9,14 @@ import {
   FileSpreadsheet,
   FileText,
   Image,
+  Loader2,
   MapPin,
   ScanSearch,
   Sparkles,
   X,
   Zap,
 } from 'lucide-react'
+import { uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 
 const detectedItems = [
   'Projektname',
@@ -57,6 +59,12 @@ function SectionTitle({ icon, title, text }: { icon: React.ReactNode; title: str
 export function ProjectImportUploader() {
   const [files, setFiles] = useState<File[]>([])
   const [dragActive, setDragActive] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [uploadStatus, setUploadStatus] = useState<{
+    type: 'success' | 'error'
+    message: string
+    details?: string
+  } | null>(null)
 
   const totalSize = useMemo(
     () => files.reduce((sum, file) => sum + file.size, 0),
@@ -66,6 +74,7 @@ export function ProjectImportUploader() {
   const addFiles = (fileList: FileList | null) => {
     if (!fileList) return
     const next = Array.from(fileList)
+    setUploadStatus(null)
     setFiles((current) => {
       const existing = new Set(current.map((file) => `${file.name}-${file.size}`))
       const unique = next.filter((file) => !existing.has(`${file.name}-${file.size}`))
@@ -74,7 +83,33 @@ export function ProjectImportUploader() {
   }
 
   const removeFile = (index: number) => {
+    setUploadStatus(null)
     setFiles((current) => current.filter((_, i) => i !== index))
+  }
+
+  const handleUpload = () => {
+    if (files.length === 0 || isPending) return
+
+    const formData = new FormData()
+    files.forEach((file) => formData.append('files', file))
+
+    startTransition(async () => {
+      const result = await uploadProjectImportFiles(formData)
+
+      if ('error' in result && result.error) {
+        setUploadStatus({
+          type: 'error',
+          message: result.error,
+        })
+        return
+      }
+
+      setUploadStatus({
+        type: 'success',
+        message: `${result.uploaded?.length ?? files.length} Datei(en) erfolgreich in Supabase gespeichert.`,
+        details: `Import-ID: ${result.importId}`,
+      })
+    })
   }
 
   return (
@@ -142,7 +177,10 @@ export function ProjectImportUploader() {
               </div>
               <button
                 type="button"
-                onClick={() => setFiles([])}
+                onClick={() => {
+                  setFiles([])
+                  setUploadStatus(null)
+                }}
                 className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-muted-foreground shadow-sm"
               >
                 Leeren
@@ -169,6 +207,30 @@ export function ProjectImportUploader() {
                 </div>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={handleUpload}
+              disabled={files.length === 0 || isPending}
+              className="btn-primary mt-4 w-full justify-center py-3"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" /> Upload läuft ...
+                </>
+              ) : (
+                <>
+                  <CloudUpload className="h-5 w-5" /> Dateien speichern
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {uploadStatus && (
+          <div className={`mt-5 rounded-[1.5rem] p-4 ${uploadStatus.type === 'success' ? 'bg-[#5CB800]/10 text-[#2F8A00]' : 'bg-red-50 text-red-700'}`}>
+            <p className="text-sm font-extrabold">{uploadStatus.message}</p>
+            {uploadStatus.details && <p className="mt-1 text-xs opacity-80">{uploadStatus.details}</p>}
           </div>
         )}
 
@@ -178,8 +240,8 @@ export function ProjectImportUploader() {
               <ScanSearch className="h-5 w-5 text-[#5CB800]" />
             </div>
             <div>
-              <p className="text-sm font-extrabold">Upload aktiv</p>
-              <p className="text-xs text-white/65">Als Nächstes verbinden wir Supabase Storage und KI-Auswertung.</p>
+              <p className="text-sm font-extrabold">Supabase Upload aktiv</p>
+              <p className="text-xs text-white/65">Als Nächstes verbinden wir OCR und Datenextraktion.</p>
             </div>
           </div>
         </div>
@@ -255,7 +317,7 @@ export function ProjectImportUploader() {
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <PreviewField label="EK-Preis" value="–" />
-            <button className="btn-primary h-full min-h-[58px] justify-between px-5" type="button" disabled={files.length === 0}>
+            <button className="btn-primary h-full min-h-[58px] justify-between px-5" type="button" disabled={!uploadStatus || uploadStatus.type !== 'success'}>
               Projekt erstellen
             </button>
           </div>
