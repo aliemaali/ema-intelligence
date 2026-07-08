@@ -6,23 +6,15 @@ const BUCKET_NAME = 'project-imports'
 
 type ExtractedProjectImport = {
   partner_project_number?: string | null
-  detected_partner_name?: string | null
   project_name?: string | null
-  project_type?: string | null
   location_address?: string | null
-  location_postal_code?: string | null
   location_city?: string | null
   location_state?: string | null
-  location_country?: string | null
-  location_lat?: number | null
-  location_lng?: number | null
   pv_kwp?: number | null
-  bess_mw?: number | null
   bess_mwh?: number | null
   feed_in_type?: string | null
   purchase_price?: number | null
   confidence_score?: number | null
-  missing_fields?: string[]
   raw_extracted_text?: string | null
 }
 
@@ -78,7 +70,7 @@ async function analyzeImageWithOpenAI(file: File): Promise<ExtractedProjectImpor
             {
               type: 'text',
               text:
-                'Lies das Bild/Screenshot/Exposé aus und extrahiere: partner_project_number, detected_partner_name, project_name, project_type, location_address, location_postal_code, location_city, location_state, location_country, location_lat, location_lng, pv_kwp, bess_mw, bess_mwh, feed_in_type, purchase_price, confidence_score, missing_fields, raw_extracted_text. EK-Preis ist purchase_price. Einspeiseart nur Voll, PPA, EEG, Teileinspeisung oder Sonstige.',
+                'Extrahiere ausschließlich diese Felder als JSON: partner_project_number, project_name, location_address, location_city, location_state, pv_kwp, bess_mwh, feed_in_type, purchase_price, confidence_score, raw_extracted_text. EK-Preis ist purchase_price. Einspeiseart nur Voll, PPA, EEG, Teileinspeisung oder Sonstige.',
             },
             {
               type: 'image_url',
@@ -107,11 +99,9 @@ async function analyzeImageWithOpenAI(file: File): Promise<ExtractedProjectImpor
   return {
     ...parsed,
     pv_kwp: normalizeNumber(parsed.pv_kwp),
-    bess_mw: normalizeNumber(parsed.bess_mw),
     bess_mwh: normalizeNumber(parsed.bess_mwh),
     purchase_price: normalizeNumber(parsed.purchase_price),
     confidence_score: normalizeNumber(parsed.confidence_score),
-    missing_fields: Array.isArray(parsed.missing_fields) ? parsed.missing_fields : [],
   }
 }
 
@@ -231,10 +221,16 @@ export async function prepareProjectImport(importId: string) {
   const payload = {
     import_id: importId,
     user_id: user.id,
-    location_country: 'Deutschland',
+    partner_project_number: null,
+    project_name: null,
+    location_address: null,
+    location_city: null,
+    location_state: null,
+    pv_kwp: null,
+    bess_mwh: null,
     feed_in_type: null,
+    purchase_price: null,
     confidence_score: null,
-    missing_fields: ['project_name', 'location_city', 'pv_kwp', 'purchase_price'],
     raw_result: {
       mode: 'manual-free-phase-1',
       note: 'Kostenlose Phase 1: Daten werden manuell ergänzt. KI kann später aktiviert werden.',
@@ -327,24 +323,15 @@ export async function analyzeProjectImport(importId: string) {
     import_id: importId,
     user_id: user.id,
     partner_project_number: extracted.partner_project_number ?? null,
-    detected_partner_name: extracted.detected_partner_name ?? null,
     project_name: extracted.project_name ?? null,
-    project_type: extracted.project_type ?? null,
     location_address: extracted.location_address ?? null,
-    location_postal_code: extracted.location_postal_code ?? null,
     location_city: extracted.location_city ?? null,
     location_state: extracted.location_state ?? null,
-    location_country: extracted.location_country ?? 'Deutschland',
-    location_lat: extracted.location_lat ?? null,
-    location_lng: extracted.location_lng ?? null,
     pv_kwp: extracted.pv_kwp ?? null,
-    bess_mw: extracted.bess_mw ?? null,
     bess_mwh: extracted.bess_mwh ?? null,
     feed_in_type: extracted.feed_in_type ?? null,
     purchase_price: extracted.purchase_price ?? null,
     confidence_score: extracted.confidence_score ?? null,
-    missing_fields: extracted.missing_fields ?? [],
-    raw_extracted_text: extracted.raw_extracted_text ?? null,
     raw_result: extracted as any,
   }
 
