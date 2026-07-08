@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { BadgeEuro, CloudUpload, FileText, Image, Loader2, MapPin, Sparkles, Zap } from 'lucide-react'
+import { BadgeEuro, CloudUpload, FileText, Image, Loader2, MapPin, Sparkles, Trash2, X, Zap } from 'lucide-react'
 import { analyzeProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 
 function value(v: unknown, fallback = '–') {
@@ -31,6 +31,22 @@ export function ProjectImportUploaderV2() {
   const [message, setMessage] = useState<string>('')
   const [isPending, startTransition] = useTransition()
 
+  const resetImportState = () => {
+    setImportId(null)
+    setResult(null)
+    setMessage('')
+  }
+
+  const removeFile = (index: number) => {
+    setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))
+    resetImportState()
+  }
+
+  const clearFiles = () => {
+    setFiles([])
+    resetImportState()
+  }
+
   const upload = () => {
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
@@ -44,7 +60,7 @@ export function ProjectImportUploaderV2() {
       }
       const id = 'importId' in response ? response.importId : null
       setImportId(id ?? null)
-      setMessage('Dateien gespeichert. Du kannst jetzt die KI-Analyse starten.')
+      setMessage(id ? 'Dateien gespeichert. Du kannst jetzt die KI-Analyse starten.' : 'Upload gespeichert, aber Import-ID fehlt.')
     })
   }
 
@@ -81,9 +97,8 @@ export function ProjectImportUploaderV2() {
             className="hidden"
             onChange={(event) => {
               setFiles(Array.from(event.target.files ?? []))
-              setImportId(null)
-              setResult(null)
-              setMessage('')
+              resetImportState()
+              event.currentTarget.value = ''
             }}
           />
           <CloudUpload className="h-12 w-12 text-[#2F8A00]" />
@@ -92,18 +107,27 @@ export function ProjectImportUploaderV2() {
         </label>
 
         {files.length > 0 && (
-          <div className="mt-5 space-y-2">
-            {files.map((file) => (
-              <div key={`${file.name}-${file.size}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-muted-foreground">Ausgewählte Dateien</p>
+              <button type="button" onClick={clearFiles} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-600">
+                <Trash2 className="h-3.5 w-3.5" /> Auswahl leeren
+              </button>
+            </div>
+            {files.map((file, index) => (
+              <div key={`${file.name}-${file.size}-${index}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">
                 {file.type.startsWith('image/') ? <Image className="h-5 w-5 text-[#2F8A00]" /> : <FileText className="h-5 w-5 text-[#132060]" />}
-                <span className="truncate text-sm font-bold text-[#07142F]">{file.name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span>
+                <button type="button" onClick={() => removeFile(index)} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-muted-foreground" aria-label="Datei entfernen">
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             ))}
           </div>
         )}
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button type="button" onClick={upload} disabled={files.length === 0 || isPending} className="btn-primary justify-center py-3">
+          <button type="button" onClick={upload} disabled={files.length === 0 || isPending} className="btn-primary justify-center py-3 disabled:opacity-50">
             {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <CloudUpload className="h-5 w-5" />} Speichern
           </button>
           <button type="button" onClick={analyze} disabled={!importId || isPending} className="rounded-xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50">
@@ -148,7 +172,7 @@ export function ProjectImportUploaderV2() {
           <div className="mb-4 flex items-center gap-3"><BadgeEuro className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Wirtschaftlich</h2></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="EK-Preis" value={eur(result?.purchase_price)} />
-            <button type="button" disabled={!result} className="btn-primary justify-center py-3">Projekt erstellen</button>
+            <button type="button" disabled={!result} className="btn-primary justify-center py-3 disabled:opacity-50">Projekt erstellen</button>
           </div>
         </div>
       </div>
