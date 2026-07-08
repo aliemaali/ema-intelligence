@@ -13,13 +13,13 @@ const steps = [
 
 export default function ProjectImportPage() {
   return (
-    <div className="page-container space-y-4 pt-8 md:space-y-8 md:pt-6">
+    <div className="page-container space-y-4 pt-14 md:space-y-8 md:pt-8">
       <section className="relative overflow-hidden rounded-[2rem] bg-white/80 p-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] md:rounded-[2.2rem] md:p-8">
         <div className="absolute right-0 top-0 h-40 w-40 translate-x-16 -translate-y-16 rounded-full bg-[#5CB800]/10 md:h-52 md:w-52" />
         <div className="absolute bottom-0 right-16 h-24 w-24 rounded-full bg-[#132060]/5 md:h-32 md:w-32" />
 
         <div className="relative max-w-3xl">
-          <Link href="/dashboard" className="mb-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-extrabold text-[#07142F] shadow-sm ring-1 ring-border/80">
+          <Link href="/dashboard" className="mb-6 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-extrabold text-[#07142F] shadow-sm ring-1 ring-border/80">
             <ArrowLeft className="h-4 w-4" /> Zurück zum Dashboard
           </Link>
 
