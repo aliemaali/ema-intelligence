@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { BadgeEuro, CloudUpload, FileText, Image, Loader2, MapPin, Sparkles, Trash2, X, Zap } from 'lucide-react'
-import { prepareProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
+import { createProjectFromImport, prepareProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 
 function text(v: unknown, fallback = '–') {
   if (v === null || v === undefined || v === '') return fallback
@@ -24,11 +24,11 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function InputField({ label, defaultValue = '' }: { label: string; defaultValue?: string }) {
+function InputField({ name, label, defaultValue = '' }: { name: string; label: string; defaultValue?: string }) {
   return (
     <label className="block rounded-2xl border border-border/80 bg-white px-4 py-3 shadow-sm">
       <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
-      <input defaultValue={defaultValue} className="mt-2 w-full bg-transparent text-sm font-extrabold text-[#07142F] outline-none" />
+      <input name={name} defaultValue={defaultValue} className="mt-2 w-full bg-transparent text-sm font-extrabold text-[#07142F] outline-none" />
     </label>
   )
 }
@@ -89,6 +89,19 @@ export function ProjectImportUploaderV2() {
       if ('error' in response && response.error) return setMessage(`Fehler: ${response.error}`)
       setResult('result' in response ? (response.result as Record<string, any>) : null)
       setMessage('Daten wurden übernommen. Bitte prüfen.')
+    })
+  }
+
+  const createProject = (formData: FormData) => {
+    startTransition(async () => {
+      try {
+        setMessage('Projekt wird erstellt ...')
+        const response = await createProjectFromImport(formData)
+        if (response?.error) setMessage(`Fehler beim Erstellen: ${response.error}`)
+      } catch (error) {
+        const err = error as Error
+        if (!err.message?.includes('NEXT_REDIRECT')) setMessage('Fehler beim Erstellen des Projekts.')
+      }
     })
   }
 
@@ -158,22 +171,25 @@ export function ProjectImportUploaderV2() {
         </div>
 
         {result && (
-          <div className="card-padded rounded-[2rem] border-[#5CB800]/30">
+          <form action={createProject} className="card-padded rounded-[2rem] border-[#5CB800]/30">
+            <input type="hidden" name="import_id" value={importId ?? ''} />
             <div className="mb-4 flex items-center gap-3"><FileText className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Daten prüfen und ergänzen</h2></div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <InputField label="Projektname" defaultValue={text(result?.project_name, '')} />
-              <InputField label="Anlagenart" defaultValue={plantType} />
-              <InputField label="Ort" defaultValue={text(result?.location_city, '')} />
-              <InputField label="Bundesland" defaultValue={text(result?.location_state, '')} />
-              <InputField label="PV-Leistung" defaultValue={result?.pv_kwp ? `${text(result.pv_kwp)} kWp` : ''} />
-              <InputField label="BESS-Leistung" defaultValue={result?.bess_mwh ? `${text(result.bess_mwh)} MWh` : ''} />
-              <InputField label="Einspeiseart" defaultValue={text(result?.feed_in_type, '')} />
-              <InputField label="EK-Kaufpreis" defaultValue={result?.purchase_price ? eur(result.purchase_price) : ''} />
-              <InputField label="Vergütung" defaultValue={tariff} />
-              <InputField label="Spezifischer Ertrag" defaultValue={specificYield} />
+              <InputField name="project_name" label="Projektname" defaultValue={text(result?.project_name, '')} />
+              <InputField name="plant_type" label="Anlagenart" defaultValue={plantType} />
+              <InputField name="location_city" label="Ort" defaultValue={text(result?.location_city, '')} />
+              <InputField name="location_state" label="Bundesland" defaultValue={text(result?.location_state, '')} />
+              <InputField name="pv_kwp" label="PV-Leistung" defaultValue={result?.pv_kwp ? `${text(result.pv_kwp)} kWp` : ''} />
+              <InputField name="bess_mwh" label="BESS-Leistung" defaultValue={result?.bess_mwh ? `${text(result.bess_mwh)} MWh` : ''} />
+              <InputField name="feed_in_type" label="Einspeiseart" defaultValue={text(result?.feed_in_type, '')} />
+              <InputField name="purchase_price" label="EK-Kaufpreis" defaultValue={result?.purchase_price ? eur(result.purchase_price) : ''} />
+              <InputField name="tariff" label="Vergütung" defaultValue={tariff} />
+              <InputField name="specific_yield" label="Spezifischer Ertrag" defaultValue={specificYield} />
             </div>
-            <button type="button" className="btn-primary mt-4 w-full justify-center py-3">Projekt erstellen</button>
-          </div>
+            <button type="submit" disabled={isPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">
+              {isPending ? 'Projekt wird erstellt ...' : 'Projekt erstellen'}
+            </button>
+          </form>
         )}
 
         <div className="card-padded rounded-[2rem]">
@@ -201,7 +217,6 @@ export function ProjectImportUploaderV2() {
             <Field label="EK-Preis" value={eur(result?.purchase_price)} />
             <Field label="Vergütung" value={tariff || '–'} />
             <Field label="Spezifischer Ertrag" value={specificYield || '–'} />
-            <button type="button" disabled={!result} className="btn-primary justify-center py-3 disabled:opacity-50">Projekt erstellen</button>
           </div>
         </div>
       </div>
