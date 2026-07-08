@@ -24,7 +24,7 @@ function Field({ label, value }: { label: string; value: string }) {
   )
 }
 
-function InputField({ label, placeholder }: { label: string; placeholder: string }) {
+function InputField({ label, placeholder = '' }: { label: string; placeholder?: string }) {
   return (
     <label className="block rounded-2xl border border-border/80 bg-white px-4 py-3 shadow-sm">
       <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
@@ -196,8 +196,8 @@ export function ProjectImportUploaderV2() {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="EMA-Projektnummer" value="Automatisch" />
             <Field label="Partner-Projektnummer" value={value(result?.partner_project_number, 'Manuell eintragen')} />
-            <Field label="Partner" value={value(result?.detected_partner_name, 'Manuell eintragen')} />
             <Field label="Projektname" value={value(result?.project_name, 'Manuell eintragen')} />
+            <Field label="EK-Preis" value={eur(result?.purchase_price)} />
           </div>
         </div>
 
@@ -205,14 +205,16 @@ export function ProjectImportUploaderV2() {
           <div className="card-padded rounded-[2rem] border-[#5CB800]/30">
             <div className="mb-4 flex items-center gap-3"><FileText className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Daten manuell ergänzen</h2></div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <InputField label="Projektname" placeholder="z. B. PV Alttrebbin" />
-              <InputField label="Partner-Projektnummer" placeholder="z. B. ALT-2026-01" />
-              <InputField label="Ort" placeholder="z. B. Alttrebbin" />
-              <InputField label="Bundesland" placeholder="z. B. Brandenburg" />
-              <InputField label="PV-Leistung" placeholder="z. B. 327,85 kWp" />
-              <InputField label="BESS-Leistung" placeholder="z. B. 0 MWh" />
+              <InputField label="Projektname" />
+              <InputField label="Partner-Projektnummer" />
+              <InputField label="Ort" />
+              <InputField label="Bundesland" />
+              <InputField label="PV-Leistung" />
+              <InputField label="BESS-Leistung" />
               <InputField label="Einspeiseart" placeholder="Voll / PPA" />
-              <InputField label="EK-Kaufpreis" placeholder="z. B. 250.000 €" />
+              <InputField label="EK-Kaufpreis" />
+              <InputField label="Vergütung" />
+              <InputField label="Spezifischer Ertrag" />
             </div>
             <button type="button" className="btn-primary mt-4 w-full justify-center py-3">
               Projekt erstellen
@@ -243,6 +245,8 @@ export function ProjectImportUploaderV2() {
           <div className="mb-4 flex items-center gap-3"><BadgeEuro className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Wirtschaftlich</h2></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="EK-Preis" value={eur(result?.purchase_price)} />
+            <Field label="Vergütung" value="–" />
+            <Field label="Spezifischer Ertrag" value="–" />
             <button type="button" disabled={!result} className="btn-primary justify-center py-3 disabled:opacity-50">Projekt erstellen</button>
           </div>
         </div>
