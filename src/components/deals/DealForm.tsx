@@ -8,9 +8,16 @@ import { calculateDeal, calculateSensitivity, formatCurrency, formatPercent, cn 
 import { LoadingSpinner } from '@/components/ui'
 import type { Deal, Expense, Project, MarginType } from '@/lib/types/database.types'
 
+type DealProject = Pick<Project, 'pv_mwp' | 'bess_mwh' | 'project_type' | 'project_number'> & {
+  notes?: string | null
+  purchase_price?: number | null
+  deal_purchase_price?: number | null
+  active_deal_purchase_price?: number | null
+}
+
 interface DealFormProps {
   projectId: string
-  project: Pick<Project, 'pv_mwp' | 'bess_mwh' | 'project_type' | 'project_number'>
+  project: DealProject
   deal?: Deal | null
   expenses?: Expense[]
 }
@@ -29,11 +36,40 @@ function formatPerUnit(value: number): string {
   return Math.round(value).toLocaleString('de-DE')
 }
 
+function getNumber(value: number | null | undefined): number {
+  const numericValue = Number(value ?? 0)
+  return Number.isFinite(numericValue) && numericValue > 0 ? numericValue : 0
+}
+
+function extractPurchasePriceFromNotes(notes?: string | null): number {
+  if (!notes) return 0
+
+  const match = notes.match(
+    /(?:EK[-\s]*(?:Kaufpreis|Preis)|Einkaufspreis|Kaufpreis)\s*:?\s*([\d.]+(?:,\d{1,2})?)/i
+  )
+
+  return match?.[1] ? parseGermanInput(match[1]) : 0
+}
+
 export function DealForm({ projectId, project, deal, expenses = [] }: DealFormProps) {
   const [pending, startTransition] = useTransition()
 
   const pvKwp = Number(project.pv_mwp ?? 0)
   const hasPv = pvKwp > 0
+
+  const importedPurchasePrice = useMemo(() => {
+    return (
+      getNumber(project.purchase_price) ||
+      getNumber(project.deal_purchase_price) ||
+      getNumber(project.active_deal_purchase_price) ||
+      extractPurchasePriceFromNotes(project.notes)
+    )
+  }, [
+    project.purchase_price,
+    project.deal_purchase_price,
+    project.active_deal_purchase_price,
+    project.notes,
+  ])
 
   const getExpenseAmount = (category: string) =>
     expenses.find((expense) => expense.category === category)?.amount_eur ?? 0
@@ -43,7 +79,7 @@ export function DealForm({ projectId, project, deal, expenses = [] }: DealFormPr
     ? existingExternalCommission / pvKwp
     : 0
 
-  const [purchasePrice, setPurchasePrice] = useState<number>(deal?.purchase_price ?? 0)
+  const [purchasePrice, setPurchasePrice] = useState<number>(deal?.purchase_price ?? importedPurchasePrice)
   const [marginType, setMarginType] = useState<MarginType>(deal?.margin_type === 'per_mwh' ? 'percent' : deal?.margin_type ?? 'percent')
   const [marginValue, setMarginValue] = useState<number>(deal?.margin_type === 'per_mwh' ? 0 : deal?.margin_value ?? 0)
   const [externalCommissionPerKwp, setExternalCommissionPerKwp] = useState<number>(existingExternalCommissionPerKwp)
