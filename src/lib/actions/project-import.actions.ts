@@ -68,6 +68,24 @@ export async function uploadProjectImportFiles(formData: FormData) {
     })
   }
 
+  const { error: insertError } = await supabase.from('project_imports').insert({
+    id: importId,
+    user_id: user.id,
+    import_status: 'uploaded',
+    source_type: files.some((file) => file.type.startsWith('image/')) ? 'photo' : 'upload',
+    file_count: uploaded.length,
+    storage_bucket: BUCKET_NAME,
+    storage_paths: uploaded.map((file) => file.path),
+    original_file_names: uploaded.map((file) => file.name),
+  } as never)
+
+  if (insertError) {
+    return {
+      error: `Dateien wurden gespeichert, aber der Import konnte nicht registriert werden: ${insertError.message}`,
+      uploaded,
+    }
+  }
+
   return {
     success: true,
     importId,
