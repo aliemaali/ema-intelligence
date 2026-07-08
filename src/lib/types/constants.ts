@@ -55,7 +55,6 @@ export const PROJECT_STATUS_ORDER: ProjectStatus[] = [
   'abgelehnt',
 ]
 
-// Tailwind color classes per status (used in badges)
 export const PROJECT_STATUS_COLORS: Record<ProjectStatus, {
   bg: string; text: string; dot: string
 }> = {
@@ -146,7 +145,7 @@ export const ACTIVITY_TYPE_LABELS: Record<ActivityType, string> = {
   deal_update:      'Deal aktualisiert',
   task_created:     'Aufgabe erstellt',
   partner_linked:   'Partner verknüpft',
-  investor_linked:  'Investor verknüpft',
+  investor_linked:  'Investoren verknüpft',
   manual:           'Manueller Eintrag',
 }
 
@@ -208,17 +207,18 @@ export const INVESTOR_SIZE_LABELS: Record<string, string> = {
 export interface NavItem {
   label:    string
   href:     string
-  iconName: string  // lucide icon name
+  iconName: string
   badge?:   number
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard',   href: '/dashboard',  iconName: 'LayoutDashboard' },
-  { label: 'Projekte',    href: '/projects',   iconName: 'FolderOpen' },
-  { label: 'Deals',       href: '/deals',      iconName: 'Handshake' },
-  { label: 'Partner',     href: '/partners',   iconName: 'Users' },
-  { label: 'Investoren',  href: '/investors',  iconName: 'Building2' },
-  { label: 'Aufgaben',    href: '/tasks',      iconName: 'CheckSquare' },
+  { label: 'Dashboard',      href: '/dashboard',       iconName: 'LayoutDashboard' },
+  { label: 'Projekte',       href: '/projects',        iconName: 'FolderOpen' },
+  { label: 'Projekt-Import', href: '/project-import',  iconName: 'UploadCloud' },
+  { label: 'Deals',          href: '/deals',           iconName: 'Handshake' },
+  { label: 'Partner',        href: '/partners',        iconName: 'Users' },
+  { label: 'Investoren',     href: '/investors',       iconName: 'Building2' },
+  { label: 'Aufgaben',       href: '/tasks',           iconName: 'CheckSquare' },
 ]
 
 export const NAV_ITEMS_MOBILE: NavItem[] = [
@@ -233,14 +233,14 @@ export const NAV_ITEMS_MOBILE: NavItem[] = [
     iconName: 'FolderOpen',
   },
   {
+    label: 'Import',
+    href: '/project-import',
+    iconName: 'UploadCloud',
+  },
+  {
     label: 'Investoren',
     href: '/investors',
     iconName: 'Building2',
-  },
-  {
-    label: 'Partner',
-    href: '/partners',
-    iconName: 'Users',
   },
   {
     label: 'CAPEX',
