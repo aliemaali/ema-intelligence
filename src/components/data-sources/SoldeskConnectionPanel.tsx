@@ -11,6 +11,15 @@ type Step = {
   done: boolean
 }
 
+type SyncDetails = {
+  projectCount?: number
+  documentCount?: number
+  sampleProjects?: string[]
+  loginAction?: string
+  loginMethod?: string
+  httpStatus?: number
+}
+
 const STATUS_LABELS: Record<ConnectionState, string> = {
   not_connected: 'Nicht verbunden',
   checking: 'Wird geprüft',
@@ -66,18 +75,29 @@ export function SoldeskConnectionPanel() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('Gib deine Soldesk-Daten ein und prüfe zuerst die Verbindung.')
   const [lastChecked, setLastChecked] = useState<string | null>(null)
+  const [lastSync, setLastSync] = useState<string | null>(null)
+  const [details, setDetails] = useState<SyncDetails>({})
   const [pending, startTransition] = useTransition()
 
   const canConnect = username.trim().length > 0 && password.trim().length > 0
   const reachable = status === 'reachable' || status === 'syncing'
+  const projectCount = details.projectCount ?? 0
+  const documentCount = details.documentCount ?? 0
 
   const steps: Step[] = [
     { label: 'Login-Maske in EMA', done: true },
     { label: 'Soldesk erreichbar prüfen', done: reachable || status === 'blocked' },
-    { label: 'Login-Parser entwickeln', done: false },
-    { label: 'Projektliste abrufen', done: false },
-    { label: 'Datenraum-Dokumente importieren', done: false },
+    { label: 'Login-Parser entwickeln', done: reachable || status === 'syncing' },
+    { label: 'Projektliste abrufen', done: projectCount > 0 },
+    { label: 'Datenraum-Dokumente importieren', done: documentCount > 0 },
   ]
+
+  const makeCredentialsFormData = () => {
+    const formData = new FormData()
+    formData.set('username', username)
+    formData.set('password', password)
+    return formData
+  }
 
   const handleConnectionCheck = () => {
     if (!canConnect) {
@@ -86,29 +106,34 @@ export function SoldeskConnectionPanel() {
       return
     }
 
-    const formData = new FormData()
-    formData.set('username', username)
-    formData.set('password', password)
-
     startTransition(async () => {
       setStatus('checking')
       setMessage('Soldesk wird serverseitig geprüft ...')
 
-      const result = await testSoldeskConnection(formData)
-      setStatus(result.status === 'reachable' ? 'reachable' : result.status === 'error' ? 'error' : 'not_connected')
+      const result = await testSoldeskConnection(makeCredentialsFormData())
+      setStatus(result.status === 'reachable' ? 'reachable' : result.status === 'error' ? 'error' : 'blocked')
       setMessage(result.message)
+      setDetails(result.details ?? {})
       setLastChecked(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }))
     })
   }
 
   const handleSync = () => {
+    if (!canConnect) {
+      setStatus('not_connected')
+      setMessage('Bitte Soldesk-Zugangsdaten eingeben.')
+      return
+    }
+
     startTransition(async () => {
       setStatus('syncing')
-      setMessage('Synchronisierung wird vorbereitet ...')
+      setMessage('Soldesk Login und Projekterkennung laufen ...')
 
-      const result = await syncSoldeskProjects()
-      setStatus(result.status === 'blocked' ? 'blocked' : result.status === 'error' ? 'error' : 'syncing')
+      const result = await syncSoldeskProjects(makeCredentialsFormData())
+      setStatus(result.status === 'reachable' ? 'syncing' : result.status === 'blocked' ? 'blocked' : result.status === 'error' ? 'error' : 'not_connected')
       setMessage(result.message)
+      setDetails(result.details ?? {})
+      setLastSync(new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }))
     })
   }
 
@@ -178,9 +203,21 @@ export function SoldeskConnectionPanel() {
             <div className="min-w-0 flex-1">
               <p className="text-base font-black text-[#07142F]">{message}</p>
               {lastChecked && <p className="mt-2 text-sm font-bold text-muted-foreground">Zuletzt geprüft: {lastChecked}</p>}
+              {details.loginAction && <p className="mt-1 text-xs font-bold text-muted-foreground">Login erkannt: {details.loginMethod ?? 'POST'} · {details.httpStatus ?? '–'}</p>}
             </div>
           </div>
         </div>
+
+        {details.sampleProjects && details.sampleProjects.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-[#5CB800]/20 bg-[#5CB800]/5 p-4">
+            <p className="mb-2 text-sm font-black text-[#07142F]">Erkannte Projekt-/Datenraum-Links</p>
+            <div className="space-y-2">
+              {details.sampleProjects.map((project, index) => (
+                <p key={`${project}-${index}`} className="rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#07142F] shadow-sm">{project}</p>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card-padded rounded-[2rem]">
@@ -190,9 +227,9 @@ export function SoldeskConnectionPanel() {
         </div>
 
         <div className="mb-6 grid grid-cols-4 gap-3">
-          <Metric icon={FileText} label="Neue Projekte" value="0" />
-          <Metric icon={FolderOpen} label="Dokumente bereit" value="0" tone="blue" />
-          <Metric icon={Clock3} label="Letzte Sync" value="–" tone="amber" />
+          <Metric icon={FileText} label="Neue Projekte" value={String(projectCount)} />
+          <Metric icon={FolderOpen} label="Dokumente bereit" value={String(documentCount)} tone="blue" />
+          <Metric icon={Clock3} label="Letzte Sync" value={lastSync ? lastSync : '–'} tone="amber" />
           <Metric icon={CheckCircle2} label="Verbindung" value={reachable ? 'OK' : '–'} />
         </div>
 
