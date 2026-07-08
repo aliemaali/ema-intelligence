@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { BadgeEuro, CloudUpload, FileText, Image, Loader2, MapPin, Sparkles, Trash2, X, Zap } from 'lucide-react'
-import { analyzeProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
+import { prepareProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 
 function value(v: unknown, fallback = '–') {
   if (v === null || v === undefined || v === '') return fallback
@@ -21,6 +21,15 @@ function Field({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-extrabold text-[#07142F]">{value}</p>
     </div>
+  )
+}
+
+function InputField({ label, placeholder }: { label: string; placeholder: string }) {
+  return (
+    <label className="block rounded-2xl border border-border/80 bg-white px-4 py-3 shadow-sm">
+      <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
+      <input className="mt-2 w-full bg-transparent text-sm font-extrabold text-[#07142F] outline-none placeholder:text-muted-foreground" placeholder={placeholder} />
+    </label>
   )
 }
 
@@ -61,15 +70,11 @@ export function ProjectImportUploaderV2() {
       }
       const id = 'importId' in response ? response.importId : null
       setImportId(id ?? null)
-      setMessage(id ? 'Dateien gespeichert. Du kannst jetzt die KI-Analyse starten.' : 'Upload gespeichert, aber Import-ID fehlt.')
+      setMessage(id ? 'Dateien gespeichert. Du kannst jetzt den Import vorbereiten.' : 'Upload gespeichert, aber Import-ID fehlt.')
     })
   }
 
-  const analyzeOnly = (id: string) => {
-    return analyzeProjectImport(id)
-  }
-
-  const uploadAndAnalyze = () => {
+  const prepareImport = () => {
     if (files.length === 0) return
     const formData = new FormData()
     files.forEach((file) => formData.append('files', file))
@@ -94,28 +99,28 @@ export function ProjectImportUploaderV2() {
         return
       }
 
-      setMessage('KI analysiert die Datei ...')
-      const analysisResponse = await analyzeOnly(id)
-      if ('error' in analysisResponse && analysisResponse.error) {
-        setMessage(`Fehler bei der KI-Analyse: ${analysisResponse.error}`)
+      setMessage('Import wird vorbereitet ...')
+      const prepareResponse = await prepareProjectImport(id)
+      if ('error' in prepareResponse && prepareResponse.error) {
+        setMessage(`Fehler beim Vorbereiten: ${prepareResponse.error}`)
         return
       }
-      setResult('result' in analysisResponse ? (analysisResponse.result as Record<string, any>) : null)
-      setMessage('KI-Analyse abgeschlossen. Bitte Daten prüfen.')
+      setResult('result' in prepareResponse ? (prepareResponse.result as Record<string, any>) : null)
+      setMessage('Import vorbereitet. Ergänze jetzt die Projektdaten manuell.')
     })
   }
 
-  const analyzeExisting = () => {
+  const prepareExisting = () => {
     if (!importId) return
     startTransition(async () => {
-      setMessage('KI analysiert die Datei ...')
-      const response = await analyzeOnly(importId)
+      setMessage('Import wird vorbereitet ...')
+      const response = await prepareProjectImport(importId)
       if ('error' in response && response.error) {
-        setMessage(`Fehler bei der KI-Analyse: ${response.error}`)
+        setMessage(`Fehler beim Vorbereiten: ${response.error}`)
         return
       }
       setResult('result' in response ? (response.result as Record<string, any>) : null)
-      setMessage('KI-Analyse abgeschlossen. Bitte Daten prüfen.')
+      setMessage('Import vorbereitet. Ergänze jetzt die Projektdaten manuell.')
     })
   }
 
@@ -171,14 +176,14 @@ export function ProjectImportUploaderV2() {
           <button type="button" onClick={uploadOnly} disabled={files.length === 0 || isPending} className="rounded-xl bg-white px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-sm ring-1 ring-border disabled:opacity-50">
             Nur speichern
           </button>
-          <button type="button" onClick={uploadAndAnalyze} disabled={files.length === 0 || isPending} className="btn-primary justify-center py-3 disabled:opacity-50">
-            {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Speichern & KI analysieren
+          <button type="button" onClick={prepareImport} disabled={files.length === 0 || isPending} className="btn-primary justify-center py-3 disabled:opacity-50">
+            {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Import vorbereiten
           </button>
         </div>
 
         {importId && (
-          <button type="button" onClick={analyzeExisting} disabled={isPending} className="mt-3 w-full rounded-xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50">
-            KI erneut analysieren
+          <button type="button" onClick={prepareExisting} disabled={isPending} className="mt-3 w-full rounded-xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50">
+            Import erneut vorbereiten
           </button>
         )}
 
@@ -190,11 +195,30 @@ export function ProjectImportUploaderV2() {
           <div className="mb-4 flex items-center gap-3"><Sparkles className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Projekt-Vorschau</h2></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="EMA-Projektnummer" value="Automatisch" />
-            <Field label="Partner-Projektnummer" value={value(result?.partner_project_number, 'Aus Exposé')} />
-            <Field label="Partner" value={value(result?.detected_partner_name, 'Erkennung')} />
-            <Field label="Projektname" value={value(result?.project_name, 'Aus Exposé')} />
+            <Field label="Partner-Projektnummer" value={value(result?.partner_project_number, 'Manuell eintragen')} />
+            <Field label="Partner" value={value(result?.detected_partner_name, 'Manuell eintragen')} />
+            <Field label="Projektname" value={value(result?.project_name, 'Manuell eintragen')} />
           </div>
         </div>
+
+        {result && (
+          <div className="card-padded rounded-[2rem] border-[#5CB800]/30">
+            <div className="mb-4 flex items-center gap-3"><FileText className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Daten manuell ergänzen</h2></div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <InputField label="Projektname" placeholder="z. B. PV Alttrebbin" />
+              <InputField label="Partner-Projektnummer" placeholder="z. B. ALT-2026-01" />
+              <InputField label="Ort" placeholder="z. B. Alttrebbin" />
+              <InputField label="Bundesland" placeholder="z. B. Brandenburg" />
+              <InputField label="PV-Leistung" placeholder="z. B. 327,85 kWp" />
+              <InputField label="BESS-Leistung" placeholder="z. B. 0 MWh" />
+              <InputField label="Einspeiseart" placeholder="Voll / PPA" />
+              <InputField label="EK-Kaufpreis" placeholder="z. B. 250.000 €" />
+            </div>
+            <button type="button" className="btn-primary mt-4 w-full justify-center py-3">
+              Projekt erstellen
+            </button>
+          </div>
+        )}
 
         <div className="card-padded rounded-[2rem]">
           <div className="mb-4 flex items-center gap-3"><MapPin className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Standort</h2></div>
