@@ -215,6 +215,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard',      href: '/dashboard',       iconName: 'LayoutDashboard' },
   { label: 'Projekte',       href: '/projects',        iconName: 'FolderOpen' },
   { label: 'Projekt-Import', href: '/project-import',  iconName: 'UploadCloud' },
+  { label: 'Datenquellen',   href: '/data-sources',    iconName: 'Cable' },
   { label: 'Deals',          href: '/deals',           iconName: 'Handshake' },
   { label: 'Partner',        href: '/partners',        iconName: 'Users' },
   { label: 'Investoren',     href: '/investors',       iconName: 'Building2' },
