@@ -1,5 +1,7 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 const BUCKET_NAME = 'project-imports'
@@ -50,6 +52,16 @@ function normalizeNumber(value: unknown) {
   return Number.isFinite(number) ? number : null
 }
 
+function getString(formData: FormData, key: string) {
+  const value = formData.get(key)
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function getStringOrNull(formData: FormData, key: string) {
+  const value = getString(formData, key)
+  return value ? value : null
+}
+
 function cleanText(text: string) {
   return text
     .replace(/\u00a0/g, ' ')
@@ -65,6 +77,12 @@ function firstMatch(text: string, patterns: RegExp[]) {
     if (match?.[1]) return match[1].trim()
   }
   return null
+}
+
+function inferProjectType(plantType?: string | null) {
+  const raw = (plantType ?? '').toLowerCase()
+  if (raw.includes('aufdach') || raw.includes('dach')) return 'pv_dach'
+  return 'pv_freiflaeche'
 }
 
 function extractUploadedProjectData(text: string): ExtractedProjectImport {
@@ -167,14 +185,15 @@ async function extractTextFromBlob(blob: Blob, fileName?: string | null) {
   return ''
 }
 
-export async function uploadProjectImportFiles(formData: FormData) {
+async function requireUser() {
   const supabase = await createClient()
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) redirect('/login')
+  return { supabase, userId: user.id }
+}
 
-  if (userError || !user) return { error: 'Nicht angemeldet. Bitte neu einloggen.' }
+export async function uploadProjectImportFiles(formData: FormData) {
+  const { supabase, userId } = await requireUser()
 
   const files = formData
     .getAll('files')
@@ -187,7 +206,7 @@ export async function uploadProjectImportFiles(formData: FormData) {
 
   for (const file of files) {
     const safeName = sanitizeFileName(file.name || 'import-datei')
-    const path = `${user.id}/imports/${importId}/${Date.now()}-${safeName}`
+    const path = `${userId}/imports/${importId}/${Date.now()}-${safeName}`
 
     const { error } = await supabase.storage.from(BUCKET_NAME).upload(path, file, {
       cacheControl: '3600',
@@ -202,7 +221,7 @@ export async function uploadProjectImportFiles(formData: FormData) {
 
   const { error: insertError } = await supabase.from('project_imports').insert({
     id: importId,
-    user_id: user.id,
+    user_id: userId,
     import_status: 'uploaded',
     source_type: files.some((file) => file.type.startsWith('image/')) ? 'photo' : 'upload',
     file_count: uploaded.length,
@@ -219,19 +238,13 @@ export async function uploadProjectImportFiles(formData: FormData) {
 }
 
 export async function prepareProjectImport(importId: string) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError || !user) return { error: 'Nicht angemeldet. Bitte neu einloggen.' }
+  const { supabase, userId } = await requireUser()
 
   const { data: projectImport, error: importError } = await supabase
     .from('project_imports')
     .select('*')
     .eq('id', importId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   if (importError || !projectImport) return { error: 'Import wurde nicht gefunden.' }
@@ -256,7 +269,7 @@ export async function prepareProjectImport(importId: string) {
 
   const payload = {
     import_id: importId,
-    user_id: user.id,
+    user_id: userId,
     partner_project_number: extracted.partner_project_number ?? null,
     project_name: extracted.project_name ?? null,
     location_address: extracted.location_address ?? null,
@@ -280,7 +293,7 @@ export async function prepareProjectImport(importId: string) {
     .from('project_import_results')
     .select('id')
     .eq('import_id', importId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle()
 
   const query = existing
@@ -295,9 +308,95 @@ export async function prepareProjectImport(importId: string) {
     .from('project_imports')
     .update({ import_status: 'ready' } as never)
     .eq('id', importId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   return { success: true, result }
+}
+
+export async function createProjectFromImport(formData: FormData) {
+  const { supabase, userId } = await requireUser()
+
+  const importId = getString(formData, 'import_id')
+  const projectName = getString(formData, 'project_name')
+
+  if (!projectName) return { error: 'Projektname fehlt.' }
+
+  const plantType = getString(formData, 'plant_type')
+  const purchasePrice = getString(formData, 'purchase_price')
+  const tariff = getString(formData, 'tariff')
+  const specificYield = getString(formData, 'specific_yield')
+  const feedInType = getString(formData, 'feed_in_type')
+
+  const notes = [
+    plantType ? `Anlagenart: ${plantType}` : null,
+    purchasePrice ? `EK-Kaufpreis: ${purchasePrice}` : null,
+    tariff ? `Vergütung: ${tariff}` : null,
+    specificYield ? `Spezifischer Ertrag: ${specificYield}` : null,
+    feedInType ? `Einspeiseart: ${feedInType}` : null,
+    importId ? `Import-ID: ${importId}` : null,
+  ].filter(Boolean).join('\n')
+
+  const insertData = {
+    user_id: userId,
+    project_name: projectName,
+    project_type: inferProjectType(plantType),
+    status: 'lead',
+    priority: 'mittel',
+    marketing_status: 'nicht_gestartet',
+    partner_id: null,
+    contact_name: null,
+    contact_email: null,
+    contact_phone: null,
+    location_city: getStringOrNull(formData, 'location_city'),
+    location_state: getStringOrNull(formData, 'location_state'),
+    location_country: 'Deutschland',
+    pv_mwp: normalizeNumber(formData.get('pv_kwp')),
+    pv_ac_mw: null,
+    bess_mw: null,
+    bess_mwh: normalizeNumber(formData.get('bess_mwh')),
+    bess_duration_h: null,
+    hybrid_config: null,
+    dev_status: {
+      netzanschluss: null,
+      baugenehmigung: null,
+      pachtvertrag: null,
+      eeg_faehigkeit: null,
+      gutachten: null,
+      umweltpruefung: null,
+    },
+    notes: notes || null,
+    tags: ['import'],
+    is_archived: false,
+  }
+
+  const { data, error } = await supabase
+    .from('projects')
+    .insert(insertData as never)
+    .select('id, project_number, project_name')
+    .single()
+
+  if (error) return { error: error.message }
+
+  await supabase.from('activity_log').insert({
+    user_id: userId,
+    project_id: (data as any).id,
+    activity_type: 'manual' as never,
+    title: 'Projekt aus Import erstellt',
+    description: `${(data as any).project_number} – ${(data as any).project_name}`,
+    metadata: { import_id: importId || null },
+  })
+
+  if (importId) {
+    await supabase
+      .from('project_imports')
+      .update({ import_status: 'created' } as never)
+      .eq('id', importId)
+      .eq('user_id', userId)
+  }
+
+  revalidatePath('/projects')
+  revalidatePath('/dashboard')
+  redirect(`/projects/${(data as any).id}/overview`)
 }
 
 export async function analyzeProjectImport(importId: string) {
