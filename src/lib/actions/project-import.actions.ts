@@ -3,8 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import type { DocumentType } from '@/lib/types/database.types'
 
 const BUCKET_NAME = 'project-imports'
+const PROJECT_DOCUMENTS_BUCKET = 'project-documents'
 
 type ExtractedProjectImport = {
   partner_project_number?: string | null
@@ -21,6 +23,13 @@ type ExtractedProjectImport = {
   specific_yield?: string | null
   confidence_score?: number | null
   raw_extracted_text?: string | null
+}
+
+type ImportedFileMeta = {
+  name: string
+  path: string
+  size: number | null
+  type: string | null
 }
 
 function sanitizeFileName(name: string) {
@@ -85,6 +94,49 @@ function inferProjectType(plantType?: string | null) {
   return 'pv_freiflaeche'
 }
 
+function inferDocumentType(fileName: string, mimeType?: string | null): DocumentType {
+  const raw = `${fileName} ${mimeType ?? ''}`.toLowerCase()
+
+  if (raw.includes('exposé') || raw.includes('expose') || raw.includes('angebot')) return 'expose'
+  if (raw.includes('lageplan') || raw.includes('flur') || raw.includes('karte')) return 'lageplan'
+  if (raw.includes('netz') || raw.includes('anschluss') || raw.includes('einspeise')) return 'netzanschluss'
+  if (raw.includes('pacht') || raw.includes('miet')) return 'pachtvertrag'
+  if (raw.includes('genehm') || raw.includes('b-plan') || raw.includes('bau')) return 'genehmigung'
+  if (raw.includes('gutachten') || raw.includes('statik') || raw.includes('ertrag')) return 'gutachten'
+  if (raw.includes('nda')) return 'nda'
+  if (raw.includes('loi')) return 'loi'
+  if (raw.includes('spa')) return 'spa'
+  if (raw.startsWith('image/') || raw.includes('image/') || /\.(jpg|jpeg|png|webp|heic)$/i.test(fileName)) return 'bild'
+
+  return 'sonstiges'
+}
+
+function stripFileExtension(fileName: string) {
+  return fileName.replace(/\.[^/.]+$/, '')
+}
+
+function mergeExtractedData(current: ExtractedProjectImport, next: ExtractedProjectImport): ExtractedProjectImport {
+  const currentScore = current.confidence_score ?? 0
+  const nextScore = next.confidence_score ?? 0
+
+  return {
+    partner_project_number: current.partner_project_number ?? next.partner_project_number ?? null,
+    project_name: current.project_name ?? next.project_name ?? null,
+    plant_type: current.plant_type ?? next.plant_type ?? null,
+    location_address: current.location_address ?? next.location_address ?? null,
+    location_city: current.location_city ?? next.location_city ?? null,
+    location_state: current.location_state ?? next.location_state ?? null,
+    pv_kwp: current.pv_kwp ?? next.pv_kwp ?? null,
+    bess_mwh: current.bess_mwh ?? next.bess_mwh ?? null,
+    feed_in_type: current.feed_in_type ?? next.feed_in_type ?? null,
+    purchase_price: current.purchase_price ?? next.purchase_price ?? null,
+    tariff: current.tariff ?? next.tariff ?? null,
+    specific_yield: current.specific_yield ?? next.specific_yield ?? null,
+    confidence_score: Math.max(currentScore, nextScore),
+    raw_extracted_text: [current.raw_extracted_text, next.raw_extracted_text].filter(Boolean).join('\n\n--- DATEI ---\n\n').slice(0, 12000),
+  }
+}
+
 function extractUploadedProjectData(text: string): ExtractedProjectImport {
   const normalized = cleanText(text)
 
@@ -112,6 +164,7 @@ function extractUploadedProjectData(text: string): ExtractedProjectImport {
   ])
 
   const purchaseText = firstMatch(normalized, [
+    /(?:EK[-\s]*(?:Kaufpreis|Preis)|Einkaufspreis)\s*:?\s*([\d.,]+)\s*(?:€|EUR)?/i,
     /Kaufpreis\s*:?\s*([\d.,]+)\s*(?:€|EUR)/i,
     /Preis\s*:?\s*([\d.,]+)\s*(?:€|EUR)/i,
     /([\d.]+,\d{2})\s*(?:€|EUR)/i,
@@ -249,21 +302,40 @@ export async function prepareProjectImport(importId: string) {
 
   if (importError || !projectImport) return { error: 'Import wurde nicht gefunden.' }
 
-  const paths = (projectImport as any).storage_paths as string[]
+  const paths = ((projectImport as any).storage_paths as string[]) ?? []
   const names = ((projectImport as any).original_file_names as string[]) ?? []
   let extracted: ExtractedProjectImport = { confidence_score: 0, raw_extracted_text: '' }
+  const fileResults: Array<{ name: string; path: string; status: 'read' | 'skipped' | 'error'; message?: string }> = []
 
-  if (paths?.length) {
+  for (const [index, path] of paths.entries()) {
+    const name = names[index] ?? `Datei ${index + 1}`
+
     try {
-      const { data: fileBlob, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(paths[0])
+      const { data: fileBlob, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(path)
       if (downloadError || !fileBlob) throw new Error(downloadError?.message ?? 'Datei konnte nicht gelesen werden')
-      const extractedText = await extractTextFromBlob(fileBlob, names[0])
-      extracted = extractUploadedProjectData(extractedText)
-    } catch (error) {
-      extracted = {
-        confidence_score: 0,
-        raw_extracted_text: error instanceof Error ? error.message : 'Texterkennung fehlgeschlagen',
+
+      const extractedText = await extractTextFromBlob(fileBlob, name)
+      if (!extractedText.trim()) {
+        fileResults.push({ name, path, status: 'skipped', message: 'Kein Text erkannt' })
+        continue
       }
+
+      extracted = mergeExtractedData(extracted, extractUploadedProjectData(extractedText))
+      fileResults.push({ name, path, status: 'read' })
+    } catch (error) {
+      fileResults.push({
+        name,
+        path,
+        status: 'error',
+        message: error instanceof Error ? error.message : 'Texterkennung fehlgeschlagen',
+      })
+    }
+  }
+
+  if (!paths.length) {
+    extracted = {
+      confidence_score: 0,
+      raw_extracted_text: 'Keine Dateien im Import gefunden',
     }
   }
 
@@ -281,11 +353,12 @@ export async function prepareProjectImport(importId: string) {
     purchase_price: extracted.purchase_price ?? null,
     confidence_score: extracted.confidence_score ?? null,
     raw_result: {
-      mode: 'free-ocr-regex-phase-1',
+      mode: 'soldesk-data-room-v1-3',
       plant_type: extracted.plant_type ?? null,
       tariff: extracted.tariff ?? null,
       specific_yield: extracted.specific_yield ?? null,
       raw_extracted_text: extracted.raw_extracted_text ?? null,
+      data_room_files: fileResults,
     },
   }
 
@@ -313,6 +386,122 @@ export async function prepareProjectImport(importId: string) {
   return { success: true, result }
 }
 
+async function getImportFilesForProject(importId: string, userId: string) {
+  const supabase = await createClient()
+
+  const { data: projectImport } = await supabase
+    .from('project_imports')
+    .select('storage_paths, original_file_names')
+    .eq('id', importId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const paths = ((projectImport as any)?.storage_paths as string[]) ?? []
+  const names = ((projectImport as any)?.original_file_names as string[]) ?? []
+
+  return paths.map((path, index): ImportedFileMeta => ({
+    path,
+    name: names[index] ?? `Soldesk-Datei-${index + 1}`,
+    size: null,
+    type: null,
+  }))
+}
+
+async function attachImportedFilesToProject(params: {
+  projectId: string
+  userId: string
+  importId: string
+}) {
+  const supabase = await createClient()
+  const files = await getImportFilesForProject(params.importId, params.userId)
+  const documentRows: Array<Record<string, unknown>> = []
+
+  for (const file of files) {
+    const { data: sourceBlob, error: downloadError } = await supabase.storage.from(BUCKET_NAME).download(file.path)
+    if (downloadError || !sourceBlob) continue
+
+    const safeName = sanitizeFileName(file.name || 'soldesk-datei')
+    const targetPath = `${params.userId}/${params.projectId}/${Date.now()}-${safeName}`
+    const mimeType = sourceBlob.type || file.type || 'application/octet-stream'
+
+    const { error: uploadError } = await supabase.storage.from(PROJECT_DOCUMENTS_BUCKET).upload(targetPath, sourceBlob, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: mimeType,
+    })
+
+    if (uploadError) continue
+
+    documentRows.push({
+      project_id: params.projectId,
+      user_id: params.userId,
+      document_type: inferDocumentType(file.name, mimeType),
+      display_name: stripFileExtension(file.name) || file.name,
+      file_name: file.name,
+      file_path: targetPath,
+      file_size_bytes: sourceBlob.size ?? file.size ?? 0,
+      mime_type: mimeType,
+      version: 1,
+    })
+  }
+
+  if (documentRows.length > 0) {
+    await supabase.from('documents').insert(documentRows as never)
+  }
+
+  return documentRows.length
+}
+
+async function createDealFromImport(params: {
+  projectId: string
+  userId: string
+  purchasePrice: number | null
+  pvKwp: number | null
+  bessMwh: number | null
+  notes: string | null
+}) {
+  if (!params.purchasePrice || params.purchasePrice <= 0) return null
+
+  const supabase = await createClient()
+  const year = new Date().getFullYear()
+  const { count } = await supabase
+    .from('deals')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', params.userId)
+
+  const num = String((count ?? 0) + 1).padStart(3, '0')
+  const dealNumber = `DEAL-${year}-${num}`
+  const purchasePerKwp = params.pvKwp ? params.purchasePrice / params.pvKwp : null
+  const purchasePerMwh = params.bessMwh ? params.purchasePrice / params.bessMwh : null
+
+  const { data, error } = await supabase
+    .from('deals')
+    .insert({
+      project_id: params.projectId,
+      user_id: params.userId,
+      deal_number: dealNumber,
+      is_active: true,
+      deal_status: 'open',
+      purchase_price: params.purchasePrice,
+      purchase_per_kwp: purchasePerKwp,
+      purchase_per_mwh: purchasePerMwh,
+      margin_type: 'percent',
+      margin_value: 0,
+      margin_eur: 0,
+      sales_price: params.purchasePrice,
+      gross_margin: 0,
+      gross_margin_pct: 0,
+      net_profit: 0,
+      net_profit_pct: 0,
+      notes: params.notes,
+    } as never)
+    .select('id, deal_number')
+    .single()
+
+  if (error) return null
+  return data as { id: string; deal_number: string }
+}
+
 export async function createProjectFromImport(formData: FormData) {
   const { supabase, userId } = await requireUser()
 
@@ -323,11 +512,15 @@ export async function createProjectFromImport(formData: FormData) {
 
   const plantType = getString(formData, 'plant_type')
   const purchasePrice = getString(formData, 'purchase_price')
+  const purchasePriceNumber = normalizeNumber(purchasePrice)
   const tariff = getString(formData, 'tariff')
   const specificYield = getString(formData, 'specific_yield')
   const feedInType = getString(formData, 'feed_in_type')
+  const pvKwp = normalizeNumber(formData.get('pv_kwp'))
+  const bessMwh = normalizeNumber(formData.get('bess_mwh'))
 
   const notes = [
+    'Quelle: Soldesk-Datenraum Import',
     plantType ? `Anlagenart: ${plantType}` : null,
     purchasePrice ? `EK-Kaufpreis: ${purchasePrice}` : null,
     tariff ? `Vergütung: ${tariff}` : null,
@@ -350,10 +543,10 @@ export async function createProjectFromImport(formData: FormData) {
     location_city: getStringOrNull(formData, 'location_city'),
     location_state: getStringOrNull(formData, 'location_state'),
     location_country: 'Deutschland',
-    pv_mwp: normalizeNumber(formData.get('pv_kwp')),
+    pv_mwp: pvKwp,
     pv_ac_mw: null,
     bess_mw: null,
-    bess_mwh: normalizeNumber(formData.get('bess_mwh')),
+    bess_mwh: bessMwh,
     bess_duration_h: null,
     hybrid_config: null,
     dev_status: {
@@ -365,7 +558,7 @@ export async function createProjectFromImport(formData: FormData) {
       umweltpruefung: null,
     },
     notes: notes || null,
-    tags: ['import'],
+    tags: ['import', 'soldesk'],
     is_archived: false,
   }
 
@@ -377,13 +570,31 @@ export async function createProjectFromImport(formData: FormData) {
 
   if (error) return { error: error.message }
 
+  const projectId = (data as any).id as string
+  const attachedDocumentCount = importId
+    ? await attachImportedFilesToProject({ projectId, userId, importId })
+    : 0
+
+  const deal = await createDealFromImport({
+    projectId,
+    userId,
+    purchasePrice: purchasePriceNumber,
+    pvKwp,
+    bessMwh,
+    notes: 'Automatisch aus Soldesk-Import erstellt. Marge bitte im Deal-Tab ergänzen.',
+  })
+
   await supabase.from('activity_log').insert({
     user_id: userId,
-    project_id: (data as any).id,
+    project_id: projectId,
     activity_type: 'manual' as never,
-    title: 'Projekt aus Import erstellt',
+    title: 'Projektakte aus Soldesk erstellt',
     description: `${(data as any).project_number} – ${(data as any).project_name}`,
-    metadata: { import_id: importId || null },
+    metadata: {
+      import_id: importId || null,
+      attached_documents: attachedDocumentCount,
+      deal_number: deal?.deal_number ?? null,
+    },
   })
 
   if (importId) {
@@ -396,7 +607,9 @@ export async function createProjectFromImport(formData: FormData) {
 
   revalidatePath('/projects')
   revalidatePath('/dashboard')
-  redirect(`/projects/${(data as any).id}/overview`)
+  revalidatePath(`/projects/${projectId}/documents`)
+  revalidatePath(`/projects/${projectId}/deal`)
+  redirect(`/projects/${projectId}/overview`)
 }
 
 export async function analyzeProjectImport(importId: string) {
