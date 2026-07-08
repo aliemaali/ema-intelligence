@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud,
+  LogOut, ChevronRight, UploadCloud, Cable,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -31,6 +31,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Settings,
   Calculator,
   UploadCloud,
+  Cable,
 }
 
 export function Sidebar({ user }: SidebarProps) {
