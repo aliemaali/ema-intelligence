@@ -15,7 +15,7 @@ import {
   LogOut,
   Menu,
   Settings,
-  Sun,
+  UploadCloud,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -24,7 +24,7 @@ import { logout } from '@/lib/actions/auth.actions'
 const MAIN_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Projekte', href: '/projects', icon: FolderOpen },
-  { label: 'Soldesk', href: '/data-sources', icon: Sun },
+  { label: 'Import', href: '/project-import', icon: UploadCloud },
   { label: 'EMA AI', href: '/ai', icon: Bot },
 ] as const
 
