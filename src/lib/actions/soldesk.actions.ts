@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 const SOLDESK_DATENRAUM_URL = 'https://sonnenexpert.soldesk-portal.de/datenraum/'
+const SOLDESK_ORIGIN = 'https://sonnenexpert.soldesk-portal.de'
 
 type SoldeskStatus = 'not_connected' | 'reachable' | 'blocked' | 'error'
 
@@ -21,6 +22,9 @@ type SoldeskActionResult = {
     projectCount?: number
     documentCount?: number
     sampleProjects?: string[]
+    detectedMode?: string
+    discoveredUrls?: string[]
+    apiEndpoint?: string
   }
 }
 
@@ -39,6 +43,9 @@ type LoginResult = {
   status: number
   message: string
   form?: LoginForm | null
+  mode: 'html-form' | 'spa' | 'api' | 'unknown'
+  apiEndpoint?: string
+  discoveredUrls: string[]
 }
 
 async function requireUser() {
@@ -58,6 +65,14 @@ function absolutizeUrl(base: string, value: string) {
     return new URL(value || base, base).toString()
   } catch {
     return base
+  }
+}
+
+function sameOrigin(url: string) {
+  try {
+    return new URL(url).origin === SOLDESK_ORIGIN
+  } catch {
+    return false
   }
 }
 
@@ -160,49 +175,181 @@ function extractProjectCandidates(html: string) {
   }
 }
 
+function discoverClientUrls(html: string, pageUrl: string) {
+  const urls = new Set<string>()
+  const patterns = [
+    /<(?:script|link)\b[^>]*(?:src|href)=["']([^"']+)["']/gi,
+    /["']([^"']*(?:api|auth|login|datenraum|projects?|documents?|expose|download)[^"']*)["']/gi,
+  ]
+
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) {
+      const raw = decodeHtml(match[1] ?? '').trim()
+      if (!raw || raw.startsWith('data:') || raw.startsWith('mailto:')) continue
+      const absolute = absolutizeUrl(pageUrl, raw)
+      if (sameOrigin(absolute)) urls.add(absolute)
+    }
+  }
+
+  return Array.from(urls).slice(0, 30)
+}
+
+function detectSpaMode(html: string) {
+  const text = html.toLowerCase()
+  return text.includes('__next') || text.includes('vite') || text.includes('webpack') || text.includes('react') || text.includes('app-root') || text.includes('root')
+}
+
 async function fetchSoldeskPage(url = SOLDESK_DATENRAUM_URL, cookies = '') {
   const response = await fetch(url, {
     method: 'GET',
     cache: 'no-store',
     redirect: 'manual',
     headers: {
-      'User-Agent': 'EMA-Intelligence-Soldesk-Connector/1.0',
+      'User-Agent': 'EMA-Intelligence-Soldesk-Connector/1.1',
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       ...(cookies ? { Cookie: cookies } : {}),
     },
   })
 
   const html = await response.text().catch(() => '')
-  return { response, html, cookies: parseCookies(response.headers) }
+  return { response, html, cookies: parseCookies(response.headers), url }
+}
+
+async function findLoginSurface(initialHtml: string, initialCookies: string) {
+  const loginCandidates = [
+    SOLDESK_DATENRAUM_URL,
+    `${SOLDESK_ORIGIN}/login`,
+    `${SOLDESK_ORIGIN}/auth/login`,
+    `${SOLDESK_ORIGIN}/signin`,
+    `${SOLDESK_ORIGIN}/anmelden`,
+    `${SOLDESK_ORIGIN}/`,
+  ]
+
+  const discovered = new Set<string>(discoverClientUrls(initialHtml, SOLDESK_DATENRAUM_URL))
+  for (const url of loginCandidates) discovered.add(url)
+
+  for (const url of Array.from(discovered).filter((candidate) => /login|signin|anmelden|datenraum|auth|portal/i.test(candidate))) {
+    try {
+      const page = url === SOLDESK_DATENRAUM_URL
+        ? { html: initialHtml, response: { status: 200 } as Response, cookies: initialCookies, url }
+        : await fetchSoldeskPage(url, initialCookies)
+      const form = detectLoginForm(page.html, url)
+      if (form) return { pageUrl: url, html: page.html, form, cookies: mergeCookies(initialCookies, page.cookies), discoveredUrls: Array.from(discovered) }
+      discoverClientUrls(page.html, url).forEach((found) => discovered.add(found))
+    } catch {
+      // Keep probing other known candidates.
+    }
+  }
+
+  return { pageUrl: SOLDESK_DATENRAUM_URL, html: initialHtml, form: null, cookies: initialCookies, discoveredUrls: Array.from(discovered) }
+}
+
+async function tryKnownApiLogin(username: string, password: string, cookies: string, discoveredUrls: string[]) {
+  const endpoints = new Set<string>([
+    `${SOLDESK_ORIGIN}/api/login`,
+    `${SOLDESK_ORIGIN}/api/auth/login`,
+    `${SOLDESK_ORIGIN}/api/authenticate`,
+    `${SOLDESK_ORIGIN}/api/v1/login`,
+    `${SOLDESK_ORIGIN}/api/v1/auth/login`,
+    `${SOLDESK_ORIGIN}/login`,
+    `${SOLDESK_ORIGIN}/auth/login`,
+  ])
+
+  discoveredUrls
+    .filter((url) => /api|auth|login|authenticate/i.test(url))
+    .forEach((url) => endpoints.add(url))
+
+  const payloads = [
+    { email: username, password },
+    { username, password },
+    { login: username, password },
+  ]
+
+  for (const endpoint of endpoints) {
+    for (const payload of payloads) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          cache: 'no-store',
+          redirect: 'manual',
+          headers: {
+            'User-Agent': 'EMA-Intelligence-Soldesk-Connector/1.1',
+            Accept: 'application/json,text/plain,*/*',
+            'Content-Type': 'application/json',
+            Cookie: cookies,
+            Referer: SOLDESK_DATENRAUM_URL,
+          },
+          body: JSON.stringify(payload),
+        })
+
+        const text = await response.text().catch(() => '')
+        const responseCookies = mergeCookies(cookies, parseCookies(response.headers))
+        const ok = response.status >= 200 && response.status < 300 && !/invalid|error|fehler|unauthorized|forbidden/i.test(text)
+
+        if (ok || response.status === 302 || response.status === 303) {
+          const dataRoom = await fetchSoldeskPage(SOLDESK_DATENRAUM_URL, responseCookies)
+          return { ok: true, endpoint, cookies: responseCookies, html: dataRoom.html, status: dataRoom.response.status }
+        }
+      } catch {
+        // Try next endpoint/payload combination.
+      }
+    }
+  }
+
+  return null
 }
 
 async function attemptSoldeskLogin(username: string, password: string): Promise<LoginResult> {
   const initial = await fetchSoldeskPage()
   const initialCookies = initial.cookies
-  const form = detectLoginForm(initial.html, SOLDESK_DATENRAUM_URL)
+  const surface = await findLoginSurface(initial.html, initialCookies)
+  const discoveredUrls = surface.discoveredUrls.slice(0, 30)
 
-  if (!form) {
+  if (!surface.form) {
+    const apiLogin = await tryKnownApiLogin(username, password, surface.cookies, discoveredUrls)
+    if (apiLogin) {
+      return {
+        ok: true,
+        html: apiLogin.html,
+        cookies: apiLogin.cookies,
+        status: apiLogin.status,
+        message: 'Soldesk API-Login wurde ausgeführt. Projektliste kann als Nächstes ausgewertet werden.',
+        form: null,
+        mode: 'api',
+        apiEndpoint: apiLogin.endpoint,
+        discoveredUrls,
+      }
+    }
+
     const ok = looksLoggedIn(initial.html)
+    const isSpa = detectSpaMode(initial.html)
     return {
       ok,
       html: initial.html,
       cookies: initialCookies,
       status: initial.response.status,
       message: ok
-        ? 'Soldesk-Datenraum ist ohne Loginformular erreichbar.'
-        : 'Soldesk ist erreichbar, aber EMA konnte kein Loginformular erkennen.',
+        ? 'Soldesk-Datenraum ist ohne klassisches Loginformular erreichbar.'
+        : isSpa
+          ? 'Soldesk ist erreichbar, aber als JavaScript-App geladen. EMA hat noch keinen passenden API-Login gefunden.'
+          : 'Soldesk ist erreichbar, aber EMA konnte kein Loginformular erkennen.',
       form: null,
+      mode: isSpa ? 'spa' : 'unknown',
+      discoveredUrls,
     }
   }
 
+  const form = surface.form
   if (!form.usernameField || !form.passwordField) {
     return {
       ok: false,
-      html: initial.html,
-      cookies: initialCookies,
+      html: surface.html,
+      cookies: surface.cookies,
       status: initial.response.status,
       message: 'Loginformular erkannt, aber Benutzername- oder Passwortfeld fehlt.',
       form,
+      mode: 'html-form',
+      discoveredUrls,
     }
   }
 
@@ -220,16 +367,16 @@ async function attemptSoldeskLogin(username: string, password: string): Promise<
     cache: 'no-store',
     redirect: 'manual',
     headers: {
-      'User-Agent': 'EMA-Intelligence-Soldesk-Connector/1.0',
+      'User-Agent': 'EMA-Intelligence-Soldesk-Connector/1.1',
       Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Content-Type': 'application/x-www-form-urlencoded',
-      Cookie: initialCookies,
-      Referer: SOLDESK_DATENRAUM_URL,
+      Cookie: surface.cookies,
+      Referer: surface.pageUrl,
     },
     body: form.method === 'POST' ? body.toString() : undefined,
   })
 
-  const loginCookies = mergeCookies(initialCookies, parseCookies(loginResponse.headers))
+  const loginCookies = mergeCookies(surface.cookies, parseCookies(loginResponse.headers))
   const location = loginResponse.headers.get('location')
   const followUrl = location ? absolutizeUrl(form.action, location) : SOLDESK_DATENRAUM_URL
 
@@ -246,6 +393,25 @@ async function attemptSoldeskLogin(username: string, password: string): Promise<
       ? 'Soldesk Login wurde serverseitig ausgeführt. Projektliste kann als Nächstes ausgewertet werden.'
       : 'Login wurde ausgeführt, aber EMA erkennt noch keine eingeloggte Datenraum-Seite.',
     form,
+    mode: 'html-form',
+    discoveredUrls,
+  }
+}
+
+function buildDetails(login: LoginResult, candidates: ReturnType<typeof extractProjectCandidates>, nextStep: string) {
+  return {
+    portalUrl: SOLDESK_DATENRAUM_URL,
+    httpStatus: login.status,
+    loginAction: login.form?.action,
+    loginMethod: login.form?.method,
+    loginFields: login.form?.inputs.map((input) => input.name).slice(0, 12),
+    projectCount: candidates.projectCount,
+    documentCount: candidates.documentCount,
+    sampleProjects: candidates.sampleProjects,
+    detectedMode: login.mode,
+    apiEndpoint: login.apiEndpoint,
+    discoveredUrls: login.discoveredUrls.slice(0, 8),
+    nextStep,
   }
 }
 
@@ -272,19 +438,9 @@ export async function testSoldeskConnection(formData: FormData): Promise<Soldesk
       success: login.ok,
       status: login.ok ? 'reachable' : 'blocked',
       message: login.message,
-      details: {
-        portalUrl: SOLDESK_DATENRAUM_URL,
-        httpStatus: login.status,
-        loginAction: login.form?.action,
-        loginMethod: login.form?.method,
-        loginFields: login.form?.inputs.map((input) => input.name).slice(0, 12),
-        projectCount: candidates.projectCount,
-        documentCount: candidates.documentCount,
-        sampleProjects: candidates.sampleProjects,
-        nextStep: login.ok
-          ? 'Projektliste strukturieren und echte Projektkarten daraus erzeugen.'
-          : 'Loginformular manuell prüfen und Feldnamen anpassen.',
-      },
+      details: buildDetails(login, candidates, login.ok
+        ? 'Projektliste strukturieren und echte Projektkarten daraus erzeugen.'
+        : 'JS-App/API-Endpunkte auswerten und Login-Mapping anpassen.'),
     }
   } catch (error) {
     return {
@@ -319,14 +475,8 @@ export async function syncSoldeskProjects(formData?: FormData): Promise<SoldeskA
       return {
         success: false,
         status: 'blocked',
-        message: 'EMA konnte sich noch nicht sicher in Soldesk anmelden. Login-Parser muss weiter angepasst werden.',
-        details: {
-          portalUrl: SOLDESK_DATENRAUM_URL,
-          httpStatus: login.status,
-          loginAction: login.form?.action,
-          loginMethod: login.form?.method,
-          nextStep: 'Soldesk HTML/Loginstruktur prüfen.',
-        },
+        message: 'EMA konnte sich noch nicht sicher in Soldesk anmelden. Die Login-Art wurde analysiert und muss final gemappt werden.',
+        details: buildDetails(login, candidates, 'Konkreten API-Endpunkt oder JS-Login-Flow fest verdrahten.'),
       }
     }
 
@@ -334,14 +484,7 @@ export async function syncSoldeskProjects(formData?: FormData): Promise<SoldeskA
       success: true,
       status: 'reachable',
       message: `Soldesk Login erfolgreich. ${candidates.projectCount} mögliche Projekt-/Datenraum-Links und ${candidates.documentCount} Dokument-Links erkannt.`,
-      details: {
-        portalUrl: SOLDESK_DATENRAUM_URL,
-        httpStatus: login.status,
-        projectCount: candidates.projectCount,
-        documentCount: candidates.documentCount,
-        sampleProjects: candidates.sampleProjects,
-        nextStep: 'Erkannte Links als Import-Vorschau anzeigen und Dublettenprüfung bauen.',
-      },
+      details: buildDetails(login, candidates, 'Erkannte Links als Import-Vorschau anzeigen und Dublettenprüfung bauen.'),
     }
   } catch (error) {
     return {
