@@ -195,6 +195,74 @@ export async function uploadProjectImportFiles(formData: FormData) {
   }
 }
 
+export async function prepareProjectImport(importId: string) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    return { error: 'Nicht angemeldet. Bitte neu einloggen.' }
+  }
+
+  const { data: projectImport, error: importError } = await supabase
+    .from('project_imports')
+    .select('*')
+    .eq('id', importId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (importError || !projectImport) {
+    return { error: 'Import wurde nicht gefunden.' }
+  }
+
+  const { data: existing } = await supabase
+    .from('project_import_results')
+    .select('*')
+    .eq('import_id', importId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (existing) {
+    return { success: true, result: existing }
+  }
+
+  const payload = {
+    import_id: importId,
+    user_id: user.id,
+    location_country: 'Deutschland',
+    feed_in_type: null,
+    confidence_score: null,
+    missing_fields: ['project_name', 'location_city', 'pv_kwp', 'purchase_price'],
+    raw_result: {
+      mode: 'manual-free-phase-1',
+      note: 'Kostenlose Phase 1: Daten werden manuell ergänzt. KI kann später aktiviert werden.',
+    },
+  }
+
+  const { data: result, error: resultError } = await supabase
+    .from('project_import_results')
+    .insert(payload as never)
+    .select('*')
+    .single()
+
+  if (resultError) {
+    return { error: `Import wurde gespeichert, aber die Vorschau konnte nicht vorbereitet werden: ${resultError.message}` }
+  }
+
+  await supabase
+    .from('project_imports')
+    .update({ import_status: 'ready' } as never)
+    .eq('id', importId)
+    .eq('user_id', user.id)
+
+  return {
+    success: true,
+    result,
+  }
+}
+
 export async function analyzeProjectImport(importId: string) {
   const supabase = await createClient()
   const {
