@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import L from 'leaflet'
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
 type ProjectMapItem = {
@@ -17,6 +16,12 @@ type ProjectMapItem = {
   bess_mwh?: number | null
   status?: string | null
 }
+
+const GERMANY_CENTER: [number, number] = [51.1657, 10.4515]
+const GERMANY_BOUNDS: [[number, number], [number, number]] = [
+  [47.15, 5.5],
+  [55.15, 15.5],
+]
 
 const STATE_COORDS: Record<string, [number, number]> = {
   'Schleswig-Holstein': [54.2194, 9.6961],
@@ -66,7 +71,7 @@ function getLocation(project: ProjectMapItem) {
 function getPosition(project: ProjectMapItem, index: number): [number, number] {
   const city = project.location_city ?? ''
   const state = project.location_state ?? ''
-  const base = CITY_COORDS[city] ?? STATE_COORDS[state] ?? [51.1657, 10.4515]
+  const base = CITY_COORDS[city] ?? STATE_COORDS[state] ?? GERMANY_CENTER
   const offset = (index % 5) * 0.08
   return [base[0] + offset, base[1] + offset]
 }
@@ -87,40 +92,32 @@ function getIcon(project: ProjectMapItem) {
   })
 }
 
-function FitBounds({ positions }: { positions: [number, number][] }) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (positions.length === 0) return
-    const bounds = L.latLngBounds(positions)
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 8 })
-  }, [map, positions])
-
-  return null
-}
-
 export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
   const visibleProjects = projects.filter((p) => p.location_city || p.location_state)
-  const positions = useMemo(() => visibleProjects.map((project, index) => getPosition(project, index)), [visibleProjects])
 
   return (
     <div className="relative h-[430px] overflow-hidden rounded-2xl border border-border bg-muted">
       <MapContainer
-        center={[51.1657, 10.4515]}
+        center={GERMANY_CENTER}
         zoom={6}
-        scrollWheelZoom
-        dragging
-        doubleClickZoom
-        touchZoom
-        zoomControl
-        className="h-full w-full"
+        minZoom={6}
+        maxZoom={6}
+        maxBounds={GERMANY_BOUNDS}
+        maxBoundsViscosity={1}
+        scrollWheelZoom={false}
+        dragging={false}
+        doubleClickZoom={false}
+        touchZoom={false}
+        boxZoom={false}
+        keyboard={false}
+        zoomControl={false}
+        attributionControl
+        className="h-full w-full cursor-default"
       >
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-
-        <FitBounds positions={positions} />
 
         {visibleProjects.map((project, index) => {
           const position = getPosition(project, index)
