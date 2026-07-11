@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getProject } from '@/lib/actions/project.actions'
 import { getCapexCalculationsForProject } from '@/lib/actions/capex.actions'
 import { CapexCalculator } from '@/components/capex/CapexCalculator'
 import type { ProjectOption } from '@/lib/types/capex.types'
@@ -11,34 +11,57 @@ interface PageProps {
   params: Promise<{ projectId: string }>
 }
 
+function firstPositive(...values: unknown[]) {
+  for (const value of values) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return null
+}
+
 export default async function CapexProjectPage({ params }: PageProps) {
   const { projectId } = await params
 
-  const supabase = await createClient()
-  const { data: projectRow, error } = await supabase
-    .from('projects')
-    .select('id, project_name, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country, ai_score_details')
-    .eq('id', projectId)
-    .single()
+  let projectRow: any
+  try {
+    projectRow = await getProject(projectId)
+  } catch {
+    notFound()
+  }
 
-  if (error || !projectRow) notFound()
+  if (!projectRow) notFound()
 
-  const emaAi = (projectRow.ai_score_details as any)?.ema_ai ?? {}
-  const storedTariff = Number(emaAi.tariff ?? 0)
+  const emaAi = projectRow.ai_score_details?.ema_ai ?? {}
+  const storedTariff = firstPositive(
+    emaAi.tariff,
+    projectRow.tariff,
+    projectRow.feed_in_tariff,
+    projectRow.verguetung,
+  ) ?? 0
   const tariffEurKwh = storedTariff > 1 ? storedTariff / 100 : storedTariff
 
   const projectOption: ProjectOption = {
-    id: projectRow.id,
-    name: projectRow.project_name,
-    pv_mwp: projectRow.pv_mwp,
-    pv_ac_mw: projectRow.pv_ac_mw,
-    bess_mw: projectRow.bess_mw,
-    bess_mwh: projectRow.bess_mwh,
-    bess_duration_h: projectRow.bess_duration_h,
-    location_city: projectRow.location_city,
-    location_state: projectRow.location_state,
-    location_country: projectRow.location_country,
-    specific_yield: Number(emaAi.specific_yield ?? 0) || null,
+    id: String(projectRow.id),
+    name: projectRow.project_name ?? 'Unbenanntes Projekt',
+    pv_mwp: firstPositive(
+      projectRow.pv_kwp,
+      projectRow.pv_power_kwp,
+      projectRow.pv_capacity_kwp,
+      projectRow.capacity_kwp,
+      projectRow.pv_mwp,
+    ),
+    pv_ac_mw: projectRow.pv_ac_mw ?? null,
+    bess_mw: projectRow.bess_mw ?? null,
+    bess_mwh: projectRow.bess_mwh ?? null,
+    bess_duration_h: projectRow.bess_duration_h ?? null,
+    location_city: projectRow.location_city ?? null,
+    location_state: projectRow.location_state ?? null,
+    location_country: projectRow.location_country ?? null,
+    specific_yield: firstPositive(
+      emaAi.specific_yield,
+      projectRow.specific_yield,
+      projectRow.spezifischer_ertrag,
+    ),
     tariff_eur_kwh: tariffEurKwh || null,
   }
 
