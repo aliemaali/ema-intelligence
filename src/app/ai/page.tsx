@@ -6,6 +6,14 @@ export const metadata = {
   description: 'Exposé- und Amortisationsassistent von EMA Intelligence',
 }
 
+function firstPositive(...values: unknown[]) {
+  for (const value of values) {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return null
+}
+
 export default async function EmaAiPage() {
   const projects = await getProjects()
 
@@ -20,32 +28,38 @@ export default async function EmaAiPage() {
       status: project.status ?? null,
       locationCity: project.location_city ?? null,
       locationState: project.location_state ?? null,
-      pvKwp: project.pv_mwp ?? null,
+      pvKwp: firstPositive(
+        project.pv_kwp,
+        project.pv_power_kwp,
+        project.pv_capacity_kwp,
+        project.capacity_kwp,
+        project.pv_mwp,
+      ),
       bessMw: project.bess_mw ?? null,
       bessMwh: project.bess_mwh ?? null,
-      purchasePrice:
-        project.purchase_price ??
-        project.deal_purchase_price ??
-        project.active_deal_purchase_price ??
-        emaAi.purchase_price ??
-        null,
+      purchasePrice: firstPositive(
+        project.purchase_price,
+        project.deal_purchase_price,
+        project.active_deal_purchase_price,
+        emaAi.purchase_price,
+      ),
       feedInType:
         project.feed_in_type ??
         project.einspeiseart ??
         project.feed_in_model ??
         project.offtake_type ??
         null,
-      tariff:
-        project.tariff ??
-        project.feed_in_tariff ??
-        project.verguetung ??
-        emaAi.tariff ??
-        null,
-      specificYield:
-        project.specific_yield ??
-        project.spezifischer_ertrag ??
-        emaAi.specific_yield ??
-        null,
+      tariff: firstPositive(
+        emaAi.tariff,
+        project.tariff,
+        project.feed_in_tariff,
+        project.verguetung,
+      ),
+      specificYield: firstPositive(
+        emaAi.specific_yield,
+        project.specific_yield,
+        project.spezifischer_ertrag,
+      ),
       rawProject: project,
     }
   })
