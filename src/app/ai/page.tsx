@@ -8,8 +8,8 @@ export const metadata = {
 
 function firstPositive(...values: unknown[]) {
   for (const value of values) {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed) && parsed > 0) return parsed
+    const number = Number(value)
+    if (Number.isFinite(number) && number > 0) return number
   }
   return null
 }
@@ -29,20 +29,19 @@ export default async function EmaAiPage() {
       locationCity: project.location_city ?? null,
       locationState: project.location_state ?? null,
       pvKwp: firstPositive(
+        emaAi.pv_kwp,
         project.pv_kwp,
-        project.pv_power_kwp,
-        project.pv_capacity_kwp,
-        project.capacity_kwp,
+        project.anlagenleistung_kwp,
         project.pv_mwp,
       ),
       bessMw: project.bess_mw ?? null,
       bessMwh: project.bess_mwh ?? null,
-      purchasePrice: firstPositive(
-        project.purchase_price,
-        project.deal_purchase_price,
-        project.active_deal_purchase_price,
-        emaAi.purchase_price,
-      ),
+      purchasePrice:
+        project.purchase_price ??
+        project.deal_purchase_price ??
+        project.active_deal_purchase_price ??
+        emaAi.purchase_price ??
+        null,
       feedInType:
         project.feed_in_type ??
         project.einspeiseart ??
