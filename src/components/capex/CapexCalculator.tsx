@@ -7,10 +7,9 @@ import { defaultCapexProject, type CapexProject, type ProjectOption } from '@/li
 import { saveCapexCalculation, deleteCapexCalculation } from '@/lib/actions/capex.actions'
 import { CapexForm } from './CapexForm'
 import { CapexList } from './CapexList'
-import { CapexExpose } from './CapexExpose'
 import { CapexExportPanel } from './CapexExportPanel'
 
-type View = 'form' | 'list' | 'expose' | 'export'
+type View = 'form' | 'list' | 'export'
 
 interface CapexCalculatorProps {
   projectOption: ProjectOption
@@ -19,10 +18,7 @@ interface CapexCalculatorProps {
 
 export function CapexCalculator({ projectOption, initialCalculations }: CapexCalculatorProps) {
   const [calculations, setCalculations] = useState<CapexProject[]>(initialCalculations)
-  const [project, setProject] = useState<CapexProject>(() => {
-    const base = defaultCapexProject(projectOption)
-    return { ...base, projektname: projectOption.name }
-  })
+  const [project, setProject] = useState<CapexProject>(() => defaultCapexProject(projectOption))
   const [view, setView] = useState<View>('form')
   const [toast, setToast] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -52,8 +48,7 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
   }
 
   function handleNew() {
-    const base = defaultCapexProject(projectOption)
-    setProject({ ...base, projektname: projectOption.name })
+    setProject(defaultCapexProject(projectOption))
     setView('form')
   }
 
@@ -74,32 +69,25 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
     })
   }
 
-  if (view === 'expose') {
-    return <CapexExpose project={project} calc={calc} onBack={() => setView('form')} />
-  }
-
   return (
-    <div className="mx-auto min-h-screen max-w-[480px] bg-[#fafafa] px-3.5 pb-20 pt-3.5">
-      {/* Header */}
-      <div className="mb-1 rounded-xl bg-[#1F2A44] px-4 py-4 text-white">
-        <div className="text-lg font-extrabold">EMA CAPEX Rechner</div>
-        <div className="mt-0.5 text-xs opacity-[0.85]">Projekt: {projectOption.name}</div>
+    <div className="mx-auto w-full max-w-5xl rounded-[2rem] bg-[#fafafa] px-3.5 pb-20 pt-0 md:px-6">
+      <div className="mb-3 rounded-[1.65rem] bg-[#1F2A44] px-5 py-6 text-white shadow-sm">
+        <div className="text-xl font-extrabold md:text-2xl">EMA CAPEX Rechner</div>
+        <div className="mt-1 text-sm opacity-[0.85]">Projekt: {projectOption.name}</div>
       </div>
 
-      {/* Tab bar */}
-      <div className="mb-1 mt-2.5 flex gap-1.5">
+      <div className="mb-4 grid grid-cols-3 gap-2">
         {(
           [
             { key: 'form', label: 'Eingabe' },
             { key: 'list', label: `Kalkulationen (${calculations.length})` },
-            { key: 'expose', label: 'Exposé' },
             { key: 'export', label: 'Export' },
           ] as { key: View; label: string }[]
         ).map((t) => (
           <button
             key={t.key}
             onClick={() => setView(t.key)}
-            className={`flex-1 rounded-lg px-1 py-2.5 text-[11.5px] font-bold transition-colors ${
+            className={`min-h-14 rounded-2xl px-2 py-3 text-xs font-extrabold transition-colors md:text-sm ${
               view === t.key ? 'bg-[#5CB800] text-white' : 'bg-slate-200 text-slate-600'
             }`}
           >
@@ -126,7 +114,7 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
       {view === 'export' && <CapexExportPanel project={project} calc={calc} />}
 
       {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-[#1F2A44] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-lg">
+        <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-[#1F2A44] px-[18px] py-2.5 text-[13px] font-semibold text-white shadow-lg">
           {toast}
         </div>
       )}
