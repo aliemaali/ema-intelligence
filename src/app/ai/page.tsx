@@ -3,7 +3,7 @@ import { getProjects } from '@/lib/actions/project.actions'
 
 export const metadata = {
   title: 'EMA-AI',
-  description: 'Der intelligente Projektassistent von EMA Intelligence',
+  description: 'Exposé- und Amortisationsassistent von EMA Intelligence',
 }
 
 export default async function EmaAiPage() {
@@ -31,6 +31,16 @@ export default async function EmaAiPage() {
       project.feed_in_model ??
       project.offtake_type ??
       null,
+    tariff:
+      project.tariff ??
+      project.feed_in_tariff ??
+      project.verguetung ??
+      null,
+    specificYield:
+      project.specific_yield ??
+      project.spezifischer_ertrag ??
+      null,
+    rawProject: project,
   }))
 
   return <EmaAiAssistantV2 projects={aiProjects} />
