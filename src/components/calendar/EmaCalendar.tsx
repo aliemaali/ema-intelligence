@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Bell, CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
 
 type ProjectOption = { id: string; name: string }
 type Reminder = 'none' | '15m' | '1h' | '1d' | '3d' | '7d'
@@ -25,6 +26,8 @@ const REMINDERS: { value: Reminder; label: string; minutes: number }[] = [
   { value: '3d', label: '3 Tage vorher', minutes: 4320 },
   { value: '7d', label: '1 Woche vorher', minutes: 10080 },
 ]
+
+const inputClass = 'mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-bold text-[#07142F] shadow-sm outline-none [color-scheme:light] focus:border-[#5CB800] focus:ring-2 focus:ring-[#5CB800]/15'
 
 function isoDate(date: Date) {
   const y = date.getFullYear()
@@ -128,15 +131,19 @@ export function EmaCalendar({ projects }: { projects: ProjectOption[] }) {
   const monthLabel = month.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
 
   return (
-    <div className="page-container space-y-5">
-      <section className="rounded-[2rem] bg-gradient-to-br from-[#07142F] via-[#10245A] to-[#16472f] px-5 py-7 text-white shadow-lg md:px-8 md:py-9">
+    <div className="page-container space-y-5 pt-4 md:pt-8">
+      <Link href="/dashboard" className="inline-flex min-h-12 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-[#07142F] shadow-sm">
+        <ArrowLeft className="h-5 w-5" /> Dashboard
+      </Link>
+
+      <section className="rounded-[2rem] bg-gradient-to-br from-[#07142F] via-[#10245A] to-[#16472f] px-5 py-5 text-white shadow-lg md:px-8 md:py-7">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#87d33b]">EMA Intelligence</p>
             <h1 className="mt-1 text-4xl font-extrabold tracking-tight">Kalender</h1>
             <p className="mt-2 text-sm text-slate-300">Monatsansicht mit frei benennbaren Terminen.</p>
           </div>
-          <CalendarDays className="h-12 w-12 text-[#87d33b]" />
+          <CalendarDays className="h-11 w-11 text-[#87d33b]" />
         </div>
       </section>
 
@@ -207,21 +214,24 @@ export function EmaCalendar({ projects }: { projects: ProjectOption[] }) {
       </section>
 
       {showForm && (
-        <div className="fixed inset-0 z-[70] flex items-end bg-[#07142F]/35 p-3 backdrop-blur-sm md:items-center md:justify-center">
+        <div className="fixed inset-0 z-[70] flex items-end bg-slate-900/25 p-3 backdrop-blur-sm md:items-center md:justify-center">
           <div className="w-full rounded-[2rem] bg-white p-5 shadow-2xl md:max-w-lg">
             <div className="flex items-center justify-between">
               <h3 className="text-2xl font-extrabold text-[#07142F]">Termin anlegen</h3>
               <button onClick={() => setShowForm(false)} className="mobile-header-action"><X className="h-5 w-5" /></button>
             </div>
             <div className="mt-5 space-y-4">
-              <label className="block"><span className="text-xs font-bold text-slate-500">Titel</span><input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-bold text-[#07142F]" /></label>
+              <label className="block"><span className="text-xs font-bold text-slate-500">Titel</span><input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} /></label>
               <div className="grid grid-cols-2 gap-3">
-                <label className="block"><span className="text-xs font-bold text-slate-500">Datum</span><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 font-bold" /></label>
-                <label className="block"><span className="text-xs font-bold text-slate-500">Uhrzeit</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-3 font-bold" /></label>
+                <label className="block"><span className="text-xs font-bold text-slate-500">Datum</span><input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className={inputClass} /></label>
+                <label className="block"><span className="text-xs font-bold text-slate-500">Uhrzeit</span><input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} /></label>
               </div>
-              <label className="block"><span className="text-xs font-bold text-slate-500">Projekt optional</span><select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-bold"><option value="">Kein Projekt</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
-              <label className="block"><span className="text-xs font-bold text-slate-500">Erinnerung</span><select value={reminder} onChange={(e) => setReminder(e.target.value as Reminder)} className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-bold">{REMINDERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-              <button onClick={addEvent} disabled={!title.trim()} className="w-full rounded-xl bg-[#5CB800] px-4 py-3 font-extrabold text-white disabled:opacity-40">Termin speichern</button>
+              <label className="block"><span className="text-xs font-bold text-slate-500">Projekt optional</span><select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}><option value="">Kein Projekt</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>
+              <label className="block"><span className="text-xs font-bold text-slate-500">Erinnerung</span><select value={reminder} onChange={(e) => setReminder(e.target.value as Reminder)} className={inputClass}>{REMINDERS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <button onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-3 font-extrabold text-[#07142F]">Abbrechen</button>
+                <button onClick={addEvent} disabled={!title.trim()} className="rounded-xl bg-[#5CB800] px-4 py-3 font-extrabold text-white disabled:opacity-40">Termin speichern</button>
+              </div>
             </div>
           </div>
         </div>
