@@ -17,11 +17,15 @@ export default async function CapexProjectPage({ params }: PageProps) {
   const supabase = await createClient()
   const { data: projectRow, error } = await supabase
     .from('projects')
-    .select('id, project_name, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country')
+    .select('id, project_name, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country, ai_score_details')
     .eq('id', projectId)
     .single()
 
   if (error || !projectRow) notFound()
+
+  const emaAi = (projectRow.ai_score_details as any)?.ema_ai ?? {}
+  const storedTariff = Number(emaAi.tariff ?? 0)
+  const tariffEurKwh = storedTariff > 1 ? storedTariff / 100 : storedTariff
 
   const projectOption: ProjectOption = {
     id: projectRow.id,
@@ -34,12 +38,14 @@ export default async function CapexProjectPage({ params }: PageProps) {
     location_city: projectRow.location_city,
     location_state: projectRow.location_state,
     location_country: projectRow.location_country,
+    specific_yield: Number(emaAi.specific_yield ?? 0) || null,
+    tariff_eur_kwh: tariffEurKwh || null,
   }
 
   const calculations = await getCapexCalculationsForProject(projectId)
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white px-4 pb-28 pt-[max(6rem,calc(env(safe-area-inset-top)+4.5rem))]">
+    <main className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white px-4 pb-28 pt-[max(8.25rem,calc(env(safe-area-inset-top)+6.75rem))] md:pt-10">
       <div className="mx-auto w-full max-w-5xl">
         <Link
           href="/capex"
