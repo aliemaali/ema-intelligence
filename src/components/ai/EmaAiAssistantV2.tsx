@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   FileText,
   FolderOpen,
+  Loader2,
+  MapPin,
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
@@ -59,12 +61,43 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   const [purchasePrice, setPurchasePrice] = useState('')
   const [specificYield, setSpecificYield] = useState('')
   const [tariff, setTariff] = useState('')
+  const [isEstimatingYield, setIsEstimatingYield] = useState(false)
+  const [yieldMessage, setYieldMessage] = useState('')
 
   useEffect(() => {
     setPurchasePrice(selectedProject?.purchasePrice ? String(selectedProject.purchasePrice) : '')
     setSpecificYield(selectedProject?.specificYield ? String(selectedProject.specificYield) : '')
     setTariff(selectedProject?.tariff ? String(selectedProject.tariff) : '')
+    setYieldMessage('')
   }, [selectedProjectId, selectedProject])
+
+  async function estimateSpecificYield() {
+    if (!selectedProject?.locationCity && !selectedProject?.locationState) {
+      setYieldMessage('Für die automatische Ermittlung fehlt der Projektstandort.')
+      return
+    }
+
+    setIsEstimatingYield(true)
+    setYieldMessage('Spezifischer Ertrag wird anhand des Standorts ermittelt ...')
+
+    try {
+      const params = new URLSearchParams()
+      if (selectedProject.locationCity) params.set('city', selectedProject.locationCity)
+      if (selectedProject.locationState) params.set('state', selectedProject.locationState)
+
+      const response = await fetch(`/api/solar-yield?${params.toString()}`)
+      const data = await response.json()
+
+      if (!response.ok) throw new Error(data?.error || 'Ermittlung fehlgeschlagen')
+
+      setSpecificYield(String(data.specificYield))
+      setYieldMessage(`${data.specificYield.toLocaleString('de-DE')} kWh/kWp automatisch ermittelt. ${data.assumptions}`)
+    } catch (error) {
+      setYieldMessage(error instanceof Error ? error.message : 'Der Wert konnte nicht automatisch ermittelt werden. Bitte manuell eintragen.')
+    } finally {
+      setIsEstimatingYield(false)
+    }
+  }
 
   const calculation = useMemo(() => {
     if (!selectedProject) return null
@@ -183,15 +216,24 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><Calculator className="h-6 w-6" /></span>
                     <div>
                       <h2 className="text-lg font-extrabold text-[#07142F]">Amortisation</h2>
-                      <p className="mt-1 text-sm leading-6 text-slate-500">Es werden keine Annahmen verwendet. Fehlende Werte ergänzt du hier.</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-500">Fehlende Werte können manuell ergänzt werden. Den spezifischen Ertrag kann EMA-AI bei bekanntem Standort schätzen.</p>
                     </div>
                   </div>
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
                     <label className="block"><span className="text-xs font-bold text-slate-500">Kaufpreis in €</span><input value={purchasePrice} onChange={(event) => setPurchasePrice(event.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span><input value={specificYield} onChange={(event) => setSpecificYield(event.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
+                    <label className="block">
+                      <span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span>
+                      <input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" />
+                      <button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">
+                        {isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
+                        Aus Standort berechnen
+                      </button>
+                    </label>
                     <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh</span><input value={tariff} onChange={(event) => setTariff(event.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                   </div>
+
+                  {yieldMessage && <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600 shadow-sm">{yieldMessage}</div>}
 
                   {calculation?.complete ? (
                     <div className="mt-5 rounded-2xl bg-[#07142F] p-5 text-white">
