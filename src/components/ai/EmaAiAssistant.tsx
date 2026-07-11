@@ -129,7 +129,7 @@ export function EmaAiAssistant() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1] pb-8 pt-[max(1rem,env(safe-area-inset-top))] md:rounded-[2rem] md:px-8 md:pt-8">
+    <div className="min-h-[calc(100vh-8rem)] bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1] pb-8 pt-[max(5.5rem,calc(env(safe-area-inset-top)+3rem))] md:rounded-[2rem] md:px-8 md:pt-10">
       <div className="mx-auto w-full max-w-5xl px-4 md:px-0">
         <div className="mb-5 flex w-full items-center justify-between gap-3">
           <Link
