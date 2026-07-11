@@ -12,6 +12,7 @@ import {
   FolderOpen,
   Loader2,
   MapPin,
+  Save,
   Sparkles,
   TrendingUp,
 } from 'lucide-react'
@@ -69,12 +70,15 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   const [tariff, setTariff] = useState('')
   const [isEstimatingYield, setIsEstimatingYield] = useState(false)
   const [yieldMessage, setYieldMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState('')
 
   useEffect(() => {
     setPurchasePrice(selectedProject?.purchasePrice ? formatGermanIntegerInput(selectedProject.purchasePrice) : '')
     setSpecificYield(selectedProject?.specificYield ? String(selectedProject.specificYield) : '')
     setTariff(selectedProject?.tariff ? String(selectedProject.tariff) : '')
     setYieldMessage('')
+    setSaveMessage('')
   }, [selectedProjectId, selectedProject])
 
   async function estimateSpecificYield() {
@@ -99,6 +103,32 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
       setYieldMessage(error instanceof Error ? error.message : 'Der Wert konnte nicht automatisch ermittelt werden. Bitte manuell eintragen.')
     } finally {
       setIsEstimatingYield(false)
+    }
+  }
+
+  async function saveValues() {
+    if (!selectedProject) return
+    setIsSaving(true)
+    setSaveMessage('Werte werden gespeichert ...')
+
+    try {
+      const response = await fetch('/api/ema-ai/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: selectedProject.id,
+          purchasePrice: numberValue(purchasePrice),
+          specificYield: numberValue(specificYield),
+          tariff: numberValue(tariff),
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || 'Speichern fehlgeschlagen')
+      setSaveMessage('Gespeichert. Beim nächsten Öffnen des Projekts sind die Werte wieder vorhanden.')
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : 'Die Werte konnten nicht gespeichert werden.')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -184,18 +214,26 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                 <div className="rounded-[1.7rem] border border-slate-200 bg-slate-50/70 p-5">
                   <div className="flex items-start gap-3">
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><Calculator className="h-6 w-6" /></span>
-                    <div><h2 className="text-lg font-extrabold text-[#07142F]">Amortisation</h2><p className="mt-1 text-sm leading-6 text-slate-500">Fehlende Werte können manuell ergänzt werden. Den spezifischen Ertrag kann EMA-AI bei bekanntem Standort schätzen.</p></div>
+                    <div><h2 className="text-lg font-extrabold text-[#07142F]">Amortisation</h2><p className="mt-1 text-sm leading-6 text-slate-500">Fehlende Werte können manuell ergänzt und anschließend dauerhaft gespeichert werden.</p></div>
                   </div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Kaufpreis in €</span><input value={purchasePrice} onChange={(event) => setPurchasePrice(formatGermanIntegerInput(event.target.value))} inputMode="numeric" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Kaufpreis in €</span><input value={purchasePrice} onChange={(event) => { setPurchasePrice(formatGermanIntegerInput(event.target.value)); setSaveMessage('') }} inputMode="numeric" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                     <label className="block">
                       <span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span>
-                      <input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" />
+                      <input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage(''); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" />
                       <button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">{isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Aus Standort berechnen</button>
                     </label>
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh</span><input value={tariff} onChange={(event) => setTariff(event.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh</span><input value={tariff} onChange={(event) => { setTariff(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                   </div>
+
+                  <button type="button" onClick={saveValues} disabled={isSaving} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-60">
+                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+                    Werte speichern
+                  </button>
+
                   {yieldMessage && <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600 shadow-sm">{yieldMessage}</div>}
+                  {saveMessage && <div className="mt-3 rounded-xl border border-[#5CB800]/20 bg-[#5CB800]/10 p-3 text-xs font-bold leading-5 text-[#2F7000]">{saveMessage}</div>}
+
                   {calculation?.complete ? (
                     <div className="mt-5 rounded-2xl bg-[#07142F] p-5 text-white">
                       <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#87d33b]">Berechnetes Ergebnis</p>
