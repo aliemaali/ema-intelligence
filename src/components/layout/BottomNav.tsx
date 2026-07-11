@@ -9,6 +9,7 @@ import {
   Building2,
   Calculator,
   CheckSquare,
+  ClipboardPenLine,
   FolderOpen,
   Handshake,
   LayoutDashboard,
@@ -29,6 +30,7 @@ const MAIN_ITEMS = [
 ] as const
 
 const MORE_ITEMS = [
+  { label: 'Kundenaufnahme', href: 'https://ema-kundenaufnahme.vercel.app', icon: ClipboardPenLine },
   { label: 'Investoren', href: '/investors', icon: Building2 },
   { label: 'Partner', href: '/partners', icon: Handshake },
   { label: 'CAPEX', href: '/capex', icon: Calculator },
@@ -42,6 +44,7 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false)
 
   const isActive = (href: string) => {
+    if (href.startsWith('http')) return false
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname.startsWith(href)
   }
