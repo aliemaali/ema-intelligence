@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">EMA PV-Freiflächenanlage</title>
+  <desc id="desc">Stilisierte Premium-Luftaufnahme einer Photovoltaik-Freiflächenanlage bei Sonnenuntergang.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07142F"/><stop offset=".48" stop-color="#234D78"/><stop offset=".72" stop-color="#F4B46B"/><stop offset="1" stop-color="#F6D89D"/></linearGradient>
+    <linearGradient id="land" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#486A35"/><stop offset="1" stop-color="#1F3B27"/></linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#274D78"/><stop offset=".55" stop-color="#0B2444"/><stop offset="1" stop-color="#07142F"/></linearGradient>
+    <radialGradient id="sun"><stop offset="0" stop-color="#FFFBD5"/><stop offset=".4" stop-color="#FFD574"/><stop offset="1" stop-color="#F4A83D" stop-opacity="0"/></radialGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#000" flood-opacity=".35"/></filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1210" cy="355" r="175" fill="url(#sun)"/>
+  <path d="M0 430 C220 385 390 430 590 398 C805 365 1030 410 1240 372 C1390 345 1490 365 1600 348 L1600 900 L0 900Z" fill="url(#land)"/>
+  <path d="M0 560 C300 505 520 540 760 515 C1010 489 1270 525 1600 470 L1600 900 L0 900Z" fill="#2F5633" opacity=".82"/>
+  <g filter="url(#shadow)">
+    <g transform="translate(80 520) skewX(-15)"><rect width="480" height="145" rx="8" fill="url(#panel)" stroke="#7DB1DA" stroke-width="4"/><g stroke="#6E98BE" stroke-width="2"><path d="M80 0v145M160 0v145M240 0v145M320 0v145M400 0v145"/><path d="M0 48h480M0 96h480"/></g></g>
+    <g transform="translate(540 485) skewX(-15)"><rect width="500" height="155" rx="8" fill="url(#panel)" stroke="#7DB1DA" stroke-width="4"/><g stroke="#6E98BE" stroke-width="2"><path d="M83 0v155M166 0v155M249 0v155M332 0v155M415 0v155"/><path d="M0 52h500M0 104h500"/></g></g>
+    <g transform="translate(1010 445) skewX(-15)"><rect width="500" height="160" rx="8" fill="url(#panel)" stroke="#7DB1DA" stroke-width="4"/><g stroke="#6E98BE" stroke-width="2"><path d="M83 0v160M166 0v160M249 0v160M332 0v160M415 0v160"/><path d="M0 53h500M0 106h500"/></g></g>
+    <g transform="translate(170 700) skewX(-15)"><rect width="500" height="145" rx="8" fill="url(#panel)" stroke="#7DB1DA" stroke-width="4"/><g stroke="#6E98BE" stroke-width="2"><path d="M83 0v145M166 0v145M249 0v145M332 0v145M415 0v145"/><path d="M0 48h500M0 96h500"/></g></g>
+    <g transform="translate(690 670) skewX(-15)"><rect width="520" height="150" rx="8" fill="url(#panel)" stroke="#7DB1DA" stroke-width="4"/><g stroke="#6E98BE" stroke-width="2"><path d="M87 0v150M174 0v150M261 0v150M348 0v150M435 0v150"/><path d="M0 50h520M0 100h520"/></g></g>
+    <g transform="translate(1190 635) skewX(-15)"><rect width="330" height="145" rx="8" fill="url(#panel)" stroke="#7DB1DA" stroke-width="4"/><g stroke="#6E98BE" stroke-width="2"><path d="M82 0v145M164 0v145M246 0v145"/><path d="M0 48h330M0 96h330"/></g></g>
+  </g>
+  <path d="M0 850 C350 790 590 860 880 810 C1130 768 1360 820 1600 770 L1600 900 L0 900Z" fill="#5CB800" opacity=".16"/>
+  <g transform="translate(80 70)"><text x="0" y="0" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="700">EMA INTELLIGENCE</text><rect x="0" y="22" width="145" height="5" rx="2.5" fill="#5CB800"/></g>
+</svg>
