@@ -11,25 +11,53 @@ import {
   type ProjectOption,
 } from '@/lib/types/capex.types'
 
-/**
- * Lädt alle Projekte aus der bestehenden `projects`-Tabelle für den
- * Projekt-Picker. Nimmt minimal `id` + `name` an (siehe Annahme bei Migration).
- */
+const CAPEX_HIDDEN_TAG = 'hide_from_capex'
+
+/** Lädt alle sichtbaren Projekte für den CAPEX-Projekt-Picker. */
 export async function getProjectOptions(): Promise<ProjectOption[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('projects')
-    .select('id, project_name')
+    .select('id, project_name, tags, is_archived')
+    .eq('is_archived', false)
     .order('project_name', { ascending: true })
 
   if (error) {
     console.error('getProjectOptions error:', error)
     return []
   }
-  return (data ?? []).map((project) => ({
-  id: project.id,
-  name: project.project_name,
-}))
+
+  return (data ?? [])
+    .filter((project: any) => !Array.isArray(project.tags) || !project.tags.includes(CAPEX_HIDDEN_TAG))
+    .map((project: any) => ({
+      id: project.id,
+      name: project.project_name,
+    }))
+}
+
+/** Entfernt ein Projekt nur aus dem CAPEX-Picker, ohne das Hauptprojekt zu löschen. */
+export async function hideProjectFromCapex(projectId: string): Promise<{ error: string | null }> {
+  const supabase = await createClient()
+  const { data: project, error: readError } = await supabase
+    .from('projects')
+    .select('tags')
+    .eq('id', projectId)
+    .single()
+
+  if (readError) return { error: readError.message }
+
+  const tags = Array.isArray(project?.tags) ? project.tags : []
+  const nextTags = tags.includes(CAPEX_HIDDEN_TAG) ? tags : [...tags, CAPEX_HIDDEN_TAG]
+
+  const { error } = await supabase
+    .from('projects')
+    .update({ tags: nextTags } as never)
+    .eq('id', projectId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/capex')
+  return { error: null }
 }
 
 /** Lädt alle CAPEX-Kalkulationen für ein gegebenes Projekt. */
