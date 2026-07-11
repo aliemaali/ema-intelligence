@@ -1,5 +1,6 @@
 import { getProjects } from '@/lib/actions/project.actions'
 import { EmaCalendar } from '@/components/calendar/EmaCalendar'
+import { TopHeader } from '@/components/layout/TopHeader'
 
 export const metadata = {
   title: 'Kalender',
@@ -15,5 +16,10 @@ export default async function CalendarPage() {
       : project.project_name ?? 'Unbenanntes Projekt',
   }))
 
-  return <EmaCalendar projects={options} />
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1]">
+      <TopHeader />
+      <EmaCalendar projects={options} />
+    </div>
+  )
 }
