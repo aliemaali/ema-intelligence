@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { SectionHeader, InfoRow, DevStatusDot } from '@/components/ui'
 import { formatMW, formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils'
-import ExposeButton from '@/components/projects/ExposeButton'
 import {
   PROJECT_STATUS_LABELS, PRIORITY_LABELS,
   MARKETING_STATUS_LABELS, PROJECT_TYPE_LABELS,
@@ -44,11 +43,13 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
 
   return (
     <div className="py-4 space-y-5 max-w-2xl">
-      <div className="flex justify-end">
-        <ExposeButton project={project} />
+      <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
+        <SectionHeader title="Exposé & Amortisation" />
+        <p className="text-sm leading-6 text-muted-foreground">
+          Exposés und Amortisationsberechnungen werden ausschließlich zentral über EMA-AI erstellt.
+        </p>
       </div>
 
-      {/* Allgemeine Daten */}
       <div className="card-padded">
         <SectionHeader title="Allgemeine Daten" />
         <div className="space-y-0">
@@ -65,7 +66,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         </div>
       </div>
 
-      {/* Kontakt */}
       {(project.contact_name || project.partner_name) && (
         <div className="card-padded">
           <SectionHeader title="Kontakt" />
@@ -78,7 +78,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         </div>
       )}
 
-      {/* Technische Daten */}
       <div className="card-padded">
         <SectionHeader title="Technische Daten" />
         <div className="space-y-0">
@@ -101,7 +100,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         </div>
       </div>
 
-      {/* Entwicklungsstand */}
       <div className="card-padded">
         <SectionHeader
           title="Entwicklungsstand"
@@ -138,7 +136,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         </div>
       </div>
 
-      {/* Deal Snapshot */}
       {project.deal_net_profit !== null && (
         <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
           <SectionHeader title="Deal Snapshot" />
@@ -156,7 +153,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         </div>
       )}
 
-      {/* Notizen */}
       {project.notes && (
         <div className="card-padded">
           <SectionHeader title="Notizen" />
