@@ -48,10 +48,8 @@ function cleanNumberInput(value: unknown) {
 function decimalValue(value: unknown) {
   if (value === null || value === undefined || value === '') return 0
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0
-
   const cleaned = cleanNumberInput(value)
   if (!cleaned) return 0
-
   let normalized = cleaned
   if (cleaned.includes(',') && cleaned.includes('.')) {
     normalized = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
@@ -62,7 +60,6 @@ function decimalValue(value: unknown) {
   } else if ((cleaned.match(/\./g) ?? []).length > 1) {
     normalized = cleaned.replace(/\./g, '')
   }
-
   const parsed = Number.parseFloat(normalized)
   return Number.isFinite(parsed) ? parsed : 0
 }
@@ -70,14 +67,11 @@ function decimalValue(value: unknown) {
 function moneyValue(value: unknown) {
   if (value === null || value === undefined || value === '') return 0
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0
-
   const cleaned = cleanNumberInput(value)
   if (!cleaned) return 0
-
   const normalized = cleaned.includes(',')
     ? cleaned.replace(/\./g, '').replace(',', '.')
     : cleaned.replace(/\./g, '')
-
   const parsed = Number.parseFloat(normalized)
   return Number.isFinite(parsed) ? parsed : 0
 }
@@ -89,14 +83,13 @@ function formatGermanIntegerInput(value: unknown) {
 }
 
 function formatProject(project: EmaAiProject) {
-  return project.projectNumber
-    ? `${project.projectNumber} – ${project.projectName}`
-    : project.projectName
+  return project.projectNumber ? `${project.projectNumber} – ${project.projectName}` : project.projectName
 }
 
 export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const selectedProject = projects.find((project) => project.id === selectedProjectId)
+  const [pvKwp, setPvKwp] = useState('')
   const [purchasePrice, setPurchasePrice] = useState('')
   const [specificYield, setSpecificYield] = useState('')
   const [tariff, setTariff] = useState('')
@@ -106,8 +99,9 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   const [saveMessage, setSaveMessage] = useState('')
 
   useEffect(() => {
+    setPvKwp(selectedProject?.pvKwp ? String(selectedProject.pvKwp).replace('.', ',') : '')
     setPurchasePrice(selectedProject?.purchasePrice ? formatGermanIntegerInput(selectedProject.purchasePrice) : '')
-    setSpecificYield(selectedProject?.specificYield ? String(selectedProject.specificYield) : '')
+    setSpecificYield(selectedProject?.specificYield ? String(selectedProject.specificYield).replace('.', ',') : '')
     setTariff(selectedProject?.tariff ? String(selectedProject.tariff).replace('.', ',') : '')
     setYieldMessage('')
     setSaveMessage('')
@@ -118,10 +112,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
       setYieldMessage('Für die automatische Ermittlung fehlt der Projektstandort.')
       return
     }
-
     setIsEstimatingYield(true)
     setYieldMessage('Spezifischer Ertrag wird anhand des Standorts ermittelt ...')
-
     try {
       const params = new URLSearchParams()
       if (selectedProject.locationCity) params.set('city', selectedProject.locationCity)
@@ -129,8 +121,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
       const response = await fetch(`/api/solar-yield?${params.toString()}`)
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || 'Ermittlung fehlgeschlagen')
-      setSpecificYield(String(data.specificYield))
-      setYieldMessage(`${data.specificYield.toLocaleString('de-DE')} kWh/kWp automatisch ermittelt. ${data.assumptions}`)
+      setSpecificYield(String(data.specificYield).replace('.', ','))
+      setYieldMessage(`${Number(data.specificYield).toLocaleString('de-DE')} kWh/kWp automatisch ermittelt. ${data.assumptions}`)
     } catch (error) {
       setYieldMessage(error instanceof Error ? error.message : 'Der Wert konnte nicht automatisch ermittelt werden. Bitte manuell eintragen.')
     } finally {
@@ -142,13 +134,13 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
     if (!selectedProject) return
     setIsSaving(true)
     setSaveMessage('Werte werden gespeichert ...')
-
     try {
       const response = await fetch('/api/ema-ai/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: selectedProject.id,
+          pvKwp: decimalValue(pvKwp),
           purchasePrice: moneyValue(purchasePrice),
           specificYield: decimalValue(specificYield),
           tariff: decimalValue(tariff),
@@ -156,7 +148,7 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || 'Speichern fehlgeschlagen')
-      setSaveMessage('Gespeichert. Beim nächsten Öffnen des Projekts sind die Werte wieder vorhanden.')
+      setSaveMessage('Gespeichert. CAPEX übernimmt diese Werte beim nächsten Öffnen.')
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'Die Werte konnten nicht gespeichert werden.')
     } finally {
@@ -166,7 +158,7 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
 
   const calculation = useMemo(() => {
     if (!selectedProject) return null
-    const kwp = decimalValue(selectedProject.pvKwp)
+    const kwp = decimalValue(pvKwp)
     const price = moneyValue(purchasePrice)
     const yieldPerKwp = decimalValue(specificYield)
     let tariffValue = decimalValue(tariff)
@@ -183,18 +175,18 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
     const missing = required.filter((item) => !item.complete).map((item) => item.label)
     const completenessScore = Math.round((required.filter((item) => item.complete).length / required.length) * 100)
     return { kwp, price, yieldPerKwp, tariffValue, annualProduction, annualRevenue, amortizationYears, required, missing, completenessScore, complete: missing.length === 0 }
-  }, [selectedProject, purchasePrice, specificYield, tariff])
+  }, [selectedProject, pvKwp, purchasePrice, specificYield, tariff])
 
-  const exposeProject = selectedProject
-    ? {
-        ...selectedProject.rawProject,
-        purchase_price: moneyValue(purchasePrice) || null,
-        deal_purchase_price: moneyValue(purchasePrice) || null,
-        tariff: decimalValue(tariff) || null,
-        feed_in_tariff: decimalValue(tariff) || null,
-        specific_yield: decimalValue(specificYield) || null,
-      }
-    : null
+  const exposeProject = selectedProject ? {
+    ...selectedProject.rawProject,
+    pv_mwp: decimalValue(pvKwp) || null,
+    pv_kwp: decimalValue(pvKwp) || null,
+    purchase_price: moneyValue(purchasePrice) || null,
+    deal_purchase_price: moneyValue(purchasePrice) || null,
+    tariff: decimalValue(tariff) || null,
+    feed_in_tariff: decimalValue(tariff) || null,
+    specific_yield: decimalValue(specificYield) || null,
+  } : null
 
   return (
     <div className="min-h-[calc(100vh-8rem)] bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1] pb-10 pt-[max(5.5rem,calc(env(safe-area-inset-top)+3rem))] md:rounded-[2rem] md:px-8 md:pt-10">
@@ -226,12 +218,7 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                 </select>
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white">⌄</span>
               </div>
-              {selectedProject && (
-                <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
-                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-300">Anlagenleistung</span>
-                  <span className="text-lg font-extrabold text-white">{decimalValue(selectedProject.pvKwp).toLocaleString('de-DE', { maximumFractionDigits: 2 })} kWp</span>
-                </div>
-              )}
+              {selectedProject && <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10"><span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-300">Anlagenleistung</span><span className="text-lg font-extrabold text-white">{decimalValue(pvKwp).toLocaleString('de-DE', { maximumFractionDigits: 2 })} kWp</span></div>}
             </div>
           </div>
 
@@ -239,54 +226,27 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
             <div className="space-y-5 p-4 md:p-7">
               <div className="grid gap-5 md:grid-cols-[0.8fr_1.2fr]">
                 <div className="rounded-[1.7rem] border border-slate-200 bg-slate-50/70 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#5CB800]">Exposé-Bereitschaft</p><p className="mt-2 text-4xl font-extrabold text-[#07142F]">{calculation?.completenessScore ?? 0}%</p></div>
-                    <TrendingUp className="h-9 w-9 text-[#5CB800]" />
-                  </div>
+                  <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#5CB800]">Exposé-Bereitschaft</p><p className="mt-2 text-4xl font-extrabold text-[#07142F]">{calculation?.completenessScore ?? 0}%</p></div><TrendingUp className="h-9 w-9 text-[#5CB800]" /></div>
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-[#5CB800] transition-all" style={{ width: `${calculation?.completenessScore ?? 0}%` }} /></div>
-                  <div className="mt-5 space-y-3">
-                    {calculation?.required.map((item) => <div key={item.label} className="flex items-center justify-between rounded-xl bg-white px-3 py-3 shadow-sm"><span className="text-sm font-bold text-[#07142F]">{item.label}</span>{item.complete ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}</div>)}
-                  </div>
+                  <div className="mt-5 space-y-3">{calculation?.required.map((item) => <div key={item.label} className="flex items-center justify-between rounded-xl bg-white px-3 py-3 shadow-sm"><span className="text-sm font-bold text-[#07142F]">{item.label}</span>{item.complete ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <AlertTriangle className="h-5 w-5 text-amber-500" />}</div>)}</div>
                 </div>
 
                 <div className="rounded-[1.7rem] border border-slate-200 bg-slate-50/70 p-5">
-                  <div className="flex items-start gap-3">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><Calculator className="h-6 w-6" /></span>
-                    <div><h2 className="text-lg font-extrabold text-[#07142F]">Amortisation</h2><p className="mt-1 text-sm leading-6 text-slate-500">Fehlende Werte können manuell ergänzt und anschließend dauerhaft gespeichert werden.</p></div>
-                  </div>
+                  <div className="flex items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><Calculator className="h-6 w-6" /></span><div><h2 className="text-lg font-extrabold text-[#07142F]">Amortisation</h2><p className="mt-1 text-sm leading-6 text-slate-500">Fehlende Werte können manuell ergänzt und anschließend dauerhaft gespeichert werden.</p></div></div>
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Anlagenleistung kWp</span><input value={decimalValue(selectedProject.pvKwp).toLocaleString('de-DE', { maximumFractionDigits: 2 })} readOnly className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-bold text-[#07142F] outline-none" /></label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Anlagenleistung kWp</span><input value={pvKwp} onChange={(event) => { setPvKwp(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                     <label className="block"><span className="text-xs font-bold text-slate-500">Kaufpreis in €</span><input value={purchasePrice} onChange={(event) => { setPurchasePrice(formatGermanIntegerInput(event.target.value)); setSaveMessage('') }} inputMode="numeric" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
-                    <label className="block">
-                      <span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span>
-                      <input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage(''); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" />
-                      <button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">{isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Aus Standort berechnen</button>
-                    </label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span><input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage(''); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /><button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">{isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Aus Standort berechnen</button></label>
                     <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh oder €/kWh</span><input value={tariff} onChange={(event) => { setTariff(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                   </div>
-
-                  <button type="button" onClick={saveValues} disabled={isSaving} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-60">
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                    Werte speichern
-                  </button>
-
+                  <button type="button" onClick={saveValues} disabled={isSaving} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-60">{isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}Werte speichern</button>
                   {yieldMessage && <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600 shadow-sm">{yieldMessage}</div>}
                   {saveMessage && <div className="mt-3 rounded-xl border border-[#5CB800]/20 bg-[#5CB800]/10 p-3 text-xs font-bold leading-5 text-[#2F7000]">{saveMessage}</div>}
-
-                  {calculation?.complete ? (
-                    <div className="mt-5 rounded-2xl bg-[#07142F] p-5 text-white">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#87d33b]">Berechnetes Ergebnis</p>
-                      <p className="mt-2 text-4xl font-extrabold">{calculation.amortizationYears.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre</p>
-                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><p className="text-slate-400">Jahresproduktion</p><p className="font-extrabold">{calculation.annualProduction.toLocaleString('de-DE', { maximumFractionDigits: 0 })} kWh</p></div><div><p className="text-slate-400">Jahreserlös</p><p className="font-extrabold">{calculation.annualRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</p></div></div>
-                    </div>
-                  ) : <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>Noch nicht bereit:</strong> Es fehlen {calculation?.missing.join(', ') || 'notwendige Werte'}.</div>}
+                  {calculation?.complete ? <div className="mt-5 rounded-2xl bg-[#07142F] p-5 text-white"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#87d33b]">Berechnetes Ergebnis</p><p className="mt-2 text-4xl font-extrabold">{calculation.amortizationYears.toLocaleString('de-DE', { maximumFractionDigits: 1 })} Jahre</p><div className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><p className="text-slate-400">Jahresproduktion</p><p className="font-extrabold">{calculation.annualProduction.toLocaleString('de-DE', { maximumFractionDigits: 0 })} kWh</p></div><div><p className="text-slate-400">Jahreserlös</p><p className="font-extrabold">{calculation.annualRevenue.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</p></div></div></div> : <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"><strong>Noch nicht bereit:</strong> Es fehlen {calculation?.missing.join(', ') || 'notwendige Werte'}.</div>}
                 </div>
               </div>
 
-              <div className="rounded-[1.7rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><FileText className="h-6 w-6" /></span><div className="min-w-0 flex-1"><h2 className="text-lg font-extrabold text-[#07142F]">Investoren-Exposé erstellen</h2><p className="mt-1 text-sm leading-6 text-slate-500">Der PDF-Button wird erst freigegeben, wenn die vier notwendigen Werte vollständig sind.</p></div></div>
-                <div className="mt-5">{calculation?.complete && exposeProject ? <ExposeButton project={exposeProject as any} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#07142F] px-5 py-4 text-sm font-extrabold text-white shadow-lg transition active:scale-[0.99]" /> : <button disabled className="w-full rounded-2xl bg-slate-200 px-5 py-4 text-sm font-extrabold text-slate-500">Exposé noch nicht freigegeben</button>}</div>
-              </div>
+              <div className="rounded-[1.7rem] border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><FileText className="h-6 w-6" /></span><div className="min-w-0 flex-1"><h2 className="text-lg font-extrabold text-[#07142F]">Investoren-Exposé erstellen</h2><p className="mt-1 text-sm leading-6 text-slate-500">Der PDF-Button wird erst freigegeben, wenn die vier notwendigen Werte vollständig sind.</p></div></div><div className="mt-5">{calculation?.complete && exposeProject ? <ExposeButton project={exposeProject as any} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#07142F] px-5 py-4 text-sm font-extrabold text-white shadow-lg transition active:scale-[0.99]" /> : <button disabled className="w-full rounded-2xl bg-slate-200 px-5 py-4 text-sm font-extrabold text-slate-500">Exposé noch nicht freigegeben</button>}</div></div>
             </div>
           ) : <div className="p-7"><div className="rounded-2xl bg-slate-100 p-5 text-sm font-bold text-slate-500">Wähle zuerst ein Projekt aus.</div></div>}
         </section>
