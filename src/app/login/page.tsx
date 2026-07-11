@@ -8,21 +8,13 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   const error = searchParams.error
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-      <div
-        className="fixed inset-0 opacity-[0.03] pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #5CB800 1px, transparent 0)`,
-          backgroundSize: '32px 32px',
-        }}
-      />
-
+    <div className="min-h-screen bg-white px-4 flex flex-col items-center justify-center">
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-10">
           <img
             src="/ema-logo.jpeg"
             alt="EMA Enterprise GmbH"
-            className="mx-auto mb-5 h-24 w-auto object-contain mix-blend-multiply sm:h-28"
+            className="mx-auto mb-5 h-24 w-auto object-contain sm:h-28"
           />
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">
             EMA Intelligence
