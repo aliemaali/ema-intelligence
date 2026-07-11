@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, BadgeEuro, BatteryCharging, CalendarDays, CheckCircle2, Gauge, MapPin, ShieldCheck, SunMedium, Zap } from 'lucide-react'
+import { ArrowLeft, BadgeEuro, BatteryCharging, Bell, CalendarDays, CheckCircle2, Gauge, MapPin, Search, ShieldCheck, SunMedium, Zap } from 'lucide-react'
 import { getProject } from '@/lib/actions/project.actions'
 import { PrintButton } from '@/components/expose/PrintButton'
 
@@ -46,8 +46,21 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
 
   return (
     <div className="min-h-screen bg-[#EEF2F5] pb-28 print:bg-white print:pb-0">
-      <div className="print:hidden mx-auto flex max-w-[1480px] items-center justify-between gap-4 px-4 py-5 md:px-8">
-        <Link href="/expose" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>
+      <header className="print:hidden border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:pb-5 md:pt-6">
+        <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
+          <Link href="/dashboard" aria-label="Zum Dashboard">
+            <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-16 w-auto object-contain md:h-20" />
+          </Link>
+          <div className="flex items-center gap-2">
+            <button className="mobile-header-action hidden sm:flex" type="button" aria-label="Suche"><Search className="h-5 w-5" /></button>
+            <Link href="/calendar" className="mobile-header-action" aria-label="Kalender"><CalendarDays className="h-5 w-5" /></Link>
+            <button className="mobile-header-action relative" type="button" aria-label="Benachrichtigungen"><Bell className="h-5 w-5" /><span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#5CB800]" /></button>
+          </div>
+        </div>
+      </header>
+
+      <div className="print:hidden mx-auto flex max-w-[1480px] flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-8 md:py-5">
+        <Link href="/expose" className="inline-flex w-fit items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>
         <PrintButton />
       </div>
 
