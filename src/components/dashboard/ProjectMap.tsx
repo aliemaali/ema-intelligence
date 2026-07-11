@@ -19,18 +19,18 @@ type Point = { x: number; y: number }
 type MapFilter = 'all' | 'pv' | 'bess' | 'hybrid'
 
 const STATE_POINTS: Record<string, Point> = {
-  'Schleswig-Holstein': { x: 49, y: 11 }, Hamburg: { x: 47, y: 20 }, Bremen: { x: 37, y: 27 },
-  Niedersachsen: { x: 42, y: 31 }, 'Mecklenburg-Vorpommern': { x: 65, y: 23 }, Brandenburg: { x: 67, y: 40 },
-  Berlin: { x: 70, y: 39 }, Sachsen: { x: 68, y: 59 }, 'Sachsen-Anhalt': { x: 56, y: 45 },
-  Thüringen: { x: 54, y: 57 }, Hessen: { x: 43, y: 57 }, 'Nordrhein-Westfalen': { x: 28, y: 48 },
-  'Rheinland-Pfalz': { x: 31, y: 65 }, Saarland: { x: 24, y: 72 }, 'Baden-Württemberg': { x: 37, y: 82 },
-  Bayern: { x: 58, y: 79 },
+  'Schleswig-Holstein': { x: 51, y: 13 }, Hamburg: { x: 49, y: 24 }, Bremen: { x: 36, y: 31 },
+  Niedersachsen: { x: 43, y: 34 }, 'Mecklenburg-Vorpommern': { x: 67, y: 26 }, Brandenburg: { x: 69, y: 44 },
+  Berlin: { x: 72, y: 43 }, Sachsen: { x: 69, y: 63 }, 'Sachsen-Anhalt': { x: 58, y: 49 },
+  Thüringen: { x: 56, y: 61 }, Hessen: { x: 43, y: 60 }, 'Nordrhein-Westfalen': { x: 27, y: 52 },
+  'Rheinland-Pfalz': { x: 31, y: 69 }, Saarland: { x: 24, y: 76 }, 'Baden-Württemberg': { x: 38, y: 85 },
+  Bayern: { x: 61, y: 82 },
 }
 
 const CITY_POINTS: Record<string, Point> = {
-  Worms: { x: 34, y: 69 }, Berlin: { x: 70, y: 39 }, Hamburg: { x: 47, y: 20 },
-  München: { x: 59, y: 88 }, Stuttgart: { x: 39, y: 79 }, Frankfurt: { x: 41, y: 62 },
-  Leipzig: { x: 61, y: 53 }, Dresden: { x: 70, y: 57 }, Köln: { x: 28, y: 52 }, Hannover: { x: 43, y: 35 },
+  Worms: { x: 34, y: 72 }, Berlin: { x: 72, y: 43 }, Hamburg: { x: 49, y: 24 },
+  München: { x: 61, y: 90 }, Stuttgart: { x: 39, y: 82 }, Frankfurt: { x: 42, y: 64 },
+  Leipzig: { x: 63, y: 57 }, Dresden: { x: 72, y: 61 }, Köln: { x: 27, y: 56 }, Hannover: { x: 43, y: 39 },
 }
 
 function formatKwp(value?: number | null) {
@@ -46,7 +46,7 @@ function projectKind(project: ProjectMapItem): Exclude<MapFilter, 'all'> {
 
 function getPoint(project: ProjectMapItem, index: number): Point {
   const base = CITY_POINTS[project.location_city ?? ''] ?? STATE_POINTS[project.location_state ?? ''] ?? { x: 50, y: 50 }
-  return { x: base.x + ((index % 3) - 1) * 1.6, y: base.y + (Math.floor(index / 3) % 3) * 1.35 }
+  return { x: base.x + ((index % 3) - 1) * 1.5, y: base.y + (Math.floor(index / 3) % 3) * 1.25 }
 }
 
 function markerColor(kind: Exclude<MapFilter, 'all'>) {
@@ -77,8 +77,8 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
   )
 
   return (
-    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-gradient-to-br from-white via-[#F8FAFC] to-[#EEF7E8] shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
-      <div className="absolute inset-x-4 top-4 z-20 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-lg backdrop-blur">
+    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-gradient-to-br from-white via-[#F8FAFC] to-[#F2F7EE] shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
+      <div className="absolute inset-x-4 top-4 z-20 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-lg backdrop-blur">
         {FILTERS.map((item) => {
           const count = item.value === 'all' ? locatedProjects.length : counts[item.value]
           const active = filter === item.value
@@ -96,28 +96,35 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
         })}
       </div>
 
-      <svg viewBox="0 0 100 100" className="h-full w-full px-10 pb-7 pt-20" role="img" aria-label="Feste Deutschlandkarte mit Projektstandorten">
+      <svg viewBox="0 0 100 108" className="h-full w-full px-8 pb-5 pt-20" role="img" aria-label="Feste Deutschlandkarte mit Projektstandorten">
         <defs>
-          <linearGradient id="germanyFill" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id="germanyPremiumFill" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#FFFFFF" />
-            <stop offset="100%" stopColor="#EAF4E4" />
+            <stop offset="58%" stopColor="#F4F8F1" />
+            <stop offset="100%" stopColor="#E5F1DE" />
           </linearGradient>
-          <filter id="mapShadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="2.2" stdDeviation="2.5" floodColor="#0F172A" floodOpacity="0.13" />
+          <filter id="germanyPremiumShadow" x="-35%" y="-35%" width="170%" height="170%">
+            <feDropShadow dx="0" dy="2.8" stdDeviation="3" floodColor="#0F172A" floodOpacity="0.16" />
           </filter>
         </defs>
 
-        <path d="M45 4 L51 6 L54 10 L58 12 L62 18 L68 20 L72 26 L71 32 L76 37 L74 43 L80 49 L76 56 L74 63 L69 68 L66 76 L64 83 L57 92 L50 90 L44 95 L38 91 L34 86 L31 80 L26 76 L24 69 L19 63 L21 56 L18 49 L21 42 L24 36 L28 31 L33 27 L35 20 L40 15 L41 9 Z" fill="url(#germanyFill)" stroke="#C7D2E0" strokeWidth="1.1" filter="url(#mapShadow)" />
+        <path
+          d="M49 4 L53 6 L54 10 L58 12 L60 17 L66 19 L70 23 L73 28 L72 33 L77 37 L75 43 L80 48 L77 53 L80 58 L75 63 L73 70 L68 74 L67 82 L62 88 L57 96 L52 101 L47 99 L42 103 L38 99 L34 94 L31 87 L26 83 L25 76 L21 71 L22 65 L18 59 L20 53 L17 47 L21 41 L23 35 L28 31 L31 25 L36 22 L38 16 L43 13 L44 8 Z"
+          fill="url(#germanyPremiumFill)"
+          stroke="#BFCBDC"
+          strokeWidth="1.15"
+          strokeLinejoin="round"
+          filter="url(#germanyPremiumShadow)"
+        />
 
-        <g stroke="#DCE5EF" strokeWidth="0.55" fill="none" opacity="0.9">
-          <path d="M39 17 L55 19 L67 27" />
-          <path d="M29 31 L45 34 L62 32 L72 40" />
-          <path d="M22 47 L39 47 L55 45 L72 49" />
-          <path d="M21 60 L36 61 L51 59 L69 63" />
-          <path d="M26 73 L41 72 L57 75 L64 82" />
-          <path d="M40 14 L42 30 L39 47 L36 61 L39 82" />
-          <path d="M56 18 L54 34 L55 45 L51 59 L55 78" />
-        </g>
+        <path d="M43 14 C48 18 55 17 61 20" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M29 31 C39 35 52 34 69 29" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M21 45 C35 46 51 45 75 42" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M20 58 C37 59 55 56 77 55" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M23 70 C39 72 57 69 72 68" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M27 82 C40 82 53 80 66 83" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M40 16 C42 32 39 48 37 64 C35 77 39 91 42 99" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
+        <path d="M58 19 C55 35 55 51 57 66 C58 78 57 88 53 99" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
 
         {visibleProjects.map((project, index) => {
           const point = getPoint(project, index)
@@ -125,9 +132,9 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
           const color = markerColor(kind)
           return (
             <g key={project.id}>
-              <circle cx={point.x} cy={point.y} r="5" fill={color} opacity="0.16" />
-              <circle cx={point.x} cy={point.y} r="2.7" fill={color} stroke="white" strokeWidth="1.2" />
-              <foreignObject x={point.x - 5} y={point.y - 5} width="10" height="10">
+              <circle cx={point.x} cy={point.y} r="5.2" fill={color} opacity="0.16" />
+              <circle cx={point.x} cy={point.y} r="2.75" fill={color} stroke="white" strokeWidth="1.2" />
+              <foreignObject x={point.x - 5.5} y={point.y - 5.5} width="11" height="11">
                 <Link
                   href={`/projects/${project.id}/overview`}
                   className="block h-full w-full rounded-full"
@@ -141,7 +148,7 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
       </svg>
 
       {visibleProjects.length === 0 && (
-        <div className="pointer-events-none absolute inset-x-6 bottom-7 z-10 rounded-2xl bg-white/90 px-4 py-3 text-center text-sm font-bold text-slate-500 shadow-sm">
+        <div className="pointer-events-none absolute inset-x-6 bottom-6 z-10 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-center text-sm font-bold text-slate-500 shadow-sm">
           Keine Projekte in dieser Kategorie.
         </div>
       )}
