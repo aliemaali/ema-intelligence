@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCapexCalculationsForProject } from '@/lib/actions/capex.actions'
 import { CapexCalculator } from '@/components/capex/CapexCalculator'
+import { TopHeader } from '@/components/layout/TopHeader'
 import type { ProjectOption } from '@/lib/types/capex.types'
 
 interface PageProps {
@@ -53,17 +54,20 @@ export default async function CapexProjectPage({ params }: PageProps) {
   const calculations = await getCapexCalculationsForProject(projectId)
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white px-4 pb-28 pt-[max(8.25rem,calc(env(safe-area-inset-top)+6.75rem))] md:pt-10">
-      <div className="mx-auto w-full max-w-5xl">
-        <Link
-          href="/capex"
-          className="mb-5 inline-flex min-h-12 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-[#07142F] shadow-sm"
-        >
-          <ArrowLeft className="h-5 w-5" /> Zurück zur Projektauswahl
-        </Link>
+    <div className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white">
+      <TopHeader />
+      <main className="px-4 pb-28 pt-6">
+        <div className="mx-auto w-full max-w-5xl">
+          <Link
+            href="/capex"
+            className="mb-5 inline-flex min-h-12 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-[#07142F] shadow-sm"
+          >
+            <ArrowLeft className="h-5 w-5" /> Zurück zur Projektauswahl
+          </Link>
 
-        <CapexCalculator projectOption={projectOption} initialCalculations={calculations} />
-      </div>
-    </main>
+          <CapexCalculator projectOption={projectOption} initialCalculations={calculations} />
+        </div>
+      </main>
+    </div>
   )
 }
