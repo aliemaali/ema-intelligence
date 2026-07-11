@@ -9,6 +9,11 @@ const card = 'rounded-[1.8rem] border border-slate-200 bg-white p-5 shadow-sm'
 
 export const metadata = { title: 'Kundenaufnahme', description: 'Kundenaufnahme direkt in EMA Intelligence speichern' }
 
+async function submitCustomerIntake(formData: FormData): Promise<void> {
+  'use server'
+  await createProject(formData)
+}
+
 export default function CustomerIntakePage() {
   return <div className="page-container space-y-5 pb-28">
     <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-extrabold text-[#07142F]"><ArrowLeft className="h-4 w-4" /> Zurück zum Dashboard</Link>
@@ -17,7 +22,7 @@ export default function CustomerIntakePage() {
       <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#87d33b]">EMA Intelligence</p><h1 className="mt-1 text-3xl font-extrabold">Kundenaufnahme PV</h1><p className="mt-2 text-sm text-slate-300">Direkt in EMA Intelligence erfassen und speichern.</p></div><Building2 className="h-11 w-11 text-[#87d33b]" /></div>
     </section>
 
-    <form action={createProject} className="space-y-5">
+    <form action={submitCustomerIntake} className="space-y-5">
       <input type="hidden" name="location_country" value="Deutschland" /><input type="hidden" name="priority" value="mittel" /><input type="hidden" name="marketing_status" value="nicht_gestartet" />
 
       <section className={card}><h2 className="text-xl font-extrabold text-[#07142F]">1 · Kundendaten</h2><div className="mt-4 grid gap-4 md:grid-cols-2">
