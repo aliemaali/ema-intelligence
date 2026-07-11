@@ -1,6 +1,4 @@
-import Link from 'next/link'
-import { FileSearch } from 'lucide-react'
-import { EmaAiAssistant } from '@/components/ai/EmaAiAssistant'
+import { EmaAiAssistantV2 } from '@/components/ai/EmaAiAssistantV2'
 import { getProjects } from '@/lib/actions/project.actions'
 
 export const metadata = {
@@ -35,16 +33,5 @@ export default async function EmaAiPage() {
       null,
   }))
 
-  return (
-    <>
-      <EmaAiAssistant projects={aiProjects} />
-      <Link
-        href="/ai/documents"
-        className="fixed bottom-24 right-4 z-30 inline-flex items-center gap-2 rounded-full bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-white shadow-[0_14px_35px_rgba(92,184,0,0.35)] transition active:scale-95 md:bottom-8 md:right-8"
-        aria-label="Dokument mit EMA-AI analysieren"
-      >
-        <FileSearch className="h-5 w-5" /> Dokument analysieren
-      </Link>
-    </>
-  )
+  return <EmaAiAssistantV2 projects={aiProjects} />
 }
