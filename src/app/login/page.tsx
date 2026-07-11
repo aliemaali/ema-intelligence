@@ -22,7 +22,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           <img
             src="/ema-logo.jpeg"
             alt="EMA Enterprise GmbH"
-            className="mx-auto mb-5 h-24 w-auto object-contain sm:h-28"
+            className="mx-auto mb-5 h-24 w-auto object-contain mix-blend-multiply sm:h-28"
           />
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">
             EMA Intelligence
