@@ -18,7 +18,9 @@ interface CapexCalculatorProps {
 
 export function CapexCalculator({ projectOption, initialCalculations }: CapexCalculatorProps) {
   const [calculations, setCalculations] = useState<CapexProject[]>(initialCalculations)
-  const [project, setProject] = useState<CapexProject>(() => defaultCapexProject(projectOption))
+  const [project, setProject] = useState<CapexProject>(() =>
+    initialCalculations[0] ?? defaultCapexProject(projectOption)
+  )
   const [view, setView] = useState<View>('form')
   const [toast, setToast] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -43,7 +45,7 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
       }
       setProject(data)
       setCalculations((prev) => [data, ...prev.filter((c) => c.id !== data.id)])
-      showToast('Kalkulation gespeichert')
+      showToast('Kalkulation dauerhaft gespeichert')
     })
   }
 
@@ -64,7 +66,11 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
         showToast(`Löschen fehlgeschlagen: ${error}`)
         return
       }
-      setCalculations((prev) => prev.filter((c) => c.id !== id))
+      const remaining = calculations.filter((c) => c.id !== id)
+      setCalculations(remaining)
+      if (project.id === id) {
+        setProject(remaining[0] ?? defaultCapexProject(projectOption))
+      }
       showToast('Kalkulation gelöscht')
     })
   }
