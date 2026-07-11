@@ -49,7 +49,7 @@ function value(project: any, keys: string[]) {
 }
 
 function typeLabel(type?: string | null) {
-  if (type === 'pv_freiflaeche') return 'PV-Freiflächenprojekt'
+  if (type === 'pv_freiflaeche') return 'PV-Freiflächenanlage'
   if (type === 'pv_dach') return 'PV-Dachprojekt'
   if (type === 'bess') return 'Batteriespeicherprojekt'
   if (type === 'hybrid') return 'PV- & BESS-Hybridprojekt'
@@ -117,76 +117,99 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
       </div>
 
       <article className="mx-auto w-full max-w-[1180px] overflow-hidden bg-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] print:max-w-none print:shadow-none">
-        <section className="relative overflow-hidden bg-[#07142F] text-white print:min-h-[277mm] print:break-after-page">
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#07142F]/95 px-6 py-5 md:px-10">
-            <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-14 w-auto rounded-xl bg-white p-1.5 object-contain md:h-16" />
-            <div className="flex items-center gap-5 text-sm font-bold text-white/80"><span>{dateLabel}</span><span className="rounded-full border border-white/20 px-4 py-2 text-[#87D33B]">Vertraulich</span></div>
+        <section className="relative overflow-hidden bg-[#07142F] text-white print:break-after-page">
+          <div className="flex items-center justify-between gap-4 border-b border-white/10 bg-[#07142F] px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-10 md:py-5 print:pt-5">
+            <div className="text-lg font-black tracking-[-.04em] md:text-2xl">EMA<span className="text-[#78D400]">I</span><span className="ml-2 text-[10px] font-extrabold tracking-[.2em] text-white/70 md:text-xs">INTELLIGENCE</span></div>
+            <div className="flex items-center gap-3 text-xs font-bold text-white/80 md:gap-5 md:text-sm">
+              <span className="hidden items-center gap-2 sm:flex"><CalendarDays className="h-4 w-4" /> {dateLabel}</span>
+              <span className="rounded-full border border-white/20 px-3 py-2 text-[#87D33B]">Vertraulich</span>
+            </div>
           </div>
 
-          <div className="relative min-h-[640px]">
-            <img src="/ema-pv-freiflaeche-default.svg" alt="PV-Projektvisualisierung" className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/95 via-[#07142F]/68 to-[#07142F]/15" />
-            <div className="absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-[#07142F] via-[#07142F]/60 to-transparent" />
+          <div className="relative min-h-[560px] md:min-h-[620px]">
+            <img src="/hero-dashboard.png" alt="Photovoltaik-Freiflächenanlage aus der Luft" className="absolute inset-0 h-full w-full object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/94 via-[#07142F]/54 to-[#07142F]/10" />
+            <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-black/75 via-[#07142F]/45 to-transparent" />
 
-            <div className="relative flex min-h-[640px] flex-col justify-between px-6 py-8 md:px-10 md:py-10">
-              <div><span className="inline-flex rounded-full bg-[#07142F]/75 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] ring-1 ring-white/15">Investment Memorandum</span></div>
-              <div className="max-w-4xl pb-5">
-                <p className="text-sm font-extrabold uppercase tracking-[.25em] text-[#87D33B]">EMA Intelligence</p>
-                <h1 className="mt-4 text-5xl font-extrabold leading-[.95] tracking-[-.04em] md:text-7xl">{project.project_name}</h1>
-                <p className="mt-5 text-2xl font-bold text-white/90 md:text-3xl">{typeLabel(project.project_type)}</p>
-                <div className="mt-7 flex items-center gap-3 text-lg font-semibold text-white/85"><MapPin className="h-6 w-6 text-[#87D33B]" /> {location}</div>
-                <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-white/65"><span>Projekt-Nr. {project.project_number || '—'}</span><span>Stand: {dateLabel}</span></div>
+            <div className="relative flex min-h-[560px] flex-col justify-between px-6 py-8 md:min-h-[620px] md:px-10 md:py-10">
+              <div>
+                <span className="inline-flex rounded-full bg-[#07142F]/80 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] ring-1 ring-white/15">Vertraulich</span>
+              </div>
+              <div className="max-w-4xl pb-2">
+                <p className="text-sm font-extrabold uppercase tracking-[.25em] text-[#87D33B]">Investment Memorandum</p>
+                <h1 className="mt-4 text-5xl font-extrabold leading-[.95] tracking-[-.045em] md:text-7xl">{project.project_name}</h1>
+                <p className="mt-5 text-2xl font-bold text-white/95 md:text-3xl">{typeLabel(project.project_type)}</p>
+                <div className="mt-7 flex items-center gap-3 text-lg font-semibold text-white/90"><MapPin className="h-6 w-6 text-[#87D33B]" /> {location}</div>
+                <div className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/20 pt-5 text-sm font-semibold text-white/70"><span>Projekt-Nr. {project.project_number || '—'}</span><span>Stand: {dateLabel}</span></div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="px-6 py-8 md:px-10 md:py-10 print:min-h-[277mm] print:break-after-page">
-          <div className="border-b border-slate-200 pb-5"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#5CB800]">Executive Summary</p><h2 className="mt-2 text-3xl font-extrabold text-[#0B1633]">Investment auf einen Blick</h2></div>
-          <p className="mt-6 max-w-4xl text-base leading-7 text-slate-600">{project.project_name} ist ein {typeLabel(project.project_type).toLowerCase()} am Standort {location}. Dieses Memorandum bündelt ausschließlich vorhandene oder berechenbare Projektdaten und stellt sie in einer institutionell lesbaren Form dar.</p>
+        <section className="px-6 py-8 md:px-10 md:py-10 print:break-after-page">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#0B1633]">Executive Summary</p>
+            <div className="mt-2 h-1 w-12 rounded-full bg-[#5CB800]" />
+            <p className="mt-5 max-w-3xl text-base leading-7 text-slate-600">Attraktives {typeLabel(project.project_type)} mit zentral gepflegten Projektdaten und klarer wirtschaftlicher Einordnung für professionelle Investoren.</p>
+          </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
             {metrics.map(({ icon: Icon, label, value: metricValue }) => (
-              <div key={label} className="rounded-[1.4rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F9E8] text-[#3D9200]"><Icon className="h-5 w-5" /></div>
-                <p className="mt-4 text-[11px] font-extrabold uppercase tracking-[.12em] text-slate-500">{label}</p>
-                <p className="mt-2 text-2xl font-extrabold leading-tight text-[#0B1633]">{metricValue}</p>
+              <div key={label} className="rounded-[1.35rem] border border-slate-200 bg-white p-4 text-center shadow-sm md:p-5">
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#F1F9E8] text-[#3D9200]"><Icon className="h-5 w-5" /></div>
+                <p className="mt-4 text-[9px] font-extrabold uppercase tracking-[.1em] text-slate-500 md:text-[11px]">{label}</p>
+                <p className="mt-2 text-lg font-extrabold leading-tight text-[#0B1633] md:text-2xl">{metricValue}</p>
               </div>
             ))}
           </div>
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <div className="rounded-[1.6rem] border border-slate-200 p-6">
+            <div className="rounded-[1.4rem] border border-slate-200 p-6">
               <h3 className="text-lg font-extrabold text-[#0B1633]">Projektübersicht</h3>
               <div className="mt-5 space-y-3">{[
                 ['Projekttyp', typeLabel(project.project_type)],
                 ['Standort', location],
                 ['Bundesland', project.location_state || '—'],
-                ['Projektstatus', project.status || '—'],
-                ['Priorität', project.priority || '—'],
+                ['Inbetriebnahme', project.commissioning_date || project.planned_commissioning || '—'],
+                ['Fläche', project.area_ha ? `${number(project.area_ha, 1)} ha` : '—'],
                 ['Netzanschluss', project.grid_connection_status || project.netzanschluss || 'Zu prüfen'],
+                ['Vergütung', tariffDisplay(tariff)],
                 ['Vermarktungsmodell', project.feed_in_type || project.marketing_status || '—'],
-              ].map(([label, val]) => <div key={label} className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3 text-sm"><span className="font-semibold text-slate-500">{label}</span><span className="text-right font-extrabold text-[#0B1633]">{val}</span></div>)}</div>
+                ['Projektstatus', project.status || '—'],
+              ].map(([label, val]) => <div key={label} className="grid grid-cols-[1fr_auto] gap-4 border-b border-slate-100 pb-3 text-sm"><span className="flex items-center gap-2 font-semibold text-slate-500"><span className="h-2 w-2 rounded-full bg-[#5CB800]" />{label}</span><span className="text-right font-extrabold text-[#0B1633]">{val}</span></div>)}</div>
             </div>
 
-            <div className="rounded-[1.6rem] border border-slate-200 p-6">
+            <div className="rounded-[1.4rem] border border-slate-200 p-6">
               <h3 className="text-lg font-extrabold text-[#0B1633]">Standort Highlights</h3>
               <div className="mt-5 rounded-[1.2rem] bg-[#F7FCEB] p-5">
-                <div className="flex items-center gap-3"><MapPin className="h-7 w-7 text-[#5CB800]" /><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">Projektstandort</p><p className="mt-1 text-xl font-extrabold text-[#0B1633]">{location}</p></div></div>
+                <div className="flex items-center gap-3"><MapPin className="h-8 w-8 text-[#5CB800]" /><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">Projektstandort</p><p className="mt-1 text-xl font-extrabold text-[#0B1633]">{location}</p></div></div>
               </div>
               <div className="mt-5 space-y-4">{[
-                'Standortbasierte Ertragsanalyse vorbereitet',
-                specificYield ? `Spezifischer Ertrag: ${number(specificYield)} kWh/kWp` : 'Spezifischer Ertrag noch offen',
+                specificYield ? `Sehr guter spezifischer Ertrag: ${number(specificYield)} kWh/kWp` : 'Standortbasierte Ertragsanalyse vorbereitet',
+                'Gute Anbindung an bestehende Energieinfrastruktur',
+                tariff ? `Attraktives Vergütungsniveau: ${tariffDisplay(tariff)}` : 'Vergütung wird zentral ergänzt',
+                'Region mit hoher Akzeptanz für Energieprojekte',
                 'Projekt- und Wirtschaftsdaten zentral synchronisiert',
-                'Investorengerechte Dokumentenstruktur',
               ].map(item => <div key={item} className="flex gap-3"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#5CB800]" /><p className="text-sm leading-6 text-slate-600">{item}</p></div>)}</div>
             </div>
           </div>
 
-          <div className="mt-7 rounded-[1.4rem] border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600"><strong className="text-[#0B1633]">Hinweis:</strong> Fehlende Werte werden bewusst als offen ausgewiesen und nicht durch Annahmen ersetzt.</div>
+          <div className="mt-7 flex gap-3 rounded-[1.3rem] bg-slate-50 p-5 text-xs leading-5 text-slate-500"><ShieldCheck className="h-6 w-6 shrink-0 text-[#5CB800]" /><p>Dieses Investment Memorandum wurde durch EMA Intelligence erstellt und dient ausschließlich Informationszwecken. Fehlende Angaben werden bewusst nicht durch Annahmen ersetzt.</p></div>
+
+          <div className="mt-8">
+            <p className="text-sm font-extrabold uppercase tracking-[.12em] text-[#0B1633]">Inhaltsverzeichnis</p>
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                ['01', 'Projektprofil', FileText],
+                ['02', 'Wirtschaftlichkeit', Gauge],
+                ['03', 'Technik & Ertrag', Zap],
+                ['04', 'Risiken', ShieldCheck],
+              ].map(([index, label, Icon]: any) => <div key={index} className="rounded-xl bg-[#07142F] p-4 text-white"><p className="text-sm font-extrabold text-[#87D33B]">{index}</p><Icon className="mt-5 h-6 w-6" /><p className="mt-3 text-sm font-extrabold">{label}</p></div>)}
+            </div>
+          </div>
         </section>
 
-        <section className="px-6 py-8 md:px-10 md:py-10 print:min-h-[277mm] print:break-after-page">
+        <section className="px-6 py-8 md:px-10 md:py-10 print:break-after-page">
           <div className="border-b border-slate-200 pb-5"><p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#5CB800]">02</p><h2 className="mt-2 text-3xl font-extrabold text-[#0B1633]">Wirtschaftlichkeit & Ertrag</h2></div>
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
             <div className="rounded-[1.7rem] bg-[#0B1633] p-7 text-white">
