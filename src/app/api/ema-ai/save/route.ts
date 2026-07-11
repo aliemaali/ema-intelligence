@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   const body = await request.json()
   const projectId = String(body?.projectId ?? '')
   const purchasePrice = Number(body?.purchasePrice ?? 0) || null
+  const pvKwp = Number(body?.pvKwp ?? 0) || null
   const specificYield = Number(body?.specificYield ?? 0) || null
   const tariff = Number(body?.tariff ?? 0) || null
 
@@ -42,6 +43,7 @@ export async function POST(request: Request) {
         ...existingDetails,
         ema_ai: {
           purchase_price: purchasePrice,
+          pv_kwp: pvKwp,
           specific_yield: specificYield,
           tariff,
           saved_at: new Date().toISOString(),
