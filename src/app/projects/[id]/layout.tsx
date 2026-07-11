@@ -18,8 +18,7 @@ const TABS = [
   { key: 'documents', label: 'Dokumente' },
   { key: 'investors', label: 'Investoren' },
   { key: 'activity',  label: 'Aktivität' },
-  { key: 'analysis', label: 'Analyse' },
-  { key: 'expose', label: 'Exposé' },
+  { key: 'analysis',  label: 'Analyse' },
 ]
 
 export default async function ProjectLayout({ children, params }: ProjectLayoutProps) {
