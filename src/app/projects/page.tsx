@@ -5,7 +5,6 @@ import {
   FileText,
   MapPin,
   Plus,
-  Search,
   Sparkles,
   Zap,
 } from 'lucide-react'
@@ -16,7 +15,7 @@ import type { ProjectType, ProjectStatus } from '@/lib/types/database.types'
 export const metadata = { title: 'Projekte' }
 
 interface ProjectsPageProps {
-  searchParams: { type?: string; status?: string; search?: string }
+  searchParams: { type?: string; status?: string }
 }
 
 function typeLabel(type?: string | null) {
@@ -54,7 +53,6 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   const projects = await getProjects({
     type: searchParams.type as ProjectType | undefined,
     status: searchParams.status as ProjectStatus | undefined,
-    search: searchParams.search,
   })
 
   const types = [
@@ -107,37 +105,22 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
           <span className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-extrabold text-slate-600 shadow-sm">{projects.length} Projekte</span>
         </div>
 
-        <div className="mt-6 space-y-3">
-          <form method="GET" className="relative">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-            <input
-              name="search"
-              type="search"
-              defaultValue={searchParams.search}
-              placeholder="Projekt suchen..."
-              className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-base font-semibold text-[#07142F] shadow-sm outline-none transition focus:border-[#5CB800] focus:ring-4 focus:ring-[#5CB800]/10"
-            />
-            {searchParams.type && <input type="hidden" name="type" value={searchParams.type} />}
-          </form>
-
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {types.map((type) => {
-              const params = new URLSearchParams(searchParams as Record<string, string>)
-              if (type.value) params.set('type', type.value)
-              else params.delete('type')
-              params.delete('search')
-              const active = (searchParams.type ?? '') === type.value
-              return (
-                <Link
-                  key={type.value}
-                  href={`/projects?${params.toString()}`}
-                  className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-extrabold transition ${active ? 'bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20' : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-[#07142F]'}`}
-                >
-                  {type.label}
-                </Link>
-              )
-            })}
-          </div>
+        <div className="mt-6 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {types.map((type) => {
+            const params = new URLSearchParams(searchParams as Record<string, string>)
+            if (type.value) params.set('type', type.value)
+            else params.delete('type')
+            const active = (searchParams.type ?? '') === type.value
+            return (
+              <Link
+                key={type.value}
+                href={`/projects?${params.toString()}`}
+                className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-extrabold transition ${active ? 'bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20' : 'bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 hover:text-[#07142F]'}`}
+              >
+                {type.label}
+              </Link>
+            )
+          })}
         </div>
 
         {projects.length === 0 ? (
@@ -145,8 +128,8 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
             <EmptyState
               icon="📁"
               title="Keine Projekte gefunden"
-              description={searchParams.search || searchParams.type ? 'Versuche andere Filterkriterien.' : 'Erstelle dein erstes Projekt, um loszulegen.'}
-              action={!searchParams.search && !searchParams.type ? <Link href="/projects/new" className="btn-primary mt-2">+ Neues Projekt</Link> : undefined}
+              description={searchParams.type ? 'Versuche einen anderen Filter.' : 'Erstelle dein erstes Projekt, um loszulegen.'}
+              action={!searchParams.type ? <Link href="/projects/new" className="btn-primary mt-2">+ Neues Projekt</Link> : undefined}
             />
           </div>
         ) : (
