@@ -1,4 +1,4 @@
-import { CustomerIntakeForm } from '@/components/customer-intake/CustomerIntakeForm'
+import { CustomerIntakeFormV2 } from '@/components/customer-intake/CustomerIntakeFormV2'
 
 export const metadata = {
   title: 'Kundenaufnahme',
@@ -6,5 +6,5 @@ export const metadata = {
 }
 
 export default function CustomerIntakePage() {
-  return <CustomerIntakeForm />
+  return <CustomerIntakeFormV2 />
 }
