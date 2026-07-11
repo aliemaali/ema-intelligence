@@ -67,7 +67,9 @@ export default async function EmaAiPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1]">
       <TopHeader />
-      <EmaAiAssistantV2 projects={aiProjects} />
+      <div className="[&>div]:!pt-6 md:[&>div]:!pt-8">
+        <EmaAiAssistantV2 projects={aiProjects} />
+      </div>
     </div>
   )
 }
