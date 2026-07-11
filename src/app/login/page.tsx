@@ -9,8 +9,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-
-      {/* Background pattern */}
       <div
         className="fixed inset-0 opacity-[0.03] pointer-events-none"
         style={{
@@ -20,12 +18,12 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
       />
 
       <div className="w-full max-w-sm relative z-10">
-
-        {/* Logo / Brand */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[#1F2A44] mb-5 shadow-lg">
-            <span className="text-[#5CB800] font-bold text-xl tracking-tighter">EMA</span>
-          </div>
+          <img
+            src="/ema-logo.jpeg"
+            alt="EMA Enterprise GmbH"
+            className="mx-auto mb-5 h-24 w-auto object-contain sm:h-28"
+          />
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">
             EMA Intelligence
           </h1>
@@ -34,16 +32,13 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </p>
         </div>
 
-        {/* Error message */}
         {error && (
           <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
             <p className="text-sm text-destructive">{decodeURIComponent(error)}</p>
           </div>
         )}
 
-        {/* Login form */}
         <form action={login} className="space-y-4">
-          {/* Hidden redirectTo */}
           {searchParams.redirectTo && (
             <input type="hidden" name="redirectTo" value={searchParams.redirectTo} />
           )}
@@ -87,7 +82,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </button>
         </form>
 
-        {/* Footer */}
         <p className="mt-10 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} EMA Enterprise GmbH
         </p>
