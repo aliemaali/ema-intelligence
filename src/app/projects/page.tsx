@@ -68,13 +68,20 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     <div className="w-full max-w-full space-y-7 overflow-x-hidden pb-28 md:mx-auto md:max-w-[1480px] md:space-y-8">
       <section className="relative mx-3 overflow-hidden rounded-[2rem] bg-[#07142F] text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)] md:mx-0 md:rounded-[2.2rem]">
         <div className="relative min-h-[470px] md:min-h-[520px]">
-          <img src="/hero-dashboard.png" alt="Erneuerbare-Energien-Projekte" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/95 via-[#07142F]/62 to-[#07142F]/12" />
-          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#07142F]/95 via-[#07142F]/45 to-transparent" />
+          <img
+            src="/hero-dashboard.png"
+            alt="Erneuerbare-Energien-Projekte"
+            className="absolute inset-0 h-full w-full scale-[1.015] object-cover object-center saturate-[1.08] contrast-[1.03]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/96 via-[#07142F]/64 to-[#07142F]/10" />
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#07142F]/62 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-[#07142F] via-[#07142F]/72 to-transparent" />
+          <div className="absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-black/20 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white/10 to-transparent" />
 
           <div className="relative flex min-h-[470px] flex-col justify-between px-6 py-8 md:min-h-[520px] md:px-10 md:py-10">
             <div className="flex items-center justify-between gap-4">
-              <span className="inline-flex items-center gap-2 rounded-full bg-[#07142F]/78 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] ring-1 ring-white/15">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#07142F]/72 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] ring-1 ring-white/15 backdrop-blur-md">
                 <Sparkles className="h-4 w-4" /> EMA Intelligence
               </span>
               <Link href="/projects/new" className="inline-flex items-center gap-2 rounded-full bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/25 transition hover:bg-[#4ea000]">
@@ -88,7 +95,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
               <p className="mt-5 max-w-2xl text-base leading-7 text-white/82 md:text-lg">
                 Alle PV-, BESS-, Hybrid- und Windprojekte zentral verwalten, bewerten und für Investoren aufbereiten.
               </p>
-              <div className="mt-6 inline-flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold text-white ring-1 ring-white/10 backdrop-blur">
+              <div className="mt-6 inline-flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold text-white ring-1 ring-white/10 backdrop-blur-md">
                 <FileText className="h-5 w-5 text-[#87D33B]" /> {projects.length} Projekt{projects.length === 1 ? '' : 'e'} im Portfolio
               </div>
             </div>
