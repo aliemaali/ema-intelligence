@@ -57,17 +57,12 @@ export type CapexCalculationUpdate = Partial<
   Omit<CapexCalculationRow, 'id' | 'project_id' | 'created_at' | 'updated_at'>
 >
 
-/**
- * UI-/Berechnungsmodell (camelCase). Entspricht inhaltlich der ursprünglichen
- * `project`-Struktur aus der HTML-Single-File-App, ergänzt um project_id-Bezug.
- */
 export interface CapexProject {
   id: string | null
-  projectId: string | null // FK -> projects.id
+  projectId: string | null
   calculationName: string
   createdAt: string | null
 
-  // Projektparameter
   projektname: string
   anlagenleistungKwp: number
   spezErtragKwhKwp: number
@@ -76,24 +71,19 @@ export interface CapexProject {
   betriebskostenPct: number
   pachtdauerJahre: number
 
-  // Module
   modulleistungWp: number
   preisProModul: number
 
-  // Wechselrichter
   wrHersteller: string
   wrEinzelpreis: number
   wrAnzahl: number
 
-  // Unterkonstruktion
   ukHersteller: string
   ukPreisProKwp: number
 
-  // DC / AC
   dcPreisProKwp: number
   acPreisProKwp: number
 
-  // Weitere CAPEX-Positionen
   planungEngineering: number
   baulicheMassnahmen: number
   logistikTransport: number
@@ -102,7 +92,6 @@ export interface CapexProject {
   pachtzahlungProKwp: number
   projektrechteProKwp: number
 
-  // Cashflow-Annahmen
   strompreissteigerungPct: number
   waccPct: number
 }
@@ -147,13 +136,6 @@ export interface CapexCalcResult {
   dynPayback: number | null
 }
 
-/**
- * Projekt-Bezug für den Projekt-Picker aus der bestehenden `projects`-Tabelle.
- *
- * Wichtig: Die eigentliche Projekttabelle verwendet `project_name`, `pv_mwp`,
- * `pv_ac_mw`, `bess_mw`, `bess_mwh` usw. In der CAPEX-UI nutzen wir weiter
- * `name`, damit die Komponenten einfach bleiben.
- */
 export interface ProjectOption {
   id: string
   name: string
@@ -165,6 +147,8 @@ export interface ProjectOption {
   location_city?: string | null
   location_state?: string | null
   location_country?: string | null
+  specific_yield?: number | null
+  tariff_eur_kwh?: number | null
 }
 
 export const WECHSELRICHTER_HERSTELLER = [
@@ -181,42 +165,33 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
   const projectOption = typeof project === 'object' && project !== null ? project : null
   const projectId = typeof project === 'string' ? project : projectOption?.id ?? null
 
-  // CAPEX-Rechner übernimmt nur den Projektbezug aus EMA Intelligence.
-  // Alle technischen und wirtschaftlichen Werte starten bewusst leer/0
-  // und werden manuell in der CAPEX-Maske eingetragen.
   return {
     id: null,
     projectId,
     calculationName: 'Neue CAPEX-Kalkulation',
     createdAt: null,
 
-    // Projektparameter
     projektname: projectOption?.name ?? '',
-    anlagenleistungKwp: 0,
-    spezErtragKwhKwp: 0,
-    strompreisEurKwh: 0,
+    anlagenleistungKwp: Number(projectOption?.pv_mwp ?? 0),
+    spezErtragKwhKwp: Number(projectOption?.specific_yield ?? 0),
+    strompreisEurKwh: Number(projectOption?.tariff_eur_kwh ?? 0),
     degradationPct: 0.5,
     betriebskostenPct: 1.5,
     pachtdauerJahre: 0,
 
-    // Module
     modulleistungWp: 0,
     preisProModul: 0,
 
-    // Wechselrichter
     wrHersteller: '',
     wrEinzelpreis: 0,
     wrAnzahl: 0,
 
-    // Unterkonstruktion
     ukHersteller: '',
     ukPreisProKwp: 0,
 
-    // DC / AC
     dcPreisProKwp: 0,
     acPreisProKwp: 0,
 
-    // Weitere CAPEX-Positionen
     planungEngineering: 0,
     baulicheMassnahmen: 0,
     logistikTransport: 0,
@@ -225,13 +200,11 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
     pachtzahlungProKwp: 0,
     projektrechteProKwp: 0,
 
-    // Cashflow-Annahmen
     strompreissteigerungPct: 2.0,
     waccPct: 6.0,
   }
 }
 
-/** Mapped eine Supabase-Row (snake_case) auf das UI-Modell (camelCase). */
 export function rowToCapexProject(row: CapexCalculationRow): CapexProject {
   return {
     id: row.id,
@@ -273,7 +246,6 @@ export function rowToCapexProject(row: CapexCalculationRow): CapexProject {
   }
 }
 
-/** Mapped das UI-Modell (camelCase) zurück auf eine Supabase-Insert/Update-Payload. */
 export function capexProjectToRow(
   p: CapexProject,
   opts: { createdBy?: string | null } = {}
