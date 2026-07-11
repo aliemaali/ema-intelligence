@@ -88,7 +88,7 @@ export function CapexProjectPicker({ projects }: CapexProjectPickerProps) {
   const [visibleProjects, setVisibleProjects] = useState(projects)
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white px-4 pb-28 pt-[max(6rem,calc(env(safe-area-inset-top)+4.5rem))]">
+    <main className="px-4 pb-28 pt-6">
       <div className="mx-auto w-full max-w-3xl">
         <button
           type="button"
