@@ -226,6 +226,12 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                 </select>
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white">⌄</span>
               </div>
+              {selectedProject && (
+                <div className="flex items-center justify-between rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10">
+                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-300">Anlagenleistung</span>
+                  <span className="text-lg font-extrabold text-white">{decimalValue(selectedProject.pvKwp).toLocaleString('de-DE', { maximumFractionDigits: 2 })} kWp</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -248,7 +254,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#378c00]"><Calculator className="h-6 w-6" /></span>
                     <div><h2 className="text-lg font-extrabold text-[#07142F]">Amortisation</h2><p className="mt-1 text-sm leading-6 text-slate-500">Fehlende Werte können manuell ergänzt und anschließend dauerhaft gespeichert werden.</p></div>
                   </div>
-                  <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Anlagenleistung kWp</span><input value={decimalValue(selectedProject.pvKwp).toLocaleString('de-DE', { maximumFractionDigits: 2 })} readOnly className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm font-bold text-[#07142F] outline-none" /></label>
                     <label className="block"><span className="text-xs font-bold text-slate-500">Kaufpreis in €</span><input value={purchasePrice} onChange={(event) => { setPurchasePrice(formatGermanIntegerInput(event.target.value)); setSaveMessage('') }} inputMode="numeric" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                     <label className="block">
                       <span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span>
