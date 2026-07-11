@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import GermanyMap from '@svg-maps/germany'
 
 type ProjectMapItem = {
   id: string
@@ -19,18 +20,18 @@ type Point = { x: number; y: number }
 type MapFilter = 'all' | 'pv' | 'bess' | 'hybrid'
 
 const STATE_POINTS: Record<string, Point> = {
-  'Schleswig-Holstein': { x: 51, y: 13 }, Hamburg: { x: 49, y: 24 }, Bremen: { x: 36, y: 31 },
-  Niedersachsen: { x: 43, y: 34 }, 'Mecklenburg-Vorpommern': { x: 67, y: 26 }, Brandenburg: { x: 69, y: 44 },
-  Berlin: { x: 72, y: 43 }, Sachsen: { x: 69, y: 63 }, 'Sachsen-Anhalt': { x: 58, y: 49 },
-  Thüringen: { x: 56, y: 61 }, Hessen: { x: 43, y: 60 }, 'Nordrhein-Westfalen': { x: 27, y: 52 },
-  'Rheinland-Pfalz': { x: 31, y: 69 }, Saarland: { x: 24, y: 76 }, 'Baden-Württemberg': { x: 38, y: 85 },
-  Bayern: { x: 61, y: 82 },
+  'Schleswig-Holstein': { x: 49, y: 10 }, Hamburg: { x: 48, y: 19 }, Bremen: { x: 36, y: 27 },
+  Niedersachsen: { x: 42, y: 31 }, 'Mecklenburg-Vorpommern': { x: 66, y: 23 }, Brandenburg: { x: 67, y: 41 },
+  Berlin: { x: 70, y: 40 }, Sachsen: { x: 68, y: 59 }, 'Sachsen-Anhalt': { x: 56, y: 45 },
+  Thüringen: { x: 54, y: 57 }, Hessen: { x: 43, y: 58 }, 'Nordrhein-Westfalen': { x: 28, y: 49 },
+  'Rheinland-Pfalz': { x: 31, y: 66 }, Saarland: { x: 24, y: 73 }, 'Baden-Württemberg': { x: 38, y: 82 },
+  Bayern: { x: 59, y: 79 },
 }
 
 const CITY_POINTS: Record<string, Point> = {
-  Worms: { x: 34, y: 72 }, Berlin: { x: 72, y: 43 }, Hamburg: { x: 49, y: 24 },
-  München: { x: 61, y: 90 }, Stuttgart: { x: 39, y: 82 }, Frankfurt: { x: 42, y: 64 },
-  Leipzig: { x: 63, y: 57 }, Dresden: { x: 72, y: 61 }, Köln: { x: 27, y: 56 }, Hannover: { x: 43, y: 39 },
+  Worms: { x: 34, y: 69 }, Berlin: { x: 70, y: 40 }, Hamburg: { x: 48, y: 19 },
+  München: { x: 59, y: 89 }, Stuttgart: { x: 39, y: 79 }, Frankfurt: { x: 41, y: 62 },
+  Leipzig: { x: 61, y: 53 }, Dresden: { x: 70, y: 57 }, Köln: { x: 28, y: 52 }, Hannover: { x: 43, y: 35 },
 }
 
 function formatKwp(value?: number | null) {
@@ -46,7 +47,7 @@ function projectKind(project: ProjectMapItem): Exclude<MapFilter, 'all'> {
 
 function getPoint(project: ProjectMapItem, index: number): Point {
   const base = CITY_POINTS[project.location_city ?? ''] ?? STATE_POINTS[project.location_state ?? ''] ?? { x: 50, y: 50 }
-  return { x: base.x + ((index % 3) - 1) * 1.5, y: base.y + (Math.floor(index / 3) % 3) * 1.25 }
+  return { x: base.x + ((index % 3) - 1) * 1.4, y: base.y + (Math.floor(index / 3) % 3) * 1.2 }
 }
 
 function markerColor(kind: Exclude<MapFilter, 'all'>) {
@@ -77,8 +78,8 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
   )
 
   return (
-    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-gradient-to-br from-white via-[#F8FAFC] to-[#F2F7EE] shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
-      <div className="absolute inset-x-4 top-4 z-20 flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-lg backdrop-blur">
+    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
+      <div className="absolute inset-x-4 top-4 z-20 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur">
         {FILTERS.map((item) => {
           const count = item.value === 'all' ? locatedProjects.length : counts[item.value]
           const active = filter === item.value
@@ -96,56 +97,53 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
         })}
       </div>
 
-      <svg viewBox="0 0 100 108" className="h-full w-full px-8 pb-5 pt-20" role="img" aria-label="Feste Deutschlandkarte mit Projektstandorten">
-        <defs>
-          <linearGradient id="germanyPremiumFill" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FFFFFF" />
-            <stop offset="58%" stopColor="#F4F8F1" />
-            <stop offset="100%" stopColor="#E5F1DE" />
-          </linearGradient>
-          <filter id="germanyPremiumShadow" x="-35%" y="-35%" width="170%" height="170%">
-            <feDropShadow dx="0" dy="2.8" stdDeviation="3" floodColor="#0F172A" floodOpacity="0.16" />
-          </filter>
-        </defs>
+      <div className="absolute inset-x-8 bottom-5 top-20 flex items-center justify-center">
+        <div className="relative h-full w-full max-w-[360px]">
+          <svg
+            viewBox={GermanyMap.viewBox}
+            className="h-full w-full drop-shadow-[0_18px_30px_rgba(15,23,42,0.10)]"
+            role="img"
+            aria-label="Deutschlandkarte mit Bundesländern und Projektstandorten"
+          >
+            <defs>
+              <linearGradient id="germanyFill" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#FFFFFF" />
+                <stop offset="100%" stopColor="#EAF4E4" />
+              </linearGradient>
+            </defs>
+            {GermanyMap.locations.map((location) => (
+              <path
+                key={location.id}
+                d={location.path}
+                fill="url(#germanyFill)"
+                stroke="#CBD5E1"
+                strokeWidth="0.9"
+                vectorEffect="non-scaling-stroke"
+              >
+                <title>{location.name}</title>
+              </path>
+            ))}
+          </svg>
 
-        <path
-          d="M49 4 L53 6 L54 10 L58 12 L60 17 L66 19 L70 23 L73 28 L72 33 L77 37 L75 43 L80 48 L77 53 L80 58 L75 63 L73 70 L68 74 L67 82 L62 88 L57 96 L52 101 L47 99 L42 103 L38 99 L34 94 L31 87 L26 83 L25 76 L21 71 L22 65 L18 59 L20 53 L17 47 L21 41 L23 35 L28 31 L31 25 L36 22 L38 16 L43 13 L44 8 Z"
-          fill="url(#germanyPremiumFill)"
-          stroke="#BFCBDC"
-          strokeWidth="1.15"
-          strokeLinejoin="round"
-          filter="url(#germanyPremiumShadow)"
-        />
-
-        <path d="M43 14 C48 18 55 17 61 20" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M29 31 C39 35 52 34 69 29" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M21 45 C35 46 51 45 75 42" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M20 58 C37 59 55 56 77 55" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M23 70 C39 72 57 69 72 68" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M27 82 C40 82 53 80 66 83" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M40 16 C42 32 39 48 37 64 C35 77 39 91 42 99" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-        <path d="M58 19 C55 35 55 51 57 66 C58 78 57 88 53 99" stroke="#D7E0EA" strokeWidth="0.5" fill="none" />
-
-        {visibleProjects.map((project, index) => {
-          const point = getPoint(project, index)
-          const kind = projectKind(project)
-          const color = markerColor(kind)
-          return (
-            <g key={project.id}>
-              <circle cx={point.x} cy={point.y} r="5.2" fill={color} opacity="0.16" />
-              <circle cx={point.x} cy={point.y} r="2.75" fill={color} stroke="white" strokeWidth="1.2" />
-              <foreignObject x={point.x - 5.5} y={point.y - 5.5} width="11" height="11">
-                <Link
-                  href={`/projects/${project.id}/overview`}
-                  className="block h-full w-full rounded-full"
-                  title={`${project.project_name} · ${project.location_city ?? project.location_state ?? ''} · ${formatKwp(project.pv_mwp)}`}
-                  aria-label={`${project.project_name} öffnen`}
-                />
-              </foreignObject>
-            </g>
-          )
-        })}
-      </svg>
+          {visibleProjects.map((project, index) => {
+            const point = getPoint(project, index)
+            const kind = projectKind(project)
+            const color = markerColor(kind)
+            return (
+              <Link
+                key={project.id}
+                href={`/projects/${project.id}/overview`}
+                title={`${project.project_name} · ${project.location_city ?? project.location_state ?? ''} · ${formatKwp(project.pv_mwp)}`}
+                aria-label={`${project.project_name} öffnen`}
+                className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white shadow-[0_8px_18px_rgba(15,23,42,0.22)] transition hover:scale-110"
+                style={{ left: `${point.x}%`, top: `${point.y}%`, backgroundColor: color }}
+              >
+                <span className="h-2.5 w-2.5 rounded-full bg-white/95" />
+              </Link>
+            )
+          })}
+        </div>
+      </div>
 
       {visibleProjects.length === 0 && (
         <div className="pointer-events-none absolute inset-x-6 bottom-6 z-10 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-center text-sm font-bold text-slate-500 shadow-sm">
