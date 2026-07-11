@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Bell, Search } from 'lucide-react'
+import { Bell, CalendarDays } from 'lucide-react'
 
 export function TopHeader() {
   return (
@@ -15,23 +15,23 @@ export function TopHeader() {
       </Link>
 
       <div className="flex items-center gap-2">
-        <button
+        <Link
+          href="/calendar"
           className="mobile-header-action"
-          type="button"
-          title="Suche"
-          aria-label="Suche"
+          title="Kalender"
+          aria-label="Kalender öffnen"
         >
-          <Search className="h-5 w-5" />
-        </button>
-        <button
+          <CalendarDays className="h-5 w-5" />
+        </Link>
+        <Link
+          href="/calendar"
           className="mobile-header-action relative"
-          type="button"
           title="Benachrichtigungen"
-          aria-label="Benachrichtigungen"
+          aria-label="Benachrichtigungen und Termine öffnen"
         >
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#5CB800]" />
-        </button>
+        </Link>
       </div>
     </header>
   )
