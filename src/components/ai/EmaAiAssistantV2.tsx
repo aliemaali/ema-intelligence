@@ -36,16 +36,48 @@ export type EmaAiProject = {
   rawProject: Record<string, unknown>
 }
 
-function numberValue(value: unknown) {
-  if (value === null || value === undefined || value === '') return 0
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
-  const normalized = String(value)
+function cleanNumberInput(value: unknown) {
+  return String(value ?? '')
+    .trim()
     .replace(/\s/g, '')
     .replace(/€/g, '')
     .replace(/ct\/?kwh/gi, '')
     .replace(/kwh\/?kwp/gi, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
+}
+
+function decimalValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return 0
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+
+  const cleaned = cleanNumberInput(value)
+  if (!cleaned) return 0
+
+  let normalized = cleaned
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    normalized = cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
+      ? cleaned.replace(/\./g, '').replace(',', '.')
+      : cleaned.replace(/,/g, '')
+  } else if (cleaned.includes(',')) {
+    normalized = cleaned.replace(',', '.')
+  } else if ((cleaned.match(/\./g) ?? []).length > 1) {
+    normalized = cleaned.replace(/\./g, '')
+  }
+
+  const parsed = Number.parseFloat(normalized)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function moneyValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return 0
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+
+  const cleaned = cleanNumberInput(value)
+  if (!cleaned) return 0
+
+  const normalized = cleaned.includes(',')
+    ? cleaned.replace(/\./g, '').replace(',', '.')
+    : cleaned.replace(/\./g, '')
+
   const parsed = Number.parseFloat(normalized)
   return Number.isFinite(parsed) ? parsed : 0
 }
@@ -76,7 +108,7 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   useEffect(() => {
     setPurchasePrice(selectedProject?.purchasePrice ? formatGermanIntegerInput(selectedProject.purchasePrice) : '')
     setSpecificYield(selectedProject?.specificYield ? String(selectedProject.specificYield) : '')
-    setTariff(selectedProject?.tariff ? String(selectedProject.tariff) : '')
+    setTariff(selectedProject?.tariff ? String(selectedProject.tariff).replace('.', ',') : '')
     setYieldMessage('')
     setSaveMessage('')
   }, [selectedProjectId, selectedProject])
@@ -117,9 +149,9 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId: selectedProject.id,
-          purchasePrice: numberValue(purchasePrice),
-          specificYield: numberValue(specificYield),
-          tariff: numberValue(tariff),
+          purchasePrice: moneyValue(purchasePrice),
+          specificYield: decimalValue(specificYield),
+          tariff: decimalValue(tariff),
         }),
       })
       const data = await response.json()
@@ -134,10 +166,10 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
 
   const calculation = useMemo(() => {
     if (!selectedProject) return null
-    const kwp = numberValue(selectedProject.pvKwp)
-    const price = numberValue(purchasePrice)
-    const yieldPerKwp = numberValue(specificYield)
-    let tariffValue = numberValue(tariff)
+    const kwp = decimalValue(selectedProject.pvKwp)
+    const price = moneyValue(purchasePrice)
+    const yieldPerKwp = decimalValue(specificYield)
+    let tariffValue = decimalValue(tariff)
     if (tariffValue > 1) tariffValue /= 100
     const annualProduction = kwp * yieldPerKwp
     const annualRevenue = annualProduction * tariffValue
@@ -156,11 +188,11 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   const exposeProject = selectedProject
     ? {
         ...selectedProject.rawProject,
-        purchase_price: numberValue(purchasePrice) || null,
-        deal_purchase_price: numberValue(purchasePrice) || null,
-        tariff: numberValue(tariff) || null,
-        feed_in_tariff: numberValue(tariff) || null,
-        specific_yield: numberValue(specificYield) || null,
+        purchase_price: moneyValue(purchasePrice) || null,
+        deal_purchase_price: moneyValue(purchasePrice) || null,
+        tariff: decimalValue(tariff) || null,
+        feed_in_tariff: decimalValue(tariff) || null,
+        specific_yield: decimalValue(specificYield) || null,
       }
     : null
 
@@ -223,7 +255,7 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                       <input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage(''); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" />
                       <button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">{isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Aus Standort berechnen</button>
                     </label>
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh</span><input value={tariff} onChange={(event) => { setTariff(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh oder €/kWh</span><input value={tariff} onChange={(event) => { setTariff(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                   </div>
 
                   <button type="button" onClick={saveValues} disabled={isSaving} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-60">
