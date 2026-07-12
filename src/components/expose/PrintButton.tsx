@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Download, Printer } from 'lucide-react'
 
 function formatNumber(value: number, digits = 0) {
@@ -32,10 +32,51 @@ function setValuesForLabel(label: string, value: string) {
   }
 }
 
+async function waitForPrintableImages() {
+  const images = Array.from(document.querySelectorAll<HTMLImageElement>('.memorandum-page img'))
+
+  await Promise.all(images.map(async (image) => {
+    if (!image.complete || image.naturalWidth === 0) {
+      await new Promise<void>((resolve) => {
+        const finish = () => resolve()
+        image.addEventListener('load', finish, { once: true })
+        image.addEventListener('error', finish, { once: true })
+        window.setTimeout(finish, 5000)
+      })
+    }
+
+    if (typeof image.decode === 'function') {
+      try {
+        await image.decode()
+      } catch {
+        // Safari kann decode() trotz bereits sichtbarem Bild ablehnen.
+      }
+    }
+  }))
+
+  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
 export function PrintButton() {
-  const print = () => window.print()
+  const [isPreparing, setIsPreparing] = useState(false)
+
+  const print = async () => {
+    if (isPreparing) return
+    setIsPreparing(true)
+
+    try {
+      await waitForPrintableImages()
+      window.print()
+    } finally {
+      window.setTimeout(() => setIsPreparing(false), 500)
+    }
+  }
 
   useEffect(() => {
+    const hero = new Image()
+    hero.src = '/hero-dashboard.png'
+    hero.decoding = 'sync'
+
     const match = window.location.pathname.match(/\/expose\/([^/]+)/)
     const projectId = match?.[1]
     if (!projectId) return
@@ -169,10 +210,10 @@ export function PrintButton() {
         }
       `}</style>
       <div className="print:hidden flex flex-wrap gap-3">
-        <button onClick={print} className="inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000]">
-          <Download className="h-4 w-4" /> Als PDF speichern
+        <button disabled={isPreparing} onClick={print} className="inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70">
+          <Download className="h-4 w-4" /> {isPreparing ? 'PDF wird vorbereitet…' : 'Als PDF speichern'}
         </button>
-        <button onClick={print} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm transition hover:bg-slate-50">
+        <button disabled={isPreparing} onClick={print} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70">
           <Printer className="h-4 w-4" /> Drucken
         </button>
       </div>
