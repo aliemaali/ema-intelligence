@@ -262,10 +262,8 @@ export default async function DashboardPage() {
                           <p className="mt-1 truncate font-extrabold text-[#132060]">{formatMoney(purchasePrice)}</p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-muted-foreground">Einspeiseart</p>
-                          <p className="mt-1 w-fit rounded-lg border border-[#5CB800]/20 bg-[#5CB800]/10 px-2 py-1 font-extrabold text-[#2F8A00]">
-                            {feedInType}
-                          </p>
+                          <p className="text-muted-foreground">Einspeisung</p>
+                          <p className="mt-1 truncate font-extrabold text-[#132060]">{feedInType}</p>
                         </div>
                       </div>
                     </div>
@@ -280,20 +278,13 @@ export default async function DashboardPage() {
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight text-[#07142F] md:text-xl">Projektstandorte</h2>
-              <p className="mt-1 text-sm text-muted-foreground md:text-xs">Zoomen, verschieben und Projekte direkt öffnen.</p>
+              <p className="mt-1 text-sm text-muted-foreground md:text-xs">Standorte, Technologie und Projektverteilung.</p>
             </div>
-            <Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00] hover:underline">
-              Karte <Layers className="h-4 w-4" />
-            </Link>
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold text-[#2F8A00]">
+              <Layers className="h-4 w-4" /> {mapProjects.length}
+            </span>
           </div>
-
-          <ProjectMap projects={mapProjects as any} />
-
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#5CB800]" /> PV Projekte</span>
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" /> BESS Projekte</span>
-            <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-violet-600" /> Hybrid Projekte</span>
-          </div>
+          <ProjectMap projects={mapProjects} />
         </div>
       </div>
     </div>
