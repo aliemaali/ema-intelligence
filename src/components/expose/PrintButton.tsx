@@ -50,14 +50,14 @@ export function PrintButton() {
     <>
       <style jsx global>{`
         @page {
-          size: A4 portrait;
+          size: A4 landscape;
           margin: 0;
         }
 
         @media print {
           html,
           body {
-            width: 210mm !important;
+            width: 297mm !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
@@ -67,6 +67,7 @@ export function PrintButton() {
           body > div,
           body main,
           div:has(> .memorandum-page) {
+            width: 297mm !important;
             height: auto !important;
             min-height: 0 !important;
             margin: 0 !important;
@@ -80,10 +81,10 @@ export function PrintButton() {
             display: flex !important;
             flex-direction: column !important;
             position: relative !important;
-            width: 210mm !important;
-            height: 280mm !important;
-            min-height: 280mm !important;
-            max-height: 280mm !important;
+            width: 297mm !important;
+            height: 195mm !important;
+            min-height: 195mm !important;
+            max-height: 195mm !important;
             margin: 0 !important;
             overflow: hidden !important;
             break-inside: avoid-page !important;
@@ -92,10 +93,6 @@ export function PrintButton() {
             background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-          }
-
-          .memorandum-page * {
-            background-color: transparent;
           }
 
           .memorandum-page + .memorandum-page {
@@ -109,33 +106,33 @@ export function PrintButton() {
           }
 
           .memorandum-page:first-child > div:first-child {
-            min-height: 18mm !important;
-            padding: 3.5mm 12mm 2mm !important;
-            border-bottom: 0.35mm solid #e2e8f0 !important;
+            min-height: 16mm !important;
+            padding: 3mm 12mm 2mm !important;
+            border-bottom: 0.35mm solid #d8e1e8 !important;
             background: #ffffff !important;
           }
 
           .memorandum-page:first-child > div:first-child img {
-            height: 10mm !important;
+            height: 9mm !important;
           }
 
           .memorandum-page:first-child > div:first-child p:first-child {
             font-size: 13px !important;
-            letter-spacing: 0.08em !important;
+            letter-spacing: 0.12em !important;
           }
 
           .memorandum-page:first-child > div:first-child p:last-child {
-            margin-top: 1.2mm !important;
-            font-size: 8px !important;
+            margin-top: 1mm !important;
+            font-size: 7.5px !important;
           }
 
           .memorandum-page:first-child > section:first-of-type {
             position: relative !important;
-            height: 82mm !important;
-            min-height: 82mm !important;
+            height: 76mm !important;
+            min-height: 76mm !important;
             overflow: hidden !important;
-            background: #ffffff !important;
-            border-bottom: 0.35mm solid #e2e8f0 !important;
+            background: #07182f !important;
+            border-bottom: none !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1) {
@@ -143,70 +140,236 @@ export function PrintButton() {
           }
 
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(2) {
-            position: absolute !important;
-            inset: auto 0 22mm 0 !important;
-            z-index: 2 !important;
-            height: 13mm !important;
-            background: linear-gradient(
-              to bottom,
-              rgba(255,255,255,0) 0%,
-              rgba(255,255,255,0.42) 38%,
-              rgba(255,255,255,0.86) 72%,
-              #ffffff 100%
-            ) !important;
+            display: none !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:last-child {
             position: absolute !important;
-            inset: auto 0 0 0 !important;
+            inset: 0 auto 0 0 !important;
             z-index: 3 !important;
-            display: block !important;
-            height: 25mm !important;
-            padding: 2mm 12mm 3mm !important;
-            background: #ffffff !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            width: 41% !important;
+            height: 100% !important;
+            padding: 8mm 12mm 7mm !important;
+            background: linear-gradient(135deg, #06162b 0%, #0b2443 100%) !important;
+            color: #ffffff !important;
+            clip-path: polygon(0 0, 91% 0, 100% 100%, 0 100%) !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type > div:last-child::after {
+            content: '' !important;
+            position: absolute !important;
+            top: 0 !important;
+            right: 5% !important;
+            width: 1.2mm !important;
+            height: 100% !important;
+            background: #79b900 !important;
+            transform: skewX(-11deg) !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 {
-            max-width: 72% !important;
+            max-width: 78% !important;
             margin: 0 !important;
-            font-size: 26px !important;
+            color: #ffffff !important;
+            font-size: 29px !important;
             line-height: 1.02 !important;
             letter-spacing: -0.035em !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 + p {
-            margin-top: 1.6mm !important;
+            margin-top: 2.2mm !important;
+            color: #8ed03f !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 + p + div {
-            margin-top: 2mm !important;
+            margin-top: 4mm !important;
+            max-width: 78% !important;
+            color: #ffffff !important;
+            font-size: 8px !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type h1 + p + div span {
+            color: #ffffff !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:last-child > span:last-child {
-            bottom: 4mm !important;
-            right: 12mm !important;
-          }
-
-          .memorandum-page img {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+            position: static !important;
+            align-self: flex-start !important;
+            margin-top: 4mm !important;
+            padding: 1.6mm 3.5mm !important;
+            color: #07182f !important;
+            background: #ffffff !important;
+            border-color: #ffffff !important;
+            box-shadow: none !important;
           }
 
           .memorandum-page img[alt='Hochwertiges Projektmotiv'] {
             display: block !important;
             visibility: visible !important;
             position: absolute !important;
-            inset: 0 0 auto 0 !important;
+            inset: 0 0 0 auto !important;
             z-index: 0 !important;
-            width: 100% !important;
-            height: 60mm !important;
+            width: 64% !important;
+            height: 76mm !important;
             max-width: none !important;
             object-fit: cover !important;
             object-position: center 52% !important;
             opacity: 1 !important;
             transform: none !important;
-            filter: none !important;
+            filter: saturate(1.05) contrast(1.03) !important;
             background: #ffffff !important;
+          }
+
+          .memorandum-page:first-child > section:nth-of-type(2) {
+            position: relative !important;
+            z-index: 5 !important;
+            padding: 0 12mm 4mm !important;
+            background: #ffffff !important;
+          }
+
+          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child {
+            position: relative !important;
+            z-index: 6 !important;
+            margin-top: -8mm !important;
+            gap: 0 !important;
+            overflow: hidden !important;
+            border: 0.35mm solid #dbe3e9 !important;
+            border-radius: 3mm !important;
+            background: #ffffff !important;
+            box-shadow: 0 2mm 7mm rgba(11, 22, 51, 0.13) !important;
+          }
+
+          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div {
+            border: 0 !important;
+            border-right: 0.25mm solid #e4e9ed !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+
+          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div:last-child {
+            border-right: 0 !important;
+          }
+
+          .memorandum-page:first-child > section:nth-of-type(2) > div:nth-of-type(2),
+          .memorandum-page:first-child > section:nth-of-type(2) > div:nth-of-type(3) {
+            margin-top: 4mm !important;
+            gap: 5mm !important;
+          }
+
+          .memorandum-page:first-child > section:nth-of-type(2) > div:nth-of-type(2) > section,
+          .memorandum-page:first-child > section:nth-of-type(2) > div:nth-of-type(3) > section {
+            padding: 0 !important;
+            border: 0 !important;
+            background: #ffffff !important;
+          }
+
+          .memorandum-page:first-child > footer {
+            margin-top: auto !important;
+            padding: 2.2mm 12mm !important;
+            background: #ffffff !important;
+            border-top: 0.3mm solid #d8e1e8 !important;
+          }
+
+          .memorandum-page:nth-child(2) {
+            padding: 0 !important;
+            background: #ffffff !important;
+          }
+
+          .memorandum-page:nth-child(2) > header {
+            min-height: 18mm !important;
+            padding: 4mm 12mm !important;
+            align-items: center !important;
+            background: #07182f !important;
+            border-bottom: 1.2mm solid #79b900 !important;
+          }
+
+          .memorandum-page:nth-child(2) > header img {
+            height: 9mm !important;
+            filter: brightness(0) invert(1) !important;
+          }
+
+          .memorandum-page:nth-child(2) > header p:first-child,
+          .memorandum-page:nth-child(2) > header p:last-child {
+            color: #ffffff !important;
+          }
+
+          .memorandum-page:nth-child(2) > header p:last-child {
+            color: #9bd758 !important;
+          }
+
+          .memorandum-page:nth-child(2) > div:nth-of-type(1) {
+            margin-top: 0 !important;
+            padding: 5mm 12mm 2mm !important;
+          }
+
+          .memorandum-page:nth-child(2) > div:nth-of-type(1) h2 {
+            margin-top: 1mm !important;
+            font-size: 20px !important;
+          }
+
+          .memorandum-page:nth-child(2) > div:nth-of-type(2) {
+            margin-top: 2mm !important;
+            padding: 0 12mm !important;
+            gap: 6mm !important;
+          }
+
+          .memorandum-page:nth-child(2) h3 {
+            font-size: 11px !important;
+          }
+
+          .memorandum-page:nth-child(2) h3 + div {
+            background: #79b900 !important;
+          }
+
+          .memorandum-page:nth-child(2) section > div[class*='rounded-2xl'],
+          .memorandum-page:nth-child(2) section > div[class*='rounded-xl'] {
+            border-radius: 2.2mm !important;
+            border-color: #dbe3e9 !important;
+            box-shadow: 0 1.2mm 4mm rgba(11, 22, 51, 0.06) !important;
+          }
+
+          .memorandum-page:nth-child(2) [class*='border-b-2'][class*='border-[#0B1633]'] {
+            color: #ffffff !important;
+            background: #07182f !important;
+            border-bottom-color: #07182f !important;
+          }
+
+          .memorandum-page:nth-child(2) [class*='bg-[#F1F9E8]'] {
+            background: #eff7e6 !important;
+          }
+
+          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] {
+            position: relative !important;
+            overflow: hidden !important;
+            margin-top: 4mm !important;
+            background: linear-gradient(135deg, #07182f 0%, #102b50 100%) !important;
+            border-radius: 2.5mm !important;
+            box-shadow: none !important;
+          }
+
+          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'],
+          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] p,
+          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] h3 {
+            color: #ffffff !important;
+          }
+
+          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] span,
+          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] p:first-child {
+            color: #95d44f !important;
+          }
+
+          .memorandum-page:nth-child(2) p[class*='text-slate-400'] {
+            margin-top: 3mm !important;
+            font-size: 5.5px !important;
+            line-height: 2.7mm !important;
+          }
+
+          .memorandum-page img {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
