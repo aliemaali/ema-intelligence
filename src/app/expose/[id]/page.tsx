@@ -132,7 +132,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
 
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || 'Deutschland'
   const dateLabel = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
-  const heroImage = project.project_type === 'pv_dach' ? '/hero-dashboard.png' : '/hero-dashboard.png'
+  const heroImage = '/hero-dashboard.png'
 
   const metrics = [
     { icon: Zap, label: 'Installierte Leistung', value: `${formatNumber(pvKwp, 2)} kWp` },
@@ -167,7 +167,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
         </Link>
       </div>
 
-      <article className="mx-auto w-full max-w-[1180px] overflow-hidden bg-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] print:h-[297mm] print:w-[210mm] print:max-w-none print:shadow-none">
+      <article className="mx-auto w-full max-w-[1180px] overflow-hidden bg-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] print:h-[297mm] print:w-[210mm] print:max-w-none print:shadow-none [print-color-adjust:exact] [-webkit-print-color-adjust:exact]">
         <div className="flex items-center justify-between gap-4 px-6 py-4 md:px-8 print:px-7 print:py-3">
           <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain print:h-12" />
           <div className="text-right">
@@ -176,15 +176,19 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
           </div>
         </div>
 
-        <section className="relative h-[300px] overflow-hidden bg-[#07142F] text-white print:h-[205px]">
-          <img src={heroImage} alt="Projektmotiv" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/92 via-[#07142F]/44 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/65 to-transparent" />
+        <section className="relative h-[300px] overflow-hidden bg-[#dfe8ef] print:h-[205px]">
+          <img
+            src={heroImage}
+            alt="Hochwertiges Projektmotiv"
+            className="absolute inset-0 h-full w-full object-cover object-center saturate-[1.08] contrast-[1.02] brightness-[1.08] print:block"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-white/78 via-white/28 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0B1633]/12 to-transparent" />
           <div className="relative flex h-full items-end px-6 pb-6 md:px-8 print:px-7 print:pb-4">
-            <div className="rounded-[1.25rem] bg-[#07142F]/92 p-5 ring-1 ring-white/10 backdrop-blur-sm print:p-4">
-              <p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B]">Projekt-Nr.</p>
+            <div className="max-w-[420px] rounded-[1.25rem] border border-white/70 bg-white/92 p-5 text-[#0B1633] shadow-[0_12px_40px_rgba(15,23,42,0.16)] backdrop-blur-md print:bg-white print:p-4">
+              <p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#5CB800]">Projekt-Nr.</p>
               <h1 className="mt-2 text-4xl font-extrabold tracking-tight print:text-2xl">{project.project_number || '—'}</h1>
-              <p className="mt-4 text-sm font-semibold text-white/80 print:mt-2 print:text-[10px]">{project.project_name} · {dateLabel}</p>
+              <p className="mt-4 text-sm font-semibold text-slate-600 print:mt-2 print:text-[10px]">{project.project_name} · {dateLabel}</p>
             </div>
           </div>
         </section>
