@@ -46,7 +46,6 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               autoComplete="email"
               autoFocus
               required
-              placeholder="ali@ema-enterprise.de"
               className="form-input"
             />
           </div>
