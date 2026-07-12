@@ -98,13 +98,13 @@ export function PrintButton() {
           }
 
           .memorandum-page:first-child > div:first-child {
-            min-height: 23mm !important;
-            padding: 5mm 12mm 3.5mm !important;
+            min-height: 20mm !important;
+            padding: 4mm 12mm 2.5mm !important;
             border-bottom: 0.35mm solid #e2e8f0 !important;
           }
 
           .memorandum-page:first-child > div:first-child img {
-            height: 12mm !important;
+            height: 11mm !important;
           }
 
           .memorandum-page:first-child > div:first-child p:first-child {
@@ -118,8 +118,9 @@ export function PrintButton() {
           }
 
           .memorandum-page:first-child > section:first-of-type {
-            height: 61mm !important;
-            min-height: 61mm !important;
+            height: 78mm !important;
+            min-height: 78mm !important;
+            background: #ffffff !important;
             border-bottom: 0.35mm solid #e2e8f0 !important;
           }
 
@@ -152,12 +153,12 @@ export function PrintButton() {
             width: 100% !important;
             height: 100% !important;
             max-width: none !important;
-            object-fit: cover !important;
-            object-position: center 52% !important;
+            object-fit: contain !important;
+            object-position: center center !important;
             opacity: 1 !important;
             transform: none !important;
             filter: none !important;
-            background: #e8eef2 !important;
+            background: #ffffff !important;
           }
         }
       `}</style>
