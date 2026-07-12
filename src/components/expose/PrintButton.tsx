@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Download, Printer } from 'lucide-react'
+import { EXPOSE_HERO_DATA_URL } from '@/lib/exposeHeroData'
 
 function formatNumber(value: number, digits = 0) {
   return value.toLocaleString('de-DE', {
@@ -32,28 +33,23 @@ function setValuesForLabel(label: string, value: string) {
   }
 }
 
-function blobToDataUrl(blob: Blob) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result))
-    reader.onerror = () => reject(reader.error ?? new Error('Bild konnte nicht gelesen werden'))
-    reader.readAsDataURL(blob)
-  })
+function getHeroImage() {
+  return document.querySelector<HTMLImageElement>(".memorandum-page img[alt='Hochwertiges Projektmotiv']")
 }
 
-async function embedHeroImageForPrint() {
-  const hero = document.querySelector<HTMLImageElement>(".memorandum-page img[alt='Hochwertiges Projektmotiv']")
-  if (!hero) return
+async function installEmbeddedHero() {
+  const hero = getHeroImage()
+  if (!hero) throw new Error('Hero image element not found')
 
-  if (!hero.dataset.originalSrc) {
-    hero.dataset.originalSrc = hero.currentSrc || hero.getAttribute('src') || '/hero-dashboard.png'
+  if (hero.src !== EXPOSE_HERO_DATA_URL) {
+    hero.removeAttribute('srcset')
+    hero.removeAttribute('sizes')
+    hero.src = EXPOSE_HERO_DATA_URL
   }
 
-  if (!hero.src.startsWith('data:')) {
-    const response = await fetch(hero.dataset.originalSrc, { cache: 'no-store' })
-    if (!response.ok) throw new Error('Hero-Bild konnte nicht geladen werden')
-    hero.src = await blobToDataUrl(await response.blob())
-  }
+  hero.style.display = 'block'
+  hero.style.visibility = 'visible'
+  hero.style.opacity = '1'
 
   await new Promise<void>((resolve, reject) => {
     if (hero.complete && hero.naturalWidth > 0) {
@@ -61,14 +57,14 @@ async function embedHeroImageForPrint() {
       return
     }
 
-    const timeout = window.setTimeout(() => reject(new Error('Hero-Bild wurde nicht rechtzeitig geladen')), 8000)
+    const timeout = window.setTimeout(() => reject(new Error('Hero image timed out')), 8000)
     hero.addEventListener('load', () => {
       window.clearTimeout(timeout)
       resolve()
     }, { once: true })
     hero.addEventListener('error', () => {
       window.clearTimeout(timeout)
-      reject(new Error('Hero-Bild konnte nicht dekodiert werden'))
+      reject(new Error('Hero image failed to decode'))
     }, { once: true })
   })
 
@@ -76,16 +72,12 @@ async function embedHeroImageForPrint() {
     try {
       await hero.decode()
     } catch {
-      // Das Bild ist bereits geladen; Safari kann decode() trotzdem ablehnen.
+      // Safari can reject decode() even when the image is already visible.
     }
   }
 
-  hero.style.display = 'block'
-  hero.style.visibility = 'visible'
-  hero.style.opacity = '1'
-
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 700))
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 500))
 }
 
 async function waitForPrintableImages() {
@@ -100,14 +92,6 @@ async function waitForPrintableImages() {
         window.setTimeout(finish, 5000)
       })
     }
-
-    if (typeof image.decode === 'function') {
-      try {
-        await image.decode()
-      } catch {
-        // Safari kann decode() trotz bereits sichtbarem Bild ablehnen.
-      }
-    }
   }))
 
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
@@ -121,29 +105,41 @@ export function PrintButton() {
     setIsPreparing(true)
 
     try {
-      await embedHeroImageForPrint()
+      await installEmbeddedHero()
       await waitForPrintableImages()
       window.print()
     } catch (error) {
       console.error('PDF preparation failed:', error)
-      window.alert('Das Projektbild konnte nicht für die PDF vorbereitet werden. Bitte die Seite einmal neu laden und erneut versuchen.')
+      window.alert('Das Projektbild konnte nicht vorbereitet werden. Bitte die Seite neu laden und erneut versuchen.')
     } finally {
       window.setTimeout(() => setIsPreparing(false), 700)
     }
   }
 
   useEffect(() => {
-    const hero = new Image()
-    hero.src = '/hero-dashboard.png'
-    hero.decoding = 'sync'
+    installEmbeddedHero().catch((error) => {
+      console.error('Hero image preload failed:', error)
+    })
+
+    const beforePrint = () => {
+      const hero = getHeroImage()
+      if (!hero) return
+      hero.removeAttribute('srcset')
+      hero.removeAttribute('sizes')
+      hero.src = EXPOSE_HERO_DATA_URL
+      hero.style.display = 'block'
+      hero.style.visibility = 'visible'
+      hero.style.opacity = '1'
+    }
+
+    window.addEventListener('beforeprint', beforePrint)
 
     const match = window.location.pathname.match(/\/expose\/([^/]+)/)
     const projectId = match?.[1]
-    if (!projectId) return
-
     let cancelled = false
 
     async function hydrateExposeValues() {
+      if (!projectId) return
       try {
         const response = await fetch(`/api/expose-values/${projectId}`, { cache: 'no-store' })
         const data = await response.json()
@@ -169,16 +165,19 @@ export function PrintButton() {
         }
 
         if (data.amortisation) {
-          const amortisationText = `${formatNumber(data.amortisation, 1)} Jahre`
-          setValuesForLabel('Amortisation', amortisationText)
+          setValuesForLabel('Amortisation', `${formatNumber(data.amortisation, 1)} Jahre`)
         }
       } catch {
-        // Das Exposé bleibt nutzbar, auch wenn die Nachladung fehlschlägt.
+        // The memorandum remains usable if optional value hydration fails.
       }
     }
 
     hydrateExposeValues()
-    return () => { cancelled = true }
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('beforeprint', beforePrint)
+    }
   }, [])
 
   return (
@@ -273,11 +272,22 @@ export function PrintButton() {
           }
         }
       `}</style>
+
       <div className="print:hidden flex flex-wrap gap-3">
-        <button disabled={isPreparing} onClick={print} className="inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70">
-          <Download className="h-4 w-4" /> {isPreparing ? 'PDF wird vorbereitet…' : 'Als PDF speichern'}
+        <button
+          disabled={isPreparing}
+          onClick={print}
+          className="inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70"
+        >
+          <Download className="h-4 w-4" />
+          {isPreparing ? 'PDF wird vorbereitet…' : 'Als PDF speichern'}
         </button>
-        <button disabled={isPreparing} onClick={print} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70">
+
+        <button
+          disabled={isPreparing}
+          onClick={print}
+          className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
+        >
           <Printer className="h-4 w-4" /> Drucken
         </button>
       </div>
