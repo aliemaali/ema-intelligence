@@ -94,6 +94,10 @@ export function PrintButton() {
             print-color-adjust: exact !important;
           }
 
+          .memorandum-page * {
+            background-color: transparent;
+          }
+
           .memorandum-page + .memorandum-page {
             break-before: page !important;
             page-break-before: always !important;
@@ -107,8 +111,8 @@ export function PrintButton() {
           .memorandum-page:first-child > div:first-child {
             min-height: 18mm !important;
             padding: 3.5mm 12mm 2mm !important;
-            border-bottom: 0.35mm solid #d8e2ea !important;
-            background: linear-gradient(90deg, #ffffff 0%, #f8fbf5 100%) !important;
+            border-bottom: 0.35mm solid #e2e8f0 !important;
+            background: #ffffff !important;
           }
 
           .memorandum-page:first-child > div:first-child img {
@@ -131,7 +135,7 @@ export function PrintButton() {
             min-height: 82mm !important;
             overflow: hidden !important;
             background: #ffffff !important;
-            border-bottom: 0.35mm solid #dbe4ea !important;
+            border-bottom: 0.35mm solid #e2e8f0 !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1) {
@@ -146,8 +150,8 @@ export function PrintButton() {
             background: linear-gradient(
               to bottom,
               rgba(255,255,255,0) 0%,
-              rgba(255,255,255,0.34) 34%,
-              rgba(255,255,255,0.88) 76%,
+              rgba(255,255,255,0.42) 38%,
+              rgba(255,255,255,0.86) 72%,
               #ffffff 100%
             ) !important;
           }
@@ -158,9 +162,8 @@ export function PrintButton() {
             z-index: 3 !important;
             display: block !important;
             height: 25mm !important;
-            padding: 2mm 12mm 3mm 15mm !important;
-            background: linear-gradient(90deg, #ffffff 0%, #ffffff 76%, #f5faef 100%) !important;
-            border-left: 1.4mm solid #5cb800 !important;
+            padding: 2mm 12mm 3mm !important;
+            background: #ffffff !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 {
@@ -182,110 +185,6 @@ export function PrintButton() {
           .memorandum-page:first-child > section:first-of-type > div:last-child > span:last-child {
             bottom: 4mm !important;
             right: 12mm !important;
-            background: #ffffff !important;
-            border-color: #dce7d2 !important;
-            box-shadow: 0 1.5mm 5mm rgba(11, 22, 51, 0.08) !important;
-          }
-
-          .memorandum-page:first-child > section:nth-of-type(2) {
-            background: linear-gradient(180deg, #ffffff 0%, #fbfcfa 100%) !important;
-          }
-
-          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div {
-            position: relative !important;
-            overflow: hidden !important;
-            border-color: #dce4e9 !important;
-            background: #ffffff !important;
-            box-shadow: 0 1mm 4mm rgba(11, 22, 51, 0.055) !important;
-          }
-
-          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div::before {
-            content: '' !important;
-            position: absolute !important;
-            inset: 0 0 auto 0 !important;
-            height: 0.8mm !important;
-            background: linear-gradient(90deg, #5cb800, #9ad75d) !important;
-          }
-
-          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div:nth-child(2),
-          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div:nth-child(5),
-          .memorandum-page:first-child > section:nth-of-type(2) > div:first-child > div:nth-child(6) {
-            background: linear-gradient(180deg, #ffffff 0%, #f5faef 100%) !important;
-          }
-
-          .memorandum-page:first-child > section:nth-of-type(2) > div:nth-of-type(2) > section,
-          .memorandum-page:first-child > section:nth-of-type(2) > div:nth-of-type(3) > section {
-            border-radius: 3mm !important;
-            background: #ffffff !important;
-          }
-
-          .memorandum-page:first-child > footer {
-            background: linear-gradient(90deg, #f7fafc 0%, #ffffff 56%, #f7fbf4 100%) !important;
-            border-top-color: #cfd9df !important;
-          }
-
-          .memorandum-page:nth-child(2) {
-            background:
-              radial-gradient(circle at 88% 10%, rgba(92,184,0,0.08), transparent 28%),
-              linear-gradient(180deg, #ffffff 0%, #fbfcfa 100%) !important;
-          }
-
-          .memorandum-page:nth-child(2)::before {
-            content: '' !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 2.2mm !important;
-            background: linear-gradient(90deg, #0b1633 0%, #0b1633 62%, #5cb800 62%, #8ed04b 100%) !important;
-            z-index: 5 !important;
-          }
-
-          .memorandum-page:nth-child(2) > header {
-            padding-bottom: 4mm !important;
-            border-bottom: 0.35mm solid #dbe4ea !important;
-          }
-
-          .memorandum-page:nth-child(2) h3 + div {
-            background: linear-gradient(90deg, #5cb800, #95d45a) !important;
-          }
-
-          .memorandum-page:nth-child(2) section > div[class*='rounded-2xl'],
-          .memorandum-page:nth-child(2) section > div[class*='rounded-xl'] {
-            box-shadow: 0 1.2mm 5mm rgba(11, 22, 51, 0.055) !important;
-          }
-
-          .memorandum-page:nth-child(2) [class*='bg-[#F1F9E8]'] {
-            background: linear-gradient(90deg, #f3faea 0%, #eef8e3 100%) !important;
-          }
-
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] {
-            position: relative !important;
-            overflow: hidden !important;
-            background: linear-gradient(135deg, #0b1633 0%, #13284b 100%) !important;
-            box-shadow: 0 2mm 7mm rgba(11, 22, 51, 0.18) !important;
-          }
-
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]']::after {
-            content: '' !important;
-            position: absolute !important;
-            width: 28mm !important;
-            height: 28mm !important;
-            right: -8mm !important;
-            top: -10mm !important;
-            border-radius: 999px !important;
-            background: rgba(135, 211, 59, 0.14) !important;
-          }
-
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'],
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] p,
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] h3 {
-            color: #ffffff !important;
-          }
-
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] span,
-          .memorandum-page:nth-child(2) section[class*='bg-[#0B1633]'] p:first-child {
-            color: #87d33b !important;
           }
 
           .memorandum-page img {
@@ -306,7 +205,7 @@ export function PrintButton() {
             object-position: center 52% !important;
             opacity: 1 !important;
             transform: none !important;
-            filter: saturate(1.04) contrast(1.02) !important;
+            filter: none !important;
             background: #ffffff !important;
           }
         }
