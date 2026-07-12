@@ -80,9 +80,9 @@ export function PrintButton() {
             flex-direction: column !important;
             position: relative !important;
             width: 210mm !important;
-            height: 297mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
+            height: 280mm !important;
+            min-height: 280mm !important;
+            max-height: 280mm !important;
             margin: 0 !important;
             overflow: hidden !important;
             break-inside: avoid-page !important;
@@ -97,14 +97,19 @@ export function PrintButton() {
             page-break-before: always !important;
           }
 
+          .memorandum-page:last-child {
+            break-after: auto !important;
+            page-break-after: auto !important;
+          }
+
           .memorandum-page:first-child > div:first-child {
-            min-height: 20mm !important;
-            padding: 4mm 12mm 2.5mm !important;
+            min-height: 18mm !important;
+            padding: 3.5mm 12mm 2mm !important;
             border-bottom: 0.35mm solid #e2e8f0 !important;
           }
 
           .memorandum-page:first-child > div:first-child img {
-            height: 11mm !important;
+            height: 10mm !important;
           }
 
           .memorandum-page:first-child > div:first-child p:first-child {
@@ -113,14 +118,14 @@ export function PrintButton() {
           }
 
           .memorandum-page:first-child > div:first-child p:last-child {
-            margin-top: 1.5mm !important;
+            margin-top: 1.2mm !important;
             font-size: 8px !important;
           }
 
           .memorandum-page:first-child > section:first-of-type {
             position: relative !important;
-            height: 91mm !important;
-            min-height: 91mm !important;
+            height: 82mm !important;
+            min-height: 82mm !important;
             overflow: hidden !important;
             background: #ffffff !important;
             border-bottom: 0.35mm solid #e2e8f0 !important;
@@ -132,13 +137,13 @@ export function PrintButton() {
 
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(2) {
             position: absolute !important;
-            inset: auto 0 23mm 0 !important;
+            inset: auto 0 22mm 0 !important;
             z-index: 2 !important;
-            height: 14mm !important;
+            height: 13mm !important;
             background: linear-gradient(
               to bottom,
               rgba(255,255,255,0) 0%,
-              rgba(255,255,255,0.45) 38%,
+              rgba(255,255,255,0.42) 38%,
               rgba(255,255,255,0.86) 72%,
               #ffffff 100%
             ) !important;
@@ -149,29 +154,29 @@ export function PrintButton() {
             inset: auto 0 0 0 !important;
             z-index: 3 !important;
             display: block !important;
-            height: 27mm !important;
-            padding: 2.5mm 12mm 3.5mm !important;
+            height: 25mm !important;
+            padding: 2mm 12mm 3mm !important;
             background: #ffffff !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 {
             max-width: 72% !important;
             margin: 0 !important;
-            font-size: 27px !important;
+            font-size: 26px !important;
             line-height: 1.02 !important;
             letter-spacing: -0.035em !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 + p {
-            margin-top: 2mm !important;
+            margin-top: 1.6mm !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 + p + div {
-            margin-top: 2.5mm !important;
+            margin-top: 2mm !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:last-child > span:last-child {
-            bottom: 5mm !important;
+            bottom: 4mm !important;
             right: 12mm !important;
           }
 
@@ -187,7 +192,7 @@ export function PrintButton() {
             inset: 0 0 auto 0 !important;
             z-index: 0 !important;
             width: 100% !important;
-            height: 68mm !important;
+            height: 60mm !important;
             max-width: none !important;
             object-fit: cover !important;
             object-position: center 52% !important;
