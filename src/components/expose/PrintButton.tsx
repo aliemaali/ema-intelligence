@@ -138,29 +138,33 @@ export function PrintButton() {
             page-break-before: always !important;
           }
 
-          .memorandum-page:not(:last-child) {
-            break-after: auto !important;
-            page-break-after: auto !important;
-          }
-
+          .memorandum-page:not(:last-child),
           .memorandum-page:last-child {
             break-after: auto !important;
             page-break-after: auto !important;
           }
 
-          .memorandum-page:first-child > section:first-of-type img {
+          .memorandum-page img[alt='Hochwertiges Projektmotiv'] {
+            display: block !important;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
             object-fit: cover !important;
             object-position: center 58% !important;
-            transform: scale(1.035) !important;
-            filter: brightness(1.16) saturate(1.06) contrast(1.01) !important;
+            transform: none !important;
+            filter: none !important;
+            opacity: 1 !important;
+            background: #eef2f5 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1) {
-            background: linear-gradient(90deg, rgba(255,255,255,.80) 0%, rgba(255,255,255,.20) 44%, rgba(255,255,255,0) 72%) !important;
+            background: linear-gradient(90deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.14) 43%, rgba(255,255,255,0) 70%) !important;
           }
 
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(2) {
-            background: linear-gradient(0deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 100%) !important;
+            background: linear-gradient(0deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 100%) !important;
           }
         }
       `}</style>
