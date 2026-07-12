@@ -118,18 +118,45 @@ export function PrintButton() {
           }
 
           .memorandum-page:first-child > section:first-of-type {
-            height: 78mm !important;
-            min-height: 78mm !important;
+            position: relative !important;
+            height: 91mm !important;
+            min-height: 91mm !important;
+            overflow: hidden !important;
             background: #ffffff !important;
             border-bottom: 0.35mm solid #e2e8f0 !important;
           }
 
+          .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1) {
+            display: none !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type > div:nth-of-type(2) {
+            position: absolute !important;
+            inset: auto 0 23mm 0 !important;
+            z-index: 2 !important;
+            height: 14mm !important;
+            background: linear-gradient(
+              to bottom,
+              rgba(255,255,255,0) 0%,
+              rgba(255,255,255,0.45) 38%,
+              rgba(255,255,255,0.86) 72%,
+              #ffffff 100%
+            ) !important;
+          }
+
           .memorandum-page:first-child > section:first-of-type > div:last-child {
-            padding: 0 12mm 6mm !important;
+            position: absolute !important;
+            inset: auto 0 0 0 !important;
+            z-index: 3 !important;
+            display: block !important;
+            height: 27mm !important;
+            padding: 2.5mm 12mm 3.5mm !important;
+            background: #ffffff !important;
           }
 
           .memorandum-page:first-child > section:first-of-type h1 {
             max-width: 72% !important;
+            margin: 0 !important;
             font-size: 27px !important;
             line-height: 1.02 !important;
             letter-spacing: -0.035em !important;
@@ -137,6 +164,15 @@ export function PrintButton() {
 
           .memorandum-page:first-child > section:first-of-type h1 + p {
             margin-top: 2mm !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type h1 + p + div {
+            margin-top: 2.5mm !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type > div:last-child > span:last-child {
+            bottom: 5mm !important;
+            right: 12mm !important;
           }
 
           .memorandum-page img {
@@ -148,10 +184,10 @@ export function PrintButton() {
             display: block !important;
             visibility: visible !important;
             position: absolute !important;
-            inset: 0 !important;
+            inset: 0 0 auto 0 !important;
             z-index: 0 !important;
             width: 100% !important;
-            height: 100% !important;
+            height: 68mm !important;
             max-width: none !important;
             object-fit: contain !important;
             object-position: center center !important;
