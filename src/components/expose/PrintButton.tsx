@@ -1,9 +1,91 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Download, Printer } from 'lucide-react'
+
+function formatNumber(value: number, digits = 0) {
+  return value.toLocaleString('de-DE', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })
+}
+
+function formatMoney(value: number) {
+  return value.toLocaleString('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  })
+}
+
+function setValuesForLabel(label: string, value: string) {
+  const nodes = Array.from(document.querySelectorAll<HTMLElement>('p, span'))
+    .filter((node) => node.textContent?.trim() === label)
+
+  for (const labelNode of nodes) {
+    const parent = labelNode.parentElement
+    if (!parent) continue
+    const candidates = Array.from(parent.children).filter((child) => child !== labelNode) as HTMLElement[]
+    const valueNode = candidates.find((child) => ['P', 'SPAN'].includes(child.tagName))
+      ?? candidates[candidates.length - 1]
+    if (valueNode) valueNode.textContent = value
+  }
+}
 
 export function PrintButton() {
   const print = () => window.print()
+
+  useEffect(() => {
+    const match = window.location.pathname.match(/\/expose\/([^/]+)/)
+    const projectId = match?.[1]
+    if (!projectId) return
+
+    let cancelled = false
+
+    async function hydrateExposeValues() {
+      try {
+        const response = await fetch(`/api/expose-values/${projectId}`, { cache: 'no-store' })
+        const data = await response.json()
+        if (!response.ok || cancelled) return
+
+        if (data.specificYield) {
+          setValuesForLabel('Spezifischer Ertrag', `${formatNumber(data.specificYield)} kWh/kWp`)
+        }
+
+        if (data.tariff) {
+          const tariffText = data.tariff <= 1
+            ? `${formatNumber(data.tariff, 3)} €/kWh`
+            : `${formatNumber(data.tariff, 2)} ct/kWh`
+          setValuesForLabel('Vergütung', tariffText)
+        }
+
+        if (data.annualProduction) {
+          setValuesForLabel('Jährlicher Ertrag', `${formatNumber(data.annualProduction)} kWh`)
+        }
+
+        if (data.annualRevenue) {
+          setValuesForLabel('Jahreserlös', formatMoney(data.annualRevenue))
+        }
+
+        if (data.amortisation) {
+          const amortisationText = `${formatNumber(data.amortisation, 1)} Jahre`
+          setValuesForLabel('Amortisation', amortisationText)
+
+          for (const node of Array.from(document.querySelectorAll<HTMLElement>('span'))) {
+            const text = node.textContent?.trim() ?? ''
+            if (text.includes('Berechnung nach Datenergänzung') || text.startsWith('Break-even ca.')) {
+              node.textContent = `Break-even ca. ${amortisationText}`
+            }
+          }
+        }
+      } catch {
+        // Das Exposé bleibt nutzbar, auch wenn die Nachladung fehlschlägt.
+      }
+    }
+
+    hydrateExposeValues()
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div className="print:hidden flex flex-wrap gap-3">
