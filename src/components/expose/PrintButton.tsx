@@ -2,112 +2,82 @@
 
 import { useState } from 'react'
 import { Download } from 'lucide-react'
-import { generateMemorandumPdf, type MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
+import { generateMemorandumPdf, PdfGenerationError, type MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
 
-const EXPORT_ROOT_ID = 'memorandum-export-root'
-
-function textContent(element: Element | null) {
-  return element?.textContent?.replace(/\s+/g, ' ').trim() ?? ''
-}
-
-function parseGermanNumber(value: string) {
-  const cleaned = value.replace(/[^0-9,.-]/g, '').replace(/\.(?=\d{3}(?:\D|$))/g, '').replace(',', '.')
-  const parsed = Number(cleaned)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function buildFilename(projectName?: string | null, projectNumber?: string | null) {
-  const namePart = (projectName ?? 'Projekt')
+function buildFilename(projectName: string, projectNumber: string) {
+  const namePart = projectName
     .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()
     .replace(/\s+/g, '_')
     .slice(0, 60)
-  const numberPart = projectNumber ? `_${projectNumber}` : ''
+  const numberPart = projectNumber && projectNumber !== '—' ? `_${projectNumber}` : ''
   return `Investment_Memorandum_${namePart || 'Projekt'}${numberPart}.pdf`
 }
 
-function collectPdfData(projectName?: string | null, projectNumber?: string | null): MemorandumPdfData {
-  const root = document.getElementById(EXPORT_ROOT_ID)
-  const firstPage = root?.querySelector<HTMLElement>('.memorandum-page:first-child')
-  if (!root || !firstPage) throw new Error('Memorandum-Inhalt wurde nicht gefunden')
+function isIosDevice() {
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+}
 
-  const topHeader = firstPage.querySelector(':scope > div:first-child')
-  const topHeaderTexts = Array.from(topHeader?.querySelectorAll('p') ?? []).map(textContent)
-  const hero = firstPage.querySelector('section:first-of-type')
-  const heroParagraphs = Array.from(hero?.querySelectorAll('p') ?? []).map(textContent)
-  const status = textContent(hero?.querySelector('span:last-child')) || 'Investorenansprache'
+/**
+ * Hands the finished PDF to the user. Deliberately avoids window.print(),
+ * navigator.share() as a required step, and opening a blank new tab:
+ * - iOS Safari ignores the `download` attribute on anchors, but it does
+ *   open a `blob:` URL with a PDF mime type in its built-in PDF viewer when
+ *   navigated to directly - from there the user can tap Share/Save
+ *   themselves via the native UI. No Share API call is needed or made.
+ * - Everywhere else, a normal downloading anchor click is used.
+ */
+function openOrDownloadPdf(blob: Blob, filename: string) {
+  const blobUrl = URL.createObjectURL(blob)
 
-  const metricCards = Array.from(firstPage.querySelectorAll('section:nth-of-type(2) > div:first-child > div'))
-  const metrics = new Map<string, string>()
-  metricCards.forEach((card) => {
-    const paragraphs = Array.from(card.querySelectorAll('p')).map(textContent).filter(Boolean)
-    if (paragraphs.length >= 2) metrics.set(paragraphs[0].toLowerCase(), paragraphs[paragraphs.length - 1])
-  })
-
-  const locationText = heroParagraphs.find((value) => value.includes(',')) || 'Deutschland'
-  const dateText = heroParagraphs.find((value) => /\b20\d{2}\b/.test(value)) || new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
-
-  const pvKwp = parseGermanNumber(metrics.get('leistung') ?? '')
-  const purchasePrice = parseGermanNumber(metrics.get('kaufpreis') ?? '')
-  const specificYield = parseGermanNumber(metrics.get('spez. ertrag') ?? '')
-  const tariffRaw = parseGermanNumber(metrics.get('vergütung') ?? '')
-  const tariffEurKwh = tariffRaw > 1 ? tariffRaw / 100 : tariffRaw
-  const annualRevenue = parseGermanNumber(metrics.get('jahreserlös') ?? '')
-  const amortisation = parseGermanNumber(metrics.get('amortisation') ?? '')
-
-  return {
-    projectName: projectName || textContent(firstPage.querySelector('h1')) || 'Projekt',
-    projectNumber: projectNumber || 'Projekt',
-    projectType: topHeaderTexts.at(-1) || 'Energieinfrastrukturprojekt',
-    location: locationText,
-    dateLabel: dateText,
-    status,
-    pvKwp,
-    purchasePrice,
-    specificYield,
-    tariffEurKwh,
-    annualRevenue,
-    amortisation,
+  if (isIosDevice()) {
+    window.location.href = blobUrl
+  } else {
+    const anchor = document.createElement('a')
+    anchor.href = blobUrl
+    anchor.download = filename
+    anchor.rel = 'noopener'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
   }
+
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
 }
 
 interface PrintButtonProps {
-  projectName?: string | null
-  projectNumber?: string | null
+  data: MemorandumPdfData
 }
 
-export function PrintButton({ projectName, projectNumber }: PrintButtonProps) {
+export function PrintButton({ data }: PrintButtonProps) {
   const [isPreparing, setIsPreparing] = useState(false)
 
   const createPdf = async () => {
     if (isPreparing) return
     setIsPreparing(true)
 
+    let step = 'Daten prüfen'
+
     try {
-      const data = collectPdfData(projectName, projectNumber)
+      step = 'PDF erzeugen'
       const blob = await generateMemorandumPdf(data)
-      const filename = buildFilename(projectName, projectNumber)
-      const blobUrl = URL.createObjectURL(blob)
-      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
-      if (isIos) {
-        window.location.assign(blobUrl)
-      } else {
-        const anchor = document.createElement('a')
-        anchor.href = blobUrl
-        anchor.download = filename
-        anchor.rel = 'noopener'
-        document.body.appendChild(anchor)
-        anchor.click()
-        anchor.remove()
-      }
-
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 300000)
+      step = 'PDF öffnen oder speichern'
+      const filename = buildFilename(data.projectName, data.projectNumber)
+      openOrDownloadPdf(blob, filename)
     } catch (error) {
-      console.error('PDF-Erstellung fehlgeschlagen', error)
-      const message = error instanceof Error ? error.message : 'Unbekannter Fehler'
-      window.alert(`Die PDF konnte nicht erstellt werden.\n\n${message}`)
+      const failedStep = error instanceof PdfGenerationError ? error.step : step
+      const name = error instanceof Error ? error.name : 'Error'
+      const message = error instanceof Error ? error.message : String(error)
+      const stack = error instanceof Error ? error.stack : undefined
+      const cause = error instanceof PdfGenerationError ? error.cause : undefined
+
+      // eslint-disable-next-line no-console
+      console.error('PDF-Erstellung fehlgeschlagen', { step: failedStep, name, message, stack, cause })
+      window.alert(`Die PDF konnte nicht erstellt werden.\n\nSchritt: ${failedStep}\n${name}: ${message}`)
     } finally {
       setIsPreparing(false)
     }

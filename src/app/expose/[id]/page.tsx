@@ -194,7 +194,22 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
           <Link href="/dashboard" aria-label="Zum Dashboard">
             <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-16 w-auto object-contain md:h-20" />
           </Link>
-          <PrintButton projectName={project.project_name} projectNumber={project.project_number} />
+          <PrintButton
+            data={{
+              projectName: project.project_name || 'Projekt',
+              projectNumber: project.project_number || '—',
+              projectType: typeLabel(project.project_type),
+              location,
+              dateLabel,
+              status: project.status || 'Projektstatus offen',
+              pvKwp: Number.isFinite(pv) ? pv : 0,
+              purchasePrice: Number.isFinite(price) ? price : 0,
+              specificYield: Number.isFinite(yieldPerKwp) ? yieldPerKwp : 0,
+              tariffEurKwh: tariffEur ?? 0,
+              annualRevenue: Number.isFinite(annualRevenue) ? annualRevenue : 0,
+              amortisation: Number.isFinite(Number(amortisation)) ? Number(amortisation) : 0,
+            }}
+          />
         </div>
       </header>
 
