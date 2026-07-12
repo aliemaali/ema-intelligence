@@ -50,7 +50,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/investors') ||
     pathname.startsWith('/tasks') ||
     pathname.startsWith('/settings') ||
-    pathname.startsWith('/ai')
+    pathname.startsWith('/ai') ||
+    pathname.startsWith('/expose')
 
   // ── Auth routes ─────────────────────────────────────────────
   const isAuthRoute = pathname.startsWith('/login')
