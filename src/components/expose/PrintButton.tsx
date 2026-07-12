@@ -93,6 +93,7 @@ export function PrintButton() {
           body {
             width: 210mm !important;
             height: auto !important;
+            min-height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
@@ -101,22 +102,42 @@ export function PrintButton() {
 
           body > div,
           body main {
+            height: auto !important;
+            min-height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: visible !important;
+          }
+
+          div:has(> .memorandum-page) {
+            display: block !important;
+            height: auto !important;
+            overflow: visible !important;
           }
 
           .memorandum-page {
+            display: block !important;
+            flex: none !important;
+            position: relative !important;
             width: 210mm !important;
             height: 297mm !important;
             min-height: 297mm !important;
             max-height: 297mm !important;
             margin: 0 !important;
             overflow: hidden !important;
-            break-inside: avoid !important;
+            break-inside: avoid-page !important;
             page-break-inside: avoid !important;
+            box-shadow: none !important;
+          }
+
+          .memorandum-page + .memorandum-page {
+            break-before: page !important;
+            page-break-before: always !important;
+          }
+
+          .memorandum-page:not(:last-child) {
             break-after: page !important;
             page-break-after: always !important;
-            box-shadow: none !important;
           }
 
           .memorandum-page:last-child {
