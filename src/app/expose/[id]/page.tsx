@@ -158,16 +158,16 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     project.status ? `Projektstatus: ${project.status}` : null,
   ].filter(Boolean) as string[]
 
-  const conservativeOpexRate = 15
-  const baseOpexRate = 11
-  const conservativeOpex = Number.isFinite(pv) ? pv * conservativeOpexRate : 0
+  const baseOpexRate = 7
+  const optimisticOpexRate = 5
   const baseOpex = Number.isFinite(pv) ? pv * baseOpexRate : 0
-  const conservativeNet = Math.max(annualRevenue - conservativeOpex, 0)
+  const optimisticOpex = Number.isFinite(pv) ? pv * optimisticOpexRate : 0
   const baseNet = Math.max(annualRevenue - baseOpex, 0)
-  const conservativeYield = price > 0 ? (conservativeNet / price) * 100 : 0
+  const optimisticNet = Math.max(annualRevenue - optimisticOpex, 0)
   const baseYield = price > 0 ? (baseNet / price) * 100 : 0
-  const conservativePayback = conservativeNet > 0 ? price / conservativeNet : 0
+  const optimisticYield = price > 0 ? (optimisticNet / price) * 100 : 0
   const basePayback = baseNet > 0 ? price / baseNet : 0
+  const optimisticPayback = optimisticNet > 0 ? price / optimisticNet : 0
 
   const baseTariff = tariffEur ?? 0
   const tariffs = [Math.max(baseTariff - 0.005, 0), baseTariff, baseTariff + 0.005]
@@ -353,15 +353,15 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
                 <div className="mt-2 h-1 w-12 rounded-full bg-[#5CB800] print:h-0.5" />
                 <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white print:mt-3 print:rounded-xl">
                   <div className="grid grid-cols-[1.25fr_0.85fr_0.85fr] border-b-2 border-[#0B1633] px-5 py-4 text-xs font-extrabold uppercase tracking-[.08em] text-slate-500 print:px-3 print:py-2 print:text-[7px]">
-                    <span>Position</span><span className="text-right">Konservativ</span><span className="text-right">Basis</span>
+                    <span>Position</span><span className="text-right">Basis</span><span className="text-right">Optimistisch</span>
                   </div>
                   {[
                     ['Jahreserlös', formatMoney(annualRevenue), formatMoney(annualRevenue)],
-                    ['OPEX-Annahme', `${formatNumber(conservativeOpexRate)} €/kWp`, `${formatNumber(baseOpexRate)} €/kWp`],
-                    ['OPEX p.a.', `−${formatMoney(conservativeOpex)}`, `−${formatMoney(baseOpex)}`],
-                    ['Nettoerlös p.a.', formatMoney(conservativeNet), formatMoney(baseNet)],
-                    ['Nettoanfangsrendite', `${formatNumber(conservativeYield, 2)} %`, `${formatNumber(baseYield, 2)} %`],
-                    ['Amortisation (netto)', `${formatNumber(conservativePayback, 1)} Jahre`, `${formatNumber(basePayback, 1)} Jahre`],
+                    ['OPEX-Annahme', `${formatNumber(baseOpexRate)} €/kWp`, `${formatNumber(optimisticOpexRate)} €/kWp`],
+                    ['OPEX p.a.', `−${formatMoney(baseOpex)}`, `−${formatMoney(optimisticOpex)}`],
+                    ['Nettoerlös p.a.', formatMoney(baseNet), formatMoney(optimisticNet)],
+                    ['Nettoanfangsrendite', `${formatNumber(baseYield, 2)} %`, `${formatNumber(optimisticYield, 2)} %`],
+                    ['Amortisation (netto)', `${formatNumber(basePayback, 1)} Jahre`, `${formatNumber(optimisticPayback, 1)} Jahre`],
                   ].map(([label, a, b], index) => (
                     <div key={label} className={`grid grid-cols-[1.25fr_0.85fr_0.85fr] px-5 py-4 text-sm print:px-3 print:py-2 print:text-[8px] ${index === 3 || index === 4 ? 'bg-[#F1F9E8] font-extrabold text-[#0B1633]' : 'border-b border-slate-100 text-slate-600'}`}>
                       <span>{label}</span><span className="text-right">{a}</span><span className="text-right">{b}</span>
