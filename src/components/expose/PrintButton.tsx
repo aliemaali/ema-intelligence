@@ -44,37 +44,29 @@ export function PrintButton({ projectName, projectNumber }: PrintButtonProps) {
 
   const downloadPdf = async () => {
     if (isPreparing) return
-
-    const previewWindow = window.open('', '_blank')
-    if (previewWindow) {
-      previewWindow.document.write(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF wird erstellt…</title></head><body style="margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;font-family:Arial,sans-serif;background:#fff;color:#0B1633"><div style="text-align:center"><strong>PDF wird erstellt…</strong><p style="font-size:14px;color:#64748b">Bitte einen Moment warten.</p></div></body></html>`)
-      previewWindow.document.close()
-    }
-
     setIsPreparing(true)
 
     try {
-      const filename = buildFilename(projectName, projectNumber)
-      const blob = await withPdfRenderMode(() => generateMemorandumPdf(getPages()))
-      const blobUrl = URL.createObjectURL(blob)
+      const pages = getPages()
+      if (!pages.length) throw new Error('Keine Memorandum-Seiten gefunden')
 
-      if (previewWindow && !previewWindow.closed) {
-        previewWindow.location.replace(blobUrl)
-      } else {
-        const anchor = document.createElement('a')
-        anchor.href = blobUrl
-        anchor.download = filename
-        anchor.rel = 'noopener'
-        document.body.appendChild(anchor)
-        anchor.click()
-        anchor.remove()
+      const filename = buildFilename(projectName, projectNumber)
+      const blob = await withPdfRenderMode(() => generateMemorandumPdf(pages))
+      const file = new File([blob], filename, { type: 'application/pdf' })
+
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename })
+        return
       }
 
+      const blobUrl = URL.createObjectURL(blob)
+      window.location.href = blobUrl
       window.setTimeout(() => URL.revokeObjectURL(blobUrl), 300000)
     } catch (error) {
-      console.error('PDF-Erstellung fehlgeschlagen', error)
-      previewWindow?.close()
-      window.alert('Die PDF konnte nicht erstellt werden. Bitte lade die Seite neu und versuche es erneut.')
+      if ((error as DOMException)?.name !== 'AbortError') {
+        console.error('PDF-Erstellung fehlgeschlagen', error)
+        window.alert('Die PDF konnte nicht erstellt werden. Bitte lade die Seite neu und versuche es erneut.')
+      }
     } finally {
       setIsPreparing(false)
     }
@@ -295,7 +287,7 @@ export function PrintButton({ projectName, projectNumber }: PrintButtonProps) {
         className="print:hidden inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70"
       >
         <Download className="h-4 w-4" />
-        {isPreparing ? 'PDF wird erstellt…' : 'Als PDF öffnen'}
+        {isPreparing ? 'PDF wird erstellt…' : 'PDF erstellen'}
       </button>
     </>
   )
