@@ -189,8 +189,8 @@ export function PrintButton() {
             width: 100% !important;
             height: 68mm !important;
             max-width: none !important;
-            object-fit: contain !important;
-            object-position: center center !important;
+            object-fit: cover !important;
+            object-position: center 52% !important;
             opacity: 1 !important;
             transform: none !important;
             filter: none !important;
