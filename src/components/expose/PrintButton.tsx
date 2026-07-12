@@ -112,17 +112,20 @@ export function PrintButton() {
           div:has(> .memorandum-page) {
             display: block !important;
             height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
             overflow: visible !important;
           }
 
           .memorandum-page {
+            box-sizing: border-box !important;
             display: block !important;
             flex: none !important;
             position: relative !important;
             width: 210mm !important;
-            height: 297mm !important;
-            min-height: 297mm !important;
-            max-height: 297mm !important;
+            height: 280mm !important;
+            min-height: 280mm !important;
+            max-height: 280mm !important;
             margin: 0 !important;
             overflow: hidden !important;
             break-inside: avoid-page !important;
@@ -136,13 +139,28 @@ export function PrintButton() {
           }
 
           .memorandum-page:not(:last-child) {
-            break-after: page !important;
-            page-break-after: always !important;
+            break-after: auto !important;
+            page-break-after: auto !important;
           }
 
           .memorandum-page:last-child {
             break-after: auto !important;
             page-break-after: auto !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type img {
+            object-fit: cover !important;
+            object-position: center 58% !important;
+            transform: scale(1.035) !important;
+            filter: brightness(1.16) saturate(1.06) contrast(1.01) !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1) {
+            background: linear-gradient(90deg, rgba(255,255,255,.80) 0%, rgba(255,255,255,.20) 44%, rgba(255,255,255,0) 72%) !important;
+          }
+
+          .memorandum-page:first-child > section:first-of-type > div:nth-of-type(2) {
+            background: linear-gradient(0deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 100%) !important;
           }
         }
       `}</style>
