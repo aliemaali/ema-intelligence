@@ -32,6 +32,35 @@ function setValuesForLabel(label: string, value: string) {
   }
 }
 
+async function embedHeroImageForPrint() {
+  const hero = document.querySelector<HTMLImageElement>(".memorandum-page img[alt='Hochwertiges Projektmotiv']")
+  if (!hero) return
+
+  const source = hero.getAttribute('src') || '/hero-dashboard.png'
+  if (source.startsWith('data:')) return
+
+  const response = await fetch(source, { cache: 'no-store' })
+  if (!response.ok) throw new Error('Hero image could not be loaded')
+
+  const blob = await response.blob()
+  const bitmap = await createImageBitmap(blob)
+  const canvas = document.createElement('canvas')
+  canvas.width = bitmap.width
+  canvas.height = bitmap.height
+
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas unavailable')
+
+  context.drawImage(bitmap, 0, 0)
+  hero.src = canvas.toDataURL('image/jpeg', 0.94)
+
+  await new Promise<void>((resolve) => {
+    if (hero.complete && hero.naturalWidth > 0) return resolve()
+    hero.addEventListener('load', () => resolve(), { once: true })
+    window.setTimeout(resolve, 4000)
+  })
+}
+
 async function waitForPrintableImages() {
   const images = Array.from(document.querySelectorAll<HTMLImageElement>('.memorandum-page img'))
 
@@ -65,6 +94,12 @@ export function PrintButton() {
     setIsPreparing(true)
 
     try {
+      await embedHeroImageForPrint()
+      await waitForPrintableImages()
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 300))
+      window.print()
+    } catch (error) {
+      console.error('PDF preparation failed:', error)
       await waitForPrintableImages()
       window.print()
     } finally {
