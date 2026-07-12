@@ -70,13 +70,6 @@ export function PrintButton() {
         if (data.amortisation) {
           const amortisationText = `${formatNumber(data.amortisation, 1)} Jahre`
           setValuesForLabel('Amortisation', amortisationText)
-
-          for (const node of Array.from(document.querySelectorAll<HTMLElement>('span'))) {
-            const text = node.textContent?.trim() ?? ''
-            if (text.includes('Berechnung nach Datenergänzung') || text.startsWith('Break-even ca.')) {
-              node.textContent = `Break-even ca. ${amortisationText}`
-            }
-          }
         }
       } catch {
         // Das Exposé bleibt nutzbar, auch wenn die Nachladung fehlschlägt.
@@ -99,10 +92,10 @@ export function PrintButton() {
           html,
           body {
             width: 210mm !important;
-            height: 297mm !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             background: #fff !important;
           }
 
@@ -112,21 +105,23 @@ export function PrintButton() {
             padding: 0 !important;
           }
 
-          article {
+          .memorandum-page {
             width: 210mm !important;
-            height: 286mm !important;
-            min-height: 0 !important;
-            max-height: 286mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
             margin: 0 !important;
             overflow: hidden !important;
             break-inside: avoid !important;
-            break-after: avoid-page !important;
-            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-after: page !important;
+            page-break-after: always !important;
             box-shadow: none !important;
           }
 
-          article footer {
-            margin-top: auto !important;
+          .memorandum-page:last-child {
+            break-after: auto !important;
+            page-break-after: auto !important;
           }
         }
       `}</style>
