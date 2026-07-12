@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { Download, Printer } from 'lucide-react'
-import { EXPOSE_HERO_DATA_URL } from '@/lib/exposeHeroData'
 
 function formatNumber(value: number, digits = 0) {
   return value.toLocaleString('de-DE', {
@@ -37,16 +36,13 @@ function getHeroImage() {
   return document.querySelector<HTMLImageElement>(".memorandum-page img[alt='Hochwertiges Projektmotiv']")
 }
 
-async function installEmbeddedHero() {
+async function installPrintSafeHero() {
   const hero = getHeroImage()
   if (!hero) throw new Error('Hero image element not found')
 
-  if (hero.src !== EXPOSE_HERO_DATA_URL) {
-    hero.removeAttribute('srcset')
-    hero.removeAttribute('sizes')
-    hero.src = EXPOSE_HERO_DATA_URL
-  }
-
+  hero.removeAttribute('srcset')
+  hero.removeAttribute('sizes')
+  hero.src = '/ema-pv-freiflaeche-default.svg'
   hero.style.display = 'block'
   hero.style.visibility = 'visible'
   hero.style.opacity = '1'
@@ -64,37 +60,25 @@ async function installEmbeddedHero() {
     }, { once: true })
     hero.addEventListener('error', () => {
       window.clearTimeout(timeout)
-      reject(new Error('Hero image failed to decode'))
+      reject(new Error('Hero image failed to load'))
     }, { once: true })
   })
 
-  if (typeof hero.decode === 'function') {
-    try {
-      await hero.decode()
-    } catch {
-      // Safari can reject decode() even when the image is already visible.
-    }
-  }
-
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 500))
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 250))
 }
 
 async function waitForPrintableImages() {
   const images = Array.from(document.querySelectorAll<HTMLImageElement>('.memorandum-page img'))
-
   await Promise.all(images.map(async (image) => {
-    if (!image.complete || image.naturalWidth === 0) {
-      await new Promise<void>((resolve) => {
-        const finish = () => resolve()
-        image.addEventListener('load', finish, { once: true })
-        image.addEventListener('error', finish, { once: true })
-        window.setTimeout(finish, 5000)
-      })
-    }
+    if (image.complete && image.naturalWidth > 0) return
+    await new Promise<void>((resolve) => {
+      const finish = () => resolve()
+      image.addEventListener('load', finish, { once: true })
+      image.addEventListener('error', finish, { once: true })
+      window.setTimeout(finish, 5000)
+    })
   }))
-
-  await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
 }
 
 export function PrintButton() {
@@ -105,7 +89,7 @@ export function PrintButton() {
     setIsPreparing(true)
 
     try {
-      await installEmbeddedHero()
+      await installPrintSafeHero()
       await waitForPrintableImages()
       window.print()
     } catch (error) {
@@ -117,7 +101,7 @@ export function PrintButton() {
   }
 
   useEffect(() => {
-    installEmbeddedHero().catch((error) => {
+    installPrintSafeHero().catch((error) => {
       console.error('Hero image preload failed:', error)
     })
 
@@ -126,7 +110,7 @@ export function PrintButton() {
       if (!hero) return
       hero.removeAttribute('srcset')
       hero.removeAttribute('sizes')
-      hero.src = EXPOSE_HERO_DATA_URL
+      hero.src = '/ema-pv-freiflaeche-default.svg'
       hero.style.display = 'block'
       hero.style.visibility = 'visible'
       hero.style.opacity = '1'
@@ -168,7 +152,7 @@ export function PrintButton() {
           setValuesForLabel('Amortisation', `${formatNumber(data.amortisation, 1)} Jahre`)
         }
       } catch {
-        // The memorandum remains usable if optional value hydration fails.
+        // Das Exposé bleibt auch ohne Nachladung nutzbar.
       }
     }
 
@@ -236,12 +220,6 @@ export function PrintButton() {
           .memorandum-page + .memorandum-page {
             break-before: page !important;
             page-break-before: always !important;
-          }
-
-          .memorandum-page:not(:last-child),
-          .memorandum-page:last-child {
-            break-after: auto !important;
-            page-break-after: auto !important;
           }
 
           .memorandum-page img[alt='Hochwertiges Projektmotiv'] {
