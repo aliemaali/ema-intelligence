@@ -104,8 +104,12 @@ async function loadImageAsDataUrl(url: string): Promise<{ dataUrl: string; forma
 }
 
 async function loadImages() {
-  const [logo, hero] = await Promise.all([loadImageAsDataUrl('/ema-logo.jpeg'), loadImageAsDataUrl('/hero-dashboard.png')])
-  return { logo, hero }
+  const [logo, hero, logoMark] = await Promise.all([
+    loadImageAsDataUrl('/ema-logo.jpeg'),
+    loadImageAsDataUrl('/hero-dashboard.png'),
+    loadImageAsDataUrl('/ema-logo-transparent.png'),
+  ])
+  return { logo, hero, logoMark }
 }
 
 type JsPdfDoc = InstanceType<typeof import('jspdf').default>
@@ -315,7 +319,7 @@ function renderPageOne(
   footer(doc, 1)
 }
 
-function renderPageTwo(doc: JsPdfDoc, data: MemorandumPdfData, logo: { dataUrl: string; format: 'JPEG' | 'PNG' } | null) {
+function renderPageTwo(doc: JsPdfDoc, data: MemorandumPdfData, logoMark: { dataUrl: string; format: 'JPEG' | 'PNG' } | null) {
   const projectName = text(data.projectName, 'Projekt')
   const projectNumber = text(data.projectNumber, '—')
 
@@ -338,7 +342,9 @@ function renderPageTwo(doc: JsPdfDoc, data: MemorandumPdfData, logo: { dataUrl: 
   doc.rect(0, 0, 297, 20, 'F')
   doc.setFillColor(...GREEN)
   doc.rect(0, 20, 297, 1.3, 'F')
-  addImageSafely(doc, logo, 12, 4, 26, 12)
+  // Transparent, reversed-for-dark-background mark (no white box) - small,
+  // left-aligned with breathing room, vertically centered in the 20mm header.
+  addImageSafely(doc, logoMark, 16, 6, 15.3, 8)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
   doc.setTextColor(255, 255, 255)
@@ -475,7 +481,7 @@ export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Bl
 
   // Images are optional: a slow/missing/unsupported logo or hero image must
   // never abort PDF creation, so failures here resolve to null rather than throwing.
-  const { logo, hero } = await loadImages()
+  const { logo, hero, logoMark } = await loadImages()
 
   let doc: InstanceType<typeof jsPDF>
   try {
@@ -486,7 +492,7 @@ export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Bl
   }
 
   try {
-    renderPageTwo(doc, data, logo)
+    renderPageTwo(doc, data, logoMark)
   } catch (error) {
     throw new PdfGenerationError('Seite 2 erzeugen', 'Seite 2 des Memorandums konnte nicht gezeichnet werden.', error)
   }
