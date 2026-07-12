@@ -61,7 +61,7 @@ export function PrintButton() {
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
-            background: #fff !important;
+            background: #ffffff !important;
           }
 
           body > div,
@@ -72,6 +72,7 @@ export function PrintButton() {
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
+            background: #ffffff !important;
           }
 
           .memorandum-page {
@@ -88,8 +89,13 @@ export function PrintButton() {
             break-inside: avoid-page !important;
             page-break-inside: avoid !important;
             box-shadow: none !important;
+            background: #ffffff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+
+          .memorandum-page * {
+            background-color: transparent;
           }
 
           .memorandum-page + .memorandum-page {
@@ -106,6 +112,7 @@ export function PrintButton() {
             min-height: 18mm !important;
             padding: 3.5mm 12mm 2mm !important;
             border-bottom: 0.35mm solid #e2e8f0 !important;
+            background: #ffffff !important;
           }
 
           .memorandum-page:first-child > div:first-child img {
