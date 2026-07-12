@@ -124,7 +124,7 @@ module.exports = {
     },
   },
   plugins: [
-    require('tailwindcss/plugin')(function ({ addUtilities }) {
+    require('tailwindcss/plugin')(function ({ addUtilities, addVariant }) {
       addUtilities({
         '.safe-pb': {
           paddingBottom: 'env(safe-area-inset-bottom)',
@@ -138,6 +138,11 @@ module.exports = {
           '&::-webkit-scrollbar': { display: 'none' },
         },
       })
+
+      // Activated by toggling the `.pdf-render` class (see PrintButton) instead of
+      // relying on @media print, so the exact same compact layout can be rasterized
+      // via html2canvas for the downloadable PDF and used for the browser print dialog.
+      addVariant('pdf', '.pdf-render &')
     }),
   ],
 }
