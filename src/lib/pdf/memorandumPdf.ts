@@ -82,9 +82,6 @@ async function loadImageAsDataUrl(url: string): Promise<{ dataUrl: string; forma
     const mimeType = blob.type || ''
     const format: 'JPEG' | 'PNG' = mimeType.includes('png') ? 'PNG' : 'JPEG'
     if (!mimeType.includes('png') && !mimeType.includes('jpeg') && !mimeType.includes('jpg')) {
-      // Unsupported/unknown image type (e.g. webp, avif) - jsPDF's built-in
-      // decoders only understand JPEG and PNG, so skip rather than risk a
-      // corrupt embed.
       return null
     }
 
@@ -232,12 +229,6 @@ function renderPageOne(
   doc.text(dateLabel, 22, 73)
   doc.text(`${num(data.pvKwp, 2)} kWp Leistung`, 22, 79)
   doc.text(`${num(data.specificYield)} kWh/kWp spezifischer Ertrag`, 22, 85)
-  doc.setFillColor(255, 255, 255)
-  doc.roundedRect(22, 88, 40, 6, 3, 3, 'F')
-  doc.setTextColor(...NAVY)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6)
-  doc.text(doc.splitTextToSize(status.toUpperCase(), 36), 42, 92, { align: 'center' })
 
   const labels = ['Leistung', 'Kaufpreis', 'Spez. Ertrag', 'Vergütung', 'Jahreserlös', 'Amortisation']
   const values = [
@@ -248,7 +239,7 @@ function renderPageOne(
     money(data.annualRevenue),
     `${num(data.amortisation, 1)} Jahre`,
   ]
-  labels.forEach((label, i) => metric(doc, 12 + i * 45.5, 91, 45.5, label, values[i]))
+  labels.forEach((label, i) => metric(doc, 12 + i * 45.5, 97, 45.5, label, values[i]))
 
   heading(doc, 'Executive Summary', 12, 119)
   doc.setFont('helvetica', 'normal')
@@ -342,8 +333,6 @@ function renderPageTwo(doc: JsPdfDoc, data: MemorandumPdfData, logoMark: { dataU
   doc.rect(0, 0, 297, 20, 'F')
   doc.setFillColor(...GREEN)
   doc.rect(0, 20, 297, 1.3, 'F')
-  // Transparent, reversed-for-dark-background mark (no white box) - small,
-  // left-aligned with breathing room, vertically centered in the 20mm header.
   addImageSafely(doc, logoMark, 16, 6, 15.3, 8)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(13)
@@ -466,21 +455,10 @@ function renderPageTwo(doc: JsPdfDoc, data: MemorandumPdfData, logoMark: { dataU
   footer(doc, 2)
 }
 
-/**
- * Generates the two-page A4-landscape investment memorandum PDF.
- * Every stage is isolated and tagged with a PdfGenerationStep so a failure
- * anywhere (missing data, jsPDF failing to load, a broken image, a drawing
- * error, blob creation) surfaces exactly which step broke plus the real
- * underlying error - no step is allowed to fail silently or produce a
- * generic message.
- */
 export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Blob> {
   assertValidData(data)
 
   const jsPDF = await loadJsPdfConstructor()
-
-  // Images are optional: a slow/missing/unsupported logo or hero image must
-  // never abort PDF creation, so failures here resolve to null rather than throwing.
   const { logo, hero, logoMark } = await loadImages()
 
   let doc: InstanceType<typeof jsPDF>
