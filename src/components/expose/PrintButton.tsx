@@ -48,6 +48,29 @@ function openOrDownloadPdf(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
 }
 
+async function generatePdfWithoutHeroStatusBadge(data: MemorandumPdfData) {
+  const { default: jsPDF } = await import('jspdf')
+  const api = (jsPDF as unknown as { API: Record<string, unknown> }).API
+  const originalRoundedRect = api.roundedRect as ((...args: unknown[]) => unknown) | undefined
+
+  if (!originalRoundedRect) return generateMemorandumPdf(data)
+
+  api.roundedRect = function patchedRoundedRect(this: unknown, ...args: unknown[]) {
+    const [x, y, width, height] = args as number[]
+
+    // Remove only the clipped white project-status badge on page 1.
+    if (x === 22 && y === 88 && width === 40 && height === 6) return this
+
+    return originalRoundedRect.apply(this, args)
+  }
+
+  try {
+    return await generateMemorandumPdf(data)
+  } finally {
+    api.roundedRect = originalRoundedRect
+  }
+}
+
 interface PrintButtonProps {
   data: MemorandumPdfData
 }
@@ -63,7 +86,7 @@ export function PrintButton({ data }: PrintButtonProps) {
 
     try {
       step = 'PDF erzeugen'
-      const blob = await generateMemorandumPdf(data)
+      const blob = await generatePdfWithoutHeroStatusBadge(data)
 
       step = 'PDF öffnen oder speichern'
       const filename = buildFilename(data.projectName, data.projectNumber)
