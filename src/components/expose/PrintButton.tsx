@@ -88,13 +88,56 @@ export function PrintButton() {
   }, [])
 
   return (
-    <div className="print:hidden flex flex-wrap gap-3">
-      <button onClick={print} className="inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000]">
-        <Download className="h-4 w-4" /> Als PDF speichern
-      </button>
-      <button onClick={print} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm transition hover:bg-slate-50">
-        <Printer className="h-4 w-4" /> Drucken
-      </button>
-    </div>
+    <>
+      <style jsx global>{`
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+
+        @media print {
+          html,
+          body {
+            width: 210mm !important;
+            height: 297mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: hidden !important;
+            background: #fff !important;
+          }
+
+          body > div,
+          body main {
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          article {
+            width: 210mm !important;
+            height: 286mm !important;
+            min-height: 0 !important;
+            max-height: 286mm !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            break-inside: avoid !important;
+            break-after: avoid-page !important;
+            page-break-after: avoid !important;
+            box-shadow: none !important;
+          }
+
+          article footer {
+            margin-top: auto !important;
+          }
+        }
+      `}</style>
+      <div className="print:hidden flex flex-wrap gap-3">
+        <button onClick={print} className="inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000]">
+          <Download className="h-4 w-4" /> Als PDF speichern
+        </button>
+        <button onClick={print} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm transition hover:bg-slate-50">
+          <Printer className="h-4 w-4" /> Drucken
+        </button>
+      </div>
+    </>
   )
 }
