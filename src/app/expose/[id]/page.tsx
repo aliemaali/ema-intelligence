@@ -2,11 +2,16 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   ArrowLeft,
+  ArrowLeftRight,
   BadgeEuro,
   CalendarDays,
   CheckCircle2,
-  FileText,
+  ClipboardList,
+  Coins,
+  Globe2,
+  Mail,
   MapPin,
+  Plug,
   SunMedium,
   Zap,
 } from 'lucide-react'
@@ -139,14 +144,15 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     { icon: BadgeEuro, label: 'Kaufpreis', value: formatMoney(purchasePrice) },
     { icon: SunMedium, label: 'Spez. Ertrag', value: specificYield ? `${formatNumber(specificYield)} kWh/kWp` : 'Noch offen' },
     { icon: BadgeEuro, label: 'Vergütung', value: tariffDisplay(tariff) },
-    { icon: CalendarDays, label: 'Amortisation', value: amortisation ? `${formatNumber(amortisation, 2)} Jahre` : 'Noch offen' },
+    { icon: Coins, label: 'Jahreserlös', value: annualRevenue > 0 ? formatMoney(annualRevenue) : 'Noch offen' },
+    { icon: CalendarDays, label: 'Amortisation', value: amortisation ? `${formatNumber(amortisation, 1)} Jahre` : 'Noch offen' },
   ]
 
   const highlights = [
-    specificYield ? `${formatNumber(specificYield)} kWh/kWp spezifischer Ertrag` : null,
-    amortisation ? `Amortisation nach ca. ${formatNumber(amortisation, 2)} Jahren` : null,
-    tariff ? `Vergütung von ${tariffDisplay(tariff)}` : null,
-    project.grid_connection_status ? `Netzanschluss: ${project.grid_connection_status}` : null,
+    specificYield ? `Hoher spezifischer Ertrag von ${formatNumber(specificYield)} kWh/kWp` : null,
+    amortisation ? `Amortisation nach ca. ${formatNumber(amortisation, 1)} Jahren` : null,
+    tariff ? `Attraktive Vergütung von ${tariffDisplay(tariff)}` : null,
+    'Solides Ertragspotenzial und stabile Einnahmen',
     project.status ? `Projektstatus: ${project.status}` : null,
   ].filter(Boolean) as string[]
 
@@ -167,83 +173,82 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
         </Link>
       </div>
 
-      <article className="mx-auto flex w-full max-w-[1180px] flex-col overflow-hidden bg-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] print:h-[297mm] print:w-[210mm] print:max-w-none print:shadow-none [print-color-adjust:exact] [-webkit-print-color-adjust:exact]">
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 md:px-8 print:px-7 print:py-3">
-          <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain print:h-12" />
+      <article className="mx-auto flex w-full max-w-[1180px] flex-col overflow-hidden bg-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] print:h-[292mm] print:w-[210mm] print:max-w-none print:overflow-hidden print:shadow-none [print-color-adjust:exact] [-webkit-print-color-adjust:exact]">
+        <div className="flex items-center justify-between gap-4 px-8 py-5 print:px-7 print:py-3">
+          <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain print:h-11" />
           <div className="text-right">
-            <p className="text-[11px] font-extrabold uppercase tracking-[.2em] text-slate-400 print:text-[8px]">Vertraulich</p>
-            <p className="mt-1 text-xl font-extrabold tracking-[.06em] text-[#0B1633] print:text-base">INVESTMENT MEMORANDUM</p>
-            <p className="mt-1 text-sm font-extrabold uppercase tracking-[.14em] text-[#5CB800] print:text-[10px]">{typeLabel(project.project_type)}</p>
+            <p className="text-xl font-extrabold tracking-[.08em] text-[#0B1633] print:text-base">INVESTMENT MEMORANDUM</p>
+            <p className="mt-2 text-sm font-extrabold uppercase tracking-[.16em] text-[#5CB800] print:text-[10px]">{typeLabel(project.project_type)}</p>
           </div>
         </div>
 
-        <section className="relative h-[285px] overflow-hidden bg-[#e8eef2] print:h-[190px]">
+        <section className="relative h-[355px] overflow-hidden bg-[#e8eef2] print:h-[210px]">
           <img
             src={heroImage}
             alt="Hochwertiges Projektmotiv"
-            className="absolute inset-0 h-full w-full object-cover object-center saturate-[1.08] contrast-[1.02] brightness-[1.14] print:block"
+            className="absolute inset-0 h-full w-full object-cover object-center brightness-[1.12] saturate-[1.08] contrast-[1.02] print:block"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-white/82 via-white/34 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white/50 to-transparent" />
-          <div className="relative flex h-full items-end px-6 pb-6 md:px-8 print:px-7 print:pb-4">
-            <div className="max-w-[470px] rounded-[1.25rem] border border-white/80 bg-white/90 p-5 text-[#0B1633] shadow-[0_16px_45px_rgba(15,23,42,0.12)] backdrop-blur-md print:bg-white print:p-4">
-              <p className="text-[11px] font-extrabold uppercase tracking-[.18em] text-[#5CB800]">Projekt-Nr. {project.project_number || '—'}</p>
-              <h1 className="mt-2 text-3xl font-extrabold tracking-[-.03em] print:text-2xl">{project.project_name}</h1>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold text-slate-600 print:text-[10px]">
-                <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4 text-[#5CB800]" />{location}</span>
-                <span>{dateLabel}</span>
-              </div>
+          <div className="absolute inset-0 bg-gradient-to-r from-white/88 via-white/30 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white/65 to-transparent" />
+          <div className="relative flex h-full flex-col justify-end px-8 pb-7 print:px-7 print:pb-4">
+            <h1 className="text-5xl font-extrabold tracking-[-.045em] text-[#0B1633] print:text-[28px]">{project.project_name}</h1>
+            <p className="mt-3 text-sm font-extrabold uppercase tracking-[.18em] text-[#0B1633] print:mt-2 print:text-[9px]">Projekt-Nr. <span className="text-[#5CB800]">{project.project_number || '—'}</span></p>
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-base font-semibold text-[#0B1633] print:mt-2 print:text-[9px]">
+              <span className="inline-flex items-center gap-2"><MapPin className="h-5 w-5 text-[#0B1633] print:h-3.5 print:w-3.5" />{location}</span>
+              <span className="inline-flex items-center gap-2"><CalendarDays className="h-5 w-5 text-[#0B1633] print:h-3.5 print:w-3.5" />{dateLabel}</span>
             </div>
+            <span className="absolute bottom-7 right-8 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-extrabold uppercase tracking-[.08em] text-[#0B1633] shadow-sm print:bottom-4 print:right-7 print:px-3 print:py-1.5 print:text-[8px]">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#5CB800]" />
+              {project.status || 'Projektstatus offen'}
+            </span>
           </div>
         </section>
 
-        <section className="px-6 py-5 md:px-8 print:px-7 print:py-3.5">
-          <div className="grid gap-5 md:grid-cols-[1.2fr_0.8fr] print:grid-cols-[1.2fr_0.8fr] print:gap-4">
-            <div className="rounded-[1.2rem] border border-slate-200 bg-white p-5 print:p-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F9E8] text-[#3D9200] print:h-7 print:w-7"><FileText className="h-4 w-4" /></span>
-                <h2 className="text-lg font-extrabold text-[#0B1633] print:text-sm">Executive Summary</h2>
-              </div>
-              <p className="mt-3 text-sm leading-6 text-slate-600 print:mt-2 print:text-[9px] print:leading-4">
-                {typeLabel(project.project_type)} in {location} mit {formatNumber(pvKwp, 2)} kWp installierter Leistung. Auf Basis des spezifischen Ertrags von {specificYield ? `${formatNumber(specificYield)} kWh/kWp` : 'noch zu ergänzenden Ertragsdaten'} und der Vergütung von {tariffDisplay(tariff)} ergibt sich eine klare wirtschaftliche Einordnung für professionelle Investoren.
-              </p>
-            </div>
-
-            <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50/70 p-5 print:p-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#3D9200] shadow-sm print:h-7 print:w-7"><MapPin className="h-4 w-4" /></span>
-                <h2 className="text-lg font-extrabold text-[#0B1633] print:text-sm">Projektprofil</h2>
-              </div>
-              <div className="mt-3 space-y-2 text-sm print:mt-2 print:space-y-1 print:text-[9px]">
-                {[
-                  ['Standort', location],
-                  ['Projektstatus', project.status || '—'],
-                  ['Netzanschluss', project.grid_connection_status || 'Zu prüfen'],
-                  ['Einspeiseart', project.feed_in_type || '—'],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-4 border-b border-slate-200/70 pb-2 print:pb-1">
-                    <span className="text-slate-500">{label}</span>
-                    <span className="text-right font-extrabold text-[#0B1633]">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-2 gap-3 rounded-[1.35rem] border border-slate-200 bg-white p-3 md:grid-cols-5 print:mt-3.5 print:grid-cols-5 print:gap-2 print:p-2">
+        <section className="px-8 py-6 print:px-7 print:py-3.5">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-6 print:grid-cols-6 print:gap-2">
             {metrics.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="rounded-xl bg-slate-50/70 px-2 py-3 text-center print:px-1 print:py-2">
-                <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F9E8] text-[#3D9200] print:h-7 print:w-7"><Icon className="h-4.5 w-4.5 print:h-3.5 print:w-3.5" /></div>
-                <p className="mt-2 text-[9px] font-extrabold uppercase tracking-[.08em] text-slate-500 print:text-[7px]">{label}</p>
-                <p className="mt-1 text-base font-extrabold leading-tight text-[#0B1633] print:text-[10px]">{value}</p>
+              <div key={label} className="rounded-[1.1rem] border border-slate-200 bg-white px-3 py-4 text-center shadow-[0_8px_24px_rgba(15,23,42,0.04)] print:rounded-xl print:px-1.5 print:py-2">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center text-[#4DAA00] print:h-7 print:w-7"><Icon className="h-7 w-7 print:h-4 print:w-4" /></div>
+                <p className="mt-2 text-[9px] font-extrabold uppercase tracking-[.11em] text-slate-500 print:mt-1 print:text-[6.5px]">{label}</p>
+                <p className="mt-1 text-lg font-extrabold leading-tight text-[#0B1633] print:text-[10px]">{value}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-5 grid gap-5 md:grid-cols-2 print:mt-3.5 print:grid-cols-2 print:gap-4">
-            <div className="rounded-[1.25rem] border border-slate-200 p-5 print:p-3">
-              <h3 className="text-lg font-extrabold text-[#0B1633] print:text-sm">Wirtschaftliche Kennzahlen</h3>
-              <div className="mt-3 space-y-2 print:mt-2 print:space-y-1">
+          <div className="mt-7 grid gap-7 md:grid-cols-2 print:mt-4 print:grid-cols-2 print:gap-5">
+            <section className="pr-5 md:border-r md:border-slate-200 print:border-r print:border-slate-200 print:pr-4">
+              <h2 className="text-lg font-extrabold uppercase tracking-[.08em] text-[#0B1633] print:text-[11px]">Executive Summary</h2>
+              <div className="mt-2 h-1 w-9 bg-[#5CB800] print:h-0.5" />
+              <p className="mt-5 text-sm leading-7 text-slate-700 print:mt-3 print:text-[8px] print:leading-4">
+                {typeLabel(project.project_type)} in {location} mit {formatNumber(pvKwp, 2)} kWp installierter Leistung. Auf Basis des spezifischen Ertrags von {specificYield ? `${formatNumber(specificYield)} kWh/kWp` : 'noch zu ergänzenden Ertragsdaten'} und der Vergütung von {tariffDisplay(tariff)} ergibt sich eine klare wirtschaftliche Einordnung für professionelle Investoren.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-extrabold uppercase tracking-[.08em] text-[#0B1633] print:text-[11px]">Projektprofil</h2>
+              <div className="mt-2 h-1 w-9 bg-[#5CB800] print:h-0.5" />
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 print:mt-3 print:rounded-lg">
+                {[
+                  [MapPin, 'Standort', location],
+                  [ClipboardList, 'Projektstatus', project.status || '—'],
+                  [Plug, 'Netzanschluss', project.grid_connection_status || 'Zu prüfen'],
+                  [ArrowLeftRight, 'Einspeiseart', project.feed_in_type || '—'],
+                ].map(([Icon, label, value]: any) => (
+                  <div key={label} className="grid grid-cols-[44px_1fr_auto] items-center border-b border-slate-200 last:border-b-0 print:grid-cols-[28px_1fr_auto]">
+                    <span className="flex h-full items-center justify-center border-r border-slate-200 py-3 print:py-1.5"><Icon className="h-5 w-5 text-[#0B1633] print:h-3 print:w-3" /></span>
+                    <span className="px-4 text-sm text-slate-600 print:px-2 print:text-[8px]">{label}</span>
+                    <span className="px-4 text-right text-sm font-extrabold text-[#0B1633] print:px-2 print:text-[8px]">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <div className="mt-8 grid gap-7 md:grid-cols-2 print:mt-4 print:grid-cols-2 print:gap-5">
+            <section>
+              <h2 className="text-lg font-extrabold uppercase tracking-[.08em] text-[#0B1633] print:text-[11px]">Wirtschaftliche Kennzahlen</h2>
+              <div className="mt-2 h-1 w-9 bg-[#5CB800] print:h-0.5" />
+              <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 print:mt-3 print:rounded-lg">
                 {[
                   ['Jahresproduktion', annualYield ? `${formatNumber(annualYield)} kWh` : 'Noch offen'],
                   ['Jahreserlös', annualRevenue > 0 ? formatMoney(annualRevenue) : 'Noch offen'],
@@ -251,33 +256,50 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
                   ['Vergütung', tariffDisplay(tariff)],
                   ['Rendite p.a.', roi ? `${formatNumber(roi, 2)} %` : 'Noch offen'],
                 ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between gap-4 border-b border-slate-100 pb-2 text-sm print:pb-1 print:text-[9px]">
-                    <span className="text-slate-500">{label}</span>
-                    <span className="text-right font-extrabold text-[#0B1633]">{value}</span>
+                  <div key={label} className="flex items-center justify-between border-b border-slate-200 px-4 py-3 text-sm last:border-b-0 print:px-2.5 print:py-1.5 print:text-[8px]">
+                    <span className="text-slate-600">{label}</span>
+                    <span className="font-extrabold text-[#0B1633]">{value}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-[#F1F9E8] px-4 py-3 print:mt-2 print:px-3 print:py-2">
-                <span className="font-extrabold uppercase tracking-[.08em] text-[#3D9200] print:text-[8px]">Amortisation</span>
-                <span className="text-xl font-extrabold text-[#3D9200] print:text-sm">{amortisation ? `${formatNumber(amortisation, 2)} Jahre` : 'Noch offen'}</span>
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-[#DDECCB] bg-[#F4FAEC] px-4 py-3 print:mt-2 print:px-2.5 print:py-1.5">
+                <span className="text-sm font-extrabold uppercase tracking-[.08em] text-[#3D9200] print:text-[8px]">Amortisation</span>
+                <span className="text-2xl font-extrabold text-[#3D9200] print:text-[13px]">{amortisation ? `${formatNumber(amortisation, 1)} Jahre` : 'Noch offen'}</span>
               </div>
-            </div>
+            </section>
 
-            <div className="rounded-[1.25rem] bg-[#0B1633] p-5 text-white print:p-3">
-              <h3 className="text-lg font-extrabold print:text-sm">Investment Highlights</h3>
-              <div className="mt-4 space-y-3 print:mt-2 print:space-y-1.5">
-                {(highlights.length ? highlights : ['Zentral gepflegte Projektdaten', 'Klare wirtschaftliche Kennzahlen', 'Automatisierte Exposé-Erstellung']).slice(0, 5).map((item) => (
-                  <div key={item} className="flex gap-3 text-sm text-white/80 print:text-[9px]"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#87D33B] print:h-3 print:w-3" /><span>{item}</span></div>
-                ))}
+            <section>
+              <h2 className="text-lg font-extrabold uppercase tracking-[.08em] text-[#0B1633] print:text-[11px]">Investment Highlights</h2>
+              <div className="mt-2 h-1 w-9 bg-[#5CB800] print:h-0.5" />
+              <div className="mt-4 rounded-[1.2rem] border border-[#DDECCB] px-5 py-4 print:mt-3 print:rounded-lg print:px-3 print:py-2">
+                <div className="space-y-4 print:space-y-2">
+                  {highlights.slice(0, 5).map((item) => (
+                    <div key={item} className="flex items-start gap-3 text-sm text-slate-700 print:gap-2 print:text-[8px]">
+                      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#5CB800] print:h-3 print:w-3" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </section>
           </div>
         </section>
 
-        <footer className="mt-auto flex items-center justify-between border-t border-[#5CB800]/35 px-6 py-4 text-xs text-slate-500 md:px-8 print:px-7 print:py-2 print:text-[8px]">
-          <div className="flex items-center gap-3"><img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-7 w-auto object-contain print:h-5" /><span>EMA Enterprise GmbH</span></div>
-          <span className="font-semibold text-[#5CB800]">Connecting Capital with Energy Infrastructure.</span>
-          <span>www.ema-enterprise.de</span>
+        <footer className="mt-auto grid grid-cols-[1.05fr_1.2fr_1.15fr_0.7fr] items-center gap-5 border-t border-slate-300 px-8 py-5 text-xs text-[#0B1633] print:px-7 print:py-2.5 print:text-[7px]">
+          <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-14 w-auto object-contain print:h-8" />
+          <div className="leading-5 print:leading-3.5">
+            <p className="font-bold">EMA Enterprise GmbH</p>
+            <p>Gabriel-von-Seidl-Str. 56</p>
+            <p>67550 Worms, Germany</p>
+          </div>
+          <div className="space-y-2 print:space-y-1">
+            <p className="flex items-center gap-2"><Globe2 className="h-4 w-4 print:h-2.5 print:w-2.5" />www.ema-enterprise.de</p>
+            <p className="flex items-center gap-2"><Mail className="h-4 w-4 print:h-2.5 print:w-2.5" />info@ema-enterprise.de</p>
+          </div>
+          <div className="border-l border-slate-300 pl-5 leading-5 print:pl-3 print:leading-3.5">
+            <p>Stand: {dateLabel}</p>
+            <p>Version 3.0</p>
+          </div>
         </footer>
       </article>
     </div>
