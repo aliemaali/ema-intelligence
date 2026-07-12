@@ -41,54 +41,51 @@ function blobToDataUrl(blob: Blob) {
   })
 }
 
-function loadImage(source: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve(image)
-    image.onerror = () => reject(new Error('Bild konnte nicht dekodiert werden'))
-    image.src = source
-  })
-}
-
-async function prepareHeroCanvasForPrint() {
+async function embedHeroImageForPrint() {
   const hero = document.querySelector<HTMLImageElement>(".memorandum-page img[alt='Hochwertiges Projektmotiv']")
   if (!hero) return
 
-  const container = hero.parentElement
-  if (!container) return
+  if (!hero.dataset.originalSrc) {
+    hero.dataset.originalSrc = hero.currentSrc || hero.getAttribute('src') || '/hero-dashboard.png'
+  }
 
-  const previousCanvas = container.querySelector<HTMLCanvasElement>('.print-hero-canvas')
-  previousCanvas?.remove()
+  if (!hero.src.startsWith('data:')) {
+    const response = await fetch(hero.dataset.originalSrc, { cache: 'no-store' })
+    if (!response.ok) throw new Error('Hero-Bild konnte nicht geladen werden')
+    hero.src = await blobToDataUrl(await response.blob())
+  }
 
-  const source = hero.currentSrc || hero.getAttribute('src') || '/hero-dashboard.png'
-  const response = await fetch(source, { cache: 'no-store' })
-  if (!response.ok) throw new Error('Hero-Bild konnte nicht geladen werden')
+  await new Promise<void>((resolve, reject) => {
+    if (hero.complete && hero.naturalWidth > 0) {
+      resolve()
+      return
+    }
 
-  const dataUrl = await blobToDataUrl(await response.blob())
-  const image = await loadImage(dataUrl)
+    const timeout = window.setTimeout(() => reject(new Error('Hero-Bild wurde nicht rechtzeitig geladen')), 8000)
+    hero.addEventListener('load', () => {
+      window.clearTimeout(timeout)
+      resolve()
+    }, { once: true })
+    hero.addEventListener('error', () => {
+      window.clearTimeout(timeout)
+      reject(new Error('Hero-Bild konnte nicht dekodiert werden'))
+    }, { once: true })
+  })
 
-  const canvas = document.createElement('canvas')
-  canvas.className = 'print-hero-canvas'
-  canvas.width = 1800
-  canvas.height = 520
-  canvas.setAttribute('aria-hidden', 'true')
+  if (typeof hero.decode === 'function') {
+    try {
+      await hero.decode()
+    } catch {
+      // Das Bild ist bereits geladen; Safari kann decode() trotzdem ablehnen.
+    }
+  }
 
-  const context = canvas.getContext('2d', { alpha: false })
-  if (!context) throw new Error('Canvas ist nicht verfügbar')
-
-  context.fillStyle = '#e8eef2'
-  context.fillRect(0, 0, canvas.width, canvas.height)
-
-  const scale = Math.max(canvas.width / image.naturalWidth, canvas.height / image.naturalHeight)
-  const drawWidth = image.naturalWidth * scale
-  const drawHeight = image.naturalHeight * scale
-  const drawX = (canvas.width - drawWidth) / 2
-  const drawY = (canvas.height - drawHeight) / 2
-  context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
-
-  container.insertBefore(canvas, hero.nextSibling)
+  hero.style.display = 'block'
+  hero.style.visibility = 'visible'
+  hero.style.opacity = '1'
 
   await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 700))
 }
 
 async function waitForPrintableImages() {
@@ -124,15 +121,14 @@ export function PrintButton() {
     setIsPreparing(true)
 
     try {
+      await embedHeroImageForPrint()
       await waitForPrintableImages()
-      await prepareHeroCanvasForPrint()
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 250))
       window.print()
     } catch (error) {
       console.error('PDF preparation failed:', error)
-      window.print()
+      window.alert('Das Projektbild konnte nicht für die PDF vorbereitet werden. Bitte die Seite einmal neu laden und erneut versuchen.')
     } finally {
-      window.setTimeout(() => setIsPreparing(false), 500)
+      window.setTimeout(() => setIsPreparing(false), 700)
     }
   }
 
@@ -188,10 +184,6 @@ export function PrintButton() {
   return (
     <>
       <style jsx global>{`
-        .print-hero-canvas {
-          display: none;
-        }
-
         @page {
           size: A4 portrait;
           margin: 0;
@@ -254,17 +246,19 @@ export function PrintButton() {
           }
 
           .memorandum-page img[alt='Hochwertiges Projektmotiv'] {
-            display: none !important;
-          }
-
-          .print-hero-canvas {
             display: block !important;
+            visibility: visible !important;
             position: absolute !important;
             inset: 0 !important;
             z-index: 0 !important;
             width: 100% !important;
             height: 100% !important;
+            max-width: none !important;
             object-fit: cover !important;
+            object-position: center 58% !important;
+            transform: none !important;
+            filter: none !important;
+            opacity: 1 !important;
             background: #e8eef2 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
