@@ -87,12 +87,13 @@ export function PrintButton({ projectName, projectNumber }: PrintButtonProps) {
       const data = collectPdfData(projectName, projectNumber)
       const blob = await generateMemorandumPdf(data)
       const filename = buildFilename(projectName, projectNumber)
-      const file = new File([blob], filename, { type: 'application/pdf' })
+      const blobUrl = URL.createObjectURL(blob)
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: filename })
+      if (isIos) {
+        window.location.assign(blobUrl)
       } else {
-        const blobUrl = URL.createObjectURL(blob)
         const anchor = document.createElement('a')
         anchor.href = blobUrl
         anchor.download = filename
@@ -100,8 +101,9 @@ export function PrintButton({ projectName, projectNumber }: PrintButtonProps) {
         document.body.appendChild(anchor)
         anchor.click()
         anchor.remove()
-        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
       }
+
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 300000)
     } catch (error) {
       console.error('PDF-Erstellung fehlgeschlagen', error)
       const message = error instanceof Error ? error.message : 'Unbekannter Fehler'
