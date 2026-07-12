@@ -4,9 +4,7 @@ import { useState } from 'react'
 import { Download, Printer } from 'lucide-react'
 
 async function waitForImages() {
-  const images = Array.from(
-    document.querySelectorAll<HTMLImageElement>('.memorandum-page img'),
-  )
+  const images = Array.from(document.querySelectorAll<HTMLImageElement>('.memorandum-page img'))
 
   await Promise.all(
     images.map(
@@ -39,7 +37,7 @@ export function PrintButton() {
 
     try {
       await waitForImages()
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 250))
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 300))
       window.print()
     } finally {
       window.setTimeout(() => setIsPreparing(false), 500)
@@ -50,7 +48,7 @@ export function PrintButton() {
     <>
       <style jsx global>{`
         @page {
-          size: A4 landscape;
+          size: 297mm 210mm;
           margin: 0;
         }
 
@@ -58,6 +56,7 @@ export function PrintButton() {
           html,
           body {
             width: 297mm !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             overflow: visible !important;
@@ -82,15 +81,17 @@ export function PrintButton() {
             flex-direction: column !important;
             position: relative !important;
             width: 297mm !important;
-            height: 195mm !important;
-            min-height: 195mm !important;
-            max-height: 195mm !important;
+            height: 210mm !important;
+            min-height: 210mm !important;
+            max-height: 210mm !important;
             margin: 0 !important;
+            padding: 0 !important;
             overflow: hidden !important;
             break-inside: avoid-page !important;
             page-break-inside: avoid !important;
             box-shadow: none !important;
             background: #ffffff !important;
+            transform: none !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -135,10 +136,7 @@ export function PrintButton() {
             border-bottom: none !important;
           }
 
-          .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1) {
-            display: none !important;
-          }
-
+          .memorandum-page:first-child > section:first-of-type > div:nth-of-type(1),
           .memorandum-page:first-child > section:first-of-type > div:nth-of-type(2) {
             display: none !important;
           }
@@ -288,11 +286,9 @@ export function PrintButton() {
 
           .memorandum-page:nth-child(2) > header img {
             height: 9mm !important;
-            filter: brightness(0) invert(1) !important;
           }
 
-          .memorandum-page:nth-child(2) > header p:first-child,
-          .memorandum-page:nth-child(2) > header p:last-child {
+          .memorandum-page:nth-child(2) > header p:first-child {
             color: #ffffff !important;
           }
 
