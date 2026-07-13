@@ -16,6 +16,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  Target,
   UploadCloud,
   X,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ const MAIN_ITEMS = [
 ] as const
 
 const MORE_ITEMS = [
+  { label: 'EMA Scout', href: '/acquisition', icon: Target },
   { label: 'Kundenaufnahme', href: '/customer-intake', icon: ClipboardPenLine },
   { label: 'Investoren', href: '/investors', icon: Building2 },
   { label: 'Partner', href: '/partners', icon: Handshake },
