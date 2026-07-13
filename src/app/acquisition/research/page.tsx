@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { ArrowLeft, Building2, FolderSearch2, Inbox, Search, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowLeft, Building2, FolderSearch2, Inbox, MapPinned, Search, ShieldCheck, Sparkles } from 'lucide-react'
 import { queueResearchCandidate } from '@/lib/actions/research-inbox.actions'
+import { runOpenStreetMapResearch } from '@/lib/actions/osm-research.actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,12 +14,16 @@ function Field({ label, name, type = 'text', placeholder }: { label: string; nam
   )
 }
 
-export default function ResearchPage({ searchParams }: { searchParams: { error?: string } }) {
+export default function ResearchPage({ searchParams }: { searchParams: { error?: string; searched?: string; found?: string; added?: string } }) {
   const errorMessage = searchParams.error === 'missing'
     ? 'Bitte mindestens Firma und Akquise-Art ausfüllen.'
-    : searchParams.error
-      ? 'Der Recherche-Vorschlag konnte nicht gespeichert werden.'
-      : null
+    : searchParams.error === 'location'
+      ? 'Der eingegebene Ort konnte nicht gefunden werden.'
+      : searchParams.error === 'search'
+        ? 'Die öffentliche Suchquelle ist gerade nicht erreichbar. Bitte später erneut versuchen.'
+        : searchParams.error
+          ? 'Die Recherche konnte nicht abgeschlossen werden.'
+          : null
 
   return (
     <div className="min-h-screen bg-[#F4F6F9] px-4 py-6 md:px-8 md:py-8">
@@ -27,18 +32,30 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
           <div>
             <Link href="/acquisition" className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-[#132060]"><ArrowLeft className="h-4 w-4" /> Zurück zum Akquise-Center</Link>
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#5CB800]"><Search className="h-4 w-4" /> EMA Scout Recherche</div>
-            <h1 className="text-3xl font-semibold tracking-tight text-[#132060]">Neue Chance recherchieren</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Öffentlich recherchierte Firmen, Dachflächen und Projektentwickler werden zuerst in einer kontrollierten Prüfliste gespeichert.</p>
+            <h1 className="text-3xl font-semibold tracking-tight text-[#132060]">Neue Chancen recherchieren</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Öffentliche Standortdaten werden automatisch durchsucht und zunächst nur als Vorschläge ins Recherche-Postfach gelegt.</p>
           </div>
           <Link href="/acquisition/research/inbox" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#132060] shadow-sm"><Inbox className="h-4 w-4" /> Recherche-Postfach</Link>
         </div>
 
         {errorMessage && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{errorMessage}</div>}
+        {searchParams.searched && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800"><p className="font-semibold">Web-Recherche abgeschlossen</p><p className="mt-1">{searchParams.found || '0'} relevante Treffer gefunden, {searchParams.added || '0'} neue Vorschläge ins Recherche-Postfach gelegt.</p></div>}
+
+        <section className="rounded-2xl border border-[#5CB800]/30 bg-white p-5 shadow-sm md:p-7">
+          <div className="flex items-start gap-3"><div className="rounded-xl bg-green-50 p-3 text-[#5CB800]"><MapPinned className="h-5 w-5" /></div><div><h2 className="font-semibold text-[#132060]">Automatische Standortsuche</h2><p className="mt-1 text-sm leading-6 text-slate-500">Sucht kostenlos über OpenStreetMap und Overpass nach Industrie-, Lager- und Gewerbestandorten.</p></div></div>
+          <form action={runOpenStreetMapResearch} className="mt-5 grid gap-4 md:grid-cols-[1fr_180px_220px_auto] md:items-end">
+            <Field label="Ort oder PLZ" name="location" placeholder="z. B. Worms oder 67547" />
+            <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Radius</span><select name="radius_km" defaultValue="10" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option><option value="30">30 km</option><option value="50">50 km</option></select></label>
+            <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Standorttyp</span><select name="category" defaultValue="all" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="all">Alle Gewerbestandorte</option><option value="logistics">Logistik und Lager</option><option value="industry">Industrie</option></select></label>
+            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#4FA000]"><Search className="h-4 w-4" /> Suche starten</button>
+          </form>
+          <p className="mt-3 text-xs leading-5 text-slate-400">Maximal 30 neue Vorschläge pro Suche. Öffentliche Daten können unvollständig sein und müssen vor einer Kontaktaufnahme geprüft werden.</p>
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <form action={queueResearchCandidate} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
             <section className="space-y-4">
-              <div><h2 className="font-semibold text-[#132060]">Unternehmen und Chance</h2><p className="mt-1 text-xs text-slate-400">Pflichtfelder sind Firma und Akquise-Art.</p></div>
+              <div><h2 className="font-semibold text-[#132060]">Treffer manuell ergänzen</h2><p className="mt-1 text-xs text-slate-400">Pflichtfelder sind Firma und Akquise-Art.</p></div>
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Akquise-Art</span><select name="acquisition_type" required className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="roof">Große Dachfläche</option><option value="project">PV-, BESS- oder Hybridprojekt</option></select></label>
                 <Field label="Firmenname" name="company_name" placeholder="z. B. Muster Logistik GmbH" />
@@ -74,10 +91,10 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
           </form>
 
           <aside className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-green-50 p-3 text-[#5CB800]"><ShieldCheck className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Dubletten-Schutz</h3><p className="mt-1 text-xs leading-5 text-slate-500">Prüft Firmenname, E-Mail und normalisierte Website vor der späteren Übernahme.</p></div></div></div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><Building2 className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Dachflächen-Score</h3><p className="mt-1 text-xs leading-5 text-slate-500">Größe, PV-Potenzial, Standort und Kontaktdaten erhöhen die Priorität.</p></div></div></div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><FolderSearch2 className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Projekt-Score</h3><p className="mt-1 text-xs leading-5 text-slate-500">Leistung, Projektstand und erreichbare Ansprechpartner bestimmen die Reihenfolge.</p></div></div></div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900"><p className="font-semibold">Kontrollierter Prozess</p><p className="mt-2 text-xs leading-5">Ein Treffer landet nur im Recherche-Postfach. Erst deine Bestätigung erzeugt einen Lead. E-Mails bleiben weiterhin freigabepflichtig.</p></div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-green-50 p-3 text-[#5CB800]"><ShieldCheck className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Dubletten-Schutz</h3><p className="mt-1 text-xs leading-5 text-slate-500">Prüft Firmenname, E-Mail, Website und die öffentliche Fundstelle.</p></div></div></div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><Building2 className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Dachflächen-Fokus</h3><p className="mt-1 text-xs leading-5 text-slate-500">Industrie-, Lager- und Gewerbegebäude werden als mögliche PV-Dachflächen priorisiert.</p></div></div></div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><FolderSearch2 className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Öffentliche Daten</h3><p className="mt-1 text-xs leading-5 text-slate-500">Website und E-Mail werden nur übernommen, wenn sie öffentlich in der Quelle hinterlegt sind.</p></div></div></div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900"><p className="font-semibold">Kontrollierter Prozess</p><p className="mt-2 text-xs leading-5">Treffer landen nur im Recherche-Postfach. Erst deine Bestätigung erzeugt einen Lead. E-Mails bleiben freigabepflichtig.</p></div>
           </aside>
         </div>
       </div>
