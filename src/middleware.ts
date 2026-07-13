@@ -11,9 +11,7 @@ const PARTNER_ROLES = new Set(['partner', 'sales_partner', 'vertriebspartner'])
  * 3. Route partner accounts to their own interface
  */
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient<any>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,30 +22,24 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet: { name: string; value: string; options: any }[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
         },
       },
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const isPartnerRoute = pathname.startsWith('/partner')
+  const isPartnerRoute = pathname === '/partner' || pathname.startsWith('/partner/')
   const isInternalRoute =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/projects') ||
     pathname.startsWith('/deals') ||
     pathname.startsWith('/partners') ||
+    pathname.startsWith('/partner-submissions') ||
     pathname.startsWith('/investors') ||
     pathname.startsWith('/tasks') ||
     pathname.startsWith('/settings') ||
@@ -65,14 +57,8 @@ export async function middleware(request: NextRequest) {
   }
 
   let isPartner = false
-
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
-
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
     isPartner = PARTNER_ROLES.has(String(profile?.role ?? '').toLowerCase())
   }
 
@@ -106,7 +92,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

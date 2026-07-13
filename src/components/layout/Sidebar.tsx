@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud, Target, Bot,
+  LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -45,6 +45,7 @@ export function Sidebar({ user }: SidebarProps) {
 
   const acquisitionActive = isActive('/acquisition')
   const agentActive = isActive('/ai-agent')
+  const submissionsActive = isActive('/partner-submissions')
 
   return (
     <aside className="app-sidebar">
@@ -73,6 +74,15 @@ export function Sidebar({ user }: SidebarProps) {
             </Link>
           )
         })}
+
+        <div className="pt-4 mt-4 border-t border-border">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">Partner</p>
+          <Link href="/partner-submissions" className={cn('nav-item group', submissionsActive && 'nav-item-active')}>
+            <Inbox className={cn('w-5 h-5 shrink-0 transition-colors', submissionsActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
+            <span className="truncate">Partner-Einreichungen</span>
+            {submissionsActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
+          </Link>
+        </div>
 
         <div className="pt-4 mt-4 border-t border-border">
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
