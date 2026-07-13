@@ -14,26 +14,22 @@ function getOutlookConfig() {
   const clientId = process.env.MICROSOFT_CLIENT_ID
   const clientSecret = process.env.MICROSOFT_CLIENT_SECRET
   const senderEmail = process.env.OUTLOOK_SENDER_EMAIL
-
   if (!tenantId || !clientId || !clientSecret || !senderEmail) return null
   return { tenantId, clientId, clientSecret, senderEmail }
 }
 
 async function getMicrosoftAccessToken(config: NonNullable<ReturnType<typeof getOutlookConfig>>) {
-  const tokenResponse = await fetch(
-    `https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: config.clientId,
-        client_secret: config.clientSecret,
-        scope: 'https://graph.microsoft.com/.default',
-        grant_type: 'client_credentials',
-      }),
-      cache: 'no-store',
-    }
-  )
+  const tokenResponse = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      scope: 'https://graph.microsoft.com/.default',
+      grant_type: 'client_credentials',
+    }),
+    cache: 'no-store',
+  })
 
   if (!tokenResponse.ok) {
     const details = await tokenResponse.text()
@@ -63,50 +59,47 @@ export async function sendApprovedAcquisitionEmail(formData: FormData) {
     .eq('id', emailId)
     .eq('user_id', user.id)
     .in('status', ['approved', 'failed'])
-    .select('id,lead_id,recipient_email,subject,body')
+    .select('id,lead_id,email_type,recipient_email,subject,body')
     .single()
 
   if (claimError || !email) redirect('/acquisition/approvals?error=status')
 
   try {
     const accessToken = await getMicrosoftAccessToken(config)
-    const sendResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.senderEmail)}/sendMail`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+    const sendResponse = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.senderEmail)}/sendMail`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: {
+          subject: email.subject,
+          body: { contentType: 'Text', content: email.body },
+          toRecipients: [{ emailAddress: { address: email.recipient_email } }],
         },
-        body: JSON.stringify({
-          message: {
-            subject: email.subject,
-            body: { contentType: 'Text', content: email.body },
-            toRecipients: [
-              { emailAddress: { address: email.recipient_email } },
-            ],
-          },
-          saveToSentItems: true,
-        }),
-        cache: 'no-store',
-      }
-    )
+        saveToSentItems: true,
+      }),
+      cache: 'no-store',
+    })
 
     if (!sendResponse.ok) {
       const details = await sendResponse.text()
       throw new Error(`Outlook-Versand fehlgeschlagen (${sendResponse.status}): ${details.slice(0, 500)}`)
     }
 
-    const sentAt = new Date().toISOString()
+    const sentAt = new Date()
+    const nextFollowUp = new Date(sentAt)
+    nextFollowUp.setDate(nextFollowUp.getDate() + (email.email_type === 'follow_up_1' ? 7 : 5))
+
     await db.from('acquisition_emails').update({
       status: 'sent',
-      sent_at: sentAt,
+      sent_at: sentAt.toISOString(),
       error_message: null,
     }).eq('id', email.id).eq('user_id', user.id)
 
+    const isFinalFollowUp = email.email_type === 'follow_up_2'
     await db.from('acquisition_leads').update({
       status: 'contacted',
-      next_action: 'Antwort abwarten und Follow-up prüfen',
+      next_action: isFinalFollowUp ? 'Antwort abwarten' : 'Follow-up prüfen',
+      next_action_at: isFinalFollowUp ? null : nextFollowUp.toISOString(),
     }).eq('id', email.lead_id).eq('user_id', user.id)
 
     await db.from('acquisition_activities').insert({
@@ -114,29 +107,24 @@ export async function sendApprovedAcquisitionEmail(formData: FormData) {
       lead_id: email.lead_id,
       activity_type: 'email_sent',
       title: 'E-Mail über Outlook versendet',
-      description: `Erstkontakt wurde an ${email.recipient_email} gesendet.`,
-      metadata: { email_id: email.id, sender_email: config.senderEmail, sent_at: sentAt },
+      description: `${email.email_type === 'initial' ? 'Erstkontakt' : 'Follow-up'} wurde an ${email.recipient_email} gesendet.`,
+      metadata: {
+        email_id: email.id,
+        email_type: email.email_type,
+        sender_email: config.senderEmail,
+        sent_at: sentAt.toISOString(),
+        next_follow_up_at: isFinalFollowUp ? null : nextFollowUp.toISOString(),
+      },
     })
 
     revalidatePath('/acquisition')
     revalidatePath('/acquisition/approvals')
     redirect('/acquisition/approvals?sent=1')
   } catch (error) {
-    if (
-      typeof error === 'object' &&
-      error &&
-      'digest' in error &&
-      String((error as { digest?: unknown }).digest).startsWith('NEXT_REDIRECT')
-    ) {
-      throw error
-    }
+    if (typeof error === 'object' && error && 'digest' in error && String((error as { digest?: unknown }).digest).startsWith('NEXT_REDIRECT')) throw error
 
     const message = error instanceof Error ? error.message : 'Unbekannter Outlook-Fehler.'
-    await db.from('acquisition_emails').update({
-      status: 'failed',
-      error_message: message,
-    }).eq('id', email.id).eq('user_id', user.id)
-
+    await db.from('acquisition_emails').update({ status: 'failed', error_message: message }).eq('id', email.id).eq('user_id', user.id)
     await db.from('acquisition_activities').insert({
       user_id: user.id,
       lead_id: email.lead_id,
