@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud,
+  LogOut, ChevronRight, UploadCloud, Target,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -31,6 +31,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Settings,
   Calculator,
   UploadCloud,
+  Target,
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -40,6 +41,8 @@ export function Sidebar({ user }: SidebarProps) {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname.startsWith(href)
   }
+
+  const acquisitionActive = isActive('/acquisition')
 
   return (
     <aside className="app-sidebar">
@@ -68,6 +71,17 @@ export function Sidebar({ user }: SidebarProps) {
             </Link>
           )
         })}
+
+        <div className="pt-4 mt-4 border-t border-border">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+            Wachstum
+          </p>
+          <Link href="/acquisition" className={cn('nav-item group', acquisitionActive && 'nav-item-active')}>
+            <Target className={cn('w-5 h-5 shrink-0 transition-colors', acquisitionActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
+            <span className="truncate">Akquise</span>
+            {acquisitionActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
+          </Link>
+        </div>
 
         <div className="pt-4 mt-4 border-t border-border">
           {NAV_ITEMS_SECONDARY.map((item) => {
