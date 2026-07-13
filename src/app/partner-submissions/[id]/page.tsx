@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import { ArrowLeft, Download, ExternalLink, FileText, MapPin } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Download, ExternalLink, FileText, MapPin } from 'lucide-react'
 import { notFound, redirect } from 'next/navigation'
+import { convertPartnerSubmission } from '@/lib/actions/partner-submission-conversion.actions'
 import { updatePartnerSubmissionReview } from '@/lib/actions/partner-submission-review.actions'
 import { createClient } from '@/lib/supabase/server'
 
@@ -16,12 +17,7 @@ export default async function PartnerSubmissionDetailPage({ params }: { params: 
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: submission } = await supabase
-    .from('project_submissions')
-    .select('*')
-    .eq('id', params.id)
-    .maybeSingle()
-
+  const { data: submission } = await supabase.from('project_submissions').select('*').eq('id', params.id).maybeSingle()
   if (!submission) notFound()
 
   const [{ data: partner }, { data: documents }] = await Promise.all([
@@ -64,18 +60,25 @@ export default async function PartnerSubmissionDetailPage({ params }: { params: 
         {osmUrl && <a href={osmUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-extrabold text-[#1F2A44]"><MapPin className="h-4 w-4" /> Standort auf Karte öffnen <ExternalLink className="h-4 w-4" /></a>}
       </section>
 
+      {submission.converted_project_id ? (
+        <section className="rounded-[2rem] border border-[#5CB800]/25 bg-[#5CB800]/10 p-6">
+          <div className="flex items-start gap-3"><CheckCircle2 className="mt-0.5 h-6 w-6 text-[#2F8A00]" /><div><h2 className="font-extrabold text-[#1F2A44]">Als EMA-Projekt übernommen</h2><p className="mt-1 text-sm text-slate-600">Diese Einreichung wurde bereits in den internen Projektbestand übertragen.</p><Link href={`/projects/${submission.converted_project_id}/overview`} className="mt-4 inline-flex rounded-2xl bg-[#1F2A44] px-4 py-3 text-sm font-extrabold text-white">Internes Projekt öffnen</Link></div></div>
+        </section>
+      ) : submission.status === 'angenommen' ? (
+        <form action={convertPartnerSubmission} className="rounded-[2rem] border border-[#5CB800]/25 bg-white p-6 shadow-sm">
+          <input type="hidden" name="submission_id" value={submission.id} />
+          <h2 className="text-xl font-extrabold text-[#07142F]">In EMA-Projekte übernehmen</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">Projektdaten und sämtliche Unterlagen werden kopiert. Die Einreichung bleibt als Herkunftsnachweis bestehen.</p>
+          <button type="submit" className="mt-5 min-h-12 w-full rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white">Jetzt als internes Projekt anlegen</button>
+        </form>
+      ) : null}
+
       <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[2rem] bg-white p-6 shadow-sm">
           <h2 className="text-xl font-extrabold text-[#07142F]">Unterlagen</h2>
           <div className="mt-4 space-y-3">
             {documentsWithLinks.length === 0 && <p className="rounded-2xl bg-slate-50 p-4 text-sm text-muted-foreground">Keine Dokumente hochgeladen.</p>}
-            {documentsWithLinks.map((document: any) => (
-              <div key={document.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4">
-                <FileText className="h-5 w-5 shrink-0 text-[#2F8A00]" />
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold">{document.display_name}</p><p className="text-xs text-muted-foreground">{document.document_type}</p></div>
-                {document.signedUrl && <a href={document.signedUrl} target="_blank" rel="noreferrer" className="rounded-xl p-2 text-[#1F2A44]" aria-label="Dokument öffnen"><Download className="h-5 w-5" /></a>}
-              </div>
-            ))}
+            {documentsWithLinks.map((document: any) => <div key={document.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4"><FileText className="h-5 w-5 shrink-0 text-[#2F8A00]" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold">{document.display_name}</p><p className="text-xs text-muted-foreground">{document.document_type}</p></div>{document.signedUrl && <a href={document.signedUrl} target="_blank" rel="noreferrer" className="rounded-xl p-2 text-[#1F2A44]" aria-label="Dokument öffnen"><Download className="h-5 w-5" /></a>}</div>)}
           </div>
         </div>
 
@@ -88,13 +91,7 @@ export default async function PartnerSubmissionDetailPage({ params }: { params: 
         </form>
       </section>
 
-      {(submission.notes || partner?.email || partner?.phone) && (
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-extrabold text-[#07142F]">Kontakt und Hinweise</h2>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2"><Info label="Partner" value={[partner?.full_name, partner?.company].filter(Boolean).join(' · ') || '–'} /><Info label="Kontakt" value={[partner?.email, partner?.phone].filter(Boolean).join(' · ') || '–'} /></div>
-          {submission.notes && <p className="mt-5 whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">{submission.notes}</p>}
-        </section>
-      )}
+      {(submission.notes || partner?.email || partner?.phone) && <section className="rounded-[2rem] bg-white p-6 shadow-sm"><h2 className="text-xl font-extrabold text-[#07142F]">Kontakt und Hinweise</h2><div className="mt-4 grid gap-4 sm:grid-cols-2"><Info label="Partner" value={[partner?.full_name, partner?.company].filter(Boolean).join(' · ') || '–'} /><Info label="Kontakt" value={[partner?.email, partner?.phone].filter(Boolean).join(' · ') || '–'} /></div>{submission.notes && <p className="mt-5 whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-sm leading-relaxed text-slate-700">{submission.notes}</p>}</section>}
     </div>
   )
 }
