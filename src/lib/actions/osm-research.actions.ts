@@ -105,7 +105,7 @@ export async function runOpenStreetMapResearch(formData: FormData) {
 
   const location = text(formData, 'location')
   const radiusInput = Number(text(formData, 'radius_km') || '10')
-  const radiusKm = Math.min(Math.max(Number.isFinite(radiusInput) ? radiusInput : 10, 1), 50)
+  const radiusKm = Math.min(Math.max(Number.isFinite(radiusInput) ? radiusInput : 10, 1), 500)
   const rawCategory = text(formData, 'category') || 'all'
   const category = ['all', 'logistics', 'industry'].includes(rawCategory) ? rawCategory : 'all'
 
