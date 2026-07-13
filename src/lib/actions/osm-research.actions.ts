@@ -10,6 +10,12 @@ type OsmElement = {
   tags?: Record<string, string>
 }
 
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.nchc.org.tw/api/interpreter',
+]
+
 function text(formData: FormData, key: string) {
   const value = formData.get(key)
   return typeof value === 'string' && value.trim() ? value.trim() : null
@@ -35,6 +41,40 @@ function sourceUrl(element: OsmElement) {
   return `https://www.openstreetmap.org/${element.type}/${element.id}`
 }
 
+async function fetchWithTimeout(url: string | URL, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function runOverpassQuery(query: string) {
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const response = await fetchWithTimeout(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'User-Agent': 'EMA-Intelligence/1.0 (unluer@ema-enterprise.de)',
+        },
+        body: new URLSearchParams({ data: query }),
+        cache: 'no-store',
+      }, 18_000)
+
+      if (!response.ok) continue
+      const payload = await response.json() as { elements?: OsmElement[] }
+      return payload.elements || []
+    } catch {
+      // Nächsten öffentlichen Overpass-Endpunkt versuchen.
+    }
+  }
+
+  return null
+}
+
 export async function runOpenStreetMapResearch(formData: FormData) {
   const supabase = await createClient()
   const db = supabase as any
@@ -54,10 +94,15 @@ export async function runOpenStreetMapResearch(formData: FormData) {
   geocodeUrl.searchParams.set('countrycodes', 'de')
   geocodeUrl.searchParams.set('q', location)
 
-  const geocodeResponse = await fetch(geocodeUrl, {
-    headers: { 'User-Agent': 'EMA-Intelligence/1.0 (unluer@ema-enterprise.de)' },
-    cache: 'no-store',
-  })
+  let geocodeResponse: Response
+  try {
+    geocodeResponse = await fetchWithTimeout(geocodeUrl, {
+      headers: { 'User-Agent': 'EMA-Intelligence/1.0 (unluer@ema-enterprise.de)' },
+      cache: 'no-store',
+    }, 10_000)
+  } catch {
+    redirect('/acquisition/research?error=search')
+  }
 
   if (!geocodeResponse.ok) redirect('/acquisition/research?error=search')
   const geocoded = await geocodeResponse.json() as Array<{ lat: string; lon: string; display_name?: string }>
@@ -67,29 +112,26 @@ export async function runOpenStreetMapResearch(formData: FormData) {
   const lon = Number(geocoded[0].lon)
   const radiusMeters = Math.round(radiusKm * 1000)
 
-  const filters = category === 'logistics'
-    ? `nwr(around:${radiusMeters},${lat},${lon})["building"~"warehouse|industrial"]["name"];\nnwr(around:${radiusMeters},${lat},${lon})["industrial"~"warehouse|logistics"]["name"];`
+  const buildFilters = (meters: number) => category === 'logistics'
+    ? `nwr(around:${meters},${lat},${lon})["building"~"warehouse|industrial"]["name"];\nnwr(around:${meters},${lat},${lon})["industrial"~"warehouse|logistics"]["name"];`
     : category === 'industry'
-      ? `nwr(around:${radiusMeters},${lat},${lon})["building"="industrial"]["name"];\nnwr(around:${radiusMeters},${lat},${lon})["landuse"="industrial"]["name"];\nnwr(around:${radiusMeters},${lat},${lon})["industrial"]["name"];`
-      : `nwr(around:${radiusMeters},${lat},${lon})["building"~"industrial|warehouse|commercial"]["name"];\nnwr(around:${radiusMeters},${lat},${lon})["landuse"="industrial"]["name"];\nnwr(around:${radiusMeters},${lat},${lon})["office"="company"]["name"];\nnwr(around:${radiusMeters},${lat},${lon})["industrial"]["name"];`
+      ? `nwr(around:${meters},${lat},${lon})["building"="industrial"]["name"];\nnwr(around:${meters},${lat},${lon})["landuse"="industrial"]["name"];\nnwr(around:${meters},${lat},${lon})["industrial"]["name"];`
+      : `nwr(around:${meters},${lat},${lon})["building"~"industrial|warehouse|commercial"]["name"];\nnwr(around:${meters},${lat},${lon})["landuse"="industrial"]["name"];\nnwr(around:${meters},${lat},${lon})["office"="company"]["name"];\nnwr(around:${meters},${lat},${lon})["industrial"]["name"];`
 
-  const query = `[out:json][timeout:25];\n(\n${filters}\n);\nout center tags 80;`
-  const overpassResponse = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      'User-Agent': 'EMA-Intelligence/1.0 (unluer@ema-enterprise.de)',
-    },
-    body: new URLSearchParams({ data: query }),
-    cache: 'no-store',
-  })
+  const query = `[out:json][timeout:20];\n(\n${buildFilters(radiusMeters)}\n);\nout center tags 80;`
+  let elements = await runOverpassQuery(query)
 
-  if (!overpassResponse.ok) redirect('/acquisition/research?error=search')
-  const payload = await overpassResponse.json() as { elements?: OsmElement[] }
-  const elements = (payload.elements || []).filter((item) => item.tags?.name).slice(0, 80)
+  if (elements === null && radiusMeters > 10_000) {
+    const fallbackRadius = Math.max(10_000, Math.round(radiusMeters / 2))
+    const fallbackQuery = `[out:json][timeout:15];\n(\n${buildFilters(fallbackRadius)}\n);\nout center tags 50;`
+    elements = await runOverpassQuery(fallbackQuery)
+  }
+
+  if (elements === null) redirect('/acquisition/research?error=search')
+  const namedElements = elements.filter((item) => item.tags?.name).slice(0, 80)
 
   const seen = new Set<string>()
-  const rows = elements.flatMap((element) => {
+  const rows = namedElements.flatMap((element) => {
     const tags = element.tags || {}
     const companyName = tags.name?.trim()
     if (!companyName) return []
