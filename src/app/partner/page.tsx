@@ -1,4 +1,4 @@
-import { FolderOpen, ShieldCheck, UploadCloud } from 'lucide-react'
+import { ShieldCheck } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { PartnerSignOutButton } from '@/components/partner/PartnerSignOutButton'
 import { createClient } from '@/lib/supabase/server'
@@ -43,34 +43,12 @@ export default async function PartnerDashboardPage() {
               Willkommen, {firstName}.
             </h1>
             <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg">
-              Hier verwaltest du künftig deine Projekte und übermittelst neue Vorhaben sicher an EMA Enterprise.
+              Dein Partnerzugang ist aktiv. Du befindest dich in der getrennten, geschützten Partner-Oberfläche von EMA Intelligence.
             </p>
             {company && (
               <p className="mt-3 text-sm font-semibold text-slate-500">Unternehmen: {company}</p>
             )}
           </div>
-        </section>
-
-        <section className="mt-5 grid gap-4 sm:grid-cols-2">
-          <article className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6 shadow-sm">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00]">
-              <UploadCloud className="h-6 w-6" />
-            </div>
-            <h2 className="mt-5 text-xl font-extrabold">Projekte einreichen</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Die sichere Projekteinreichung wird im nächsten Schritt an dieses Dashboard angeschlossen.
-            </p>
-          </article>
-
-          <article className="rounded-[1.75rem] border border-slate-200/80 bg-white p-6 shadow-sm">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1F2A44]/8 text-[#1F2A44]">
-              <FolderOpen className="h-6 w-6" />
-            </div>
-            <h2 className="mt-5 text-xl font-extrabold">Meine Projekte</h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Nach der ersten Einreichung erscheinen hier ausschließlich die eigenen Projekte und deren Status.
-            </p>
-          </article>
         </section>
 
         <footer className="mt-auto pt-10 text-center text-xs text-slate-400">
