@@ -15,6 +15,15 @@ function text(formData: FormData, key: string) {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }
 
+function isNextRedirect(error: unknown) {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'digest' in error &&
+      String((error as { digest?: unknown }).digest || '').startsWith('NEXT_REDIRECT')
+  )
+}
+
 function normalizeUrl(value: string) {
   const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`
   return new URL(withProtocol)
@@ -217,6 +226,8 @@ export async function enrichResearchCandidate(formData: FormData) {
     revalidatePath('/acquisition/research/inbox')
     redirect(`/acquisition/research/inbox?enriched=1&score=${score}`)
   } catch (error) {
+    if (isNextRedirect(error)) throw error
+
     const message = error instanceof Error ? error.message.slice(0, 500) : 'Website-Prüfung fehlgeschlagen.'
     await db.from('acquisition_research_candidates').update({
       enrichment_status: 'failed',
