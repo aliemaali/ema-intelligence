@@ -257,6 +257,5 @@ export const NAV_ITEMS_MOBILE: NavItem[] = [
 
 export const NAV_ITEMS_SECONDARY: NavItem[] = [
   { label: 'CAPEX Rechner', href: '/capex', iconName: 'Calculator' },
-  { label: 'KI Tools', href: '/ai', iconName: 'Sparkles' },
   { label: 'Einstellungen', href: '/settings', iconName: 'Settings' },
 ]

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud,
+  LogOut, ChevronRight, UploadCloud, Target, Bot,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -31,6 +31,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Settings,
   Calculator,
   UploadCloud,
+  Target,
+  Bot,
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -40,6 +42,9 @@ export function Sidebar({ user }: SidebarProps) {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname.startsWith(href)
   }
+
+  const acquisitionActive = isActive('/acquisition')
+  const agentActive = isActive('/ai-agent')
 
   return (
     <aside className="app-sidebar">
@@ -70,24 +75,35 @@ export function Sidebar({ user }: SidebarProps) {
         })}
 
         <div className="pt-4 mt-4 border-t border-border">
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
+            Wachstum
+          </p>
+          <Link href="/acquisition" className={cn('nav-item group', acquisitionActive && 'nav-item-active')}>
+            <Target className={cn('w-5 h-5 shrink-0 transition-colors', acquisitionActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
+            <span className="truncate">Akquise</span>
+            {acquisitionActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
+          </Link>
+          <Link href="/ai-agent" className={cn('nav-item group', agentActive && 'nav-item-active')}>
+            <Bot className={cn('w-5 h-5 shrink-0 transition-colors', agentActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
+            <span className="truncate">KI-Agent</span>
+            {agentActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
+          </Link>
+        </div>
+
+        <div className="pt-4 mt-4 border-t border-border">
           {NAV_ITEMS_SECONDARY.map((item) => {
-            const Icon        = ICON_MAP[item.iconName]
-            const active      = isActive(item.href)
-            const isComingSoon = item.href === '/ai'
+            const Icon   = ICON_MAP[item.iconName]
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.href}
-                href={isComingSoon ? '#' : item.href}
-                aria-disabled={isComingSoon}
-                className={cn('nav-item group relative', active && !isComingSoon && 'nav-item-active', isComingSoon && 'opacity-50 cursor-not-allowed pointer-events-none')}
+                href={item.href}
+                className={cn('nav-item group relative', active && 'nav-item-active')}
               >
                 {Icon && (
                   <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
                 )}
                 <span className="truncate">{item.label}</span>
-                {isComingSoon && (
-                  <span className="ml-auto text-2xs text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded font-medium">v1.1</span>
-                )}
               </Link>
             )
           })}
