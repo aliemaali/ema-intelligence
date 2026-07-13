@@ -17,12 +17,12 @@ function inferJobType(prompt: string) {
 
 function extractLocation(prompt: string) {
   const normalized = prompt.replace(/[.!?]+$/g, '').trim()
-  const match = normalized.match(/(?:\bin\b|\bum\b|\bbei\b)\s+([\p{L}\-\s]+?)(?=\s+(?:mit|ohne|und|ab|bis|im|in einem|innerhalb|größer|ueber|über)\b|$)/iu)
+  const match = normalized.match(/(?:\bin\b|\bum\b|\bbei\b)\s+([A-Za-zÄÖÜäöüß\-\s]+?)(?=\s+(?:mit|ohne|und|ab|bis|im|in einem|innerhalb|größer|ueber|über)\b|$)/i)
   return match?.[1]?.trim() || ''
 }
 
 function extractRadiusKm(prompt: string) {
-  const match = prompt.match(/(\d{1,3})\s*km/iu)
+  const match = prompt.match(/(\d{1,3})\s*km/i)
   const requested = match ? Number(match[1]) : 20
   return Math.max(2, Math.min(requested, 50))
 }
@@ -154,7 +154,7 @@ export async function runRoofSearchJob(formData: FormData) {
         const sourceUrl = `https://www.openstreetmap.org/${element.type}/${element.id}`
         const estimatedKwp = Math.round(areaSqm * 0.16)
         const score = Math.min(95, Math.round(45 + Math.min(areaSqm, 20_000) / 400 + (tags.name || tags.operator ? 10 : 0)))
-        return { element, areaSqm, tags, center, name, street, city, sourceUrl, estimatedKwp, score }
+        return { areaSqm, tags, center, name, street, city, sourceUrl, estimatedKwp, score }
       })
       .filter((candidate) => candidate.areaSqm >= 2_000)
       .sort((a, b) => b.score - a.score)
