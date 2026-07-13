@@ -247,6 +247,9 @@ export async function runRoofSearchJob(formData: FormData) {
     revalidatePath('/acquisition')
     redirect(`/ai-agent?job=${jobId}&completed=1`)
   } catch (error) {
+    if (typeof error === 'object' && error && 'digest' in error && String((error as { digest?: unknown }).digest).startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
     const message = error instanceof Error ? error.message : 'Unbekannter Fehler bei der Dachflächenrecherche.'
     await updateJob(db, user.id, jobId, { status: 'failed', current_step: 'Recherche fehlgeschlagen', error_message: message })
     await addJobLog(db, user.id, jobId, message, 'error')
