@@ -70,6 +70,16 @@ create policy "partner_submissions_insert_own"
     )
   );
 
+-- Only used to clean up a failed upload immediately after creation.
+create policy "partner_submissions_delete_recent_own"
+  on public.project_submissions for delete
+  to authenticated
+  using (
+    (select auth.uid()) = partner_user_id
+    and created_at > now() - interval '15 minutes'
+    and status = 'eingereicht'
+  );
+
 create policy "ema_admin_submissions_select_all"
   on public.project_submissions for select
   to authenticated
