@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Building2, FolderSearch2, MailCheck, MailPlus, Plus, RefreshCw, Send, Target } from 'lucide-react'
+import { Building2, FolderSearch2, MailCheck, MailPlus, Plus, RefreshCw, Search, Send, Target } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAcquisitionEmailDraft, createAllAcquisitionEmailDrafts } from '@/lib/actions/acquisition.actions'
 import { generateDueFollowUps, updateAcquisitionLeadStatus } from '@/lib/actions/followup.actions'
@@ -50,6 +50,7 @@ export default async function AcquisitionPage({ searchParams }: { searchParams: 
         <div className="flex flex-wrap gap-3">
           {dueFollowUps > 0 && <form action={generateDueFollowUps}><button className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800"><RefreshCw className="h-4 w-4" /> Follow-ups erstellen ({dueFollowUps})</button></form>}
           {draftable > 0 && <form action={createAllAcquisitionEmailDrafts}><button className="inline-flex items-center gap-2 rounded-xl border border-[#5CB800] bg-white px-4 py-3 text-sm font-semibold text-[#3F7D00]"><MailPlus className="h-4 w-4" /> Alle Entwürfe erstellen ({draftable})</button></form>}
+          <Link href="/acquisition/research" className="inline-flex items-center gap-2 rounded-xl border border-[#132060] bg-white px-4 py-3 text-sm font-semibold text-[#132060] shadow-sm hover:bg-[#EEF2F7]"><Search className="h-4 w-4" /> Recherche</Link>
           <Link href="/acquisition/approvals" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#132060]"><MailCheck className="h-4 w-4" /> Freigaben{approvalCount ? ` (${approvalCount})` : ''}</Link>
           <Link href="/acquisition/new" className="inline-flex items-center gap-2 rounded-xl bg-[#132060] px-4 py-3 text-sm font-semibold text-white"><Plus className="h-4 w-4" /> Lead anlegen</Link>
         </div></div>
