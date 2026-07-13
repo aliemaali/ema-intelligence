@@ -1,10 +1,67 @@
 import Link from 'next/link'
-import { ArrowRight, ShieldCheck, UploadCloud } from 'lucide-react'
+import {
+  ArrowRight,
+  BatteryCharging,
+  FileText,
+  FolderOpen,
+  MapPin,
+  ShieldCheck,
+  Sun,
+  UploadCloud,
+} from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { PartnerSignOutButton } from '@/components/partner/PartnerSignOutButton'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Partner Portal' }
+
+type Submission = {
+  id: string
+  project_name: string
+  project_type: string
+  location_city: string
+  location_state: string | null
+  status: string
+  remuneration_model: string | null
+  remuneration_ct_kwh: number | null
+  submitted_at: string
+}
+
+const statusLabels: Record<string, string> = {
+  entwurf: 'Entwurf',
+  eingereicht: 'Eingereicht',
+  in_pruefung: 'In Prüfung',
+  rueckfrage: 'Rückfrage',
+  angenommen: 'Angenommen',
+  abgelehnt: 'Abgelehnt',
+}
+
+const statusClasses: Record<string, string> = {
+  entwurf: 'bg-slate-100 text-slate-700',
+  eingereicht: 'bg-blue-50 text-blue-700',
+  in_pruefung: 'bg-amber-50 text-amber-700',
+  rueckfrage: 'bg-orange-50 text-orange-700',
+  angenommen: 'bg-[#5CB800]/10 text-[#2F8A00]',
+  abgelehnt: 'bg-red-50 text-red-700',
+}
+
+const remunerationLabels: Record<string, string> = {
+  ppa: 'PPA',
+  volleinspeisung: 'Volleinspeisung',
+  teileinspeisung: 'Teileinspeisung',
+}
+
+function ProjectTypeIcon({ type }: { type: string }) {
+  if (type === 'bess') return <BatteryCharging className="h-5 w-5" />
+  return <Sun className="h-5 w-5" />
+}
+
+function projectTypeLabel(type: string) {
+  if (type === 'pv_dach') return 'PV-Dach'
+  if (type === 'bess') return 'BESS'
+  if (type === 'hybrid') return 'Hybrid'
+  return 'PV-Freifläche'
+}
 
 export default async function PartnerDashboardPage() {
   const supabase = await createClient()
@@ -14,11 +71,33 @@ export default async function PartnerDashboardPage() {
 
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, company')
-    .eq('id', user.id)
-    .maybeSingle()
+  const [{ data: profile }, { data: submissionsData }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('full_name, company')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('project_submissions')
+      .select('id, project_name, project_type, location_city, location_state, status, remuneration_model, remuneration_ct_kwh, submitted_at')
+      .eq('partner_user_id', user.id)
+      .order('submitted_at', { ascending: false }),
+  ])
+
+  const submissions = (submissionsData ?? []) as Submission[]
+  const submissionIds = submissions.map((submission) => submission.id)
+  const documentCounts = new Map<string, number>()
+
+  if (submissionIds.length > 0) {
+    const { data: documents } = await supabase
+      .from('submission_documents')
+      .select('submission_id')
+      .in('submission_id', submissionIds)
+
+    for (const document of documents ?? []) {
+      documentCounts.set(document.submission_id, (documentCounts.get(document.submission_id) ?? 0) + 1)
+    }
+  }
 
   const firstName = profile?.full_name?.trim().split(' ')[0] || 'Partner'
   const company = profile?.company?.trim()
@@ -44,7 +123,7 @@ export default async function PartnerDashboardPage() {
               Willkommen, {firstName}.
             </h1>
             <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg">
-              Übermittle neue PV-, BESS- oder Hybridprojekte einschließlich Exposé und Unterlagen sicher an EMA Enterprise.
+              Übermittle neue Projekte und verfolge den Prüfstatus deiner Einreichungen.
             </p>
             {company && (
               <p className="mt-3 text-sm font-semibold text-slate-500">Unternehmen: {company}</p>
@@ -61,10 +140,69 @@ export default async function PartnerDashboardPage() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-xl font-extrabold">Neues Projekt einreichen</span>
-            <span className="mt-1 block text-sm leading-relaxed text-white/85">Projektdaten, Exposé und weitere Dokumente hochladen</span>
+            <span className="mt-1 block text-sm leading-relaxed text-white/85">Standort, Vergütung, Exposé und Unterlagen hochladen</span>
           </span>
           <ArrowRight className="h-6 w-6 shrink-0" />
         </Link>
+
+        <section className="mt-8">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">Übersicht</p>
+              <h2 className="mt-1 text-2xl font-extrabold tracking-tight">Meine Projekte</h2>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1.5 text-sm font-extrabold shadow-sm">
+              {submissions.length}
+            </span>
+          </div>
+
+          {submissions.length === 0 ? (
+            <div className="mt-4 rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+              <FolderOpen className="mx-auto h-10 w-10 text-slate-300" />
+              <h3 className="mt-4 text-lg font-extrabold">Noch keine Projekte eingereicht</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                Sobald du ein Projekt übermittelst, erscheint es hier mit dem aktuellen Prüfstatus.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {submissions.map((submission) => {
+                const documents = documentCounts.get(submission.id) ?? 0
+                const location = [submission.location_city, submission.location_state].filter(Boolean).join(', ')
+                const remuneration = submission.remuneration_model
+                  ? `${remunerationLabels[submission.remuneration_model] ?? submission.remuneration_model}${submission.remuneration_ct_kwh != null ? ` · ${Number(submission.remuneration_ct_kwh).toLocaleString('de-DE')} ct/kWh` : ''}`
+                  : 'Vergütung offen'
+
+                return (
+                  <article key={submission.id} className="rounded-[1.65rem] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="flex items-start gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1F2A44]/8 text-[#1F2A44]">
+                        <ProjectTypeIcon type={submission.project_type} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="truncate text-lg font-extrabold">{submission.project_name}</h3>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">{projectTypeLabel(submission.project_type)}</p>
+                          </div>
+                          <span className={`rounded-full px-3 py-1 text-xs font-extrabold ${statusClasses[submission.status] ?? 'bg-slate-100 text-slate-700'}`}>
+                            {statusLabels[submission.status] ?? submission.status}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-3">
+                          <p className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0 text-[#2F8A00]" /> {location}</p>
+                          <p className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-[#2F8A00]" /> {documents} Unterlage{documents === 1 ? '' : 'n'}</p>
+                          <p className="font-semibold text-[#1F2A44]">{remuneration}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          )}
+        </section>
 
         <footer className="mt-auto pt-10 text-center text-xs text-slate-400">
           EMA Enterprise GmbH · Connecting Capital with Energy Infrastructure.
