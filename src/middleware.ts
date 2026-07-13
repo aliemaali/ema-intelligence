@@ -1,12 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const PARTNER_ROLES = new Set(['partner', 'sales_partner', 'vertriebspartner'])
+
 /**
  * Middleware runs on every request.
  * Responsibilities:
  * 1. Refresh Supabase session (keeps user logged in)
- * 2. Protect all /dashboard, /projects, /deals etc. routes
- * 3. Redirect logged-in users away from /login
+ * 2. Protect internal EMA and partner routes
+ * 3. Route partner accounts to their own interface
  */
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -34,15 +36,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh the session – do NOT remove this call
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
 
-  // ── Protected routes ────────────────────────────────────────
-  const isProtectedRoute =
+  const isPartnerRoute = pathname.startsWith('/partner')
+  const isInternalRoute =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/projects') ||
     pathname.startsWith('/deals') ||
@@ -53,10 +54,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/ai') ||
     pathname.startsWith('/expose')
 
-  // ── Auth routes ─────────────────────────────────────────────
+  const isProtectedRoute = isInternalRoute || isPartnerRoute
   const isAuthRoute = pathname.startsWith('/login')
 
-  // Not logged in + trying to access protected route → redirect to login
   if (!user && isProtectedRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
@@ -64,17 +64,41 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Already logged in + on login page → redirect to dashboard
+  let isPartner = false
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    isPartner = PARTNER_ROLES.has(String(profile?.role ?? '').toLowerCase())
+  }
+
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = isPartner ? '/partner' : '/dashboard'
     return NextResponse.redirect(url)
   }
 
-  // Root path → redirect to dashboard or login
+  if (user && isPartner && isInternalRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/partner'
+    url.search = ''
+    return NextResponse.redirect(url)
+  }
+
+  if (user && !isPartner && isPartnerRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    url.search = ''
+    return NextResponse.redirect(url)
+  }
+
   if (pathname === '/') {
     const url = request.nextUrl.clone()
-    url.pathname = user ? '/dashboard' : '/login'
+    url.pathname = user ? (isPartner ? '/partner' : '/dashboard') : '/login'
     return NextResponse.redirect(url)
   }
 
@@ -83,14 +107,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths EXCEPT:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - public folder files
-     * - api routes (handled separately)
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
