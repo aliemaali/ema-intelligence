@@ -5,72 +5,45 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox,
+  LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox, UserCog,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
 import { NAV_ITEMS, NAV_ITEMS_SECONDARY } from '@/lib/types/constants'
 
 interface SidebarProps {
-  user: {
-    name:      string
-    email:     string
-    company:   string
-    avatarUrl: string | null
-  }
+  user: { name: string; email: string; company: string; avatarUrl: string | null }
 }
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard,
-  FolderOpen,
-  Handshake,
-  Users,
-  Building2,
-  CheckSquare,
-  Sparkles,
-  Settings,
-  Calculator,
-  UploadCloud,
-  Target,
-  Bot,
+  LayoutDashboard, FolderOpen, Handshake, Users, Building2, CheckSquare,
+  Sparkles, Settings, Calculator, UploadCloud, Target, Bot,
 }
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
-
-  const isActive = (href: string) => {
-    if (href === '/dashboard') return pathname === '/dashboard'
-    return pathname.startsWith(href)
-  }
-
+  const isActive = (href: string) => href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
   const acquisitionActive = isActive('/acquisition')
   const agentActive = isActive('/ai-agent')
   const submissionsActive = isActive('/partner-submissions')
+  const managementActive = isActive('/partner-management')
 
   return (
     <aside className="app-sidebar">
       <div className="px-5 py-6 border-b border-border">
-        <Link href="/dashboard" className="block">
-          <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="w-[150px] h-auto object-contain" />
-        </Link>
+        <Link href="/dashboard" className="block"><img src="/ema-logo.jpeg" alt="EMA Enterprise" className="w-[150px] h-auto object-contain" /></Link>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
-          const Icon   = ICON_MAP[item.iconName]
+          const Icon = ICON_MAP[item.iconName]
           const active = isActive(item.href)
           return (
             <Link key={item.href} href={item.href} className={cn('nav-item group', active && 'nav-item-active')}>
-              {Icon && (
-                <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
-              )}
+              {Icon && <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />}
               <span className="truncate">{item.label}</span>
               {active && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#5CB800] text-white text-2xs font-semibold">
-                  {item.badge > 99 ? '99+' : item.badge}
-                </span>
-              )}
+              {item.badge !== undefined && item.badge > 0 && <span className="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#5CB800] text-white text-2xs font-semibold">{item.badge > 99 ? '99+' : item.badge}</span>}
             </Link>
           )
         })}
@@ -82,62 +55,33 @@ export function Sidebar({ user }: SidebarProps) {
             <span className="truncate">Partner-Einreichungen</span>
             {submissionsActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
           </Link>
+          <Link href="/partner-management" className={cn('nav-item group', managementActive && 'nav-item-active')}>
+            <UserCog className={cn('w-5 h-5 shrink-0 transition-colors', managementActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
+            <span className="truncate">Partnerverwaltung</span>
+            {managementActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
+          </Link>
         </div>
 
         <div className="pt-4 mt-4 border-t border-border">
-          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">
-            Wachstum
-          </p>
-          <Link href="/acquisition" className={cn('nav-item group', acquisitionActive && 'nav-item-active')}>
-            <Target className={cn('w-5 h-5 shrink-0 transition-colors', acquisitionActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
-            <span className="truncate">Akquise</span>
-            {acquisitionActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
-          </Link>
-          <Link href="/ai-agent" className={cn('nav-item group', agentActive && 'nav-item-active')}>
-            <Bot className={cn('w-5 h-5 shrink-0 transition-colors', agentActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
-            <span className="truncate">KI-Agent</span>
-            {agentActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
-          </Link>
+          <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">Wachstum</p>
+          <Link href="/acquisition" className={cn('nav-item group', acquisitionActive && 'nav-item-active')}><Target className={cn('w-5 h-5 shrink-0 transition-colors', acquisitionActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} /><span className="truncate">Akquise</span>{acquisitionActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}</Link>
+          <Link href="/ai-agent" className={cn('nav-item group', agentActive && 'nav-item-active')}><Bot className={cn('w-5 h-5 shrink-0 transition-colors', agentActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} /><span className="truncate">KI-Agent</span>{agentActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}</Link>
         </div>
 
         <div className="pt-4 mt-4 border-t border-border">
           {NAV_ITEMS_SECONDARY.map((item) => {
-            const Icon   = ICON_MAP[item.iconName]
+            const Icon = ICON_MAP[item.iconName]
             const active = isActive(item.href)
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn('nav-item group relative', active && 'nav-item-active')}
-              >
-                {Icon && (
-                  <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
-                )}
-                <span className="truncate">{item.label}</span>
-              </Link>
-            )
+            return <Link key={item.href} href={item.href} className={cn('nav-item group relative', active && 'nav-item-active')}>{Icon && <Icon className={cn('w-5 h-5 shrink-0 transition-colors', active ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />}<span className="truncate">{item.label}</span></Link>
           })}
         </div>
       </nav>
 
       <div className="border-t border-border p-3">
         <div className="flex items-center gap-3 px-2 py-2 rounded-md">
-          <div className="w-9 h-9 rounded-full bg-[#EEF2F7] flex items-center justify-center shrink-0">
-            {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover" />
-            ) : (
-              <span className="text-xs font-semibold text-[#132060]">{getInitials(user.name)}</span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate">{user.name}</p>
-            <p className="text-xs text-muted-foreground truncate">Administrator</p>
-          </div>
-          <form action={logout}>
-            <button type="submit" title="Abmelden" className="btn-icon text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors">
-              <LogOut className="w-4 h-4" />
-            </button>
-          </form>
+          <div className="w-9 h-9 rounded-full bg-[#EEF2F7] flex items-center justify-center shrink-0">{user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover" /> : <span className="text-xs font-semibold text-[#132060]">{getInitials(user.name)}</span>}</div>
+          <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-foreground truncate">{user.name}</p><p className="text-xs text-muted-foreground truncate">Administrator</p></div>
+          <form action={logout}><button type="submit" title="Abmelden" className="btn-icon text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"><LogOut className="w-4 h-4" /></button></form>
         </div>
       </div>
     </aside>
