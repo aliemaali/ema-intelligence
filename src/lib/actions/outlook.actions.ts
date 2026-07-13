@@ -62,7 +62,7 @@ export async function sendApprovedAcquisitionEmail(formData: FormData) {
     .update({ status: 'sending', error_message: null })
     .eq('id', emailId)
     .eq('user_id', user.id)
-    .eq('status', 'approved')
+    .in('status', ['approved', 'failed'])
     .select('id,lead_id,recipient_email,subject,body')
     .single()
 
@@ -122,6 +122,15 @@ export async function sendApprovedAcquisitionEmail(formData: FormData) {
     revalidatePath('/acquisition/approvals')
     redirect('/acquisition/approvals?sent=1')
   } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error &&
+      'digest' in error &&
+      String((error as { digest?: unknown }).digest).startsWith('NEXT_REDIRECT')
+    ) {
+      throw error
+    }
+
     const message = error instanceof Error ? error.message : 'Unbekannter Outlook-Fehler.'
     await db.from('acquisition_emails').update({
       status: 'failed',
