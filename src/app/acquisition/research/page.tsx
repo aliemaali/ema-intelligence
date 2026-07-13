@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { ArrowLeft, Building2, FolderSearch2, Inbox, MapPinned, Search, ShieldCheck, Sparkles } from 'lucide-react'
 import { queueResearchCandidate } from '@/lib/actions/research-inbox.actions'
 import { runOpenStreetMapResearch } from '@/lib/actions/osm-research.actions'
-import { ResearchSubmitButton } from '@/components/acquisition/ResearchSubmitButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +25,10 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
           ? 'Die Recherche konnte nicht abgeschlossen werden.'
           : null
 
+  const found = Number(searchParams.found || '0')
+  const added = Number(searchParams.added || '0')
+  const skipped = Math.max(found - added, 0)
+
   return (
     <div className="min-h-screen bg-[#F4F6F9] px-4 py-6 pb-44 md:px-8 md:py-8 md:pb-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -40,7 +43,16 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
         </div>
 
         {errorMessage && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{errorMessage}</div>}
-        {searchParams.searched && <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-sm text-green-800"><p className="font-semibold">Web-Recherche abgeschlossen</p><p className="mt-1">{searchParams.found || '0'} relevante Treffer gefunden, {searchParams.added || '0'} neue Vorschläge ins Recherche-Postfach gelegt.</p></div>}
+        {searchParams.searched && (
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-4 text-green-900">
+            <p className="font-semibold">Web-Recherche abgeschlossen</p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl bg-white/80 p-3"><p className="text-2xl font-bold text-[#132060]">{found}</p><p className="text-xs text-slate-500">Gefunden</p></div>
+              <div className="rounded-xl bg-white/80 p-3"><p className="text-2xl font-bold text-[#5CB800]">{added}</p><p className="text-xs text-slate-500">Neu gespeichert</p></div>
+              <div className="rounded-xl bg-white/80 p-3"><p className="text-2xl font-bold text-amber-700">{skipped}</p><p className="text-xs text-slate-500">Dubletten</p></div>
+            </div>
+          </div>
+        )}
 
         <section className="rounded-2xl border border-[#5CB800]/30 bg-white p-5 shadow-sm md:p-7">
           <div className="flex items-start gap-3"><div className="rounded-xl bg-green-50 p-3 text-[#5CB800]"><MapPinned className="h-5 w-5" /></div><div><h2 className="font-semibold text-[#132060]">Automatische Standortsuche</h2><p className="mt-1 text-sm leading-6 text-slate-500">Sucht kostenlos über OpenStreetMap und Overpass nach Industrie-, Lager- und Gewerbestandorten.</p></div></div>
@@ -48,7 +60,7 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
             <Field label="Ort oder PLZ" name="location" placeholder="z. B. Worms oder 67547" />
             <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Radius</span><select name="radius_km" defaultValue="10" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option><option value="30">30 km</option><option value="50">50 km</option></select></label>
             <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Standorttyp</span><select name="category" defaultValue="all" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="all">Alle Gewerbestandorte</option><option value="logistics">Logistik und Lager</option><option value="industry">Industrie</option></select></label>
-            <ResearchSubmitButton />
+            <button type="submit" className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#4FA000] md:w-auto"><Search className="h-4 w-4" /> Suche starten</button>
           </form>
           <p className="mt-3 text-xs leading-5 text-slate-400">Maximal 30 neue Vorschläge pro Suche. Öffentliche Daten können unvollständig sein und müssen vor einer Kontaktaufnahme geprüft werden.</p>
         </section>
