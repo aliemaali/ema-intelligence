@@ -3,13 +3,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PARTNER_ROLES = new Set(['partner', 'sales_partner', 'vertriebspartner'])
 
-/**
- * Middleware runs on every request.
- * Responsibilities:
- * 1. Refresh Supabase session (keeps user logged in)
- * 2. Protect internal EMA and partner routes
- * 3. Route partner accounts to their own interface
- */
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -18,9 +11,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet: { name: string; value: string; options: any }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
@@ -35,16 +26,11 @@ export async function middleware(request: NextRequest) {
 
   const isPartnerRoute = pathname === '/partner' || pathname.startsWith('/partner/')
   const isInternalRoute =
-    pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/projects') ||
-    pathname.startsWith('/deals') ||
-    pathname.startsWith('/partners') ||
-    pathname.startsWith('/partner-submissions') ||
-    pathname.startsWith('/investors') ||
-    pathname.startsWith('/tasks') ||
-    pathname.startsWith('/settings') ||
-    pathname.startsWith('/ai') ||
-    pathname.startsWith('/expose')
+    pathname.startsWith('/dashboard') || pathname.startsWith('/projects') ||
+    pathname.startsWith('/deals') || pathname.startsWith('/partners') ||
+    pathname.startsWith('/partner-submissions') || pathname.startsWith('/partner-management') ||
+    pathname.startsWith('/investors') || pathname.startsWith('/tasks') ||
+    pathname.startsWith('/settings') || pathname.startsWith('/ai') || pathname.startsWith('/expose')
 
   const isProtectedRoute = isInternalRoute || isPartnerRoute
   const isAuthRoute = pathname.startsWith('/login')
@@ -57,9 +43,19 @@ export async function middleware(request: NextRequest) {
   }
 
   let isPartner = false
+  let isActive = true
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    const { data: profile } = await supabase.from('profiles').select('role, is_active').eq('id', user.id).maybeSingle()
     isPartner = PARTNER_ROLES.has(String(profile?.role ?? '').toLowerCase())
+    isActive = profile?.is_active !== false
+  }
+
+  if (user && isPartner && !isActive) {
+    await supabase.auth.signOut()
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    url.search = '?error=account_disabled'
+    return NextResponse.redirect(url)
   }
 
   if (user && isAuthRoute) {
