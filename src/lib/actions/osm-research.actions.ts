@@ -75,6 +75,28 @@ async function runOverpassQuery(query: string) {
   return null
 }
 
+async function saveSearchHistory(db: any, input: {
+  userId: string
+  location: string
+  radiusKm: number
+  category: string
+  found?: number
+  added?: number
+  status: 'success' | 'failed'
+}) {
+  await db.from('acquisition_research_searches').upsert({
+    user_id: input.userId,
+    location: input.location,
+    location_key: input.location.trim().toLowerCase(),
+    radius_km: input.radiusKm,
+    category: input.category,
+    found_count: input.found || 0,
+    added_count: input.added || 0,
+    status: input.status,
+    last_searched_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,location_key,radius_km,category' })
+}
+
 export async function runOpenStreetMapResearch(formData: FormData) {
   const supabase = await createClient()
   const db = supabase as any
@@ -84,9 +106,16 @@ export async function runOpenStreetMapResearch(formData: FormData) {
   const location = text(formData, 'location')
   const radiusInput = Number(text(formData, 'radius_km') || '10')
   const radiusKm = Math.min(Math.max(Number.isFinite(radiusInput) ? radiusInput : 10, 1), 50)
-  const category = text(formData, 'category') || 'all'
+  const rawCategory = text(formData, 'category') || 'all'
+  const category = ['all', 'logistics', 'industry'].includes(rawCategory) ? rawCategory : 'all'
 
   if (!location) redirect('/acquisition/research?error=location')
+
+  const fail = async (code: 'search' | 'location') => {
+    await saveSearchHistory(db, { userId: user.id, location, radiusKm, category, status: 'failed' })
+    revalidatePath('/acquisition/research')
+    redirect(`/acquisition/research?error=${code}`)
+  }
 
   const geocodeUrl = new URL('https://nominatim.openstreetmap.org/search')
   geocodeUrl.searchParams.set('format', 'jsonv2')
@@ -101,12 +130,20 @@ export async function runOpenStreetMapResearch(formData: FormData) {
       cache: 'no-store',
     }, 10_000)
   } catch {
-    redirect('/acquisition/research?error=search')
+    await fail('search')
+    return
   }
 
-  if (!geocodeResponse.ok) redirect('/acquisition/research?error=search')
+  if (!geocodeResponse.ok) {
+    await fail('search')
+    return
+  }
+
   const geocoded = await geocodeResponse.json() as Array<{ lat: string; lon: string; display_name?: string }>
-  if (!geocoded.length) redirect('/acquisition/research?error=location')
+  if (!geocoded.length) {
+    await fail('location')
+    return
+  }
 
   const lat = Number(geocoded[0].lat)
   const lon = Number(geocoded[0].lon)
@@ -127,9 +164,12 @@ export async function runOpenStreetMapResearch(formData: FormData) {
     elements = await runOverpassQuery(fallbackQuery)
   }
 
-  if (elements === null) redirect('/acquisition/research?error=search')
-  const namedElements = elements.filter((item) => item.tags?.name).slice(0, 80)
+  if (elements === null) {
+    await fail('search')
+    return
+  }
 
+  const namedElements = elements.filter((item) => item.tags?.name).slice(0, 80)
   const seen = new Set<string>()
   const rows = namedElements.flatMap((element) => {
     const tags = element.tags || {}
@@ -164,24 +204,36 @@ export async function runOpenStreetMapResearch(formData: FormData) {
     }]
   }).slice(0, 30)
 
-  if (!rows.length) redirect('/acquisition/research?searched=1&found=0&added=0')
+  let added = 0
+  if (rows.length) {
+    const sourceUrls = rows.map((row) => row.source_url)
+    const { data: existing } = await db
+      .from('acquisition_research_candidates')
+      .select('source_url')
+      .eq('user_id', user.id)
+      .in('source_url', sourceUrls)
 
-  const sourceUrls = rows.map((row) => row.source_url)
-  const { data: existing } = await db
-    .from('acquisition_research_candidates')
-    .select('source_url')
-    .eq('user_id', user.id)
-    .in('source_url', sourceUrls)
+    const existingUrls = new Set((existing || []).map((item: { source_url: string }) => item.source_url))
+    const newRows = rows.filter((row) => !existingUrls.has(row.source_url))
+    added = newRows.length
 
-  const existingUrls = new Set((existing || []).map((item: { source_url: string }) => item.source_url))
-  const newRows = rows.filter((row) => !existingUrls.has(row.source_url))
-
-  if (newRows.length) {
-    const { error } = await db.from('acquisition_research_candidates').insert(newRows)
-    if (error) redirect('/acquisition/research?error=save')
+    if (newRows.length) {
+      const { error } = await db.from('acquisition_research_candidates').insert(newRows)
+      if (error) redirect('/acquisition/research?error=save')
+    }
   }
+
+  await saveSearchHistory(db, {
+    userId: user.id,
+    location,
+    radiusKm,
+    category,
+    found: rows.length,
+    added,
+    status: 'success',
+  })
 
   revalidatePath('/acquisition/research')
   revalidatePath('/acquisition/research/inbox')
-  redirect(`/acquisition/research?searched=1&found=${rows.length}&added=${newRows.length}`)
+  redirect(`/acquisition/research?searched=1&found=${rows.length}&added=${added}`)
 }
