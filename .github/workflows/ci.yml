@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -34,6 +36,7 @@ jobs:
         run: npm ci
 
       - name: Type check
+        id: typecheck
         shell: bash
         run: |
           set -o pipefail
@@ -46,6 +49,20 @@ jobs:
           name: typecheck-log
           path: typecheck.log
           if-no-files-found: warn
+
+      - name: Comment TypeScript errors on PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo '## CI TypeScript error'
+            echo
+            echo '```text'
+            tail -n 120 typecheck.log
+            echo '```'
+          } > ci-comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file ci-comment.md
 
       - name: Production build
         run: npm run build
