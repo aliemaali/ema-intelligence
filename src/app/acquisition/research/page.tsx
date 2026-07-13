@@ -26,7 +26,7 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
           : null
 
   return (
-    <div className="min-h-screen bg-[#F4F6F9] px-4 py-6 md:px-8 md:py-8">
+    <div className="min-h-screen bg-[#F4F6F9] px-4 py-6 pb-44 md:px-8 md:py-8 md:pb-8">
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -47,7 +47,7 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
             <Field label="Ort oder PLZ" name="location" placeholder="z. B. Worms oder 67547" />
             <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Radius</span><select name="radius_km" defaultValue="10" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="5">5 km</option><option value="10">10 km</option><option value="20">20 km</option><option value="30">30 km</option><option value="50">50 km</option></select></label>
             <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Standorttyp</span><select name="category" defaultValue="all" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="all">Alle Gewerbestandorte</option><option value="logistics">Logistik und Lager</option><option value="industry">Industrie</option></select></label>
-            <button className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#4FA000]"><Search className="h-4 w-4" /> Suche starten</button>
+            <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#4FA000] md:w-auto"><Search className="h-4 w-4" /> Suche starten</button>
           </form>
           <p className="mt-3 text-xs leading-5 text-slate-400">Maximal 30 neue Vorschläge pro Suche. Öffentliche Daten können unvollständig sein und müssen vor einer Kontaktaufnahme geprüft werden.</p>
         </section>
