@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, CheckSquare, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox, UserCog,
+  LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -26,7 +26,6 @@ export function Sidebar({ user }: SidebarProps) {
   const acquisitionActive = isActive('/acquisition')
   const agentActive = isActive('/ai-agent')
   const submissionsActive = isActive('/partner-submissions')
-  const managementActive = isActive('/partner-management')
 
   return (
     <aside className="app-sidebar">
@@ -54,11 +53,6 @@ export function Sidebar({ user }: SidebarProps) {
             <Inbox className={cn('w-5 h-5 shrink-0 transition-colors', submissionsActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
             <span className="truncate">Partner-Einreichungen</span>
             {submissionsActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
-          </Link>
-          <Link href="/partner-management" className={cn('nav-item group', managementActive && 'nav-item-active')}>
-            <UserCog className={cn('w-5 h-5 shrink-0 transition-colors', managementActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} />
-            <span className="truncate">Partnerverwaltung</span>
-            {managementActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}
           </Link>
         </div>
 
