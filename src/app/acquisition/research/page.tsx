@@ -1,10 +1,22 @@
 import Link from 'next/link'
-import { ArrowLeft, Building2, FolderSearch2, Inbox, MapPinned, Search, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowLeft, Building2, Clock3, FolderSearch2, Inbox, MapPinned, RotateCcw, Search, ShieldCheck, Sparkles } from 'lucide-react'
 import { queueResearchCandidate } from '@/lib/actions/research-inbox.actions'
 import { runOpenStreetMapResearch } from '@/lib/actions/osm-research.actions'
 import { ResearchProgressButton } from '@/components/acquisition/ResearchProgressForm'
+import { createClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
+
+type SearchHistory = {
+  id: string
+  location: string
+  radius_km: number
+  category: 'all' | 'logistics' | 'industry'
+  found_count: number
+  added_count: number
+  status: 'success' | 'failed'
+  last_searched_at: string
+}
 
 function Field({ label, name, type = 'text', placeholder }: { label: string; name: string; type?: string; placeholder?: string }) {
   return (
@@ -15,13 +27,44 @@ function Field({ label, name, type = 'text', placeholder }: { label: string; nam
   )
 }
 
-export default function ResearchPage({ searchParams }: { searchParams: { error?: string; searched?: string; found?: string; added?: string } }) {
+function categoryLabel(category: SearchHistory['category']) {
+  if (category === 'logistics') return 'Logistik und Lager'
+  if (category === 'industry') return 'Industrie'
+  return 'Alle Gewerbestandorte'
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Berlin',
+  }).format(new Date(value))
+}
+
+export default async function ResearchPage({ searchParams }: { searchParams: { error?: string; searched?: string; found?: string; added?: string } }) {
+  const supabase = await createClient()
+  const db = supabase as any
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let recentSearches: SearchHistory[] = []
+  if (user) {
+    const { data } = await db
+      .from('acquisition_research_searches')
+      .select('id, location, radius_km, category, found_count, added_count, status, last_searched_at')
+      .eq('user_id', user.id)
+      .order('last_searched_at', { ascending: false })
+      .limit(6)
+    recentSearches = (data || []) as SearchHistory[]
+  }
+
   const errorMessage = searchParams.error === 'missing'
     ? 'Bitte mindestens Firma und Akquise-Art ausfüllen.'
     : searchParams.error === 'location'
       ? 'Der eingegebene Ort konnte nicht gefunden werden.'
       : searchParams.error === 'search'
-        ? 'Die öffentliche Suchquelle ist gerade nicht erreichbar. Bitte später erneut versuchen.'
+        ? 'Die öffentliche Suchquelle ist gerade nicht erreichbar. Die Suche wurde gespeichert und kann später erneut gestartet werden.'
         : searchParams.error
           ? 'Die Recherche konnte nicht abgeschlossen werden.'
           : null
@@ -66,6 +109,45 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
           <p className="mt-3 text-xs leading-5 text-slate-400">Maximal 30 neue Vorschläge pro Suche. Öffentliche Daten können unvollständig sein und müssen vor einer Kontaktaufnahme geprüft werden.</p>
         </section>
 
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><Clock3 className="h-5 w-5" /></div>
+            <div><h2 className="font-semibold text-[#132060]">Letzte Suchen</h2><p className="mt-1 text-sm text-slate-500">Gespeicherte Suchkombinationen mit einem Tipp erneut starten.</p></div>
+          </div>
+
+          {recentSearches.length ? (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {recentSearches.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-[#132060]">{item.location}</p>
+                      <p className="mt-1 text-sm text-slate-500">{item.radius_km} km · {categoryLabel(item.category)}</p>
+                    </div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>
+                      {item.status === 'success' ? 'Erfolgreich' : 'Quelle nicht erreichbar'}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span>{formatDate(item.last_searched_at)} Uhr</span>
+                    <span>{item.found_count} gefunden · {item.added_count} neu</span>
+                  </div>
+                  <form action={runOpenStreetMapResearch} className="mt-4">
+                    <input type="hidden" name="location" value={item.location} />
+                    <input type="hidden" name="radius_km" value={item.radius_km} />
+                    <input type="hidden" name="category" value={item.category} />
+                    <button type="submit" className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-[#132060]/15 bg-white px-4 py-3 text-sm font-semibold text-[#132060] shadow-sm active:scale-[0.99]">
+                      <RotateCcw className="h-4 w-4" /> Erneut starten
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-400">Nach deiner nächsten Suche erscheint sie automatisch hier.</div>
+          )}
+        </section>
+
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <form action={queueResearchCandidate} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
             <section className="space-y-4">
@@ -79,28 +161,17 @@ export default function ResearchPage({ searchParams }: { searchParams: { error?:
                 <Field label="Funktion" name="contact_role" placeholder="z. B. Geschäftsführer" />
               </div>
             </section>
-
             <section className="space-y-4 border-t border-slate-100 pt-6">
               <h2 className="font-semibold text-[#132060]">Standort und Potenzial</h2>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Ort" name="city" />
-                <Field label="Bundesland" name="state" />
-                <Field label="Dachfläche in m²" name="estimated_roof_area_sqm" type="number" />
-                <Field label="Geschätztes Potenzial in kWp" name="estimated_potential_kwp" type="number" />
-                <Field label="Projektart" name="project_type" placeholder="PV, BESS oder Hybrid" />
-                <Field label="Projektstand" name="project_stage" placeholder="z. B. baureif, Netzzusage" />
+                <Field label="Ort" name="city" /><Field label="Bundesland" name="state" /><Field label="Dachfläche in m²" name="estimated_roof_area_sqm" type="number" /><Field label="Geschätztes Potenzial in kWp" name="estimated_potential_kwp" type="number" /><Field label="Projektart" name="project_type" placeholder="PV, BESS oder Hybrid" /><Field label="Projektstand" name="project_stage" placeholder="z. B. baureif, Netzzusage" />
               </div>
             </section>
-
             <section className="space-y-4 border-t border-slate-100 pt-6">
               <h2 className="font-semibold text-[#132060]">Recherchequelle</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Quellenname" name="source_name" placeholder="z. B. Unternehmenswebsite" />
-                <Field label="Quellen-URL" name="source_url" placeholder="https://…" />
-              </div>
+              <div className="grid gap-4 md:grid-cols-2"><Field label="Quellenname" name="source_name" placeholder="z. B. Unternehmenswebsite" /><Field label="Quellen-URL" name="source_url" placeholder="https://…" /></div>
               <label className="block space-y-2"><span className="text-sm font-medium text-slate-700">Fundstelle und Notizen</span><textarea name="notes" rows={5} placeholder="Warum ist dieser Treffer interessant? Welche Informationen fehlen noch?" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800] focus:ring-2 focus:ring-[#5CB800]/15" /></label>
             </section>
-
             <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#132060] px-5 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1F2A44]"><Sparkles className="h-4 w-4" /> Bewerten und ins Recherche-Postfach legen</button>
           </form>
 
