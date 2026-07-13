@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, Building2, Clock3, FolderSearch2, Inbox, MapPinned, RotateCcw, Search, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowLeft, Clock3, Inbox, MapPinned, RotateCcw, Search, Sparkles } from 'lucide-react'
 import { queueResearchCandidate } from '@/lib/actions/research-inbox.actions'
 import { runOpenStreetMapResearch } from '@/lib/actions/osm-research.actions'
 import { ResearchProgressButton } from '@/components/acquisition/ResearchProgressForm'
@@ -35,11 +35,7 @@ function categoryLabel(category: SearchHistory['category']) {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Berlin',
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin',
   }).format(new Date(value))
 }
 
@@ -65,9 +61,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: { e
       ? 'Der eingegebene Ort konnte nicht gefunden werden.'
       : searchParams.error === 'search'
         ? 'Die öffentliche Suchquelle ist gerade nicht erreichbar. Die Suche wurde gespeichert und kann später erneut gestartet werden.'
-        : searchParams.error
-          ? 'Die Recherche konnte nicht abgeschlossen werden.'
-          : null
+        : searchParams.error ? 'Die Recherche konnte nicht abgeschlossen werden.' : null
 
   const found = Number(searchParams.found || '0')
   const added = Number(searchParams.added || '0')
@@ -110,78 +104,26 @@ export default async function ResearchPage({ searchParams }: { searchParams: { e
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><Clock3 className="h-5 w-5" /></div>
-            <div><h2 className="font-semibold text-[#132060]">Letzte Suchen</h2><p className="mt-1 text-sm text-slate-500">Gespeicherte Suchkombinationen mit einem Tipp erneut starten.</p></div>
-          </div>
-
+          <div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><Clock3 className="h-5 w-5" /></div><div><h2 className="font-semibold text-[#132060]">Letzte Suchen</h2><p className="mt-1 text-sm text-slate-500">Gespeicherte Suchkombinationen mit einem Tipp erneut starten.</p></div></div>
           {recentSearches.length ? (
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {recentSearches.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-slate-200 bg-[#F8FAFC] p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-[#132060]">{item.location}</p>
-                      <p className="mt-1 text-sm text-slate-500">{item.radius_km} km · {categoryLabel(item.category)}</p>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>
-                      {item.status === 'success' ? 'Erfolgreich' : 'Quelle nicht erreichbar'}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500">
-                    <span>{formatDate(item.last_searched_at)} Uhr</span>
-                    <span>{item.found_count} gefunden · {item.added_count} neu</span>
-                  </div>
-                  <form action={runOpenStreetMapResearch} className="mt-4">
-                    <input type="hidden" name="location" value={item.location} />
-                    <input type="hidden" name="radius_km" value={item.radius_km} />
-                    <input type="hidden" name="category" value={item.category} />
-                    <button type="submit" className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-[#132060]/15 bg-white px-4 py-3 text-sm font-semibold text-[#132060] shadow-sm active:scale-[0.99]">
-                      <RotateCcw className="h-4 w-4" /> Erneut starten
-                    </button>
-                  </form>
+                  <div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-[#132060]">{item.location}</p><p className="mt-1 text-sm text-slate-500">{item.radius_km} km · {categoryLabel(item.category)}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-800'}`}>{item.status === 'success' ? 'Erfolgreich' : 'Quelle nicht erreichbar'}</span></div>
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs text-slate-500"><span>{formatDate(item.last_searched_at)} Uhr</span><span>{item.found_count} gefunden · {item.added_count} neu</span></div>
+                  <form action={runOpenStreetMapResearch} className="mt-4"><input type="hidden" name="location" value={item.location} /><input type="hidden" name="radius_km" value={item.radius_km} /><input type="hidden" name="category" value={item.category} /><button type="submit" className="inline-flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-[#132060]/15 bg-white px-4 py-3 text-sm font-semibold text-[#132060] shadow-sm active:scale-[0.99]"><RotateCcw className="h-4 w-4" /> Erneut starten</button></form>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-400">Nach deiner nächsten Suche erscheint sie automatisch hier.</div>
-          )}
+          ) : <div className="mt-5 rounded-xl border border-dashed border-slate-200 p-5 text-center text-sm text-slate-400">Nach deiner nächsten Suche erscheint sie automatisch hier.</div>}
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <form action={queueResearchCandidate} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
-            <section className="space-y-4">
-              <div><h2 className="font-semibold text-[#132060]">Treffer manuell ergänzen</h2><p className="mt-1 text-xs text-slate-400">Pflichtfelder sind Firma und Akquise-Art.</p></div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="space-y-2"><span className="text-sm font-medium text-slate-700">Akquise-Art</span><select name="acquisition_type" required className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="roof">Große Dachfläche</option><option value="project">PV-, BESS- oder Hybridprojekt</option></select></label>
-                <Field label="Firmenname" name="company_name" placeholder="z. B. Muster Logistik GmbH" />
-                <Field label="Website" name="website" placeholder="www.beispiel.de" />
-                <Field label="Öffentliche E-Mail" name="email" type="email" placeholder="info@beispiel.de" />
-                <Field label="Ansprechpartner" name="contact_name" placeholder="Vor- und Nachname" />
-                <Field label="Funktion" name="contact_role" placeholder="z. B. Geschäftsführer" />
-              </div>
-            </section>
-            <section className="space-y-4 border-t border-slate-100 pt-6">
-              <h2 className="font-semibold text-[#132060]">Standort und Potenzial</h2>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Ort" name="city" /><Field label="Bundesland" name="state" /><Field label="Dachfläche in m²" name="estimated_roof_area_sqm" type="number" /><Field label="Geschätztes Potenzial in kWp" name="estimated_potential_kwp" type="number" /><Field label="Projektart" name="project_type" placeholder="PV, BESS oder Hybrid" /><Field label="Projektstand" name="project_stage" placeholder="z. B. baureif, Netzzusage" />
-              </div>
-            </section>
-            <section className="space-y-4 border-t border-slate-100 pt-6">
-              <h2 className="font-semibold text-[#132060]">Recherchequelle</h2>
-              <div className="grid gap-4 md:grid-cols-2"><Field label="Quellenname" name="source_name" placeholder="z. B. Unternehmenswebsite" /><Field label="Quellen-URL" name="source_url" placeholder="https://…" /></div>
-              <label className="block space-y-2"><span className="text-sm font-medium text-slate-700">Fundstelle und Notizen</span><textarea name="notes" rows={5} placeholder="Warum ist dieser Treffer interessant? Welche Informationen fehlen noch?" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800] focus:ring-2 focus:ring-[#5CB800]/15" /></label>
-            </section>
-            <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#132060] px-5 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1F2A44]"><Sparkles className="h-4 w-4" /> Bewerten und ins Recherche-Postfach legen</button>
-          </form>
-
-          <aside className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-green-50 p-3 text-[#5CB800]"><ShieldCheck className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Dubletten-Schutz</h3><p className="mt-1 text-xs leading-5 text-slate-500">Prüft Firmenname, E-Mail, Website und die öffentliche Fundstelle.</p></div></div></div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><Building2 className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Dachflächen-Fokus</h3><p className="mt-1 text-xs leading-5 text-slate-500">Industrie-, Lager- und Gewerbegebäude werden als mögliche PV-Dachflächen priorisiert.</p></div></div></div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><div className="rounded-xl bg-[#EEF2F7] p-3 text-[#132060]"><FolderSearch2 className="h-5 w-5" /></div><div><h3 className="font-semibold text-[#132060]">Öffentliche Daten</h3><p className="mt-1 text-xs leading-5 text-slate-500">Website und E-Mail werden nur übernommen, wenn sie öffentlich in der Quelle hinterlegt sind.</p></div></div></div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900"><p className="font-semibold">Kontrollierter Prozess</p><p className="mt-2 text-xs leading-5">Treffer landen nur im Recherche-Postfach. Erst deine Bestätigung erzeugt einen Lead. E-Mails bleiben freigabepflichtig.</p></div>
-          </aside>
-        </div>
+        <form action={queueResearchCandidate} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+          <section className="space-y-4"><div><h2 className="font-semibold text-[#132060]">Treffer manuell ergänzen</h2><p className="mt-1 text-xs text-slate-400">Pflichtfelder sind Firma und Akquise-Art.</p></div><div className="grid gap-4 md:grid-cols-2"><label className="space-y-2"><span className="text-sm font-medium text-slate-700">Akquise-Art</span><select name="acquisition_type" required className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800]"><option value="roof">Große Dachfläche</option><option value="project">PV-, BESS- oder Hybridprojekt</option></select></label><Field label="Firmenname" name="company_name" placeholder="z. B. Muster Logistik GmbH" /><Field label="Website" name="website" placeholder="www.beispiel.de" /><Field label="Öffentliche E-Mail" name="email" type="email" placeholder="info@beispiel.de" /><Field label="Ansprechpartner" name="contact_name" placeholder="Vor- und Nachname" /><Field label="Funktion" name="contact_role" placeholder="z. B. Geschäftsführer" /></div></section>
+          <section className="space-y-4 border-t border-slate-100 pt-6"><h2 className="font-semibold text-[#132060]">Standort und Potenzial</h2><div className="grid gap-4 md:grid-cols-2"><Field label="Ort" name="city" /><Field label="Bundesland" name="state" /><Field label="Dachfläche in m²" name="estimated_roof_area_sqm" type="number" /><Field label="Geschätztes Potenzial in kWp" name="estimated_potential_kwp" type="number" /><Field label="Projektart" name="project_type" placeholder="PV, BESS oder Hybrid" /><Field label="Projektstand" name="project_stage" placeholder="z. B. baureif, Netzzusage" /></div></section>
+          <section className="space-y-4 border-t border-slate-100 pt-6"><h2 className="font-semibold text-[#132060]">Recherchequelle</h2><div className="grid gap-4 md:grid-cols-2"><Field label="Quellenname" name="source_name" placeholder="z. B. Unternehmenswebsite" /><Field label="Quellen-URL" name="source_url" placeholder="https://…" /></div><label className="block space-y-2"><span className="text-sm font-medium text-slate-700">Fundstelle und Notizen</span><textarea name="notes" rows={5} placeholder="Warum ist dieser Treffer interessant? Welche Informationen fehlen noch?" className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-[#5CB800] focus:ring-2 focus:ring-[#5CB800]/15" /></label></section>
+          <button className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#132060] px-5 py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1F2A44]"><Sparkles className="h-4 w-4" /> Bewerten und ins Recherche-Postfach legen</button>
+        </form>
       </div>
     </div>
   )
