@@ -14,6 +14,7 @@ const PartnerLocationMap = dynamic(
 const MAX_FILES = 10
 const MAX_FILE_SIZE = 25 * 1024 * 1024
 const ALLOWED_TYPES = new Set(['application/pdf','image/jpeg','image/png','image/webp','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])
+const FEDERAL_STATES = ['Baden-Württemberg','Bayern','Berlin','Brandenburg','Bremen','Hamburg','Hessen','Mecklenburg-Vorpommern','Niedersachsen','Nordrhein-Westfalen','Rheinland-Pfalz','Saarland','Sachsen','Sachsen-Anhalt','Schleswig-Holstein','Thüringen']
 
 type SelectedFile = { id: string; file: File; documentType: string }
 type Position = { lat: number; lng: number }
@@ -29,13 +30,15 @@ function numberOrNull(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-const inputClass = 'mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-[#5CB800]'
+const inputClass = 'mt-2 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[#07142F] [color-scheme:light] outline-none focus:border-[#5CB800]'
 
 export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
   const [files, setFiles] = useState<SelectedFile[]>([])
   const [position, setPosition] = useState<Position | null>(null)
+  const [locationCity, setLocationCity] = useState('')
+  const [locationState, setLocationState] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,18 +63,18 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const formElement = event.currentTarget
     setSubmitting(true)
     setError(null)
     setSuccess(false)
 
-    const form = new FormData(event.currentTarget)
+    const form = new FormData(formElement)
     const projectName = String(form.get('project_name') ?? '').trim()
-    const locationCity = String(form.get('location_city') ?? '').trim()
     const remunerationModel = String(form.get('remuneration_model') ?? '')
     const remunerationCtKwh = numberOrNull(form.get('remuneration_ct_kwh'))
 
-    if (!projectName || !locationCity || !position) {
-      setError('Bitte Projektname und Ort ausfüllen und den Standort auf der Karte markieren.')
+    if (!projectName || !locationCity || !locationState || !position) {
+      setError('Bitte Projektname, Stadt und Bundesland ausfüllen. Der Projektstandort muss auf der Karte angezeigt werden.')
       setSubmitting(false)
       return
     }
@@ -98,8 +101,8 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
         project_name: projectName,
         project_type: String(form.get('project_type') ?? 'pv_freiflaeche'),
         location_address: String(form.get('location_address') ?? '').trim() || null,
-        location_city: locationCity,
-        location_state: String(form.get('location_state') ?? '').trim() || null,
+        location_city: locationCity.trim(),
+        location_state: locationState,
         location_lat: position.lat,
         location_lng: position.lng,
         pv_kwp: numberOrNull(form.get('pv_kwp')),
@@ -122,10 +125,12 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
         if (documentError) throw documentError
       }
 
-      setSuccess(true)
+      formElement.reset()
       setFiles([])
       setPosition(null)
-      event.currentTarget.reset()
+      setLocationCity('')
+      setLocationState('')
+      setSuccess(true)
       router.refresh()
     } catch (caught) {
       if (uploadedPaths.length > 0) await supabase.storage.from('partner-submissions').remove(uploadedPaths)
@@ -146,13 +151,13 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><span className="text-sm font-bold">Projektname *</span><input name="project_name" required className={inputClass} /></label>
           <label><span className="text-sm font-bold">Projektart *</span><select name="project_type" className={inputClass}><option value="pv_freiflaeche">PV-Freifläche</option><option value="pv_dach">PV-Dach</option><option value="bess">BESS</option><option value="hybrid">Hybrid</option></select></label>
-          <label><span className="text-sm font-bold">Ort *</span><input name="location_city" required className={inputClass} /></label>
+          <label><span className="text-sm font-bold">Stadt *</span><input name="location_city" required value={locationCity} onChange={(event) => { setLocationCity(event.target.value); setPosition(null) }} className={inputClass} /></label>
           <label><span className="text-sm font-bold">Adresse</span><input name="location_address" className={inputClass} /></label>
-          <label><span className="text-sm font-bold">Bundesland</span><input name="location_state" className={inputClass} /></label>
+          <label><span className="text-sm font-bold">Bundesland *</span><select name="location_state" required value={locationState} onChange={(event) => { setLocationState(event.target.value); setPosition(null) }} className={inputClass}><option value="">Bitte auswählen</option>{FEDERAL_STATES.map((state) => <option key={state} value={state}>{state}</option>)}</select></label>
           <label><span className="text-sm font-bold">PV-Leistung (kWp)</span><input name="pv_kwp" inputMode="decimal" className={inputClass} /></label>
           <label><span className="text-sm font-bold">BESS-Leistung (MW)</span><input name="bess_mw" inputMode="decimal" className={inputClass} /></label>
           <label><span className="text-sm font-bold">BESS-Kapazität (MWh)</span><input name="bess_mwh" inputMode="decimal" className={inputClass} /></label>
-          <div className="sm:col-span-2"><PartnerLocationMap value={position} onChange={setPosition} /></div>
+          <div className="sm:col-span-2"><PartnerLocationMap value={position} city={locationCity} state={locationState} onChange={setPosition} /></div>
         </div>
       </section>
 
