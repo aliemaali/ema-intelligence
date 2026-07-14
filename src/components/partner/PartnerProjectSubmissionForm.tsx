@@ -30,6 +30,19 @@ function numberOrNull(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+async function notifyAdmin(submissionId: string, addedDocumentCount: number) {
+  try {
+    const response = await fetch('/api/partner-submission-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ submissionId, event: 'created', addedDocumentCount }),
+    })
+    if (!response.ok) console.error('Partner notification failed:', await response.text())
+  } catch (error) {
+    console.error('Partner notification failed:', error)
+  }
+}
+
 const inputClass = 'mt-2 w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[#07142F] [color-scheme:light] outline-none focus:border-[#5CB800]'
 
 export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
@@ -125,6 +138,7 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
         if (documentError) throw documentError
       }
 
+      await notifyAdmin(submissionId, files.length)
       formElement.reset()
       setFiles([])
       setPosition(null)
