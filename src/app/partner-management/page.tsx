@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { Building2, Mail, ShieldCheck, UserPlus } from 'lucide-react'
+import { Building2, CheckCircle2, Mail, ShieldCheck, UserPlus } from 'lucide-react'
 import { createPartnerAccount, updatePartnerAccount } from '@/lib/actions/partner-management.actions'
 import { PartnerPasswordField } from '@/components/partner/PartnerPasswordField'
 import { createClient } from '@/lib/supabase/server'
@@ -26,7 +26,7 @@ function RoleSelect({ defaultValue = 'sales_partner' }: { defaultValue?: string 
   )
 }
 
-export default async function PartnerManagementPage() {
+export default async function PartnerManagementPage({ searchParams }: { searchParams?: { saved?: string } }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -56,6 +56,13 @@ export default async function PartnerManagementPage() {
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-[#07142F]">Partnerverwaltung</h1>
         <p className="mt-2 text-sm text-muted-foreground">Zugänge anlegen, Kontaktdaten pflegen und Partner aktivieren oder sperren.</p>
       </div>
+
+      {searchParams?.saved === '1' && (
+        <div role="status" className="flex items-center gap-3 rounded-2xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-4 py-3 text-[#276B00] shadow-sm">
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
+          <span className="font-extrabold">Partner erfolgreich gespeichert.</span>
+        </div>
+      )}
 
       <section className="rounded-[2rem] bg-white p-6 shadow-sm md:p-8">
         <div className="flex items-start gap-3"><UserPlus className="mt-1 h-6 w-6 text-[#2F8A00]" /><div><h2 className="text-xl font-extrabold">Neuen Partner anlegen</h2><p className="mt-1 text-sm text-muted-foreground">Du legst das dauerhafte Passwort fest. Es wird sicher an Supabase übergeben und nicht in unserer Profildatenbank gespeichert.</p></div></div>
