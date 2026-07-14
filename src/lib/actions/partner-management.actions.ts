@@ -38,6 +38,49 @@ function getAdminClient() {
   })
 }
 
+export async function createPartnerAccount(formData: FormData) {
+  await requireAdmin()
+
+  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  const password = String(formData.get('password') ?? '')
+  const fullName = String(formData.get('full_name') ?? '').trim()
+  const company = String(formData.get('company') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim()
+  const role = String(formData.get('role') ?? 'partner').toLowerCase()
+
+  if (!email || !fullName || !password) throw new Error('Name, E-Mail und Startpasswort sind Pflichtfelder.')
+  if (password.length < 10) throw new Error('Das Startpasswort muss mindestens 10 Zeichen lang sein.')
+  if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
+
+  const admin = getAdminClient()
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, company, phone, role },
+  })
+
+  if (error) throw new Error(error.message)
+  if (!data.user) throw new Error('Der Partnerzugang konnte nicht erstellt werden.')
+
+  const { error: profileError } = await admin.from('profiles').upsert({
+    id: data.user.id,
+    email,
+    full_name: fullName,
+    company: company || null,
+    phone: phone || null,
+    role,
+    is_active: true,
+  })
+
+  if (profileError) {
+    await admin.auth.admin.deleteUser(data.user.id)
+    throw new Error(profileError.message)
+  }
+
+  revalidatePath('/partner-management')
+}
+
 export async function invitePartnerAccount(formData: FormData) {
   await requireAdmin()
 
