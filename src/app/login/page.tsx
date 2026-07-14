@@ -1,4 +1,5 @@
 import { login } from '@/lib/actions/auth.actions'
+import { PasswordInput } from '@/components/auth/PasswordInput'
 import { AppInstallButtons } from '@/components/pwa/AppInstallButtons'
 
 interface LoginPageProps {
@@ -55,15 +56,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             <label htmlFor="password" className="form-label">
               Passwort
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              placeholder="••••••••"
-              className="form-input"
-            />
+            <PasswordInput />
           </div>
 
           <button
