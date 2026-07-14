@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Archive, ArrowRight, FileText, MapPin } from 'lucide-react'
+import { Archive, ArrowLeft, ArrowRight, FileText, MapPin } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
@@ -30,12 +30,19 @@ export default async function PartnerSubmissionsPage() {
   if (error) throw new Error(error.message)
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-2 sm:pt-4">
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+1.25rem)] sm:pt-6">
+      <Link
+        href="/dashboard"
+        className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#1F2A44] shadow-sm"
+      >
+        <ArrowLeft className="h-4 w-4" /> Zurück zum Dashboard
+      </Link>
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#2F8A00]">EMA Partner Portal</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#07142F]">Partner-Einreichungen</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Neue Projekte prüfen, Unterlagen ansehen und den Bearbeitungsstatus festlegen.</p>
+          <h1 className="mt-2 break-words text-[2rem] font-extrabold leading-[1.05] tracking-tight text-[#07142F] sm:text-3xl">Partner-Einreichungen</h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Neue Projekte prüfen, Unterlagen ansehen und den Bearbeitungsstatus festlegen.</p>
         </div>
         <Link href="/partner-submissions/archive" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#1F2A44] shadow-sm">
           <Archive className="h-4 w-4" /> Archiv {archiveCount ? `(${archiveCount})` : ''}
