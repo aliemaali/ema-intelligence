@@ -4,6 +4,7 @@ import {
   BatteryCharging,
   Bell,
   FolderOpen,
+  Inbox,
   Layers,
   MapPin,
   Search,
@@ -12,6 +13,7 @@ import {
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
 import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
+import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -141,8 +143,38 @@ function ProjectImage({ kind }: { kind: string }) {
   )
 }
 
+const submissionStatusLabels: Record<string, string> = {
+  eingereicht: 'Neu eingereicht',
+  in_pruefung: 'In Prüfung',
+  rueckfrage: 'Rückfrage offen',
+}
+
 export default async function DashboardPage() {
-  const projects = await getProjects({})
+  const supabase = await createClient()
+  const [projects, submissionsResult] = await Promise.all([
+    getProjects({}),
+    supabase
+      .from('project_submissions')
+      .select('id, partner_user_id, project_name, project_type, location_city, location_state, status, submitted_at, pv_kwp, bess_mwh')
+      .in('status', ['eingereicht', 'in_pruefung', 'rueckfrage'])
+      .order('submitted_at', { ascending: false })
+      .limit(5),
+  ])
+
+  const partnerSubmissions = submissionsResult.data ?? []
+  const partnerIds = Array.from(new Set(partnerSubmissions.map((item: any) => item.partner_user_id).filter(Boolean)))
+  const partnerNames = new Map<string, string>()
+
+  if (partnerIds.length > 0) {
+    const { data: partners } = await supabase
+      .from('profiles')
+      .select('id, full_name, company, email')
+      .in('id', partnerIds)
+
+    for (const partner of partners ?? []) {
+      partnerNames.set(partner.id, partner.company || partner.full_name || partner.email || 'Vertriebspartner')
+    }
+  }
 
   const totalProjects = projects.length
   const totalKwp = projects.reduce((sum: number, p: any) => sum + Number(p.pv_mwp ?? 0), 0)
@@ -185,29 +217,53 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:px-0 md:grid-cols-3 md:gap-5">
-        <KpiCard
-          title="Projekte gesamt"
-          value={totalProjects}
-          subtitle="aktive Projekte"
-          tone="blue"
-          icon={<FolderOpen className="h-5 w-5 md:h-7 md:w-7" />}
-        />
-        <KpiCard
-          title="PV-Leistung"
-          value={totalKwp.toLocaleString('de-DE')}
-          subtitle="kWp Gesamtleistung"
-          tone="green"
-          icon={<Zap className="h-5 w-5 md:h-7 md:w-7" />}
-        />
-        <KpiCard
-          title="BESS-Kapazität"
-          value={totalBess.toLocaleString('de-DE')}
-          subtitle="MWh Gesamtkapazität"
-          tone="violet"
-          icon={<BatteryCharging className="h-5 w-5 md:h-7 md:w-7" />}
-        />
+      <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:grid-cols-3 md:gap-5 md:px-0">
+        <KpiCard title="Projekte gesamt" value={totalProjects} subtitle="aktive Projekte" tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-7 md:w-7" />} />
+        <KpiCard title="PV-Leistung" value={totalKwp.toLocaleString('de-DE')} subtitle="kWp Gesamtleistung" tone="green" icon={<Zap className="h-5 w-5 md:h-7 md:w-7" />} />
+        <KpiCard title="BESS-Kapazität" value={totalBess.toLocaleString('de-DE')} subtitle="MWh Gesamtkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-7 md:w-7" />} />
       </div>
+
+      <section className="mx-3 overflow-hidden rounded-[2rem] border border-[#5CB800]/20 bg-white shadow-[0_18px_48px_rgba(31,42,68,0.08)] md:mx-0">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-[#5CB800]/12 via-white to-white p-5 md:p-7">
+          <div className="flex items-center gap-4">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20">
+              <Inbox className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">Partnerportal</p>
+              <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#07142F]">Neue Partner-Einreichungen</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Neue Projekte deiner Vertriebspartner direkt prüfen.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-[#5CB800] px-3 py-1.5 text-sm font-extrabold text-white">{partnerSubmissions.length}</span>
+            <Link href="/partner-submissions" className="inline-flex items-center gap-1 text-sm font-extrabold text-[#2F8A00] hover:underline">Alle anzeigen <ArrowRight className="h-4 w-4" /></Link>
+          </div>
+        </div>
+
+        <div className="p-4 md:p-6">
+          {partnerSubmissions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-7 text-center text-sm text-muted-foreground">Aktuell liegen keine neuen Partner-Einreichungen vor.</div>
+          ) : (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {partnerSubmissions.map((submission: any) => (
+                <Link key={submission.id} href={`/partner-submissions/${submission.id}`} className="premium-lift flex items-center gap-4 rounded-[1.4rem] border border-slate-200 bg-white p-4 hover:border-[#5CB800]/40">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1F2A44]/8 text-[#1F2A44]"><Inbox className="h-5 w-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate font-extrabold text-[#07142F]">{submission.project_name}</p>
+                      <span className="rounded-full bg-[#5CB800]/10 px-2.5 py-1 text-[10px] font-extrabold text-[#2F8A00]">{submissionStatusLabels[submission.status] ?? submission.status}</span>
+                    </div>
+                    <p className="mt-1 truncate text-sm font-semibold text-slate-600">{partnerNames.get(submission.partner_user_id) || 'Vertriebspartner'}</p>
+                    <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {[submission.location_city, submission.location_state].filter(Boolean).join(', ') || 'Standort offen'}</p>
+                  </div>
+                  <span className="rounded-xl bg-[#1F2A44] px-3 py-2 text-xs font-extrabold text-white">Prüfen</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 gap-5 px-3 md:px-0 xl:grid-cols-[0.92fr_1.45fr]">
         <div className="card-padded rounded-[2rem]">
@@ -216,55 +272,33 @@ export default async function DashboardPage() {
               <h2 className="text-2xl font-extrabold tracking-tight text-[#07142F] md:text-xl">Aktuelle Projekte</h2>
               <p className="mt-1 text-sm text-muted-foreground md:text-xs">Die zuletzt aktiven Projekte auf einen Blick.</p>
             </div>
-            <Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00] hover:underline">
-              Alle anzeigen <ArrowRight className="h-4 w-4" />
-            </Link>
+            <Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00] hover:underline">Alle anzeigen <ArrowRight className="h-4 w-4" /></Link>
           </div>
 
           <div className="space-y-4">
-            {latestProjects.length === 0 && (
-              <p className="rounded-2xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">Noch keine Projekte vorhanden.</p>
-            )}
-
+            {latestProjects.length === 0 && <p className="rounded-2xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">Noch keine Projekte vorhanden.</p>}
             {latestProjects.map((project: any) => {
               const kind = getProjectKind(project)
               const purchasePrice = getPurchasePrice(project)
               const feedInType = getFeedInType(project)
 
               return (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}/overview`}
-                  className="premium-lift block rounded-[1.6rem] border border-border/80 bg-white p-3 shadow-sm hover:border-[#5CB800]/25 md:p-4"
-                >
+                <Link key={project.id} href={`/projects/${project.id}/overview`} className="premium-lift block rounded-[1.6rem] border border-border/80 bg-white p-3 shadow-sm hover:border-[#5CB800]/25 md:p-4">
                   <div className="flex gap-3 sm:gap-4">
                     <ProjectImage kind={kind} />
                     <div className="min-w-0 flex-1 py-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-lg font-extrabold text-[#07142F] md:text-base">{project.project_number ?? project.project_name}</p>
-                          <p className="mt-1 flex items-center gap-1 truncate text-sm text-muted-foreground">
-                            <MapPin className="h-4 w-4" /> {getLocation(project)}
-                          </p>
+                          <p className="mt-1 flex items-center gap-1 truncate text-sm text-muted-foreground"><MapPin className="h-4 w-4" /> {getLocation(project)}</p>
                         </div>
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00] shadow-sm">
-                          <ArrowRight className="h-5 w-5" />
-                        </span>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00] shadow-sm"><ArrowRight className="h-5 w-5" /></span>
                       </div>
 
                       <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-                        <div className="min-w-0">
-                          <p className="text-muted-foreground">Leistung</p>
-                          <p className="mt-1 truncate font-extrabold text-[#132060]">{getProjectPower(project)}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-muted-foreground">Kaufpreis</p>
-                          <p className="mt-1 truncate font-extrabold text-[#132060]">{formatMoney(purchasePrice)}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-muted-foreground">Einspeisung</p>
-                          <p className="mt-1 truncate font-extrabold text-[#132060]">{feedInType}</p>
-                        </div>
+                        <div className="min-w-0"><p className="text-muted-foreground">Leistung</p><p className="mt-1 truncate font-extrabold text-[#132060]">{getProjectPower(project)}</p></div>
+                        <div className="min-w-0"><p className="text-muted-foreground">Kaufpreis</p><p className="mt-1 truncate font-extrabold text-[#132060]">{formatMoney(purchasePrice)}</p></div>
+                        <div className="min-w-0"><p className="text-muted-foreground">Einspeisung</p><p className="mt-1 truncate font-extrabold text-[#132060]">{feedInType}</p></div>
                       </div>
                     </div>
                   </div>
@@ -280,9 +314,7 @@ export default async function DashboardPage() {
               <h2 className="text-2xl font-extrabold tracking-tight text-[#07142F] md:text-xl">Projektstandorte</h2>
               <p className="mt-1 text-sm text-muted-foreground md:text-xs">Standorte, Technologie und Projektverteilung.</p>
             </div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold text-[#2F8A00]">
-              <Layers className="h-4 w-4" /> {mapProjects.length}
-            </span>
+            <span className="inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold text-[#2F8A00]"><Layers className="h-4 w-4" /> {mapProjects.length}</span>
           </div>
           <ProjectMap projects={mapProjects} />
         </div>

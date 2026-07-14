@@ -1,4 +1,5 @@
 import { login } from '@/lib/actions/auth.actions'
+import { AppInstallButtons } from '@/components/pwa/AppInstallButtons'
 
 interface LoginPageProps {
   searchParams: { error?: string; redirectTo?: string }
@@ -72,6 +73,8 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
             Anmelden
           </button>
         </form>
+
+        <AppInstallButtons />
 
         <p className="mt-10 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()} EMA Enterprise GmbH

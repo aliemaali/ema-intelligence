@@ -38,6 +38,71 @@ function getAdminClient() {
   })
 }
 
+export async function createPartnerAccount(formData: FormData) {
+  await requireAdmin()
+
+  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  const password = String(formData.get('password') ?? '')
+  const fullName = String(formData.get('full_name') ?? '').trim()
+  const company = String(formData.get('company') ?? '').trim()
+  const phone = String(formData.get('phone') ?? '').trim()
+  const role = String(formData.get('role') ?? 'partner').toLowerCase()
+
+  if (!email || !fullName || !password) throw new Error('Name, E-Mail und Passwort sind Pflichtfelder.')
+  if (password.length < 6) throw new Error('Das Passwort muss mindestens 6 Zeichen lang sein.')
+  if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
+
+  const admin = getAdminClient()
+  const metadata = { full_name: fullName, company, phone, role }
+
+  const { data: usersData, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  if (listError) throw new Error(listError.message)
+
+  const existingUser = usersData.users.find((user) => user.email?.toLowerCase() === email)
+  let userId: string
+  let createdNewUser = false
+
+  if (existingUser) {
+    const { data, error } = await admin.auth.admin.updateUserById(existingUser.id, {
+      password,
+      email_confirm: true,
+      user_metadata: metadata,
+    })
+    if (error) throw new Error(error.message)
+    if (!data.user) throw new Error('Der vorhandene Partnerzugang konnte nicht aktualisiert werden.')
+    userId = data.user.id
+  } else {
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: metadata,
+    })
+    if (error) throw new Error(error.message)
+    if (!data.user) throw new Error('Der Partnerzugang konnte nicht erstellt werden.')
+    userId = data.user.id
+    createdNewUser = true
+  }
+
+  const { error: profileError } = await admin.from('profiles').upsert({
+    id: userId,
+    email,
+    full_name: fullName,
+    company: company || null,
+    phone: phone || null,
+    role,
+    is_active: true,
+  })
+
+  if (profileError) {
+    if (createdNewUser) await admin.auth.admin.deleteUser(userId)
+    throw new Error(profileError.message)
+  }
+
+  revalidatePath('/partner-management')
+  redirect('/partner-management?saved=1')
+}
+
 export async function invitePartnerAccount(formData: FormData) {
   await requireAdmin()
 
@@ -73,6 +138,7 @@ export async function invitePartnerAccount(formData: FormData) {
 
   if (profileError) throw new Error(profileError.message)
   revalidatePath('/partner-management')
+  redirect('/partner-management?saved=1')
 }
 
 export async function updatePartnerAccount(formData: FormData) {
@@ -95,4 +161,5 @@ export async function updatePartnerAccount(formData: FormData) {
 
   if (error) throw new Error(error.message)
   revalidatePath('/partner-management')
+  redirect('/partner-management?saved=1')
 }

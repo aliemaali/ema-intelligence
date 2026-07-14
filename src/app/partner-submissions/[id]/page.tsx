@@ -86,7 +86,7 @@ export default async function PartnerSubmissionDetailPage({ params }: { params: 
           <input type="hidden" name="submission_id" value={submission.id} />
           <h2 className="text-xl font-extrabold text-[#07142F]">Prüfung</h2>
           <label className="mt-5 block"><span className="text-sm font-bold">Status</span><select name="status" defaultValue={submission.status} className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3"><option value="eingereicht">Eingereicht</option><option value="in_pruefung">In Prüfung</option><option value="rueckfrage">Rückfrage</option><option value="angenommen">Angenommen</option><option value="abgelehnt">Abgelehnt</option></select></label>
-          <label className="mt-4 block"><span className="text-sm font-bold">Rückfrage / interne Mitteilung</span><textarea name="review_note" defaultValue={submission.review_note ?? ''} rows={7} className="mt-2 w-full resize-y rounded-2xl border border-slate-200 px-4 py-3" placeholder="Fehlende Unterlagen oder Rückfrage an den Partner …" /></label>
+          <label className="mt-4 block"><span className="text-sm font-bold">Rückfrage / interne Mitteilung</span><textarea name="review_note" defaultValue={submission.review_note ?? ''} rows={7} className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[#07142F] placeholder:text-slate-400 outline-none focus:border-[#5CB800]" placeholder="Fehlende Unterlagen oder Rückfrage an den Partner …" /></label>
           <button type="submit" className="mt-5 min-h-12 w-full rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white">Prüfung speichern</button>
         </form>
       </section>
