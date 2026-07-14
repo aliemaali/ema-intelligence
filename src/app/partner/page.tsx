@@ -70,6 +70,28 @@ function projectTypeLabel(type: string) {
   return 'PV-Freifläche'
 }
 
+function getPartnerDisplayName(fullName?: string | null) {
+  const parts = String(fullName ?? '').trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'Partner'
+  const title = parts[0].toLowerCase()
+  if ((title === 'herr' || title === 'frau') && parts.length > 1) {
+    return `${parts[0]} ${parts[parts.length - 1]}`
+  }
+  return parts[0]
+}
+
+function getGreeting() {
+  const hour = Number(new Intl.DateTimeFormat('de-DE', {
+    hour: '2-digit',
+    hourCycle: 'h23',
+    timeZone: 'Europe/Berlin',
+  }).format(new Date()))
+
+  if (hour < 11) return 'Guten Morgen'
+  if (hour < 18) return 'Guten Tag'
+  return 'Guten Abend'
+}
+
 function KpiCard({ icon, label, value, hint, tone = 'green' }: { icon: React.ReactNode; label: string; value: string; hint: string; tone?: 'green' | 'blue' | 'orange' | 'navy' }) {
   const tones = {
     green: 'bg-[#5CB800]/10 text-[#2F8A00]',
@@ -109,7 +131,8 @@ export default async function PartnerDashboardPage() {
     for (const document of documents ?? []) documentCounts.set(document.submission_id, (documentCounts.get(document.submission_id) ?? 0) + 1)
   }
 
-  const firstName = profile?.full_name?.trim().split(' ')[0] || 'Partner'
+  const partnerName = getPartnerDisplayName(profile?.full_name)
+  const greeting = getGreeting()
   const company = profile?.company?.trim()
   const openQuestions = submissions.filter((item) => item.status === 'rueckfrage')
   const inReview = submissions.filter((item) => ['eingereicht', 'in_pruefung'].includes(item.status)).length
@@ -138,7 +161,7 @@ export default async function PartnerDashboardPage() {
 
         <section className="mt-5 rounded-[2rem] bg-white p-6 shadow-[0_18px_55px_rgba(31,42,68,0.07)] sm:p-8">
           <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-            <div><span className="inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]"><ShieldCheck className="h-4 w-4" /> Sicheres Partnerportal</span><h1 className="mt-4 text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">Guten Morgen, {firstName} 👋</h1><p className="mt-2 text-slate-500">Hier sehen Sie Ihre Projekte, Rückfragen und den aktuellen Prüfstatus.</p></div>
+            <div><span className="inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]"><ShieldCheck className="h-4 w-4" /> Sicheres Partnerportal</span><h1 className="mt-4 text-3xl font-extrabold tracking-[-0.04em] sm:text-4xl">{greeting}, {partnerName} 👋</h1><p className="mt-2 text-slate-500">Hier sehen Sie Ihre Projekte, Rückfragen und den aktuellen Prüfstatus.</p></div>
             <Link href="/partner/new" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white shadow-[0_14px_30px_rgba(92,184,0,0.22)]"><PlusCircle className="h-5 w-5" /> Neues Projekt einreichen</Link>
           </div>
         </section>
