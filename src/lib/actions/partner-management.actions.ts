@@ -53,18 +53,39 @@ export async function createPartnerAccount(formData: FormData) {
   if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
 
   const admin = getAdminClient()
-  const { data, error } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName, company, phone, role },
-  })
+  const metadata = { full_name: fullName, company, phone, role }
 
-  if (error) throw new Error(error.message)
-  if (!data.user) throw new Error('Der Partnerzugang konnte nicht erstellt werden.')
+  const { data: usersData, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  if (listError) throw new Error(listError.message)
+
+  const existingUser = usersData.users.find((user) => user.email?.toLowerCase() === email)
+  let userId: string
+  let createdNewUser = false
+
+  if (existingUser) {
+    const { data, error } = await admin.auth.admin.updateUserById(existingUser.id, {
+      password,
+      email_confirm: true,
+      user_metadata: metadata,
+    })
+    if (error) throw new Error(error.message)
+    if (!data.user) throw new Error('Der vorhandene Partnerzugang konnte nicht aktualisiert werden.')
+    userId = data.user.id
+  } else {
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: metadata,
+    })
+    if (error) throw new Error(error.message)
+    if (!data.user) throw new Error('Der Partnerzugang konnte nicht erstellt werden.')
+    userId = data.user.id
+    createdNewUser = true
+  }
 
   const { error: profileError } = await admin.from('profiles').upsert({
-    id: data.user.id,
+    id: userId,
     email,
     full_name: fullName,
     company: company || null,
@@ -74,7 +95,7 @@ export async function createPartnerAccount(formData: FormData) {
   })
 
   if (profileError) {
-    await admin.auth.admin.deleteUser(data.user.id)
+    if (createdNewUser) await admin.auth.admin.deleteUser(userId)
     throw new Error(profileError.message)
   }
 
