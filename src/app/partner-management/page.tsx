@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
-import { Building2, Mail, ShieldCheck, UserPlus } from 'lucide-react'
-import { invitePartnerAccount, updatePartnerAccount } from '@/lib/actions/partner-management.actions'
+import { Building2, KeyRound, Mail, ShieldCheck, UserPlus } from 'lucide-react'
+import { createPartnerAccount, updatePartnerAccount } from '@/lib/actions/partner-management.actions'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Partnerverwaltung' }
@@ -53,18 +53,26 @@ export default async function PartnerManagementPage() {
       <div>
         <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">Administration</p>
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-[#07142F]">Partnerverwaltung</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Zugänge einladen, Kontaktdaten pflegen und Partner aktivieren oder sperren.</p>
+        <p className="mt-2 text-sm text-muted-foreground">Zugänge anlegen, Kontaktdaten pflegen und Partner aktivieren oder sperren.</p>
       </div>
 
       <section className="rounded-[2rem] bg-white p-6 shadow-sm md:p-8">
-        <div className="flex items-start gap-3"><UserPlus className="mt-1 h-6 w-6 text-[#2F8A00]" /><div><h2 className="text-xl font-extrabold">Neuen Partner einladen</h2><p className="mt-1 text-sm text-muted-foreground">Der Partner erhält eine sichere E-Mail zum Einrichten seines Zugangs.</p></div></div>
-        <form action={invitePartnerAccount} className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="flex items-start gap-3"><UserPlus className="mt-1 h-6 w-6 text-[#2F8A00]" /><div><h2 className="text-xl font-extrabold">Neuen Partner anlegen</h2><p className="mt-1 text-sm text-muted-foreground">Du legst ein Startpasswort fest. Es wird sicher an Supabase übergeben und nicht in der Datenbank angezeigt oder gespeichert.</p></div></div>
+        <form action={createPartnerAccount} className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field name="full_name" label="Name *" required />
           <Field name="company" label="Unternehmen" />
           <Field name="email" label="E-Mail *" type="email" required />
           <Field name="phone" label="Telefon" type="tel" />
           <RoleSelect />
-          <button className="self-end min-h-12 rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white">Einladung senden</button>
+          <label>
+            <span className="text-sm font-bold">Startpasswort *</span>
+            <div className="relative">
+              <KeyRound className="pointer-events-none absolute left-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input name="password" type="password" required minLength={10} autoComplete="new-password" className={`${controlClassName} pl-11`} />
+            </div>
+            <span className="mt-1 block text-xs text-slate-500">Mindestens 10 Zeichen</span>
+          </label>
+          <button className="self-end min-h-12 rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white">Partner anlegen</button>
         </form>
       </section>
 
