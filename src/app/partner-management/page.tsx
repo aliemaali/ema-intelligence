@@ -57,7 +57,7 @@ export default async function PartnerManagementPage() {
       </div>
 
       <section className="rounded-[2rem] bg-white p-6 shadow-sm md:p-8">
-        <div className="flex items-start gap-3"><UserPlus className="mt-1 h-6 w-6 text-[#2F8A00]" /><div><h2 className="text-xl font-extrabold">Neuen Partner anlegen</h2><p className="mt-1 text-sm text-muted-foreground">Du legst ein Startpasswort fest. Es wird sicher an Supabase übergeben und nicht in der Datenbank angezeigt oder gespeichert.</p></div></div>
+        <div className="flex items-start gap-3"><UserPlus className="mt-1 h-6 w-6 text-[#2F8A00]" /><div><h2 className="text-xl font-extrabold">Neuen Partner anlegen</h2><p className="mt-1 text-sm text-muted-foreground">Du legst das dauerhafte Passwort für den Partner fest. Es wird sicher an Supabase übergeben und nicht in der Profildatenbank angezeigt oder gespeichert.</p></div></div>
         <form action={createPartnerAccount} className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field name="full_name" label="Name *" required />
           <Field name="company" label="Unternehmen" />
@@ -65,12 +65,12 @@ export default async function PartnerManagementPage() {
           <Field name="phone" label="Telefon" type="tel" />
           <RoleSelect />
           <label>
-            <span className="text-sm font-bold">Startpasswort *</span>
+            <span className="text-sm font-bold">Passwort *</span>
             <div className="relative">
               <KeyRound className="pointer-events-none absolute left-4 top-1/2 mt-1 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input name="password" type="password" required minLength={10} autoComplete="new-password" className={`${controlClassName} pl-11`} />
+              <input name="password" type="password" required minLength={6} autoComplete="new-password" className={`${controlClassName} pl-11`} />
             </div>
-            <span className="mt-1 block text-xs text-slate-500">Mindestens 10 Zeichen</span>
+            <span className="mt-1 block text-xs text-slate-500">Mindestens 6 Zeichen</span>
           </label>
           <button className="self-end min-h-12 rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white">Partner anlegen</button>
         </form>
