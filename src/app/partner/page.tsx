@@ -116,6 +116,12 @@ export default async function PartnerDashboardPage() {
   const accepted = submissions.filter((item) => item.status === 'angenommen').length
   const totalPv = submissions.reduce((sum, item) => sum + Number(item.pv_kwp ?? 0), 0)
   const totalBess = submissions.reduce((sum, item) => sum + Number(item.bess_mwh ?? 0), 0)
+  const projectTypeCounts = {
+    pv_freiflaeche: submissions.filter((item) => item.project_type === 'pv_freiflaeche').length,
+    pv_dach: submissions.filter((item) => item.project_type === 'pv_dach').length,
+    bess: submissions.filter((item) => item.project_type === 'bess').length,
+    hybrid: submissions.filter((item) => item.project_type === 'hybrid').length,
+  }
   const recent = submissions.slice(0, 5)
   const total = Math.max(submissions.length, 1)
   const acceptedShare = Math.round((accepted / total) * 100)
@@ -160,6 +166,27 @@ export default async function PartnerDashboardPage() {
             <section className="rounded-[2rem] bg-white p-6 shadow-sm">
               <h2 className="text-xl font-extrabold">Projekte nach Status</h2>
               <div className="mt-6 flex items-center gap-6"><div className="relative h-32 w-32 shrink-0 rounded-full" style={{ background: `conic-gradient(#5CB800 0 ${acceptedShare}%, #3B82F6 ${acceptedShare}% ${acceptedShare + reviewShare}%, #F59E0B ${acceptedShare + reviewShare}% ${acceptedShare + reviewShare + questionShare}%, #E2E8F0 ${acceptedShare + reviewShare + questionShare}% 100%)` }}><div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white"><span className="text-2xl font-extrabold">{submissions.length}</span><span className="text-xs font-bold text-slate-400">Gesamt</span></div></div><div className="space-y-3 text-sm"><p className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-[#5CB800]" /> Angenommen: <strong>{accepted}</strong></p><p className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-blue-500" /> In Prüfung: <strong>{inReview}</strong></p><p className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-amber-500" /> Rückfragen: <strong>{openQuestions.length}</strong></p></div></div>
+            </section>
+
+            <section className="rounded-[2rem] bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-extrabold">Projekte nach Art</h2>
+              <p className="mt-1 text-sm text-slate-500">Welche Projektarten Sie bisher übermittelt haben.</p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                {[
+                  ['pv_freiflaeche', projectTypeCounts.pv_freiflaeche],
+                  ['pv_dach', projectTypeCounts.pv_dach],
+                  ['bess', projectTypeCounts.bess],
+                  ['hybrid', projectTypeCounts.hybrid],
+                ].map(([type, count]) => (
+                  <div key={String(type)} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[#2F8A00] shadow-sm"><ProjectTypeIcon type={String(type)} /></span>
+                      <strong className="text-2xl text-[#1F2A44]">{Number(count)}</strong>
+                    </div>
+                    <p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">{projectTypeLabel(String(type))}</p>
+                  </div>
+                ))}
+              </div>
             </section>
 
             <section className="rounded-[2rem] bg-white p-6 shadow-sm">
