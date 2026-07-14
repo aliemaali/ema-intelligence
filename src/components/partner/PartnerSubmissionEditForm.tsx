@@ -55,6 +55,23 @@ function numberOrNull(value: FormDataEntryValue | null) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+async function notifyAdmin(submissionId: string, addedDocumentCount: number) {
+  try {
+    const response = await fetch('/api/partner-submission-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        submissionId,
+        event: addedDocumentCount > 0 ? 'documents_added' : 'updated',
+        addedDocumentCount,
+      }),
+    })
+    if (!response.ok) console.error('Partner notification failed:', await response.text())
+  } catch (error) {
+    console.error('Partner notification failed:', error)
+  }
+}
+
 export function PartnerSubmissionEditForm({ submission, existingDocumentCount }: { submission: Submission; existingDocumentCount: number }) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
@@ -146,6 +163,7 @@ export function PartnerSubmissionEditForm({ submission, existingDocumentCount }:
         if (documentError) throw documentError
       }
 
+      await notifyAdmin(submission.id, files.length)
       router.push(`/partner/submissions/${submission.id}`)
       router.refresh()
     } catch (caught) {
