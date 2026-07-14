@@ -11,6 +11,14 @@ function mapDocumentType(value: string) {
   return allowed.has(value) ? value : 'sonstiges'
 }
 
+function mapProjectType(value: string) {
+  const normalized = String(value ?? '').toLowerCase()
+  if (normalized === 'pv' || normalized === 'solar') return 'pv_freiflaeche'
+  if (normalized === 'pv_dach' || normalized === 'pv_freiflaeche') return normalized
+  if (normalized === 'bess' || normalized === 'hybrid' || normalized === 'wind') return normalized
+  return 'pv_freiflaeche'
+}
+
 export async function convertPartnerSubmission(formData: FormData) {
   const submissionId = String(formData.get('submission_id') ?? '')
   if (!submissionId) throw new Error('Einreichung fehlt.')
@@ -40,12 +48,14 @@ export async function convertPartnerSubmission(formData: FormData) {
     submission.ppa_term_years ? `PPA-Laufzeit: ${submission.ppa_term_years} Jahre` : null,
   ].filter(Boolean).join('\n')
 
+  const pvKwp = submission.pv_kwp == null || submission.pv_kwp === '' ? null : Number(submission.pv_kwp)
+
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .insert({
       user_id: user.id,
       project_name: submission.project_name,
-      project_type: submission.project_type,
+      project_type: mapProjectType(submission.project_type),
       status: 'lead',
       priority: 'mittel',
       marketing_status: 'nicht_gestartet',
@@ -58,7 +68,8 @@ export async function convertPartnerSubmission(formData: FormData) {
       location_country: 'Deutschland',
       location_lat: submission.location_lat,
       location_lng: submission.location_lng,
-      pv_mwp: submission.pv_kwp,
+      // Legacy-Spaltenname; die Anwendung behandelt diesen Wert durchgehend als kWp.
+      pv_mwp: Number.isFinite(pvKwp) ? pvKwp : null,
       bess_mw: submission.bess_mw,
       bess_mwh: submission.bess_mwh,
       notes: projectNotes || null,
@@ -137,5 +148,7 @@ export async function convertPartnerSubmission(formData: FormData) {
 
   revalidatePath('/partner-submissions')
   revalidatePath(`/partner-submissions/${submissionId}`)
+  revalidatePath('/projects')
+  revalidatePath('/dashboard')
   redirect(`/projects/${project.id}/overview`)
 }
