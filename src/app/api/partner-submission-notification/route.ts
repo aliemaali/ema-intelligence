@@ -25,6 +25,37 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", '&#039;')
 }
 
+async function getMicrosoftAccessToken() {
+  const tenantId = process.env.MICROSOFT_TENANT_ID
+  const clientId = process.env.MICROSOFT_CLIENT_ID
+  const clientSecret = process.env.MICROSOFT_CLIENT_SECRET
+
+  if (!tenantId || !clientId || !clientSecret) return null
+
+  const tokenResponse = await fetch(
+    `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        scope: 'https://graph.microsoft.com/.default',
+        grant_type: 'client_credentials',
+      }),
+      cache: 'no-store',
+    }
+  )
+
+  if (!tokenResponse.ok) {
+    console.error('Microsoft token request failed:', tokenResponse.status, await tokenResponse.text())
+    return null
+  }
+
+  const tokenData = (await tokenResponse.json()) as { access_token?: string }
+  return tokenData.access_token ?? null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -62,12 +93,12 @@ export async function POST(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    const apiKey = process.env.RESEND_API_KEY
+    const sender = process.env.OUTLOOK_SENDER_EMAIL ?? 'unluer@ema-enterprise.de'
     const recipient = process.env.PARTNER_NOTIFICATION_EMAIL ?? 'unluer@ema-enterprise.de'
-    const sender = process.env.PARTNER_NOTIFICATION_FROM ?? 'EMA Intelligence <notifications@ema-enterprise.de>'
+    const accessToken = await getMicrosoftAccessToken()
 
-    if (!apiKey) {
-      console.warn('Partner notification skipped: RESEND_API_KEY is missing.')
+    if (!accessToken) {
+      console.warn('Partner notification skipped: Microsoft Graph configuration is missing or invalid.')
       return NextResponse.json({ sent: false, reason: 'mail_not_configured' })
     }
 
@@ -81,44 +112,52 @@ export async function POST(request: NextRequest) {
       ? `<tr><td style="padding:8px 0;color:#64748b">Neue Unterlagen</td><td style="padding:8px 0;font-weight:700">${Math.max(0, Number(body.addedDocumentCount) || 0)}</td></tr>`
       : ''
 
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: sender,
-        to: [recipient],
-        subject: `${eventLabel}: ${submission.project_name}`,
-        html: `
-          <div style="background:#f6f8fb;padding:32px 16px;font-family:Arial,sans-serif;color:#1F2A44">
-            <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0">
-              <div style="background:#1F2A44;padding:24px 28px;color:#ffffff">
-                <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.75">EMA Intelligence</div>
-                <h1 style="margin:8px 0 0;font-size:24px">${escapeHtml(eventLabel)}</h1>
-              </div>
-              <div style="padding:28px">
-                <p style="margin:0 0 20px;font-size:16px;line-height:1.6">Ein Partnerprojekt benötigt deine Aufmerksamkeit.</p>
-                <table style="width:100%;border-collapse:collapse;font-size:15px">
-                  <tr><td style="padding:8px 0;color:#64748b">Projekt</td><td style="padding:8px 0;font-weight:700">${escapeHtml(submission.project_name)}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Projektart</td><td style="padding:8px 0;font-weight:700">${escapeHtml(projectType)}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Standort</td><td style="padding:8px 0;font-weight:700">${escapeHtml(submission.location_city)}, ${escapeHtml(submission.location_state)}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Partner</td><td style="padding:8px 0;font-weight:700">${escapeHtml(partnerName)}</td></tr>
-                  <tr><td style="padding:8px 0;color:#64748b">Firma</td><td style="padding:8px 0;font-weight:700">${escapeHtml(company)}</td></tr>
-                  ${documentInfo}
-                </table>
-                <a href="${escapeHtml(reviewUrl)}" style="display:inline-block;margin-top:24px;background:#5CB800;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:12px">Projekt prüfen</a>
-              </div>
-            </div>
+    const html = `
+      <div style="background:#f6f8fb;padding:32px 16px;font-family:Arial,sans-serif;color:#1F2A44">
+        <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0">
+          <div style="background:#1F2A44;padding:24px 28px;color:#ffffff">
+            <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.75">EMA Intelligence</div>
+            <h1 style="margin:8px 0 0;font-size:24px">${escapeHtml(eventLabel)}</h1>
           </div>
-        `,
-      }),
-    })
+          <div style="padding:28px">
+            <p style="margin:0 0 20px;font-size:16px;line-height:1.6">Ein Partnerprojekt benötigt deine Aufmerksamkeit.</p>
+            <table style="width:100%;border-collapse:collapse;font-size:15px">
+              <tr><td style="padding:8px 0;color:#64748b">Projekt</td><td style="padding:8px 0;font-weight:700">${escapeHtml(submission.project_name)}</td></tr>
+              <tr><td style="padding:8px 0;color:#64748b">Projektart</td><td style="padding:8px 0;font-weight:700">${escapeHtml(projectType)}</td></tr>
+              <tr><td style="padding:8px 0;color:#64748b">Standort</td><td style="padding:8px 0;font-weight:700">${escapeHtml(submission.location_city)}, ${escapeHtml(submission.location_state)}</td></tr>
+              <tr><td style="padding:8px 0;color:#64748b">Partner</td><td style="padding:8px 0;font-weight:700">${escapeHtml(partnerName)}</td></tr>
+              <tr><td style="padding:8px 0;color:#64748b">Firma</td><td style="padding:8px 0;font-weight:700">${escapeHtml(company)}</td></tr>
+              ${documentInfo}
+            </table>
+            <a href="${escapeHtml(reviewUrl)}" style="display:inline-block;margin-top:24px;background:#5CB800;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:12px">Projekt prüfen</a>
+          </div>
+        </div>
+      </div>
+    `
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Resend partner notification failed:', response.status, errorText)
+    const graphResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(sender)}/sendMail`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: {
+            subject: `${eventLabel}: ${submission.project_name}`,
+            body: { contentType: 'HTML', content: html },
+            toRecipients: [
+              { emailAddress: { address: recipient } },
+            ],
+          },
+          saveToSentItems: true,
+        }),
+      }
+    )
+
+    if (!graphResponse.ok) {
+      console.error('Outlook partner notification failed:', graphResponse.status, await graphResponse.text())
       return NextResponse.json({ sent: false, reason: 'mail_provider_error' }, { status: 502 })
     }
 
