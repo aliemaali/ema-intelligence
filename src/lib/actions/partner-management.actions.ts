@@ -48,8 +48,8 @@ export async function createPartnerAccount(formData: FormData) {
   const phone = String(formData.get('phone') ?? '').trim()
   const role = String(formData.get('role') ?? 'partner').toLowerCase()
 
-  if (!email || !fullName || !password) throw new Error('Name, E-Mail und Startpasswort sind Pflichtfelder.')
-  if (password.length < 10) throw new Error('Das Startpasswort muss mindestens 10 Zeichen lang sein.')
+  if (!email || !fullName || !password) throw new Error('Name, E-Mail und Passwort sind Pflichtfelder.')
+  if (password.length < 6) throw new Error('Das Passwort muss mindestens 6 Zeichen lang sein.')
   if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
 
   const admin = getAdminClient()
