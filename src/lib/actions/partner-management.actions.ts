@@ -100,6 +100,7 @@ export async function createPartnerAccount(formData: FormData) {
   }
 
   revalidatePath('/partner-management')
+  redirect('/partner-management?saved=1')
 }
 
 export async function invitePartnerAccount(formData: FormData) {
@@ -137,6 +138,7 @@ export async function invitePartnerAccount(formData: FormData) {
 
   if (profileError) throw new Error(profileError.message)
   revalidatePath('/partner-management')
+  redirect('/partner-management?saved=1')
 }
 
 export async function updatePartnerAccount(formData: FormData) {
@@ -159,4 +161,5 @@ export async function updatePartnerAccount(formData: FormData) {
 
   if (error) throw new Error(error.message)
   revalidatePath('/partner-management')
+  redirect('/partner-management?saved=1')
 }
