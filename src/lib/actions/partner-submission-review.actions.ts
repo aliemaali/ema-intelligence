@@ -41,10 +41,11 @@ export async function updatePartnerSubmissionReview(formData: FormData) {
   }
 
   const { supabase, user } = await requireAdmin()
+  const shouldArchive = status === 'abgelehnt'
   const { error } = await supabase
     .from('project_submissions')
     .update({
-      status,
+      status: shouldArchive ? 'archiviert' : status,
       review_note: reviewNote || null,
       reviewed_at: new Date().toISOString(),
       reviewed_by: user.id,
@@ -53,6 +54,8 @@ export async function updatePartnerSubmissionReview(formData: FormData) {
 
   if (error) throw new Error(error.message)
   revalidateSubmissionPaths(submissionId)
+
+  if (shouldArchive) redirect('/partner-submissions/archive')
 }
 
 export async function archivePartnerSubmission(formData: FormData) {
