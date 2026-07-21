@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { ProjectForm } from '@/components/projects/ProjectForm'
 import { VerifiedProjectValuesForm } from '@/components/projects/VerifiedProjectValuesForm'
+import { RoofDevelopmentStatusFilter } from '@/components/projects/RoofDevelopmentStatusFilter'
 
 export const metadata = { title: 'Projekt bearbeiten' }
 
@@ -44,6 +45,7 @@ export default async function EditProjectPage({ params }: EditPageProps) {
         </div>
       </div>
 
+      <RoofDevelopmentStatusFilter projectType={(project as any).project_type} />
       <ProjectForm mode="edit" project={project as never} partners={(partners ?? []) as any} />
       <VerifiedProjectValuesForm project={project as any} />
     </div>
