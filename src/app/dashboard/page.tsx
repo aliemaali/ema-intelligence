@@ -56,10 +56,13 @@ function getLocation(project: any) {
   return [project.location_city, project.location_state].filter(Boolean).join(', ') || 'Standort offen'
 }
 
-function getProjectKind(project: any) {
+type ProjectKind = 'dach' | 'freiflaeche' | 'bess' | 'hybrid'
+
+function getProjectKind(project: any): ProjectKind {
   if (project.project_type === 'bess') return 'bess'
   if (project.project_type === 'hybrid') return 'hybrid'
-  return 'pv'
+  if (project.project_type === 'pv_dach') return 'dach'
+  return 'freiflaeche'
 }
 
 function KpiCard({
@@ -116,36 +119,21 @@ function MobileHeroImage() {
   )
 }
 
-type ProjectPreview = { url: string; mimeType: string | null }
+function ProjectImage({ kind }: { kind: ProjectKind }) {
+  const image = kind === 'dach'
+    ? '/project-dach.svg'
+    : kind === 'bess'
+      ? '/project-bess.svg'
+      : '/project-freiflaeche.svg'
 
-function ProjectImage({ kind, preview }: { kind: string; preview?: ProjectPreview }) {
-  const gradient = kind === 'bess'
-    ? 'from-blue-100 via-slate-100 to-slate-200'
-    : kind === 'hybrid'
-      ? 'from-violet-100 via-green-50 to-blue-100'
-      : 'from-green-100 via-emerald-50 to-blue-100'
-
-  const isImage = Boolean(preview?.mimeType?.startsWith('image/'))
-  const isPdf = preview?.mimeType === 'application/pdf'
+  const badge = kind === 'bess' ? 'BESS' : kind === 'hybrid' ? 'HYB' : 'PV'
 
   return (
-    <div className={`relative h-24 w-28 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} sm:h-32 sm:w-40`}>
-      {preview && isImage && (
-        <img src={preview.url} alt="Projektvorschau" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-      )}
-      {preview && isPdf && (
-        <object data={`${preview.url}#page=1&toolbar=0&navpanes=0`} type="application/pdf" aria-label="Dokumentvorschau" className="pointer-events-none absolute inset-0 h-[145%] w-full object-cover" />
-      )}
-      {!preview && (
-        <>
-          <div className="absolute inset-x-0 bottom-0 h-10 bg-green-500/20" />
-          <div className="absolute left-4 top-8 h-12 w-20 rotate-[-10deg] rounded bg-blue-700/70 shadow-md" />
-          <div className="absolute left-7 top-11 h-1 w-16 rotate-[-10deg] bg-white/50" />
-        </>
-      )}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent" />
-      <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-[#2F8A00] shadow-sm">
-        {kind === 'bess' ? 'BESS' : kind === 'hybrid' ? 'HYB' : 'PV'}
+    <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-32 sm:w-40">
+      <img src={image} alt={kind === 'dach' ? 'PV-Dachanlage' : kind === 'bess' ? 'BESS-Anlage' : 'PV-Freiflächenanlage'} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
+      <div className={`absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold shadow-sm ${kind === 'bess' ? 'text-blue-700' : 'text-[#2F8A00]'}`}>
+        {badge}
       </div>
     </div>
   )
@@ -183,34 +171,6 @@ export default async function DashboardPage() {
   const totalBess = projects.reduce((sum: number, p: any) => sum + Number(p.bess_mwh ?? 0), 0)
   const latestProjects = projects.slice(0, 5)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
-  const previewByProject = new Map<string, ProjectPreview>()
-  const latestProjectIds = latestProjects.map((project: any) => project.id)
-
-  if (latestProjectIds.length > 0) {
-    const { data: docs } = await supabase
-      .from('documents')
-      .select('project_id, file_path, mime_type, document_type, display_name, created_at')
-      .in('project_id', latestProjectIds)
-      .in('document_type', ['bild', 'expose', 'gutachten'])
-      .order('created_at', { ascending: false })
-
-    const scored = [...(docs ?? [])].sort((a: any, b: any) => {
-      const score = (doc: any) => {
-        const name = String(doc.display_name ?? '').toLowerCase()
-        if (doc.mime_type?.startsWith('image/')) return 30
-        if (doc.document_type === 'expose') return 20
-        if (name.includes('pv-sol') || name.includes('pv sol')) return 15
-        return 10
-      }
-      return score(b) - score(a)
-    })
-
-    for (const doc of scored as any[]) {
-      if (previewByProject.has(doc.project_id) || !doc.file_path) continue
-      const { data } = await supabase.storage.from('project-documents').createSignedUrl(doc.file_path, 60 * 30)
-      if (data?.signedUrl) previewByProject.set(doc.project_id, { url: data.signedUrl, mimeType: doc.mime_type })
-    }
-  }
 
   return (
     <div className="w-full max-w-full overflow-x-hidden space-y-7 md:mx-auto md:max-w-[1480px] md:space-y-8">
@@ -300,7 +260,7 @@ export default async function DashboardPage() {
               return (
                 <Link key={project.id} href={`/projects/${project.id}/overview`} className="premium-lift block rounded-[1.6rem] border border-border/80 bg-white p-3 shadow-sm hover:border-[#5CB800]/25 md:p-4">
                   <div className="flex gap-3 sm:gap-4">
-                    <ProjectImage kind={kind} preview={previewByProject.get(project.id)} />
+                    <ProjectImage kind={kind} />
                     <div className="min-w-0 flex-1 py-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
