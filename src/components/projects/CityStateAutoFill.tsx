@@ -14,9 +14,12 @@ const STATE_ALIASES: Record<string, string> = {
 
 export function CityStateAutoFill() {
   useEffect(() => {
-    const cityInput = document.querySelector<HTMLInputElement>('input[name="location_city"]')
-    const stateSelect = document.querySelector<HTMLSelectElement>('select[name="location_state"]')
-    if (!cityInput || !stateSelect) return
+    const cityElement = document.querySelector<HTMLInputElement>('input[name="location_city"]')
+    const stateElement = document.querySelector<HTMLSelectElement>('select[name="location_state"]')
+    if (!cityElement || !stateElement) return
+
+    const cityInput = cityElement
+    const stateSelect = stateElement
 
     async function resolveState() {
       const city = cityInput.value.trim()
