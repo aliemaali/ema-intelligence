@@ -34,7 +34,7 @@ export async function linkInvestorToProject(projectId: string, formData: FormDat
     project_id: projectId,
     investor_id: investorId,
     user_id: user.id,
-    status: 'kontaktiert',
+    status: 'verknuepft',
   })
 
   if (error && error.code !== '23505') throw new Error(error.message)
