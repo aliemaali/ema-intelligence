@@ -1,9 +1,5 @@
 /**
  * EMA Intelligence – KI-Projektanalyse V1 (regelbasiert)
- *
- * Pure function ohne Seiteneffekte. Nutzt die bestehende calculateMatchScore()
- * aus lib/utils für die Investoren-Eignung wieder, statt eine zweite
- * Matching-Logik zu erfinden (Single Source of Truth bleibt erhalten).
  */
 
 import { calculateMatchScore } from '@/lib/utils'
@@ -11,16 +7,20 @@ import { DOCUMENT_TYPE_LABELS } from '@/lib/types/constants'
 import type { DocumentType } from '@/lib/types/database.types'
 import type {
   AnalysisSourceData, GeneratedAnalysis, RiskItem,
-  MissingDocument, InvestorFit, MarketingRecommendation,
+  MissingDocument, InvestorFit, MarketingRecommendation, AnalysisDocumentType,
 } from '@/lib/types/analysis.types'
 
-const DEFAULT_REQUIRED_DOCUMENT_TYPES: DocumentType[] = [
+const DEFAULT_REQUIRED_DOCUMENT_TYPES: AnalysisDocumentType[] = [
   'expose', 'lageplan', 'netzanschluss', 'pachtvertrag', 'genehmigung',
 ]
 
-const ROOF_REQUIRED_DOCUMENT_TYPES: DocumentType[] = [
+const ROOF_REQUIRED_DOCUMENT_TYPES: AnalysisDocumentType[] = [
   'expose', 'pvsol', 'netzanschluss', 'pachtvertrag',
 ]
+
+function documentLabel(type: AnalysisDocumentType): string {
+  return type === 'pvsol' ? 'PV-Sol' : DOCUMENT_TYPE_LABELS[type as DocumentType]
+}
 
 export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAnalysis {
   const { project, deal, documents, linkedInvestors } = source
@@ -29,7 +29,6 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     ? ROOF_REQUIRED_DOCUMENT_TYPES
     : DEFAULT_REQUIRED_DOCUMENT_TYPES
 
-  // ── 1. Entwicklungsstand-Bewertung ───────────────────────────────────────
   const relevantDevStatus = isRoofProject
     ? {
         netzanschluss: project.dev_status.netzanschluss,
@@ -40,9 +39,9 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
 
   const devValues = Object.values(relevantDevStatus)
   const completed = devValues.filter((v) => v === true).length
-  const failed    = devValues.filter((v) => v === false).length
-  const open      = devValues.filter((v) => v === null).length
-  const total     = devValues.length
+  const failed = devValues.filter((v) => v === false).length
+  const open = devValues.filter((v) => v === null).length
+  const total = devValues.length
 
   const devStatusScore = {
     completed,
@@ -52,13 +51,11 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     percent: total > 0 ? Math.round((completed / total) * 100) : 0,
   }
 
-  // ── 2. Fehlende Unterlagen ────────────────────────────────────────────────
-  const presentDocTypes = new Set(documents.map((d) => d.document_type))
+  const presentDocTypes = new Set<string>(documents.map((d) => d.document_type))
   const missingDocuments: MissingDocument[] = requiredDocumentTypes
     .filter((type) => !presentDocTypes.has(type))
-    .map((type) => ({ type, label: DOCUMENT_TYPE_LABELS[type] }))
+    .map((type) => ({ type, label: documentLabel(type) }))
 
-  // ── 3. Risikoanalyse ──────────────────────────────────────────────────────
   const risks: RiskItem[] = []
 
   if (project.dev_status.netzanschluss === false) {
@@ -148,7 +145,6 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     }
   }
 
-  // ── 4. Investoren-Eignung ─────────────────────────────────────────────────
   const investorFit: InvestorFit[] = linkedInvestors.map((inv) => {
     const score = calculateMatchScore(
       inv.size_preferences,
@@ -177,8 +173,6 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
   })
 
   const hasNoLinkedInvestors = linkedInvestors.length === 0
-
-  // ── 5. Vermarktungsempfehlung ─────────────────────────────────────────────
   const highRisks = risks.filter((r) => r.severity === 'hoch').length
 
   let marketingRecommendation: MarketingRecommendation
@@ -208,7 +202,6 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     )
   }
 
-  // ── Gesamtscore ───────────────────────────────────────────────────────────
   const docCompleteness = requiredDocumentTypes.length > 0
     ? Math.round(((requiredDocumentTypes.length - missingDocuments.length) / requiredDocumentTypes.length) * 100)
     : 100
