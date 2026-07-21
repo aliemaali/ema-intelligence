@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/useAuth'
+import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
 import '@/styles/globals.css'
 
 const inter = Inter({
@@ -22,7 +23,6 @@ export const metadata: Metadata = {
     icon:  '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
-  // PWA metadata
   appleWebApp: {
     capable:       true,
     statusBarStyle:'black-translucent',
@@ -39,7 +39,7 @@ export const viewport: Viewport = {
     { media: '(prefers-color-scheme: light)', color: '#5CB800' },
     { media: '(prefers-color-scheme: dark)', color: '#0F1623' },
   ],
-  viewportFit: 'cover', // iPhone notch support
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -58,8 +58,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             {children}
-
-            {/* Global toast notifications */}
+            <DashboardCalendarShortcut />
             <Toaster
               position="top-center"
               toastOptions={{

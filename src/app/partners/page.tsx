@@ -25,6 +25,8 @@ const emptyForm = {
   notes: '',
 }
 
+const fieldClass = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#07142F] shadow-sm outline-none transition placeholder:text-slate-400 focus:border-[#5CB800] focus:ring-4 focus:ring-[#5CB800]/10'
+
 export default function PartnersPage() {
   const supabase = createClient()
   const [partners, setPartners] = useState<Partner[]>([])
@@ -127,8 +129,8 @@ export default function PartnersPage() {
         </div>
 
         {showForm && (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-            <div className="mb-5 flex items-center justify-between gap-3">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+            <div className="mb-6 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-extrabold text-[#07142F]">Neuer Partner</h2>
                 <p className="text-sm text-muted-foreground">Kontaktdaten und Partnerart erfassen</p>
@@ -136,27 +138,47 @@ export default function PartnersPage() {
               <button className="btn-secondary" onClick={() => setShowForm(false)}>Abbrechen</button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <input className="input" placeholder="Firmenname" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
-              <input className="input" placeholder="Ansprechpartner" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
-              <input className="input" type="email" placeholder="E-Mail" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <input className="input" placeholder="Telefon" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <select className="input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
-              </select>
-              <textarea className="input min-h-24" placeholder="Notizen" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm font-bold text-[#1F2A44]">Firmenname *</span>
+                <input className={fieldClass} placeholder="z. B. Sonnen-Fix GmbH" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-bold text-[#1F2A44]">Ansprechpartner</span>
+                <input className={fieldClass} placeholder="Vor- und Nachname" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-bold text-[#1F2A44]">E-Mail</span>
+                <input className={fieldClass} type="email" placeholder="name@unternehmen.de" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-bold text-[#1F2A44]">Telefon</span>
+                <input className={fieldClass} placeholder="+49 …" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </label>
+              <label className="space-y-2 md:max-w-md">
+                <span className="text-sm font-bold text-[#1F2A44]">Partnerart</span>
+                <select className={fieldClass} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                  {CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                </select>
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-bold text-[#1F2A44]">Notizen</span>
+                <textarea className={`${fieldClass} min-h-28 resize-y`} placeholder="Zusätzliche Informationen zum Partner" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+              </label>
             </div>
 
-            <button className="btn-primary mt-5" disabled={saving} onClick={savePartner}>
-              {saving ? 'Wird gespeichert …' : 'Partner speichern'}
-            </button>
+            <div className="mt-6 flex justify-end">
+              <button className="btn-primary min-w-44" disabled={saving} onClick={savePartner}>
+                {saving ? 'Wird gespeichert …' : 'Partner speichern'}
+              </button>
+            </div>
           </div>
         )}
 
         <div className="mt-6 flex items-center rounded-2xl border border-slate-200 bg-white px-4 shadow-sm">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
-            className="w-full bg-transparent px-3 py-3 text-sm outline-none"
+            className="w-full bg-transparent px-3 py-3 text-sm text-[#07142F] outline-none placeholder:text-slate-400"
             placeholder="Firma, Ansprechpartner, E-Mail oder Partnerart suchen …"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
