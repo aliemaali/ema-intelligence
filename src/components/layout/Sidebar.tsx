@@ -26,7 +26,7 @@ export function Sidebar({ user }: SidebarProps) {
   const acquisitionActive = isActive('/acquisition')
   const agentActive = isActive('/ai-agent')
   const submissionsActive = isActive('/partner-submissions')
-  const primaryItems = NAV_ITEMS.filter((item) => item.href !== '/tasks')
+  const primaryItems = NAV_ITEMS.filter((item) => !['/tasks', '/data-sources'].includes(item.href))
 
   return (
     <aside className="app-sidebar">
