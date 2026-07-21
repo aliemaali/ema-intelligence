@@ -23,13 +23,25 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [{ data: project }, { data: links }, { data: allInvestors }] = await Promise.all([
+  const [
+    { data: project },
+    { data: activeDeal },
+    { data: links },
+    { data: allInvestors },
+  ] = await Promise.all([
     supabase
       .from('projects')
       .select('*')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single(),
+    supabase
+      .from('deals')
+      .select('purchase_price, sales_price, updated_at')
+      .eq('project_id', params.id)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .maybeSingle(),
     supabase
       .from('project_investors')
       .select(`
@@ -57,13 +69,14 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const linkAction = linkInvestorToProject.bind(null, params.id)
 
   const pvKwp = Number((project as any).pv_mwp ?? 0)
-  const purchasePrice = Number((project as any).deal_purchase_price ?? 0)
+  const purchasePrice = Number(activeDeal?.purchase_price ?? 0)
   const specificYield = Number((project as any).specific_yield_kwh_kwp ?? 0)
   const tariffRaw = Number((project as any).feed_in_tariff_ct_kwh ?? 0)
   const tariffEurKwh = tariffRaw > 1 ? tariffRaw / 100 : tariffRaw
-  const annualRevenue = pvKwp > 0 && specificYield > 0 && tariffEurKwh > 0
-    ? pvKwp * specificYield * tariffEurKwh
-    : 0
+  const storedAnnualYield = Number((project as any).annual_yield_kwh ?? 0)
+  const calculatedAnnualYield = pvKwp > 0 && specificYield > 0 ? pvKwp * specificYield : 0
+  const annualYield = storedAnnualYield > 0 ? storedAnnualYield : calculatedAnnualYield
+  const annualRevenue = annualYield > 0 && tariffEurKwh > 0 ? annualYield * tariffEurKwh : 0
   const amortisation = purchasePrice > 0 && annualRevenue > 0 ? purchasePrice / annualRevenue : 0
   const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || 'Deutschland'
 
