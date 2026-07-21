@@ -10,7 +10,9 @@ export function DashboardCalendarShortcut() {
   useEffect(() => {
     if (pathname !== '/dashboard') return
 
-    const button = document.querySelector<HTMLButtonElement>('.mobile-header-action')
+    // The dashboard renders its own desktop header. Restrict the lookup to
+    // button elements so a global/mobile header link cannot be selected first.
+    const button = document.querySelector<HTMLButtonElement>('button.mobile-header-action')
     if (!button) return
 
     button.title = 'Kalender öffnen'
