@@ -1,9 +1,5 @@
 /**
  * EMA Intelligence – KI-Projektanalyse V1 (regelbasiert)
- *
- * Pure function ohne Seiteneffekte. Nutzt die bestehende calculateMatchScore()
- * aus lib/utils für die Investoren-Eignung wieder, statt eine zweite
- * Matching-Logik zu erfinden (Single Source of Truth bleibt erhalten).
  */
 
 import { calculateMatchScore } from '@/lib/utils'
@@ -11,25 +7,41 @@ import { DOCUMENT_TYPE_LABELS } from '@/lib/types/constants'
 import type { DocumentType } from '@/lib/types/database.types'
 import type {
   AnalysisSourceData, GeneratedAnalysis, RiskItem,
-  MissingDocument, InvestorFit, MarketingRecommendation,
+  MissingDocument, InvestorFit, MarketingRecommendation, AnalysisDocumentType,
 } from '@/lib/types/analysis.types'
 
-// Dokumentkategorien, die für eine seriöse Vermarktung als Mindeststandard
-// gelten. Bewusst eine kuratierte Teilmenge (nicht alle 11 Typen aus dem
-// Schema), da z. B. "Sonstiges" oder "Bild" kein Pflichtdokument ist.
-const REQUIRED_DOCUMENT_TYPES: DocumentType[] = [
+const DEFAULT_REQUIRED_DOCUMENT_TYPES: AnalysisDocumentType[] = [
   'expose', 'lageplan', 'netzanschluss', 'pachtvertrag', 'genehmigung',
 ]
 
+const ROOF_REQUIRED_DOCUMENT_TYPES: AnalysisDocumentType[] = [
+  'expose', 'pvsol', 'netzanschluss', 'pachtvertrag',
+]
+
+function documentLabel(type: AnalysisDocumentType): string {
+  return type === 'pvsol' ? 'PV-Sol' : DOCUMENT_TYPE_LABELS[type as DocumentType]
+}
+
 export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAnalysis {
   const { project, deal, documents, linkedInvestors } = source
+  const isRoofProject = project.project_type === 'pv_dach'
+  const requiredDocumentTypes = isRoofProject
+    ? ROOF_REQUIRED_DOCUMENT_TYPES
+    : DEFAULT_REQUIRED_DOCUMENT_TYPES
 
-  // ── 1. Entwicklungsstand-Bewertung ───────────────────────────────────────
-  const devValues = Object.values(project.dev_status)
+  const relevantDevStatus = isRoofProject
+    ? {
+        netzanschluss: project.dev_status.netzanschluss,
+        pachtvertrag: project.dev_status.pachtvertrag,
+        eeg_faehigkeit: project.dev_status.eeg_faehigkeit,
+      }
+    : project.dev_status
+
+  const devValues = Object.values(relevantDevStatus)
   const completed = devValues.filter((v) => v === true).length
-  const failed    = devValues.filter((v) => v === false).length
-  const open      = devValues.filter((v) => v === null).length
-  const total     = devValues.length
+  const failed = devValues.filter((v) => v === false).length
+  const open = devValues.filter((v) => v === null).length
+  const total = devValues.length
 
   const devStatusScore = {
     completed,
@@ -39,15 +51,11 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     percent: total > 0 ? Math.round((completed / total) * 100) : 0,
   }
 
-  // ── 2. Fehlende Unterlagen ────────────────────────────────────────────────
-  const presentDocTypes = new Set(documents.map((d) => d.document_type))
-  const missingDocuments: MissingDocument[] = REQUIRED_DOCUMENT_TYPES
+  const presentDocTypes = new Set<string>(documents.map((d) => d.document_type))
+  const missingDocuments: MissingDocument[] = requiredDocumentTypes
     .filter((type) => !presentDocTypes.has(type))
-    .map((type) => ({ type, label: DOCUMENT_TYPE_LABELS[type] }))
+    .map((type) => ({ type, label: documentLabel(type) }))
 
-  // ── 3. Risikoanalyse ──────────────────────────────────────────────────────
-  // Jeder Risikoeintrag ist 1:1 aus einem konkreten Datenfeld abgeleitet –
-  // keine spekulativen Markteinschätzungen.
   const risks: RiskItem[] = []
 
   if (project.dev_status.netzanschluss === false) {
@@ -64,18 +72,20 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     })
   }
 
-  if (project.dev_status.baugenehmigung === false) {
-    risks.push({
-      severity: 'hoch',
-      title: 'Baugenehmigung steht aus',
-      description: 'Eine fehlende Baugenehmigung verzögert typischerweise den gesamten Projektzeitplan.',
-    })
-  } else if (project.dev_status.baugenehmigung === null) {
-    risks.push({
-      severity: 'mittel',
-      title: 'Baugenehmigungsstatus unbekannt',
-      description: 'Der Status der Baugenehmigung ist im System nicht erfasst.',
-    })
+  if (!isRoofProject) {
+    if (project.dev_status.baugenehmigung === false) {
+      risks.push({
+        severity: 'hoch',
+        title: 'Baugenehmigung steht aus',
+        description: 'Eine fehlende Baugenehmigung verzögert typischerweise den gesamten Projektzeitplan.',
+      })
+    } else if (project.dev_status.baugenehmigung === null) {
+      risks.push({
+        severity: 'mittel',
+        title: 'Baugenehmigungsstatus unbekannt',
+        description: 'Der Status der Baugenehmigung ist im System nicht erfasst.',
+      })
+    }
   }
 
   if (project.dev_status.pachtvertrag === false) {
@@ -103,7 +113,7 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
   if (missingDocuments.length > 0) {
     risks.push({
       severity: missingDocuments.length >= 3 ? 'hoch' : 'mittel',
-      title: `${missingDocuments.length} von ${REQUIRED_DOCUMENT_TYPES.length} Kerndokumenten fehlen`,
+      title: `${missingDocuments.length} von ${requiredDocumentTypes.length} Kerndokumenten fehlen`,
       description: `Fehlende Dokumente: ${missingDocuments.map((d) => d.label).join(', ')}.`,
     })
   }
@@ -122,7 +132,6 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     })
   }
 
-  // Inaktivität: keine Aktivität seit über 30 Tagen
   if (project.last_activity_at) {
     const daysSinceActivity = Math.floor(
       (Date.now() - new Date(project.last_activity_at).getTime()) / (1000 * 60 * 60 * 24)
@@ -136,17 +145,14 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     }
   }
 
-  // ── 4. Investoren-Eignung ─────────────────────────────────────────────────
-  // Nutzt die bestehende calculateMatchScore()-Funktion – keine zweite,
-  // abweichende Matching-Logik.
   const investorFit: InvestorFit[] = linkedInvestors.map((inv) => {
     const score = calculateMatchScore(
       inv.size_preferences,
       {
-        pv:     inv.interest_pv,
-        bess:   inv.interest_bess,
+        pv: inv.interest_pv,
+        bess: inv.interest_bess,
         hybrid: inv.interest_hybrid,
-        wind:   false, // wind-Interesse wird in project_investors-Kontext nicht mitgeführt
+        wind: false,
       },
       project.project_type,
       project.pv_mwp,
@@ -155,21 +161,18 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
 
     const reasoning: string[] = []
     if (score >= 50) reasoning.push('Projekttyp entspricht dem Investoreninteresse.')
-    if (score < 50)  reasoning.push('Projekttyp entspricht nicht dem hinterlegten Investoreninteresse.')
+    if (score < 50) reasoning.push('Projekttyp entspricht nicht dem hinterlegten Investoreninteresse.')
     if (inv.size_preferences.length === 0) reasoning.push('Keine Größenpräferenz hinterlegt.')
 
     return {
       investorId: inv.investor_id,
-      name:       inv.company ?? inv.full_name,
+      name: inv.company ?? inv.full_name,
       matchScore: score,
       reasoning,
     }
   })
 
   const hasNoLinkedInvestors = linkedInvestors.length === 0
-
-  // ── 5. Vermarktungsempfehlung ─────────────────────────────────────────────
-  // Deterministisch aus den vorherigen Bewertungen abgeleitet.
   const highRisks = risks.filter((r) => r.severity === 'hoch').length
 
   let marketingRecommendation: MarketingRecommendation
@@ -199,10 +202,8 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
     )
   }
 
-  // ── Gesamtscore ───────────────────────────────────────────────────────────
-  // Gewichtung: 50% Entwicklungsstand, 30% Dokumentenvollständigkeit, 20% Risiken.
-  const docCompleteness = REQUIRED_DOCUMENT_TYPES.length > 0
-    ? Math.round(((REQUIRED_DOCUMENT_TYPES.length - missingDocuments.length) / REQUIRED_DOCUMENT_TYPES.length) * 100)
+  const docCompleteness = requiredDocumentTypes.length > 0
+    ? Math.round(((requiredDocumentTypes.length - missingDocuments.length) / requiredDocumentTypes.length) * 100)
     : 100
 
   const riskPenalty = Math.min(100, highRisks * 20 + risks.filter((r) => r.severity === 'mittel').length * 10)
@@ -215,9 +216,9 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
   )
 
   return {
-    projectId:     project.id,
+    projectId: project.id,
     projectNumber: project.project_number,
-    analyzedAt:    new Date().toISOString(),
+    analyzedAt: new Date().toISOString(),
     devStatusScore,
     missingDocuments,
     risks,

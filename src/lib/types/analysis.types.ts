@@ -16,8 +16,6 @@ import type {
   ProjectType, ProjectStatus, DevStatus, DocumentType,
 } from '@/lib/types/database.types'
 
-// ── Eingabedaten ──────────────────────────────────────────────────────────────
-
 export interface AnalysisSourceData {
   project: {
     id:               string
@@ -55,8 +53,6 @@ export interface AnalysisSourceData {
   }>
 }
 
-// ── Bewertungs-Bausteine ───────────────────────────────────────────────────────
-
 export type RiskSeverity = 'hoch' | 'mittel' | 'niedrig'
 
 export interface RiskItem {
@@ -65,15 +61,17 @@ export interface RiskItem {
   description: string
 }
 
+export type AnalysisDocumentType = DocumentType | 'pvsol'
+
 export interface MissingDocument {
-  type:  DocumentType
+  type:  AnalysisDocumentType
   label: string
 }
 
 export interface InvestorFit {
   investorId:   string
   name:         string
-  matchScore:   number   // 0–100, via bestehende calculateMatchScore()-Logik
+  matchScore:   number
   reasoning:    string[]
 }
 
@@ -87,31 +85,19 @@ export interface GeneratedAnalysis {
   projectId:     string
   projectNumber: string
   analyzedAt:    string
-
-  // 1. Entwicklungsstand-Bewertung
   devStatusScore: {
-    completed:  number   // Anzahl erfüllter Kriterien
-    total:      number   // Anzahl Kriterien gesamt (6)
-    open:       number   // Anzahl nicht erfasster Kriterien
-    failed:     number   // Anzahl explizit nicht erfüllter Kriterien
+    completed:  number
+    total:      number
+    open:       number
+    failed:     number
     percent:    number
   }
-
-  // 2. Fehlende Unterlagen
   missingDocuments: MissingDocument[]
-
-  // 3. Risikoanalyse
   risks: RiskItem[]
-
-  // 4. Investoren-Eignung
   investorFit: InvestorFit[]
   hasNoLinkedInvestors: boolean
-
-  // 5. Vermarktungsempfehlung
   marketingRecommendation: MarketingRecommendation
   marketingReasoning:      string[]
-
-  // Gesamtscore (0–100), wird zusätzlich in projects.ai_score gespiegelt
   overallScore: number
 }
 
