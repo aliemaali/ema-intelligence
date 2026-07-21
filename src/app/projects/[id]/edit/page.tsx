@@ -6,6 +6,7 @@ import { getProject } from '@/lib/actions/project.actions'
 import { ProjectForm } from '@/components/projects/ProjectForm'
 import { VerifiedProjectValuesForm } from '@/components/projects/VerifiedProjectValuesForm'
 import { RoofDevelopmentStatusFilter } from '@/components/projects/RoofDevelopmentStatusFilter'
+import { CityStateAutoFill } from '@/components/projects/CityStateAutoFill'
 
 export const metadata = { title: 'Projekt bearbeiten' }
 
@@ -46,6 +47,7 @@ export default async function EditProjectPage({ params }: EditPageProps) {
       </div>
 
       <RoofDevelopmentStatusFilter projectType={(project as any).project_type} />
+      <CityStateAutoFill />
       <ProjectForm mode="edit" project={project as never} partners={(partners ?? []) as any} />
       <VerifiedProjectValuesForm project={project as any} />
     </div>
