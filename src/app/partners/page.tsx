@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 
 type Partner = {
   id: string
-  company_name: string
-  contact_name: string | null
+  company: string | null
+  full_name: string
   email: string | null
   phone: string | null
   category: string
@@ -17,8 +17,8 @@ type Partner = {
 const CATEGORIES = ['Vertriebspartner', 'EPC', 'Projektentwickler', 'Sonstige']
 
 const emptyForm = {
-  company_name: '',
-  contact_name: '',
+  company: '',
+  full_name: '',
   email: '',
   phone: '',
   category: 'Vertriebspartner',
@@ -36,10 +36,16 @@ export default function PartnersPage() {
   const [saving, setSaving] = useState(false)
 
   async function loadPartners() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('partners')
-      .select('*')
+      .select('id, company, full_name, email, phone, category, notes')
       .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Partner konnten nicht geladen werden:', error.message)
+      setPartners([])
+      return
+    }
 
     setPartners((data ?? []) as Partner[])
   }
@@ -52,7 +58,7 @@ export default function PartnersPage() {
     const query = search.trim().toLowerCase()
     if (!query) return partners
     return partners.filter((partner) =>
-      [partner.company_name, partner.contact_name, partner.email, partner.category]
+      [partner.company, partner.full_name, partner.email, partner.category]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query)),
     )
@@ -70,16 +76,21 @@ export default function PartnersPage() {
       return
     }
 
-    if (!form.company_name.trim()) {
+    if (!form.company.trim()) {
       alert('Firmenname fehlt')
+      return
+    }
+
+    if (!form.full_name.trim()) {
+      alert('Ansprechpartner fehlt')
       return
     }
 
     setSaving(true)
     const { error } = await supabase.from('partners').insert({
       user_id: user.id,
-      company_name: form.company_name.trim(),
-      contact_name: form.contact_name.trim() || null,
+      company: form.company.trim(),
+      full_name: form.full_name.trim(),
       email: form.email.trim() || null,
       phone: form.phone.trim() || null,
       category: form.category,
@@ -94,7 +105,7 @@ export default function PartnersPage() {
 
     setForm(emptyForm)
     setShowForm(false)
-    loadPartners()
+    await loadPartners()
   }
 
   return (
@@ -141,11 +152,11 @@ export default function PartnersPage() {
             <div className="grid gap-5 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-sm font-bold text-[#1F2A44]">Firmenname *</span>
-                <input className={fieldClass} placeholder="z. B. Sonnen-Fix GmbH" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+                <input className={fieldClass} placeholder="z. B. Sonnen-Fix GmbH" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
               </label>
               <label className="space-y-2">
-                <span className="text-sm font-bold text-[#1F2A44]">Ansprechpartner</span>
-                <input className={fieldClass} placeholder="Vor- und Nachname" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
+                <span className="text-sm font-bold text-[#1F2A44]">Ansprechpartner *</span>
+                <input className={fieldClass} placeholder="Vor- und Nachname" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
               </label>
               <label className="space-y-2">
                 <span className="text-sm font-bold text-[#1F2A44]">E-Mail</span>
@@ -202,14 +213,14 @@ export default function PartnersPage() {
                       <Building2 className="h-5 w-5" />
                     </span>
                     <div className="min-w-0">
-                      <h2 className="truncate font-extrabold text-[#07142F]">{partner.company_name}</h2>
+                      <h2 className="truncate font-extrabold text-[#07142F]">{partner.company || partner.full_name}</h2>
                       <span className="mt-1 inline-flex rounded-full bg-[#5CB800]/10 px-2.5 py-1 text-[10px] font-extrabold text-[#2F8A00]">{partner.category}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-5 space-y-2 text-sm text-slate-600">
-                  {partner.contact_name && <p className="flex items-center gap-2"><UserRound className="h-4 w-4" />{partner.contact_name}</p>}
+                  {partner.full_name && <p className="flex items-center gap-2"><UserRound className="h-4 w-4" />{partner.full_name}</p>}
                   {partner.email && <a className="flex items-center gap-2 hover:text-[#2F8A00]" href={`mailto:${partner.email}`}><Mail className="h-4 w-4" />{partner.email}</a>}
                   {partner.phone && <a className="flex items-center gap-2 hover:text-[#2F8A00]" href={`tel:${partner.phone}`}><Phone className="h-4 w-4" />{partner.phone}</a>}
                 </div>
