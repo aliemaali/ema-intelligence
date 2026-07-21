@@ -32,10 +32,9 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
 
   const devItems = project.project_type === 'pv_dach'
     ? [
-        { key: 'expose', label: 'Exposé', value: status.expose ?? null },
-        { key: 'pv_sol', label: 'PV-Sol', value: status.pv_sol ?? null },
         { key: 'netzanschluss', label: 'Netzanschluss', value: status.netzanschluss ?? null },
         { key: 'pachtvertrag', label: 'Pachtvertrag', value: status.pachtvertrag ?? null },
+        { key: 'eeg_faehigkeit', label: 'EEG-Fähigkeit', value: status.eeg_faehigkeit ?? null },
       ]
     : [
         { key: 'netzanschluss', label: 'Netzanschluss', value: status.netzanschluss ?? null },
