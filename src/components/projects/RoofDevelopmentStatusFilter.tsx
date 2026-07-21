@@ -8,27 +8,28 @@ export function RoofDevelopmentStatusFilter({ projectType }: { projectType: stri
   useEffect(() => {
     if (projectType !== 'pv_dach') return
 
-    const form = document.querySelector('form')
-    if (!form) return
-
     const applyFilter = () => {
-      const headings = Array.from(form.querySelectorAll('p')).filter((node) => node.textContent?.trim() === 'Entwicklungsstand')
-      const section = headings[0]?.parentElement
-      if (!section) return
+      const forms = Array.from(document.querySelectorAll('form'))
+      forms.forEach((form) => {
+        Array.from(form.querySelectorAll('span')).forEach((labelNode) => {
+          const label = labelNode.textContent?.trim()
+          if (!label || !HIDDEN_ROOF_LABELS.has(label)) return
 
-      Array.from(section.children).forEach((row) => {
-        const label = row.querySelector('span')?.textContent?.trim()
-        if (!label || !HIDDEN_ROOF_LABELS.has(label)) return
-        ;(row as HTMLElement).style.display = 'none'
-        row.querySelectorAll<HTMLInputElement>('input').forEach((input) => {
-          input.disabled = true
+          const row = labelNode.closest('div.flex.items-center.justify-between') as HTMLElement | null
+          if (!row) return
+
+          row.style.display = 'none'
+          row.querySelectorAll<HTMLInputElement | HTMLButtonElement>('input, button').forEach((control) => {
+            control.disabled = true
+          })
         })
       })
     }
 
     applyFilter()
-    const timer = window.setTimeout(applyFilter, 100)
-    return () => window.clearTimeout(timer)
+    const observer = new MutationObserver(applyFilter)
+    observer.observe(document.body, { childList: true, subtree: true })
+    return () => observer.disconnect()
   }, [projectType])
 
   return null
