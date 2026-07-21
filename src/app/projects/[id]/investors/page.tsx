@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { EmptyState } from '@/components/ui'
@@ -47,7 +48,7 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const linkAction = linkInvestorToProject.bind(null, params.id)
 
   const STATUS_LABELS: Record<string, string> = {
-    kontaktiert: 'Kontaktiert',
+    kontaktiert: 'Verknüpft',
     interesse: 'Interesse',
     dd: 'DD',
     loi: 'LOI',
@@ -113,7 +114,8 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
             } | null
             if (!investor) return null
 
-            const exposeUrl = `https://app.ema-enterprise.de/expose/${project.id}`
+            const exposePath = `/expose/${project.id}`
+            const exposeUrl = `https://app.ema-enterprise.de${exposePath}`
             const subject = encodeURIComponent(`Projekt-Exposé ${project.project_number} – ${project.project_name}`)
             const body = encodeURIComponent(
               `Sehr geehrte Damen und Herren,\n\n` +
@@ -138,7 +140,7 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
                 </div>
 
                 <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                  <a href={exposeUrl} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">Exposé öffnen</a>
+                  <Link href={exposePath} className="btn-secondary btn-sm">Exposé öffnen</Link>
                   {mailto ? (
                     <a href={mailto} className="btn-primary btn-sm">Exposé per Outlook senden</a>
                   ) : (
