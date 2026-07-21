@@ -3,9 +3,19 @@ import { createClient } from '@/lib/supabase/server'
 import { EmptyState } from '@/components/ui'
 import { formatDate } from '@/lib/utils'
 import { linkInvestorToProject } from '@/lib/actions/project-investor.actions'
+import { InvestorExposeShareActions } from '@/components/projects/InvestorExposeShareActions'
 
 interface InvestorsTabProps {
   params: { id: string }
+}
+
+function projectTypeLabel(type?: string | null) {
+  if (type === 'pv_dach') return 'PV-Dachprojekt'
+  if (type === 'pv_freiflaeche') return 'PV-Freiflächenanlage'
+  if (type === 'bess') return 'Batteriespeicherprojekt'
+  if (type === 'hybrid') return 'Hybridprojekt'
+  if (type === 'wind') return 'Windprojekt'
+  return 'Energieprojekt'
 }
 
 export default async function InvestorsTab({ params }: InvestorsTabProps) {
@@ -16,7 +26,7 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const [{ data: project }, { data: links }, { data: allInvestors }] = await Promise.all([
     supabase
       .from('projects')
-      .select('id, project_name, project_number')
+      .select('*')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single(),
@@ -46,8 +56,34 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const availableInvestors = (allInvestors ?? []).filter((investor: any) => !linkedInvestorIds.has(investor.id))
   const linkAction = linkInvestorToProject.bind(null, params.id)
 
+  const pvKwp = Number((project as any).pv_mwp ?? 0)
+  const purchasePrice = Number((project as any).deal_purchase_price ?? 0)
+  const specificYield = Number((project as any).specific_yield_kwh_kwp ?? 0)
+  const tariffRaw = Number((project as any).feed_in_tariff_ct_kwh ?? 0)
+  const tariffEurKwh = tariffRaw > 1 ? tariffRaw / 100 : tariffRaw
+  const annualRevenue = pvKwp > 0 && specificYield > 0 && tariffEurKwh > 0
+    ? pvKwp * specificYield * tariffEurKwh
+    : 0
+  const amortisation = purchasePrice > 0 && annualRevenue > 0 ? purchasePrice / annualRevenue : 0
+  const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || 'Deutschland'
+
+  const pdfData = {
+    projectName: project.project_name || 'Projekt',
+    projectNumber: project.project_number || '—',
+    projectType: projectTypeLabel((project as any).project_type),
+    location,
+    dateLabel: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date()),
+    status: (project as any).status || 'Projektstatus offen',
+    pvKwp: Number.isFinite(pvKwp) ? pvKwp : 0,
+    purchasePrice: Number.isFinite(purchasePrice) ? purchasePrice : 0,
+    specificYield: Number.isFinite(specificYield) ? specificYield : 0,
+    tariffEurKwh: Number.isFinite(tariffEurKwh) ? tariffEurKwh : 0,
+    annualRevenue: Number.isFinite(annualRevenue) ? annualRevenue : 0,
+    amortisation: Number.isFinite(amortisation) ? amortisation : 0,
+  }
+
   const STATUS_LABELS: Record<string, string> = {
-    kontaktiert: 'Kontaktiert',
+    kontaktiert: 'Verknüpft',
     interesse: 'Interesse',
     dd: 'DD',
     loi: 'LOI',
@@ -113,17 +149,6 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
             } | null
             if (!investor) return null
 
-            const exposeUrl = `https://app.ema-enterprise.de/expose/${project.id}`
-            const subject = encodeURIComponent(`Projekt-Exposé ${project.project_number} – ${project.project_name}`)
-            const body = encodeURIComponent(
-              `Sehr geehrte Damen und Herren,\n\n` +
-              `anbei erhalten Sie das aktuelle Exposé zum Projekt ${project.project_name} (${project.project_number}).\n\n` +
-              `Exposé öffnen: ${exposeUrl}\n\n` +
-              `Für Rückfragen stehen wir Ihnen gerne zur Verfügung.\n\n` +
-              `Mit freundlichen Grüßen\nEMA Enterprise GmbH`,
-            )
-            const mailto = investor.email ? `mailto:${investor.email}?subject=${subject}&body=${body}` : null
-
             return (
               <div key={link.id} className="card-padded">
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -137,14 +162,11 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-                  <a href={exposeUrl} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">Exposé öffnen</a>
-                  {mailto ? (
-                    <a href={mailto} className="btn-primary btn-sm">Exposé per Outlook senden</a>
-                  ) : (
-                    <span className="text-xs text-muted-foreground self-center">Keine E-Mail-Adresse hinterlegt</span>
-                  )}
-                </div>
+                <InvestorExposeShareActions
+                  projectId={project.id}
+                  investorEmail={investor.email}
+                  data={pdfData}
+                />
 
                 <div className="mt-3 flex gap-4 text-xs text-muted-foreground flex-wrap">
                   {link.teaser_sent_at && <span>📤 Teaser: {formatDate(link.teaser_sent_at)}</span>}
