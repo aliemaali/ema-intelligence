@@ -1,15 +1,16 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
-export async function linkInvestorToProject(projectId: string, formData: FormData) {
+export async function linkInvestorToProject(projectId: string, formData: FormData): Promise<void> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'Nicht angemeldet' }
+  if (!user) redirect('/login')
 
   const investorId = String(formData.get('investor_id') ?? '').trim()
-  if (!investorId) return { error: 'Bitte einen Investor auswählen' }
+  if (!investorId) throw new Error('Bitte einen Investor auswählen')
 
   const { data: project } = await supabase
     .from('projects')
@@ -18,7 +19,7 @@ export async function linkInvestorToProject(projectId: string, formData: FormDat
     .eq('user_id', user.id)
     .single()
 
-  if (!project) return { error: 'Projekt nicht gefunden' }
+  if (!project) throw new Error('Projekt nicht gefunden')
 
   const { data: investor } = await supabase
     .from('investors')
@@ -27,7 +28,7 @@ export async function linkInvestorToProject(projectId: string, formData: FormDat
     .eq('user_id', user.id)
     .single()
 
-  if (!investor) return { error: 'Investor nicht gefunden' }
+  if (!investor) throw new Error('Investor nicht gefunden')
 
   const { error } = await supabase.from('project_investors').insert({
     project_id: projectId,
@@ -36,11 +37,7 @@ export async function linkInvestorToProject(projectId: string, formData: FormDat
     status: 'kontaktiert',
   })
 
-  if (error) {
-    if (error.code === '23505') return { error: 'Dieser Investor ist bereits mit dem Projekt verknüpft' }
-    return { error: error.message }
-  }
+  if (error && error.code !== '23505') throw new Error(error.message)
 
   revalidatePath(`/projects/${projectId}/investors`)
-  return { success: true }
 }
