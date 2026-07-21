@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { ProjectForm } from '@/components/projects/ProjectForm'
+import { VerifiedProjectValuesForm } from '@/components/projects/VerifiedProjectValuesForm'
 
 export const metadata = { title: 'Projekt bearbeiten' }
 
@@ -32,28 +33,19 @@ export default async function EditProjectPage({ params }: EditPageProps) {
     .order('full_name')
 
   return (
-    <div className="page-container max-w-xl">
-
-      <div className="flex items-center gap-3 mb-6">
-        <Link
-          href={`/projects/${params.id}/overview`}
-          className="btn-icon text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="w-5 h-5" />
+    <div className="page-container max-w-2xl">
+      <div className="mb-6 flex items-center gap-3">
+        <Link href={`/projects/${params.id}/overview`} className="btn-icon text-muted-foreground hover:text-foreground">
+          <ChevronLeft className="h-5 w-5" />
         </Link>
         <div>
           <h1 className="page-title">Projekt bearbeiten</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">
-            {(project as any).project_number}
-          </p>
+          <p className="mt-0.5 font-mono text-xs text-muted-foreground">{(project as any).project_number}</p>
         </div>
       </div>
 
-      <ProjectForm
-        mode="edit"
-        project={project as never}
-        partners={(partners ?? []) as any}
-      />
+      <ProjectForm mode="edit" project={project as never} partners={(partners ?? []) as any} />
+      <VerifiedProjectValuesForm project={project as any} />
     </div>
   )
 }
