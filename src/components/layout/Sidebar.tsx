@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
-  Building2, CheckSquare, Sparkles, Settings, Calculator,
+  Building2, Sparkles, Settings, Calculator,
   LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
@@ -16,7 +16,7 @@ interface SidebarProps {
 }
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  LayoutDashboard, FolderOpen, Handshake, Users, Building2, CheckSquare,
+  LayoutDashboard, FolderOpen, Handshake, Users, Building2,
   Sparkles, Settings, Calculator, UploadCloud, Target, Bot,
 }
 
@@ -26,6 +26,7 @@ export function Sidebar({ user }: SidebarProps) {
   const acquisitionActive = isActive('/acquisition')
   const agentActive = isActive('/ai-agent')
   const submissionsActive = isActive('/partner-submissions')
+  const primaryItems = NAV_ITEMS.filter((item) => item.href !== '/tasks')
 
   return (
     <aside className="app-sidebar">
@@ -34,7 +35,7 @@ export function Sidebar({ user }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+        {primaryItems.map((item) => {
           const Icon = ICON_MAP[item.iconName]
           const active = isActive(item.href)
           return (
