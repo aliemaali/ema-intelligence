@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" role="img" aria-labelledby="title desc">
+  <title id="title">Rechenzentrum</title>
+  <desc id="desc">Moderne Rechenzentrumsarchitektur mit digitaler Infrastruktur</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07142F"/>
+      <stop offset="0.55" stop-color="#1F2A44"/>
+      <stop offset="1" stop-color="#35506F"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#DFF3FF" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#6FA9C9" stop-opacity=".45"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bg)"/>
+  <circle cx="1330" cy="120" r="260" fill="#5CB800" opacity=".12"/>
+  <circle cx="1180" cy="610" r="330" fill="#5CB800" opacity=".08"/>
+  <path d="M0 570 C260 500 430 650 690 565 S1110 470 1600 555 V700 H0Z" fill="#0B1934" opacity=".85"/>
+  <g filter="url(#shadow)">
+    <rect x="740" y="145" width="620" height="390" rx="22" fill="#E9EEF4"/>
+    <rect x="790" y="195" width="520" height="235" rx="10" fill="url(#glass)"/>
+    <g stroke="#D4DEE8" stroke-width="5">
+      <path d="M895 195V430M1000 195V430M1105 195V430M1210 195V430"/>
+      <path d="M790 313H1310"/>
+    </g>
+    <rect x="790" y="455" width="520" height="34" rx="8" fill="#CBD6E1"/>
+    <g fill="#5CB800">
+      <circle cx="835" cy="472" r="7"/><circle cx="865" cy="472" r="7"/><circle cx="895" cy="472" r="7"/>
+    </g>
+  </g>
+  <g transform="translate(250 150)" filter="url(#shadow)">
+    <rect width="370" height="390" rx="28" fill="#0C1A35" stroke="#45607B" stroke-width="4"/>
+    <g fill="#172944" stroke="#5C7896" stroke-width="2">
+      <rect x="38" y="38" width="294" height="54" rx="9"/>
+      <rect x="38" y="108" width="294" height="54" rx="9"/>
+      <rect x="38" y="178" width="294" height="54" rx="9"/>
+      <rect x="38" y="248" width="294" height="54" rx="9"/>
+    </g>
+    <g fill="#5CB800">
+      <circle cx="68" cy="65" r="7"/><circle cx="68" cy="135" r="7"/><circle cx="68" cy="205" r="7"/><circle cx="68" cy="275" r="7"/>
+    </g>
+    <g fill="#8DB1C9">
+      <rect x="100" y="58" width="180" height="12" rx="6"/><rect x="100" y="128" width="180" height="12" rx="6"/>
+      <rect x="100" y="198" width="180" height="12" rx="6"/><rect x="100" y="268" width="180" height="12" rx="6"/>
+    </g>
+    <rect x="38" y="330" width="294" height="20" rx="10" fill="#5CB800" opacity=".85"/>
+  </g>
+  <g fill="none" stroke="#88D33E" stroke-width="4" opacity=".55">
+    <path d="M620 340H710M1360 340H1510"/><circle cx="665" cy="340" r="14"/><circle cx="1435" cy="340" r="14"/>
+  </g>
+</svg>
