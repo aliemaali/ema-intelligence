@@ -50,8 +50,6 @@ export function AnalysisClient({ projectId, initialAnalysis }: AnalysisClientPro
 
   return (
     <div className="space-y-4">
-
-      {/* ── Toolbar ────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-foreground">KI-Projektanalyse</h2>
@@ -92,18 +90,6 @@ export function AnalysisClient({ projectId, initialAnalysis }: AnalysisClientPro
         </div>
       </div>
 
-      {/* ── Freigabe-Hinweis ──────────────────────────────────────────────── */}
-      {analysis && analysis.status === 'draft' && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 flex items-start gap-2">
-          <span className="text-amber-600 shrink-0 mt-0.5">⚠️</span>
-          <p className="text-sm text-amber-800">
-            Diese Analyse ist ein <strong>Entwurf</strong> und basiert ausschließlich auf
-            regelbasierter Auswertung der vorhandenen Projektdaten. Bitte prüfen, bevor
-            sie als Entscheidungsgrundlage verwendet wird.
-          </p>
-        </div>
-      )}
-
       {analysis && analysis.status === 'approved' && (
         <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 flex items-start gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -113,7 +99,6 @@ export function AnalysisClient({ projectId, initialAnalysis }: AnalysisClientPro
         </div>
       )}
 
-      {/* ── Inhalt ───────────────────────────────────────────────────────── */}
       {analysis ? (
         <AnalysisPreview analysis={analysis.analysis} />
       ) : (
