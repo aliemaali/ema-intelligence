@@ -51,7 +51,10 @@ export async function GET(request: NextRequest) {
       // The token is still valid even if the optional profile lookup briefly fails.
     }
 
-    await saveMicrosoftConnection(user.id, token.refresh_token, profile)
+    await saveMicrosoftConnection(user.id, token.refresh_token, profile, {
+      accessToken: token.access_token,
+      expiresIn: token.expires_in,
+    })
 
     const response = NextResponse.redirect(new URL('/microsoft?connected=1', request.url))
     response.cookies.set(MICROSOFT_STATE_COOKIE, '', { path: '/', maxAge: 0 })
