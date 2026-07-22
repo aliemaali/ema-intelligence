@@ -4,17 +4,14 @@
  * Wie der Exposé-Generator ist auch dieses Modul in v1 REGELBASIERT
  * (kein Anthropic/OpenAI API-Aufruf). "KI" bezeichnet hier die Kategorie
  * der Funktion innerhalb von EMA Intelligence (ai_outputs-Tabelle, gleicher
- * Freigabe-Workflow), nicht die zugrunde liegende Technik. Eine echte
- * KI-gestützte Formulierungsschicht ist für v1.1 vorgesehen.
- *
- * Jede Bewertung basiert ausschließlich auf vorhandenen Datenbankwerten.
- * Fehlt eine Information, fließt sie als "fehlend" in die Analyse ein,
- * wird aber niemals durch eine Annahme ersetzt.
+ * Freigabe-Workflow), nicht die zugrunde liegende Technik.
  */
 
 import type {
   ProjectType, ProjectStatus, DevStatus, DocumentType,
 } from '@/lib/types/database.types'
+
+export type ProjectDocumentChecklistStatus = 'vorhanden' | 'fehlt' | 'nicht_erforderlich'
 
 export interface AnalysisSourceData {
   project: {
@@ -40,6 +37,12 @@ export interface AnalysisSourceData {
   } | null
   documents: Array<{
     document_type: DocumentType
+    display_name: string | null
+    file_name: string | null
+  }>
+  documentChecklist: Array<{
+    document_type: string
+    status: ProjectDocumentChecklistStatus
   }>
   linkedInvestors: Array<{
     investor_id:      string
