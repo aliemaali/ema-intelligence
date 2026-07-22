@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { Bell, CalendarDays } from 'lucide-react'
+import { Bell } from 'lucide-react'
+import { MicrosoftTeamsIcon } from '@/components/microsoft/MicrosoftTeamsIcon'
 
 export function TopHeader() {
   return (
@@ -16,18 +17,18 @@ export function TopHeader() {
 
       <div className="flex items-center gap-2">
         <Link
-          href="/calendar"
+          href="/microsoft"
           className="mobile-header-action"
-          title="Kalender"
-          aria-label="Kalender öffnen"
+          title="Microsoft 365"
+          aria-label="Outlook-Kontakte, Kalender und Teams öffnen"
         >
-          <CalendarDays className="h-5 w-5" />
+          <MicrosoftTeamsIcon className="h-6 w-6" />
         </Link>
         <Link
           href="/calendar"
           className="mobile-header-action relative"
           title="Benachrichtigungen"
-          aria-label="Benachrichtigungen und Termine öffnen"
+          aria-label="Benachrichtigungen und EMA-Kalender öffnen"
         >
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#5CB800]" />

@@ -10,18 +10,16 @@ export function DashboardCalendarShortcut() {
   useEffect(() => {
     if (pathname !== '/dashboard') return
 
-    // The dashboard renders its own desktop header. Restrict the lookup to
-    // button elements so a global/mobile header link cannot be selected first.
     const button = document.querySelector<HTMLButtonElement>('button.mobile-header-action')
     if (!button) return
 
-    button.title = 'Kalender öffnen'
-    button.setAttribute('aria-label', 'Kalender öffnen')
-    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>'
+    button.title = 'Microsoft 365 öffnen'
+    button.setAttribute('aria-label', 'Outlook-Kontakte, Kalender und Teams öffnen')
+    button.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="2.5" y="6.5" width="11" height="11" rx="2.4" fill="#6264A7"/><path d="M6.2 9.1h5.1v1.7H9.7v4.1H7.8v-4.1H6.2V9.1Z" fill="white"/><circle cx="16.7" cy="6.4" r="2.2" fill="#7B83EB"/><circle cx="20.2" cy="8.1" r="1.6" fill="#9EA2FF"/><path d="M14.7 10.1h4.1c1 0 1.8.8 1.8 1.8v3.7c0 1-.8 1.8-1.8 1.8h-4.1v-7.3Z" fill="#7B83EB"/><path d="M19 11.2h1.9c.9 0 1.6.7 1.6 1.6v2.5c0 .9-.7 1.6-1.6 1.6H19v-5.7Z" fill="#9EA2FF"/></svg>'
 
-    const openCalendar = () => router.push('/calendar')
-    button.addEventListener('click', openCalendar)
-    return () => button.removeEventListener('click', openCalendar)
+    const openMicrosoft = () => router.push('/microsoft')
+    button.addEventListener('click', openMicrosoft)
+    return () => button.removeEventListener('click', openMicrosoft)
   }, [pathname, router])
 
   return null
