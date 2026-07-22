@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import {
   exchangeAuthorizationCode,
+  graphFetch,
   MICROSOFT_STATE_COOKIE,
-  sealRefreshToken,
-  MICROSOFT_REFRESH_COOKIE,
 } from '@/lib/microsoft/graph'
+import { saveMicrosoftConnection } from '@/lib/microsoft/session'
 
 export async function GET(request: NextRequest) {
   const destination = new URL('/microsoft', request.url)
@@ -37,14 +37,23 @@ export async function GET(request: NextRequest) {
     const token = await exchangeAuthorizationCode(code)
     if (!token.refresh_token) throw new Error('Microsoft hat kein Aktualisierungstoken geliefert.')
 
+    let profile: { name?: string; email?: string } = {}
+    try {
+      const account = await graphFetch<{ displayName?: string; mail?: string; userPrincipalName?: string }>(
+        token.access_token,
+        '/me?$select=displayName,mail,userPrincipalName',
+      )
+      profile = {
+        name: account.displayName,
+        email: account.mail || account.userPrincipalName,
+      }
+    } catch {
+      // The token is still valid even if the optional profile lookup briefly fails.
+    }
+
+    await saveMicrosoftConnection(user.id, token.refresh_token, profile)
+
     const response = NextResponse.redirect(new URL('/microsoft?connected=1', request.url))
-    response.cookies.set(MICROSOFT_REFRESH_COOKIE, sealRefreshToken(token.refresh_token), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 90,
-    })
     response.cookies.set(MICROSOFT_STATE_COOKIE, '', { path: '/', maxAge: 0 })
     return response
   } catch (tokenError) {
