@@ -17,7 +17,7 @@ type ProjectMapItem = {
 }
 
 type Point = { x: number; y: number }
-type MapFilter = 'all' | 'pv' | 'bess' | 'hybrid'
+type MapFilter = 'all' | 'pv' | 'bess' | 'hybrid' | 'wind' | 'rechenzentrum' | 'sonstiges'
 
 const STATE_POINTS: Record<string, Point> = {
   'Schleswig-Holstein': { x: 49, y: 10 }, Hamburg: { x: 48, y: 19 }, Bremen: { x: 36, y: 27 },
@@ -42,6 +42,9 @@ function formatKwp(value?: number | null) {
 function projectKind(project: ProjectMapItem): Exclude<MapFilter, 'all'> {
   if (project.project_type === 'bess') return 'bess'
   if (project.project_type === 'hybrid') return 'hybrid'
+  if (project.project_type === 'wind') return 'wind'
+  if (project.project_type === 'rechenzentrum') return 'rechenzentrum'
+  if (project.project_type === 'sonstiges') return 'sonstiges'
   return 'pv'
 }
 
@@ -53,6 +56,9 @@ function getPoint(project: ProjectMapItem, index: number): Point {
 function markerColor(kind: Exclude<MapFilter, 'all'>) {
   if (kind === 'bess') return '#2563EB'
   if (kind === 'hybrid') return '#7C3AED'
+  if (kind === 'wind') return '#0891B2'
+  if (kind === 'rechenzentrum') return '#EA580C'
+  if (kind === 'sonstiges') return '#64748B'
   return '#5CB800'
 }
 
@@ -61,16 +67,19 @@ const FILTERS: { value: MapFilter; label: string; active: string; idle: string }
   { value: 'pv', label: 'PV', active: 'bg-[#5CB800] text-white', idle: 'bg-[#5CB800]/10 text-[#2F8A00]' },
   { value: 'bess', label: 'BESS', active: 'bg-blue-600 text-white', idle: 'bg-blue-50 text-blue-700' },
   { value: 'hybrid', label: 'Hybrid', active: 'bg-violet-600 text-white', idle: 'bg-violet-50 text-violet-700' },
+  { value: 'wind', label: 'Wind', active: 'bg-cyan-600 text-white', idle: 'bg-cyan-50 text-cyan-700' },
+  { value: 'rechenzentrum', label: 'Rechenzentrum', active: 'bg-orange-600 text-white', idle: 'bg-orange-50 text-orange-700' },
+  { value: 'sonstiges', label: 'Sonstiges', active: 'bg-slate-600 text-white', idle: 'bg-slate-100 text-slate-700' },
 ]
 
 export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
   const [filter, setFilter] = useState<MapFilter>('all')
   const locatedProjects = projects.filter((project) => project.location_city || project.location_state)
 
-  const counts = locatedProjects.reduce((acc, project) => {
+  const counts = locatedProjects.reduce<Record<Exclude<MapFilter, 'all'>, number>>((acc, project) => {
     acc[projectKind(project)] += 1
     return acc
-  }, { pv: 0, bess: 0, hybrid: 0 })
+  }, { pv: 0, bess: 0, hybrid: 0, wind: 0, rechenzentrum: 0, sonstiges: 0 })
 
   const visibleProjects = useMemo(
     () => filter === 'all' ? locatedProjects : locatedProjects.filter((project) => projectKind(project) === filter),
@@ -79,22 +88,24 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
 
   return (
     <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
-      <div className="absolute inset-x-4 top-4 z-20 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur">
-        {FILTERS.map((item) => {
-          const count = item.value === 'all' ? locatedProjects.length : counts[item.value]
-          const active = filter === item.value
-          return (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setFilter(item.value)}
-              aria-pressed={active}
-              className={`rounded-xl px-3 py-2 text-xs font-extrabold transition active:scale-95 ${active ? item.active : item.idle}`}
-            >
-              {item.label} {count}
-            </button>
-          )
-        })}
+      <div className="absolute inset-x-4 top-4 z-20 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-max items-center gap-2">
+          {FILTERS.map((item) => {
+            const count = item.value === 'all' ? locatedProjects.length : counts[item.value]
+            const active = filter === item.value
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setFilter(item.value)}
+                aria-pressed={active}
+                className={`shrink-0 rounded-xl px-3 py-2 text-xs font-extrabold transition active:scale-95 ${active ? item.active : item.idle}`}
+              >
+                {item.label} {count}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       <div className="absolute inset-x-8 bottom-5 top-20 flex items-center justify-center">
