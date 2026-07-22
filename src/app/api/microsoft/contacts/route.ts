@@ -20,10 +20,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
 
-  const accessToken = await getMicrosoftAccessToken()
-  if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
-
   try {
+    const accessToken = await getMicrosoftAccessToken(user.id)
+    if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
+
     const query = '/me/contacts?$top=250&$orderby=displayName&$select=id,displayName,givenName,surname,companyName,jobTitle,emailAddresses,businessPhones,mobilePhone'
     const result = await graphFetch<{ value: GraphContact[] }>(accessToken, query)
     const contacts = (result.value || []).map((contact) => {

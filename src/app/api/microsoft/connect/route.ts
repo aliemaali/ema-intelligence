@@ -21,7 +21,9 @@ export async function GET() {
   authorize.searchParams.set('response_mode', 'query')
   authorize.searchParams.set('scope', MICROSOFT_SCOPES)
   authorize.searchParams.set('state', state)
-  authorize.searchParams.set('prompt', 'select_account')
+
+  // Use the current EMA account as a hint, but do not force the account picker.
+  if (user.email) authorize.searchParams.set('login_hint', user.email)
 
   const response = NextResponse.redirect(authorize)
   response.cookies.set(MICROSOFT_STATE_COOKIE, state, {
