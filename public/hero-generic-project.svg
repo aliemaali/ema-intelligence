@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 700" role="img" aria-labelledby="title desc">
+  <title id="title">Infrastrukturprojekt</title>
+  <desc id="desc">Abstraktes Infrastrukturmotiv für sonstige Projekte</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F2F5F8"/>
+      <stop offset="0.5" stop-color="#DCE5ED"/>
+      <stop offset="1" stop-color="#BFCEDA"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07142F"/>
+      <stop offset="1" stop-color="#1F2A44"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="700" fill="url(#bg)"/>
+  <circle cx="1320" cy="120" r="260" fill="#5CB800" opacity=".16"/>
+  <circle cx="250" cy="650" r="340" fill="#1F2A44" opacity=".08"/>
+  <path d="M0 520 C300 420 520 610 800 505 S1260 425 1600 520 V700 H0Z" fill="#FFFFFF" opacity=".7"/>
+  <g transform="translate(230 130)">
+    <rect x="0" y="170" width="1140" height="250" rx="34" fill="url(#navy)" opacity=".96"/>
+    <rect x="70" y="90" width="300" height="250" rx="24" fill="#FFFFFF" stroke="#CBD6E1" stroke-width="4"/>
+    <rect x="420" y="40" width="300" height="300" rx="24" fill="#FFFFFF" stroke="#CBD6E1" stroke-width="4"/>
+    <rect x="770" y="120" width="300" height="220" rx="24" fill="#FFFFFF" stroke="#CBD6E1" stroke-width="4"/>
+    <g fill="#5CB800">
+      <rect x="120" y="145" width="200" height="24" rx="12"/>
+      <rect x="470" y="95" width="200" height="24" rx="12"/>
+      <rect x="820" y="175" width="200" height="24" rx="12"/>
+    </g>
+    <g fill="#9DB0BF">
+      <rect x="120" y="195" width="150" height="16" rx="8"/>
+      <rect x="120" y="230" width="180" height="16" rx="8"/>
+      <rect x="470" y="145" width="150" height="16" rx="8"/>
+      <rect x="470" y="180" width="180" height="16" rx="8"/>
+      <rect x="820" y="225" width="150" height="16" rx="8"/>
+      <rect x="820" y="260" width="180" height="16" rx="8"/>
+    </g>
+    <g fill="none" stroke="#5CB800" stroke-width="8" stroke-linecap="round">
+      <path d="M370 215H420"/><path d="M720 215H770"/>
+    </g>
+  </g>
+</svg>
