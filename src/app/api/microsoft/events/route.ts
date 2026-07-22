@@ -7,19 +7,19 @@ async function authenticatedToken() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  return getMicrosoftAccessToken()
+  return getMicrosoftAccessToken(user.id)
 }
 
 export async function GET(request: NextRequest) {
-  const accessToken = await authenticatedToken()
-  if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
-
-  const start = request.nextUrl.searchParams.get('start') || new Date().toISOString()
-  const defaultEnd = new Date()
-  defaultEnd.setDate(defaultEnd.getDate() + 60)
-  const end = request.nextUrl.searchParams.get('end') || defaultEnd.toISOString()
-
   try {
+    const accessToken = await authenticatedToken()
+    if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
+
+    const start = request.nextUrl.searchParams.get('start') || new Date().toISOString()
+    const defaultEnd = new Date()
+    defaultEnd.setDate(defaultEnd.getDate() + 60)
+    const end = request.nextUrl.searchParams.get('end') || defaultEnd.toISOString()
+
     const query = new URL('https://graph.microsoft.com/v1.0/me/calendarView')
     query.searchParams.set('startDateTime', start)
     query.searchParams.set('endDateTime', end)
@@ -55,10 +55,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const accessToken = await authenticatedToken()
-  if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
-
   try {
+    const accessToken = await authenticatedToken()
+    if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
+
     const body = await request.json()
     const title = String(body.title || '').trim()
     const start = String(body.start || '').trim()
