@@ -12,9 +12,16 @@ type MicrosoftProfile = {
   email?: string
 }
 
+type MicrosoftTokenCache = {
+  accessToken?: string
+  expiresIn?: number
+}
+
 type MicrosoftConnection = {
   user_id: string
   encrypted_refresh_token: string
+  encrypted_access_token: string | null
+  access_token_expires_at: string | null
   microsoft_name: string | null
   microsoft_email: string | null
 }
@@ -49,10 +56,14 @@ function clearLegacyCookie() {
   }
 }
 
+function accessTokenExpiry(expiresIn = 3600) {
+  return new Date(Date.now() + Math.max(60, expiresIn) * 1000).toISOString()
+}
+
 async function loadConnection(userId: string) {
   const { data, error } = await adminClient()
     .from('microsoft_connections')
-    .select('user_id, encrypted_refresh_token, microsoft_name, microsoft_email')
+    .select('user_id, encrypted_refresh_token, encrypted_access_token, access_token_expires_at, microsoft_name, microsoft_email')
     .eq('user_id', userId)
     .maybeSingle()
 
@@ -78,11 +89,14 @@ export async function saveMicrosoftConnection(
   userId: string,
   refreshToken: string,
   profile: MicrosoftProfile = {},
+  tokenCache: MicrosoftTokenCache = {},
 ) {
   const now = new Date().toISOString()
   const payload = {
     user_id: userId,
     encrypted_refresh_token: sealRefreshToken(refreshToken),
+    encrypted_access_token: tokenCache.accessToken ? sealRefreshToken(tokenCache.accessToken) : null,
+    access_token_expires_at: tokenCache.accessToken ? accessTokenExpiry(tokenCache.expiresIn) : null,
     microsoft_name: profile.name || null,
     microsoft_email: profile.email || null,
     updated_at: now,
@@ -125,18 +139,30 @@ export async function getMicrosoftAccessToken(userId: string) {
   if (!connection) connection = await migrateLegacyCookie(userId)
   if (!connection) return null
 
+  const cachedExpiry = connection.access_token_expires_at
+    ? new Date(connection.access_token_expires_at).getTime()
+    : 0
+
+  // Keep a two-minute safety margin so a token cannot expire during a Graph request.
+  if (connection.encrypted_access_token && cachedExpiry > Date.now() + 2 * 60 * 1000) {
+    try {
+      return unsealRefreshToken(connection.encrypted_access_token)
+    } catch {
+      // Fall through and rebuild the cache from the refresh token.
+    }
+  }
+
   try {
     const refreshToken = unsealRefreshToken(connection.encrypted_refresh_token)
     const token = await refreshMicrosoftToken(refreshToken)
     const now = new Date().toISOString()
 
-    const update: Record<string, string> = {
+    const update = {
+      encrypted_refresh_token: sealRefreshToken(token.refresh_token || refreshToken),
+      encrypted_access_token: sealRefreshToken(token.access_token),
+      access_token_expires_at: accessTokenExpiry(token.expires_in),
       last_refreshed_at: now,
       updated_at: now,
-    }
-
-    if (token.refresh_token) {
-      update.encrypted_refresh_token = sealRefreshToken(token.refresh_token)
     }
 
     const { error } = await adminClient()
