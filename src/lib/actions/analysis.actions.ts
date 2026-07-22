@@ -13,12 +13,6 @@ async function requireUser() {
   return { supabase, userId: user.id }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DATEN FÜR ANALYSE LADEN
-// Liest ausschließlich aus bestehenden Tabellen: projects, deals, documents,
-// project_investors, investors. Keine neuen Tabellen, keine Schreibzugriffe.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function getAnalysisSourceData(projectId: string): Promise<AnalysisSourceData> {
   const { supabase, userId } = await requireUser()
 
@@ -29,35 +23,38 @@ export async function getAnalysisSourceData(projectId: string): Promise<Analysis
     .eq('user_id', userId)
     .single()
 
-  if (projectError || !project) {
-    throw new Error('Projekt nicht gefunden')
-  }
+  if (projectError || !project) throw new Error('Projekt nicht gefunden')
 
-  const { data: deal } = await supabase
-    .from('deals')
-    .select('deal_status, purchase_price, sales_price, net_profit')
-    .eq('project_id', projectId)
-    .eq('is_active', true)
-    .maybeSingle()
-
-  const { data: documents } = await supabase
-    .from('documents')
-    .select('document_type')
-    .eq('project_id', projectId)
-    .eq('is_archived', false)
-
-  const { data: investorLinks } = await supabase
-    .from('project_investors')
-    .select(`
-      status,
-      investors (
-        id, full_name, company,
-        interest_pv, interest_bess, interest_hybrid,
-        size_preferences
-      )
-    `)
-    .eq('project_id', projectId)
-    .eq('user_id', userId)
+  const [{ data: deal }, { data: documents }, { data: checklist }, { data: investorLinks }] = await Promise.all([
+    supabase
+      .from('deals')
+      .select('deal_status, purchase_price, sales_price, net_profit')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+      .maybeSingle(),
+    supabase
+      .from('documents')
+      .select('document_type, display_name, file_name')
+      .eq('project_id', projectId)
+      .eq('is_archived', false),
+    supabase
+      .from('project_document_checklists')
+      .select('document_type, status')
+      .eq('project_id', projectId)
+      .eq('user_id', userId),
+    supabase
+      .from('project_investors')
+      .select(`
+        status,
+        investors (
+          id, full_name, company,
+          interest_pv, interest_bess, interest_hybrid,
+          size_preferences
+        )
+      `)
+      .eq('project_id', projectId)
+      .eq('user_id', userId),
+  ])
 
   const linkedInvestors = (investorLinks ?? [])
     .map((link) => {
@@ -68,13 +65,13 @@ export async function getAnalysisSourceData(projectId: string): Promise<Analysis
       } | null
       if (!inv) return null
       return {
-        investor_id:      inv.id,
-        full_name:        inv.full_name,
-        company:          inv.company,
-        status:           link.status,
-        interest_pv:      inv.interest_pv,
-        interest_bess:    inv.interest_bess,
-        interest_hybrid:  inv.interest_hybrid,
+        investor_id: inv.id,
+        full_name: inv.full_name,
+        company: inv.company,
+        status: link.status,
+        interest_pv: inv.interest_pv,
+        interest_bess: inv.interest_bess,
+        interest_hybrid: inv.interest_hybrid,
         size_preferences: inv.size_preferences ?? [],
       }
     })
@@ -82,106 +79,76 @@ export async function getAnalysisSourceData(projectId: string): Promise<Analysis
 
   return {
     project: {
-      id:               project.id,
-      project_number:   project.project_number,
-      project_name:     project.project_name,
-      project_type:     project.project_type,
-      status:           project.status,
-      location_city:    project.location_city,
-      location_state:   project.location_state,
-      pv_mwp:           project.pv_mwp,
-      bess_mw:          project.bess_mw,
-      bess_mwh:         project.bess_mwh,
-      dev_status:       project.dev_status,
-      created_at:       project.created_at,
+      id: project.id,
+      project_number: project.project_number,
+      project_name: project.project_name,
+      project_type: project.project_type,
+      status: project.status,
+      location_city: project.location_city,
+      location_state: project.location_state,
+      pv_mwp: project.pv_mwp,
+      bess_mw: project.bess_mw,
+      bess_mwh: project.bess_mwh,
+      dev_status: project.dev_status,
+      created_at: project.created_at,
       last_activity_at: project.last_activity_at,
     },
     deal: deal ?? null,
-    documents: documents ?? [],
+    documents: (documents ?? []) as AnalysisSourceData['documents'],
+    documentChecklist: (checklist ?? []) as AnalysisSourceData['documentChecklist'],
     linkedInvestors,
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ANALYSE GENERIEREN UND SPEICHERN
-//
-// Speichert an zwei Stellen, beide bereits im bestehenden Schema vorgesehen:
-// 1. ai_outputs (output_type: 'dd_analysis') – vollständige Analyse, versioniert,
-//    mit demselben Freigabe-Workflow wie der Exposé-Generator (status: 'draft').
-// 2. projects.ai_score / ai_score_details – schnelle Zusammenfassung direkt am
-//    Projekt, für Listen-/Dashboard-Anzeigen ohne ai_outputs-Join.
-// Beide Spalten existierten bereits im Schema (001_initial_schema.sql) und
-// waren bislang ungenutzt – hier wird nichts überschrieben, sondern erstmals
-// befüllt.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function generateAndSaveAnalysis(projectId: string) {
   const { supabase, userId } = await requireUser()
-
   const sourceData = await getAnalysisSourceData(projectId)
-  const analysis   = generateProjectAnalysis(sourceData)
+  const analysis = generateProjectAnalysis(sourceData)
 
-  // 1. In ai_outputs speichern (Freigabe-Workflow wie beim Exposé)
   const { data: output, error: outputError } = await supabase
     .from('ai_outputs')
     .insert({
-      project_id:   projectId,
-      user_id:      userId,
-      output_type:  'dd_analysis',
-      content:      JSON.stringify(analysis),
+      project_id: projectId,
+      user_id: userId,
+      output_type: 'dd_analysis',
+      content: JSON.stringify(analysis),
       content_html: null,
       metadata: {
-        generator:      'rule_based_v1',
-        overall_score:  analysis.overallScore,
+        generator: 'rule_based_v1',
+        overall_score: analysis.overallScore,
         recommendation: analysis.marketingRecommendation,
-        analyzed_at:    analysis.analyzedAt,
+        analyzed_at: analysis.analyzedAt,
       },
-      status:  'draft',
+      status: 'draft',
       version: 1,
     } as never)
     .select('id')
     .single()
 
-  if (outputError) {
-    console.error('❌ generateAndSaveAnalysis Fehler (ai_outputs):', {
-      message: outputError.message,
-      details: outputError.details,
-      hint:    outputError.hint,
-    })
-    return { error: outputError.message }
-  }
+  if (outputError) return { error: outputError.message }
 
-  // 2. projects.ai_score spiegeln (bereits vorbereitete, bisher leere Spalte)
-  const { error: projectUpdateError } = await supabase
+  await supabase
     .from('projects')
     .update({
       ai_score: analysis.overallScore,
       ai_score_details: {
         dev_status_percent: analysis.devStatusScore.percent,
-        missing_documents:  analysis.missingDocuments.length,
-        risk_count:          analysis.risks.length,
-        recommendation:      analysis.marketingRecommendation,
+        missing_documents: analysis.missingDocuments.length,
+        risk_count: analysis.risks.length,
+        recommendation: analysis.marketingRecommendation,
       },
       ai_last_analyzed: analysis.analyzedAt,
     } as never)
     .eq('id', projectId)
     .eq('user_id', userId)
 
-  if (projectUpdateError) {
-    // Nicht-kritisch: ai_outputs-Eintrag wurde bereits gespeichert.
-    // Die Analyse bleibt vollständig abrufbar, nur die Schnellanzeige
-    // am Projekt selbst würde fehlen.
-    console.error('⚠️ ai_score Update fehlgeschlagen (nicht kritisch):', projectUpdateError.message)
-  }
-
-  // Activity Log
   await supabase.from('activity_log').insert({
-    user_id:       userId,
-    project_id:    projectId,
+    user_id: userId,
+    project_id: projectId,
     activity_type: 'manual',
-    title:         'KI-Projektanalyse erstellt',
-    description:   `Gesamtscore: ${analysis.overallScore}/100 · Empfehlung: ${analysis.marketingRecommendation}`,
-    metadata:      { ai_output_id: output.id, overall_score: analysis.overallScore },
+    title: 'KI-Projektanalyse erstellt',
+    description: `Gesamtscore: ${analysis.overallScore}/100 · Empfehlung: ${analysis.marketingRecommendation}`,
+    metadata: { ai_output_id: output.id, overall_score: analysis.overallScore },
   } as never)
 
   revalidatePath(`/projects/${projectId}/analysis`)
@@ -190,14 +157,10 @@ export async function generateAndSaveAnalysis(projectId: string) {
   return { success: true, aiOutputId: output.id }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NEUESTE ANALYSE LADEN
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function getLatestAnalysis(projectId: string): Promise<{
-  id:        string
-  analysis:  GeneratedAnalysis
-  status:    string
+  id: string
+  analysis: GeneratedAnalysis
+  status: string
   createdAt: string
 } | null> {
   const { supabase, userId } = await requireUser()
@@ -215,11 +178,10 @@ export async function getLatestAnalysis(projectId: string): Promise<{
   if (error || !data || !data.content) return null
 
   try {
-    const analysis = JSON.parse(data.content) as GeneratedAnalysis
     return {
-      id:        data.id,
-      analysis,
-      status:    data.status,
+      id: data.id,
+      analysis: JSON.parse(data.content) as GeneratedAnalysis,
+      status: data.status,
       createdAt: data.created_at,
     }
   } catch {
@@ -227,18 +189,13 @@ export async function getLatestAnalysis(projectId: string): Promise<{
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ANALYSE FREIGEBEN (manuelle Prüfung bestätigen)
-// Gleicher Workflow wie beim Exposé-Generator – Konsistenz im Freigabe-Pattern.
-// ─────────────────────────────────────────────────────────────────────────────
-
 export async function approveAnalysis(aiOutputId: string, projectId: string) {
   const { supabase, userId } = await requireUser()
 
   const { error } = await supabase
     .from('ai_outputs')
     .update({
-      status:      'approved',
+      status: 'approved',
       approved_at: new Date().toISOString(),
       approved_by: userId,
     } as never)
@@ -248,12 +205,12 @@ export async function approveAnalysis(aiOutputId: string, projectId: string) {
   if (error) return { error: error.message }
 
   await supabase.from('activity_log').insert({
-    user_id:       userId,
-    project_id:    projectId,
+    user_id: userId,
+    project_id: projectId,
     activity_type: 'manual',
-    title:         'KI-Projektanalyse freigegeben',
-    description:   'Manuelle Prüfung abgeschlossen, Analyse freigegeben.',
-    metadata:      { ai_output_id: aiOutputId },
+    title: 'KI-Projektanalyse freigegeben',
+    description: 'Manuelle Prüfung abgeschlossen, Analyse freigegeben.',
+    metadata: { ai_output_id: aiOutputId },
   } as never)
 
   revalidatePath(`/projects/${projectId}/analysis`)
