@@ -214,3 +214,33 @@ export async function archiveProject(id: string) {
   revalidatePath('/dashboard')
   redirect('/projects')
 }
+
+export async function addActivityNote(projectId: string, formData: FormData) {
+  const { supabase, userId } = await requireUser()
+  const note = getString(formData, 'note')
+  if (!note) return { error: 'Notiz darf nicht leer sein' }
+
+  await logActivity(supabase, {
+    userId,
+    projectId,
+    type: 'note_added',
+    title: 'Notiz hinzugefügt',
+    description: note,
+  })
+
+  revalidatePath(`/projects/${projectId}/activity`)
+  return { success: true }
+}
+
+export async function getActivityLog(projectId: string) {
+  const { supabase, userId } = await requireUser()
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('*')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
