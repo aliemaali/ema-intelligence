@@ -164,6 +164,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
             </select>
           </div>
         </div>
+        <UnitField label="Investitionsvolumen" name="investment_volume_eur" unit="€" step="1" defaultValue={projectData?.investment_volume_eur} />
         <div><label className="form-label">Notizen</label><textarea name="notes" rows={3} defaultValue={project?.notes ?? ''} className="form-input resize-none" /></div>
         {mode === 'create' && <div className="flex gap-2"><button type="button" onClick={() => setStep('type')} className="btn-secondary flex-1">← Zurück</button><button type="button" onClick={() => setStep('technical')} className="btn-primary flex-1">Weiter →</button></div>}
       </div>
@@ -213,7 +214,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
 
         {projectType === 'sonstiges' && (
           <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-            Für sonstige Projekte werden nur die allgemeinen Angaben, Notizen und Dokumente verwendet.
+            Für sonstige Projekte werden nur die allgemeinen Angaben, Notizen, das Investitionsvolumen und Dokumente verwendet.
           </div>
         )}
 

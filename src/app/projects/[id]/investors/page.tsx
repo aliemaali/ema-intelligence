@@ -3,18 +3,38 @@ import { createClient } from '@/lib/supabase/server'
 import { EmptyState } from '@/components/ui'
 import { linkInvestorToProject } from '@/lib/actions/project-investor.actions'
 import { InvestorLinkCard } from '@/components/projects/InvestorLinkCard'
+import { getExposePresentation } from '@/lib/expose/projectPresentation'
+import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
 
 interface InvestorsTabProps {
   params: { id: string }
 }
 
-function projectTypeLabel(type?: string | null) {
-  if (type === 'pv_dach') return 'PV-Dachprojekt'
-  if (type === 'pv_freiflaeche') return 'PV-Freiflächenanlage'
-  if (type === 'bess') return 'Batteriespeicherprojekt'
-  if (type === 'hybrid') return 'Hybridprojekt'
-  if (type === 'wind') return 'Windprojekt'
-  return 'Energieprojekt'
+function formatNumber(value: unknown, digits = 0) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '—'
+  return new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(number)
+}
+
+function formatMoney(value: unknown) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '—'
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(number)
+}
+
+function formatTariff(value: unknown) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number <= 0) return 'Noch offen'
+  return number > 1
+    ? `${formatNumber(number, 2)} ct/kWh`
+    : `${formatNumber(number, 3)} €/kWh`
 }
 
 export default async function InvestorsTab({ params }: InvestorsTabProps) {
@@ -45,31 +65,54 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const availableInvestors = (allInvestors ?? []).filter((investor: any) => !linkedInvestorIds.has(investor.id))
   const linkAction = linkInvestorToProject.bind(null, params.id)
 
+  const projectData = {
+    ...(project as Record<string, unknown>),
+    purchase_price: activeDeal?.purchase_price ?? null,
+    sales_price: activeDeal?.sales_price ?? null,
+  }
+  const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || 'Deutschland'
+  const presentation = getExposePresentation(projectData, location, {
+    number: formatNumber,
+    money: formatMoney,
+    tariff: formatTariff,
+  })
+
   const pvKwp = Number((project as any).pv_mwp ?? 0)
-  const purchasePrice = Number(activeDeal?.purchase_price ?? 0)
   const specificYield = Number((project as any).specific_yield_kwh_kwp ?? 0)
   const tariffRaw = Number((project as any).feed_in_tariff_ct_kwh ?? 0)
   const tariffEurKwh = tariffRaw > 1 ? tariffRaw / 100 : tariffRaw
   const storedAnnualYield = Number((project as any).annual_yield_kwh ?? 0)
   const calculatedAnnualYield = pvKwp > 0 && specificYield > 0 ? pvKwp * specificYield : 0
   const annualYield = storedAnnualYield > 0 ? storedAnnualYield : calculatedAnnualYield
+  const purchasePrice = Number(activeDeal?.purchase_price ?? 0)
   const annualRevenue = annualYield > 0 && tariffEurKwh > 0 ? annualYield * tariffEurKwh : 0
   const amortisation = purchasePrice > 0 && annualRevenue > 0 ? purchasePrice / annualRevenue : 0
-  const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || 'Deutschland'
+  const roi = purchasePrice > 0 && annualRevenue > 0 ? (annualRevenue / purchasePrice) * 100 : 0
 
-  const pdfData = {
+  const pdfData: MemorandumPdfData = {
     projectName: project.project_name || 'Projekt',
     projectNumber: project.project_number || '—',
-    projectType: projectTypeLabel((project as any).project_type),
+    projectType: String((project as any).project_type || 'sonstiges'),
+    typeLabel: presentation.typeLabel,
     location,
     dateLabel: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date()),
-    status: (project as any).status || 'Projektstatus offen',
-    pvKwp: Number.isFinite(pvKwp) ? pvKwp : 0,
-    purchasePrice: Number.isFinite(purchasePrice) ? purchasePrice : 0,
-    specificYield: Number.isFinite(specificYield) ? specificYield : 0,
-    tariffEurKwh: Number.isFinite(tariffEurKwh) ? tariffEurKwh : 0,
-    annualRevenue: Number.isFinite(annualRevenue) ? annualRevenue : 0,
-    amortisation: Number.isFinite(amortisation) ? amortisation : 0,
+    status: String((project as any).status || 'Projektstatus offen'),
+    summary: presentation.summary,
+    metrics: presentation.metrics,
+    profile: presentation.profile,
+    highlights: presentation.highlights,
+    heroImage: presentation.heroImage,
+    showPvEconomics: presentation.showPvEconomics,
+    pvEconomics: presentation.showPvEconomics
+      ? {
+          annualYield: Number.isFinite(annualYield) ? annualYield : 0,
+          annualRevenue: Number.isFinite(annualRevenue) ? annualRevenue : 0,
+          purchasePrice: Number.isFinite(purchasePrice) ? purchasePrice : 0,
+          tariffEurKwh: Number.isFinite(tariffEurKwh) ? tariffEurKwh : 0,
+          roi: Number.isFinite(roi) ? roi : 0,
+          amortisation: Number.isFinite(amortisation) ? amortisation : 0,
+        }
+      : null,
   }
 
   return (

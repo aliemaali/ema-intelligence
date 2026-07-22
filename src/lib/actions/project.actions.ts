@@ -123,6 +123,7 @@ function projectPayload(formData: FormData) {
     location_city: getStringOrNull(formData, 'location_city'),
     location_state: getStringOrNull(formData, 'location_state'),
     location_country: getStringOrNull(formData, 'location_country') ?? 'Deutschland',
+    investment_volume_eur: getNumberOrNull(formData, 'investment_volume_eur'),
     pv_mwp: getNumberOrNull(formData, 'pv_mwp'),
     pv_ac_mw: getNumberOrNull(formData, 'pv_ac_mw'),
     bess_mw: getNumberOrNull(formData, 'bess_mw'),
