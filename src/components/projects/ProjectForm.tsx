@@ -11,6 +11,11 @@ import {
   PRIORITY_LABELS, MARKETING_STATUS_LABELS,
   PROJECT_TYPE_LABELS, GERMAN_STATES,
 } from '@/lib/types/constants'
+import {
+  isGermanProjectCountry,
+  normalizeProjectCountry,
+  PROJECT_COUNTRIES,
+} from '@/lib/projects/location'
 import type { Project, ProjectType, Partner } from '@/lib/types/database.types'
 
 interface ProjectFormProps {
@@ -31,16 +36,18 @@ const STEPS: { key: WizardStep; label: string }[] = [
 
 export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) {
   const router = useRouter()
+  const projectData = project as any
   const [pending, startTransition] = useTransition()
   const [step, setStep] = useState<WizardStep>(mode === 'edit' ? 'general' : 'type')
   const [projectType, setProjectType] = useState<ProjectType>(project?.project_type ?? 'pv_freiflaeche')
-  const projectData = project as any
+  const [locationCountry, setLocationCountry] = useState(() => normalizeProjectCountry(projectData?.location_country))
 
   const stepIndex = STEPS.findIndex((item) => item.key === step)
   const showPvFields = ['pv_freiflaeche', 'pv_dach', 'hybrid'].includes(projectType)
   const showBessFields = ['bess', 'hybrid'].includes(projectType)
   const showDataCenterFields = projectType === 'rechenzentrum'
   const showDevelopmentChecklist = projectType !== 'sonstiges'
+  const countryOptions = Array.from(new Set([locationCountry, ...PROJECT_COUNTRIES]))
 
   const handleSubmit = async (formData: FormData) => {
     startTransition(async () => {
@@ -154,8 +161,21 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
           <div><label className="form-label">E-Mail</label><input name="contact_email" type="email" defaultValue={project?.contact_email ?? ''} className="form-input" /></div>
         </div>
         <div><label className="form-label">Telefon</label><input name="contact_phone" type="tel" defaultValue={project?.contact_phone ?? ''} className="form-input" /></div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="form-label">Land</label>
+            <select
+              name="location_country"
+              className="form-input"
+              value={locationCountry}
+              onChange={(event) => setLocationCountry(event.target.value)}
+            >
+              {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
+            </select>
+          </div>
           <div><label className="form-label">Ort</label><input name="location_city" defaultValue={project?.location_city ?? ''} className="form-input" /></div>
+        </div>
+        {isGermanProjectCountry(locationCountry) && (
           <div>
             <label className="form-label">Bundesland</label>
             <select name="location_state" className="form-input" defaultValue={project?.location_state ?? ''}>
@@ -163,7 +183,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
               {GERMAN_STATES.map((state) => <option key={state} value={state}>{state}</option>)}
             </select>
           </div>
-        </div>
+        )}
         <UnitField label="Investitionsvolumen" name="investment_volume_eur" unit="€" step="1" defaultValue={projectData?.investment_volume_eur} />
         <div><label className="form-label">Notizen</label><textarea name="notes" rows={3} defaultValue={project?.notes ?? ''} className="form-input resize-none" /></div>
         {mode === 'create' && <div className="flex gap-2"><button type="button" onClick={() => setStep('type')} className="btn-secondary flex-1">← Zurück</button><button type="button" onClick={() => setStep('technical')} className="btn-primary flex-1">Weiter →</button></div>}
