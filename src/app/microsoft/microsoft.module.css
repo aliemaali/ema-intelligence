@@ -1,0 +1,23 @@
+.microsoftPage form input:not([type='checkbox']),
+.microsoftPage form select,
+.microsoftPage form textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  color-scheme: light;
+  -webkit-text-fill-color: #0f172a;
+}
+
+.microsoftPage form input:not([type='checkbox'])::placeholder,
+.microsoftPage form textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+  -webkit-text-fill-color: #94a3b8;
+}
+
+.microsoftPage form input:not([type='checkbox']):disabled,
+.microsoftPage form select:disabled,
+.microsoftPage form textarea:disabled {
+  background-color: #f8fafc !important;
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b;
+}
