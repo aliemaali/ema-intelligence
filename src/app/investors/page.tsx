@@ -1,33 +1,19 @@
-// src/app/investors/page.tsx
-//
-// Server Component: lädt initiale Investoren + KPIs + Projektliste serverseitig
-// (für schnellen First Paint, kein Lade-Spinner beim ersten Render) und
-// übergibt sie an die interaktive Client Component InvestorBoard.
-//
-// ANNAHME: Diese Datei ersetzt deine bestehende src/app/investors/page.tsx.
-// Falls dort bereits Layout-Wrapper (z. B. ein Dashboard-Shell-Layout) aktiv
-// sind, übernimm den <InvestorBoard /> Aufruf in deine bestehende Struktur
-// statt die ganze Datei zu überschreiben.
+import { createClient } from '@/lib/supabase/server'
+import { getInvestors, getInvestorDashboardKpis } from '@/lib/actions/investorActions'
+import { InvestorBoard } from '@/components/investors-crm/InvestorBoard'
+import { InvestorProfileImportButton } from '@/components/investors-crm/InvestorProfileImportButton'
 
-import { createClient } from "@/lib/supabase/server";
-import { getInvestors, getInvestorDashboardKpis } from "@/lib/actions/investorActions";
-import { InvestorBoard } from "@/components/investors-crm/InvestorBoard";
-
-export const dynamic = "force-dynamic"; // CRM-Daten sollen nicht statisch gecacht werden
+export const dynamic = 'force-dynamic'
 
 export default async function InvestorsPage() {
-  const supabase = await createClient();
-
-  // ANNAHME: bestehende projects-Tabelle hat Spalten `id` und `name`.
-  // Passe die Spaltennamen an dein echtes Schema an, falls abweichend
-  // (z. B. project_name statt name).
+  const supabase = await createClient()
   const [investorsResult, kpisResult, projectsResult] = await Promise.all([
-    getInvestors({ sortBy: "last_contact_at", sortDirection: "desc" }),
+    getInvestors({ sortBy: 'last_contact_at', sortDirection: 'desc' }),
     getInvestorDashboardKpis(),
-    supabase.from("projects").select("id, name").order("name"),
-  ]);
+    supabase.from('projects').select('id, name').order('name'),
+  ])
 
-  const initialInvestors = investorsResult.success ? investorsResult.data : [];
+  const initialInvestors = investorsResult.success ? investorsResult.data : []
   const initialKpis = kpisResult.success
     ? kpisResult.data
     : {
@@ -36,17 +22,25 @@ export default async function InvestorsPage() {
         totalTicketVolumeEur: 0,
         contactedLast30Days: 0,
         mostRecentContactAt: null,
-      };
-  const projects = projectsResult.data ?? [];
+      }
+  const projects = projectsResult.data ?? []
 
   return (
-    <div className="min-h-screen w-full" style={{ background: "#F4F6F9" }}>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
+    <div className="min-h-screen w-full" style={{ background: '#F4F6F9' }}>
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
         {!investorsResult.success && (
-          <div className="mb-4 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-[13px] text-red-700">
+          <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
             Investoren konnten nicht geladen werden: {investorsResult.error}
           </div>
         )}
+
+        <div className="mb-4 md:hidden">
+          <InvestorProfileImportButton mobile />
+        </div>
+        <div className="mb-4 hidden justify-end md:flex">
+          <InvestorProfileImportButton />
+        </div>
+
         <InvestorBoard
           initialInvestors={initialInvestors}
           initialKpis={initialKpis}
@@ -54,5 +48,5 @@ export default async function InvestorsPage() {
         />
       </div>
     </div>
-  );
+  )
 }
