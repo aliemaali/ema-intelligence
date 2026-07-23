@@ -1,11 +1,6 @@
 // src/types/investors.ts
 //
 // Typdefinitionen für das Investoren-CRM.
-// Diese Typen spiegeln das SQL-Schema aus supabase/0001_investors_crm.sql.
-//
-// Falls du `supabase gen types typescript` nutzt, ersetzen die generierten
-// Database-Typen idealerweise diese Datei (oder werden importiert und hier
-// re-exportiert). Bis dahin sind dies die handgepflegten "Source of truth"-Typen.
 
 export type InvestorFocus = "PV" | "BESS" | "PV_BESS";
 
@@ -39,29 +34,77 @@ export const INVESTOR_FOCUS_LABELS: Record<InvestorFocus, string> = {
   PV_BESS: "PV + BESS",
 };
 
+export interface InvestorSearchProfile {
+  version: 1;
+  source_form: string;
+  position_title: string;
+  headquarters: string;
+  technologies: {
+    pv_ground: boolean;
+    pv_rooftop: boolean;
+    bess: boolean;
+    wind: boolean;
+    other: string;
+  };
+  project_sizes: {
+    pv_from_mwp: string;
+    pv_to_mwp: string;
+    bess_from_mwh: string;
+    bess_to_mwh: string;
+  };
+  project_stages: string[];
+  investment_models: string[];
+  regions: {
+    germany: boolean;
+    dach: boolean;
+    eu: boolean;
+    international: boolean;
+    details: string;
+  };
+  investment_volume_bands: string[];
+  criteria: {
+    esg_compliant: boolean;
+    grid_connection_secured: boolean;
+    long_term_ppa_required: boolean;
+    exclusivity_required: boolean;
+    minimum_irr: string;
+  };
+  comments: string;
+  consents: {
+    gdpr: boolean;
+    confidentiality: boolean;
+    place_date: string;
+    signature_present: boolean;
+  };
+  raw_fields: Record<string, string>;
+}
+
 export interface Investor {
   id: string;
   company_name: string;
   contact_person: string;
   email: string;
   phone: string | null;
+  position_title?: string | null;
 
   ticket_size_min_eur: number | null;
   ticket_size_max_eur: number | null;
   focus: InvestorFocus;
   status: InvestorStatus;
 
-  last_contact_at: string | null; // ISO date (YYYY-MM-DD)
-  next_contact_at: string | null; // ISO date (YYYY-MM-DD)
-
+  last_contact_at: string | null;
+  next_contact_at: string | null;
   notes: string | null;
 
+  search_profile?: InvestorSearchProfile | null;
+  profile_imported_at?: string | null;
+  profile_source?: string | null;
+
   created_by: string | null;
-  created_at: string; // ISO timestamptz
-  updated_at: string; // ISO timestamptz
+  created_at: string;
+  updated_at: string;
 }
 
-/** Erweiterte Zeile aus der `investors_with_stats` View */
 export interface InvestorWithStats extends Investor {
   project_count: number;
   note_count: number;
@@ -71,7 +114,7 @@ export interface InvestorContact {
   id: string;
   investor_id: string;
   channel: ContactChannel;
-  occurred_at: string; // ISO timestamptz
+  occurred_at: string;
   summary: string;
   created_by: string | null;
   created_at: string;
@@ -85,8 +128,6 @@ export interface InvestorNote {
   created_at: string;
 }
 
-/** Minimalprojektion aus der bestehenden projects-Tabelle.
- *  Passe an dein echtes Project-Interface an, falls vorhanden. */
 export interface LinkedProject {
   id: string;
   name: string;
@@ -100,10 +141,9 @@ export interface InvestorProjectLink {
   project_id: string;
   linked_at: string;
   created_by: string | null;
-  project?: LinkedProject; // bei join-Abfragen befüllt
+  project?: LinkedProject;
 }
 
-/** Payload für createInvestor / updateInvestor Server Actions */
 export interface InvestorFormInput {
   company_name: string;
   contact_person: string;
@@ -118,7 +158,6 @@ export interface InvestorFormInput {
   notes?: string | null;
 }
 
-/** Filter-/Suchparameter für getInvestors */
 export interface InvestorFilters {
   search?: string;
   focus?: InvestorFocus | "Alle";
@@ -128,16 +167,14 @@ export interface InvestorFilters {
   sortDirection?: "asc" | "desc";
 }
 
-/** Aggregierte KPIs für das Dashboard */
 export interface InvestorDashboardKpis {
   totalInvestors: number;
-  activeInvestors: number; // status nicht in [Inaktiv]
-  totalTicketVolumeEur: number; // Summe der oberen Ticketgrenze (konservativ: max)
+  activeInvestors: number;
+  totalTicketVolumeEur: number;
   contactedLast30Days: number;
   mostRecentContactAt: string | null;
 }
 
-/** Einheitliches Result-Objekt für Server Actions (kein throw nach außen) */
 export type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
