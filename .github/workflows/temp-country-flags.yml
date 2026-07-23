@@ -1,0 +1,81 @@
+name: Apply project country flags
+
+on:
+  push:
+    branches:
+      - feat/project-country-flags
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/project-country-flags
+          fetch-depth: 0
+
+      - name: Add country flag labels
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if text.count(old) != 1:
+                  raise SystemExit(f"Expected exactly one match in {path}, found {text.count(old)}")
+              file.write_text(text.replace(old, new, 1))
+
+          location = Path('src/lib/projects/location.ts')
+          text = location.read_text()
+          marker = "] as const\n\nconst COUNTRY_ALIASES"
+          flags = "] as const\n\nconst PROJECT_COUNTRY_FLAGS: Record<string, string> = {\n  Deutschland: '🇩🇪',\n  Italien: '🇮🇹',\n  Türkei: '🇹🇷',\n  Österreich: '🇦🇹',\n  Schweiz: '🇨🇭',\n  Frankreich: '🇫🇷',\n  Spanien: '🇪🇸',\n  Portugal: '🇵🇹',\n  Niederlande: '🇳🇱',\n  Belgien: '🇧🇪',\n  Luxemburg: '🇱🇺',\n  Polen: '🇵🇱',\n  Tschechien: '🇨🇿',\n  Slowakei: '🇸🇰',\n  Ungarn: '🇭🇺',\n  Rumänien: '🇷🇴',\n  Bulgarien: '🇧🇬',\n  Griechenland: '🇬🇷',\n  Kroatien: '🇭🇷',\n  Slowenien: '🇸🇮',\n  Dänemark: '🇩🇰',\n  Schweden: '🇸🇪',\n  Finnland: '🇫🇮',\n  Norwegen: '🇳🇴',\n  Irland: '🇮🇪',\n  'Vereinigtes Königreich': '🇬🇧',\n}\n\nexport function getProjectCountryFlag(value: unknown): string {\n  const country = normalizeProjectCountry(value)\n  return PROJECT_COUNTRY_FLAGS[country] ?? '🌍'\n}\n\nexport function formatProjectCountryLabel(value: unknown): string {\n  const country = normalizeProjectCountry(value)\n  return `${getProjectCountryFlag(country)} ${country}`\n}\n\nconst COUNTRY_ALIASES"
+          if text.count(marker) != 1:
+              raise SystemExit('Country helper insertion marker not found exactly once')
+          location.write_text(text.replace(marker, flags, 1))
+
+          replace_once(
+              'src/components/projects/ProjectForm.tsx',
+              "  isGermanProjectCountry,\n  normalizeProjectCountry,\n  PROJECT_COUNTRIES,",
+              "  formatProjectCountryLabel,\n  isGermanProjectCountry,\n  normalizeProjectCountry,\n  PROJECT_COUNTRIES,",
+          )
+          replace_once(
+              'src/components/projects/ProjectForm.tsx',
+              "{countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}",
+              "{countryOptions.map((country) => <option key={country} value={country}>{formatProjectCountryLabel(country)}</option>)}",
+          )
+
+          replace_once(
+              'src/components/project-import/ProjectImportUploaderV2.tsx',
+              "  isGermanProjectCountry,\n  normalizeProjectCountry,\n  PROJECT_COUNTRIES,",
+              "  formatProjectCountryLabel,\n  isGermanProjectCountry,\n  normalizeProjectCountry,\n  PROJECT_COUNTRIES,",
+          )
+          replace_once(
+              'src/components/project-import/ProjectImportUploaderV2.tsx',
+              "{countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}",
+              "{countryOptions.map((country) => <option key={country} value={country}>{formatProjectCountryLabel(country)}</option>)}",
+          )
+
+          replace_once(
+              'src/app/projects/[id]/overview/page.tsx',
+              "} from '@/lib/types/constants'",
+              "} from '@/lib/types/constants'\nimport { formatProjectCountryLabel } from '@/lib/projects/location'",
+          )
+          replace_once(
+              'src/app/projects/[id]/overview/page.tsx',
+              '<InfoRow label="Land" value={project.location_country} />',
+              '<InfoRow label="Land" value={formatProjectCountryLabel(project.location_country)} />',
+          )
+
+          Path('.github/workflows/temp-country-flags.yml').unlink()
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: show country flags in project locations"
+          git push origin HEAD:feat/project-country-flags
