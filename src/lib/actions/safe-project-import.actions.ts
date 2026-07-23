@@ -3,6 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import {
+  isGermanProjectCountry,
+  normalizeProjectCountry,
+  sanitizeImportedLocationCity,
+} from '@/lib/projects/location'
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key)
@@ -81,6 +86,11 @@ export async function createVerifiedProjectFromImport(formData: FormData) {
   const projectName = getString(formData, 'project_name')
   const plantType = getString(formData, 'plant_type')
   const type = projectType(plantType)
+  const locationCountry = normalizeProjectCountry(formData.get('location_country'))
+  const locationCity = sanitizeImportedLocationCity(formData.get('location_city')) || null
+  const locationState = isGermanProjectCountry(locationCountry)
+    ? getString(formData, 'location_state') || null
+    : null
   const pvKwp = parseLocalizedNumber(formData.get('pv_kwp'))
   const bessMwh = parseLocalizedNumber(formData.get('bess_mwh'))
   const purchasePrice = parseLocalizedNumber(formData.get('purchase_price'))
@@ -100,9 +110,9 @@ export async function createVerifiedProjectFromImport(formData: FormData) {
     status: 'lead',
     priority: 'mittel',
     marketing_status: 'nicht_gestartet',
-    location_city: getString(formData, 'location_city') || null,
-    location_state: getString(formData, 'location_state') || null,
-    location_country: 'Deutschland',
+    location_city: locationCity,
+    location_state: locationState,
+    location_country: locationCountry,
     pv_mwp: pvKwp,
     bess_mwh: bessMwh,
     feed_in_type: getString(formData, 'feed_in_type') || null,

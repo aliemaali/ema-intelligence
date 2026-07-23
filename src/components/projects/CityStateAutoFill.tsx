@@ -15,13 +15,14 @@ const STATE_ALIASES: Record<string, string> = {
 export function CityStateAutoFill() {
   useEffect(() => {
     const cityElement = document.querySelector<HTMLInputElement>('input[name="location_city"]')
-    const stateElement = document.querySelector<HTMLSelectElement>('select[name="location_state"]')
-    if (!cityElement || !stateElement) return
-
+    if (!cityElement) return
     const cityInput = cityElement
-    const stateSelect = stateElement
 
     async function resolveState() {
+      const countrySelect = document.querySelector<HTMLSelectElement>('select[name="location_country"]')
+      const stateSelect = document.querySelector<HTMLSelectElement>('select[name="location_state"]')
+      if (!stateSelect || countrySelect?.value !== 'Deutschland') return
+
       const city = cityInput.value.trim()
       if (city.length < 2) return
 
