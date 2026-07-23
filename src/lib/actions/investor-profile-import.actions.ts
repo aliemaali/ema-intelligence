@@ -91,7 +91,7 @@ export async function importInvestorProfilePdf(
     profile.project_sizes.bess_from_mwh || profile.project_sizes.bess_to_mwh
       ? { technology: 'BESS', from: profile.project_sizes.bess_from_mwh, to: profile.project_sizes.bess_to_mwh, unit: 'MWh' }
       : null,
-  ].filter(Boolean)
+  ].filter((entry): entry is NonNullable<typeof entry> => entry !== null)
 
   const { data: investor, error: investorError } = await supabase
     .from('investors')
@@ -147,7 +147,7 @@ export async function importInvestorProfilePdf(
     return { success: false, error: 'Das PDF konnte nicht in der Investorenakte gespeichert werden.' }
   }
 
-  const { data: document, error: documentError } = await supabase
+  const { error: documentError } = await supabase
     .from('contact_documents')
     .insert({
       user_id: user.id,
@@ -159,10 +159,8 @@ export async function importInvestorProfilePdf(
       mime_type: 'application/pdf',
       size_bytes: file.size,
     })
-    .select('id')
-    .single()
 
-  if (documentError || !document) {
+  if (documentError) {
     console.error('[importInvestorProfilePdf:document]', documentError)
     await supabase.storage.from('contact-documents').remove([storagePath])
     await supabase.from('investors').delete().eq('id', investor.id)
@@ -181,11 +179,10 @@ export async function importInvestorProfilePdf(
   await supabase.from('activity_log').insert({
     user_id: user.id,
     investor_id: investor.id,
-    document_id: document.id,
     activity_type: 'manual',
     title: 'Investor aus Suchprofil importiert',
     description: `${companyName} wurde aus dem ausgefüllten EMA Investoren-Suchprofil angelegt.`,
-    metadata: { source: PROFILE_DOCUMENT_TYPE, file_name: file.name },
+    metadata: { source: PROFILE_DOCUMENT_TYPE, file_name: file.name, storage_path: storagePath },
   })
 
   revalidatePath('/investors')
