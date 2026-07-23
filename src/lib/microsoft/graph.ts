@@ -5,7 +5,7 @@ export const MICROSOFT_SCOPES = [
   'profile',
   'offline_access',
   'User.Read',
-  'Contacts.Read',
+  'Contacts.ReadWrite',
   'Calendars.ReadWrite',
 ].join(' ')
 

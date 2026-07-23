@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppShell } from '@/components/layout/AppShell'
+import { MicrosoftContactManager } from '@/components/microsoft/MicrosoftContactManager'
 import styles from './microsoft.module.css'
 
 export default async function MicrosoftLayout({ children }: { children: React.ReactNode }) {
@@ -23,7 +24,10 @@ export default async function MicrosoftLayout({ children }: { children: React.Re
         avatarUrl: profile?.avatar_url ?? null,
       }}
     >
-      <div className={styles.microsoftPage}>{children}</div>
+      <div className={styles.microsoftPage}>
+        {children}
+        <MicrosoftContactManager />
+      </div>
     </AppShell>
   )
 }
