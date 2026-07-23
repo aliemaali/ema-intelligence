@@ -145,10 +145,7 @@ function ticketRange(fields: Record<string, string>) {
 function deriveFocus(profile: InvestorSearchProfile): InvestorFocus {
   const hasPv = profile.technologies.pv_ground || profile.technologies.pv_rooftop
   const hasBess = profile.technologies.bess
-  const hasWind = profile.technologies.wind
-  const selectedGroups = [hasPv, hasBess, hasWind].filter(Boolean).length
-  if (selectedGroups > 1) return hasPv && hasBess && !hasWind ? 'PV_BESS' : 'MIXED'
-  if (hasWind) return 'WIND'
+  if (hasPv && hasBess) return 'PV_BESS'
   if (hasBess) return 'BESS'
   return 'PV'
 }
@@ -226,7 +223,7 @@ export function buildInvestorProfile(fields: Record<string, string>) {
 export function splitHeadquarters(value: string) {
   const parts = value.split(',').map((part) => part.trim()).filter(Boolean)
   if (parts.length < 2) return { city: '', country: value.trim() || 'Deutschland' }
-  return { city: parts.slice(0, -1).join(', '), country: parts.at(-1) || 'Deutschland' }
+  return { city: parts.slice(0, -1).join(', '), country: parts[parts.length - 1] || 'Deutschland' }
 }
 
 export function profileNotes(profile: InvestorSearchProfile) {
