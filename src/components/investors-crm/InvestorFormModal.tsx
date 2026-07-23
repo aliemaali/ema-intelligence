@@ -13,7 +13,7 @@ import type {
 import { INVESTOR_STATUS_LABELS, INVESTOR_FOCUS_LABELS } from "@/types/investors";
 
 interface InvestorFormModalProps {
-  initial: Investor | null; // null = neuer Investor
+  initial: Investor | null;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -31,6 +31,16 @@ const EMPTY_FORM: InvestorFormInput = {
   next_contact_at: null,
   notes: "",
 };
+
+function formatInteger(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "";
+  return new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(value);
+}
+
+function parseInteger(value: string): number | null {
+  const digits = value.replace(/\D/g, "");
+  return digits ? Number(digits) : null;
+}
 
 export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormModalProps) {
   const isNew = !initial;
@@ -55,7 +65,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
   const [isPending, startTransition] = useTransition();
 
   function update<K extends keyof InvestorFormInput>(field: K, value: InvestorFormInput[K]) {
-    setForm((f) => ({ ...f, [field]: value }));
+    setForm((current) => ({ ...current, [field]: value }));
   }
 
   function handleSubmit() {
@@ -103,7 +113,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
             <Field label="Firmenname *" full>
               <input
                 value={form.company_name}
-                onChange={(e) => update("company_name", e.target.value)}
+                onChange={(event) => update("company_name", event.target.value)}
                 className="input"
                 placeholder="z. B. Rheinland Capital GmbH"
               />
@@ -112,7 +122,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
             <Field label="Ansprechpartner *" full>
               <input
                 value={form.contact_person}
-                onChange={(e) => update("contact_person", e.target.value)}
+                onChange={(event) => update("contact_person", event.target.value)}
                 className="input"
                 placeholder="Vor- und Nachname"
               />
@@ -121,7 +131,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
             <Field label="E-Mail *">
               <input
                 value={form.email}
-                onChange={(e) => update("email", e.target.value)}
+                onChange={(event) => update("email", event.target.value)}
                 className="input"
                 placeholder="name@firma.de"
               />
@@ -130,52 +140,42 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
             <Field label="Telefon">
               <input
                 value={form.phone ?? ""}
-                onChange={(e) => update("phone", e.target.value)}
+                onChange={(event) => update("phone", event.target.value)}
                 className="input"
                 placeholder="+49 …"
               />
             </Field>
 
-            <Field label="Ticketgröße min. (EUR)">
+            <Field label="Investitionsvolumen min. (EUR)">
               <input
-                type="number"
-                value={form.ticket_size_min_eur ?? ""}
-                onChange={(e) =>
-                  update(
-                    "ticket_size_min_eur",
-                    e.target.value === "" ? null : Number(e.target.value)
-                  )
-                }
-                className="input"
-                placeholder="z. B. 500000"
+                type="text"
+                inputMode="numeric"
+                value={formatInteger(form.ticket_size_min_eur)}
+                onChange={(event) => update("ticket_size_min_eur", parseInteger(event.target.value))}
+                className="input tabular-nums"
+                placeholder="z. B. 500.000"
               />
             </Field>
 
-            <Field label="Ticketgröße max. (EUR)">
+            <Field label="Investitionsvolumen max. (EUR)">
               <input
-                type="number"
-                value={form.ticket_size_max_eur ?? ""}
-                onChange={(e) =>
-                  update(
-                    "ticket_size_max_eur",
-                    e.target.value === "" ? null : Number(e.target.value)
-                  )
-                }
-                className="input"
-                placeholder="z. B. 5000000"
+                type="text"
+                inputMode="numeric"
+                value={formatInteger(form.ticket_size_max_eur)}
+                onChange={(event) => update("ticket_size_max_eur", parseInteger(event.target.value))}
+                className="input tabular-nums"
+                placeholder="z. B. 5.000.000"
               />
             </Field>
 
             <Field label="Fokus">
               <select
                 value={form.focus}
-                onChange={(e) => update("focus", e.target.value as InvestorFocus)}
+                onChange={(event) => update("focus", event.target.value as InvestorFocus)}
                 className="input"
               >
                 {Object.entries(INVESTOR_FOCUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </Field>
@@ -183,13 +183,11 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
             <Field label="Status">
               <select
                 value={form.status}
-                onChange={(e) => update("status", e.target.value as InvestorStatus)}
+                onChange={(event) => update("status", event.target.value as InvestorStatus)}
                 className="input"
               >
                 {Object.entries(INVESTOR_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
+                  <option key={value} value={value}>{label}</option>
                 ))}
               </select>
             </Field>
@@ -198,7 +196,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
               <input
                 type="date"
                 value={form.last_contact_at ?? ""}
-                onChange={(e) => update("last_contact_at", e.target.value || null)}
+                onChange={(event) => update("last_contact_at", event.target.value || null)}
                 className="input"
               />
             </Field>
@@ -207,7 +205,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
               <input
                 type="date"
                 value={form.next_contact_at ?? ""}
-                onChange={(e) => update("next_contact_at", e.target.value || null)}
+                onChange={(event) => update("next_contact_at", event.target.value || null)}
                 className="input"
               />
             </Field>
@@ -216,7 +214,7 @@ export function InvestorFormModal({ initial, onClose, onSaved }: InvestorFormMod
           <Field label="Notizen" full>
             <textarea
               value={form.notes ?? ""}
-              onChange={(e) => update("notes", e.target.value)}
+              onChange={(event) => update("notes", event.target.value)}
               rows={3}
               className="input resize-none"
               placeholder="Gesprächsnotizen, Konditionen, Präferenzen…"

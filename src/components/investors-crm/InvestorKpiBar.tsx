@@ -67,7 +67,7 @@ export function InvestorKpiBar({ kpis }: { kpis: InvestorDashboardKpis }) {
         accent="#5CB800"
       />
       <KpiCard
-        label="Ticketvolumen gesamt"
+        label="Investitionsvolumen gesamt"
         value={formatEurCompact(kpis.totalTicketVolumeEur)}
         icon={Wallet}
         accent="#0E7C86"
