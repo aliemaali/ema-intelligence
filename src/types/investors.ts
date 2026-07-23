@@ -2,7 +2,7 @@
 //
 // Typdefinitionen für das Investoren-CRM.
 
-export type InvestorFocus = "PV" | "BESS" | "PV_BESS" | "WIND" | "MIXED";
+export type InvestorFocus = "PV" | "BESS" | "PV_BESS";
 
 export type InvestorStatus =
   | "Neu"
@@ -32,8 +32,6 @@ export const INVESTOR_FOCUS_LABELS: Record<InvestorFocus, string> = {
   PV: "PV",
   BESS: "BESS",
   PV_BESS: "PV + BESS",
-  WIND: "Wind",
-  MIXED: "Multi-Technologie",
 };
 
 export interface InvestorSearchProfile {
