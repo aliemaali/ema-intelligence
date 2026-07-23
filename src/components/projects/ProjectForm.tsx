@@ -12,6 +12,7 @@ import {
   PROJECT_TYPE_LABELS, GERMAN_STATES,
 } from '@/lib/types/constants'
 import {
+  formatProjectCountryLabel,
   isGermanProjectCountry,
   normalizeProjectCountry,
   PROJECT_COUNTRIES,
@@ -170,7 +171,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
               value={locationCountry}
               onChange={(event) => setLocationCountry(event.target.value)}
             >
-              {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
+              {countryOptions.map((country) => <option key={country} value={country}>{formatProjectCountryLabel(country)}</option>)}
             </select>
           </div>
           <div><label className="form-label">Ort</label><input name="location_city" defaultValue={project?.location_city ?? ''} className="form-input" /></div>

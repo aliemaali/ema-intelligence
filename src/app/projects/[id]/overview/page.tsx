@@ -8,6 +8,7 @@ import {
   PROJECT_STATUS_LABELS, PRIORITY_LABELS,
   MARKETING_STATUS_LABELS, PROJECT_TYPE_LABELS,
 } from '@/lib/types/constants'
+import { formatProjectCountryLabel } from '@/lib/projects/location'
 
 interface OverviewTabProps {
   params: { id: string }
@@ -62,7 +63,7 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
           <InfoRow label="Status" value={(PROJECT_STATUS_LABELS as any)[project.status]} />
           <InfoRow label="Priorität" value={(PRIORITY_LABELS as any)[project.priority]} />
           <InfoRow label="Vermarktung" value={(MARKETING_STATUS_LABELS as any)[project.marketing_status]} />
-          <InfoRow label="Land" value={project.location_country} />
+          <InfoRow label="Land" value={formatProjectCountryLabel(project.location_country)} />
           {project.location_state && <InfoRow label="Bundesland" value={project.location_state} />}
           {project.location_city && <InfoRow label="Ort" value={project.location_city} />}
           <InfoRow label="Erstellt" value={formatDate(project.created_at)} />
