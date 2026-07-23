@@ -27,6 +27,45 @@ export const PROJECT_COUNTRIES = [
   'Vereinigtes Königreich',
 ] as const
 
+const PROJECT_COUNTRY_FLAGS: Record<string, string> = {
+  Deutschland: '🇩🇪',
+  Italien: '🇮🇹',
+  Türkei: '🇹🇷',
+  Österreich: '🇦🇹',
+  Schweiz: '🇨🇭',
+  Frankreich: '🇫🇷',
+  Spanien: '🇪🇸',
+  Portugal: '🇵🇹',
+  Niederlande: '🇳🇱',
+  Belgien: '🇧🇪',
+  Luxemburg: '🇱🇺',
+  Polen: '🇵🇱',
+  Tschechien: '🇨🇿',
+  Slowakei: '🇸🇰',
+  Ungarn: '🇭🇺',
+  Rumänien: '🇷🇴',
+  Bulgarien: '🇧🇬',
+  Griechenland: '🇬🇷',
+  Kroatien: '🇭🇷',
+  Slowenien: '🇸🇮',
+  Dänemark: '🇩🇰',
+  Schweden: '🇸🇪',
+  Finnland: '🇫🇮',
+  Norwegen: '🇳🇴',
+  Irland: '🇮🇪',
+  'Vereinigtes Königreich': '🇬🇧',
+}
+
+export function getProjectCountryFlag(value: unknown): string {
+  const country = normalizeProjectCountry(value)
+  return PROJECT_COUNTRY_FLAGS[country] ?? '🌍'
+}
+
+export function formatProjectCountryLabel(value: unknown): string {
+  const country = normalizeProjectCountry(value)
+  return `${getProjectCountryFlag(country)} ${country}`
+}
+
 const COUNTRY_ALIASES: Record<string, string> = {
   de: 'Deutschland',
   deutschland: 'Deutschland',

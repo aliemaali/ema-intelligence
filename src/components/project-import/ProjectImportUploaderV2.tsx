@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, CloudUpload, FileText, FolderOpen, Image, 
 import { prepareProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 import { createVerifiedProjectFromImport } from '@/lib/actions/safe-project-import.actions'
 import {
+  formatProjectCountryLabel,
   isGermanProjectCountry,
   normalizeProjectCountry,
   PROJECT_COUNTRIES,
@@ -156,7 +157,7 @@ export function ProjectImportUploaderV2() {
             <label className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
               <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Land</span>
               <select name="location_country" value={locationCountry} onChange={(event) => setLocationCountry(event.target.value)} className={inputClass}>
-                {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
+                {countryOptions.map((country) => <option key={country} value={country}>{formatProjectCountryLabel(country)}</option>)}
               </select>
             </label>
             <InputField name="location_city" label="Ort" defaultValue={sanitizeImportedLocationCity(result.location_city)} />
