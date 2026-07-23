@@ -15,6 +15,7 @@ import {
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
 import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
+import { formatProjectLocationLabel } from '@/lib/projects/location'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
@@ -74,7 +75,7 @@ function getProjectDetail(project: any) {
 }
 
 function getLocation(project: any) {
-  return [project.location_city, project.location_state].filter(Boolean).join(', ') || 'Standort offen'
+  return formatProjectLocationLabel(project.location_country, project.location_city, project.location_state)
 }
 
 type ProjectKind = 'dach' | 'freiflaeche' | 'bess' | 'hybrid' | 'wind' | 'rechenzentrum' | 'sonstiges'
