@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppShell } from '@/components/layout/AppShell'
+import styles from './microsoft.module.css'
 
 export default async function MicrosoftLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -22,7 +23,7 @@ export default async function MicrosoftLayout({ children }: { children: React.Re
         avatarUrl: profile?.avatar_url ?? null,
       }}
     >
-      {children}
+      <div className={styles.microsoftPage}>{children}</div>
     </AppShell>
   )
 }
