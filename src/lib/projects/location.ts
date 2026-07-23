@@ -57,13 +57,32 @@ const PROJECT_COUNTRY_FLAGS: Record<string, string> = {
 }
 
 export function getProjectCountryFlag(value: unknown): string {
-  const country = normalizeProjectCountry(value)
+  const raw = String(value ?? '').trim()
+  if (!raw) return '🌍'
+  const country = normalizeProjectCountry(raw, raw)
   return PROJECT_COUNTRY_FLAGS[country] ?? '🌍'
 }
 
 export function formatProjectCountryLabel(value: unknown): string {
-  const country = normalizeProjectCountry(value)
+  const raw = String(value ?? '').trim()
+  if (!raw) return '🌍 Land offen'
+  const country = normalizeProjectCountry(raw, raw)
   return `${getProjectCountryFlag(country)} ${country}`
+}
+
+export function formatProjectLocationLabel(
+  countryValue: unknown,
+  cityValue: unknown,
+  stateValue?: unknown,
+): string {
+  const city = String(cityValue ?? '').trim()
+  const state = String(stateValue ?? '').trim()
+  const location = [city, state].filter(Boolean).join(', ')
+  const rawCountry = String(countryValue ?? '').trim()
+
+  if (location) return `${getProjectCountryFlag(rawCountry)} ${location}`
+  if (rawCountry) return formatProjectCountryLabel(rawCountry)
+  return '🌍 Standort offen'
 }
 
 const COUNTRY_ALIASES: Record<string, string> = {
