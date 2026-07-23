@@ -4,6 +4,12 @@ import { useMemo, useState, useTransition } from 'react'
 import { AlertTriangle, CheckCircle2, CloudUpload, FileText, FolderOpen, Image, Loader2, Sparkles, Trash2, X } from 'lucide-react'
 import { prepareProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 import { createVerifiedProjectFromImport } from '@/lib/actions/safe-project-import.actions'
+import {
+  isGermanProjectCountry,
+  normalizeProjectCountry,
+  PROJECT_COUNTRIES,
+  sanitizeImportedLocationCity,
+} from '@/lib/projects/location'
 
 function plainNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return ''
@@ -48,11 +54,13 @@ export function ProjectImportUploaderV2() {
   const [files, setFiles] = useState<File[]>([])
   const [importId, setImportId] = useState<string | null>(null)
   const [result, setResult] = useState<Record<string, any> | null>(null)
+  const [locationCountry, setLocationCountry] = useState('Deutschland')
   const [message, setMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const raw = (result?.raw_result ?? {}) as Record<string, any>
   const importedFiles = Array.isArray(raw.data_room_files) ? raw.data_room_files : []
+  const countryOptions = Array.from(new Set([locationCountry, ...PROJECT_COUNTRIES]))
 
   const warnings = useMemo(() => {
     const list: string[] = []
@@ -62,12 +70,14 @@ export function ProjectImportUploaderV2() {
     if (Number.isFinite(pv) && type.includes('dach') && pv > 20000) list.push('Dachleistung wirkt unplausibel hoch. Einheit und Dezimaltrennzeichen prüfen.')
     if (Number.isFinite(price) && price > 1000000000) list.push('EK-Kaufpreis wirkt unplausibel hoch.')
     if ((result?.confidence_score ?? 0) < 0.7) list.push('Die Erkennung ist unsicher. Bitte alle Werte mit den Unterlagen vergleichen.')
+    if (result?.location_city && !sanitizeImportedLocationCity(result.location_city)) list.push('Der erkannte Ort war nur eine Dokumentüberschrift und wurde deshalb geleert.')
     return list
   }, [result, raw.plant_type])
 
   function reset() {
     setImportId(null)
     setResult(null)
+    setLocationCountry('Deutschland')
     setMessage('')
   }
 
@@ -88,7 +98,9 @@ export function ProjectImportUploaderV2() {
       if (!id) return setMessage('Import-ID fehlt.')
       const response = await prepareProjectImport(id)
       if ('error' in response && response.error) return setMessage(`Fehler: ${response.error}`)
-      setResult('result' in response ? response.result as Record<string, any> : null)
+      const nextResult = 'result' in response ? response.result as Record<string, any> : null
+      setResult(nextResult)
+      setLocationCountry(normalizeProjectCountry(nextResult?.location_country ?? nextResult?.raw_result?.location_country))
       setMessage('Analyse abgeschlossen. Werte jetzt mit den Unterlagen prüfen und bei Bedarf ändern.')
     })
   }
@@ -141,8 +153,14 @@ export function ProjectImportUploaderV2() {
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <InputField name="project_name" label="Projektname" defaultValue={String(result.project_name ?? '')} />
             <InputField name="plant_type" label="Anlagenart" defaultValue={String(raw.plant_type ?? '')} />
-            <InputField name="location_city" label="Ort" defaultValue={String(result.location_city ?? '')} />
-            <InputField name="location_state" label="Bundesland" defaultValue={String(result.location_state ?? '')} />
+            <label className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Land</span>
+              <select name="location_country" value={locationCountry} onChange={(event) => setLocationCountry(event.target.value)} className={inputClass}>
+                {countryOptions.map((country) => <option key={country} value={country}>{country}</option>)}
+              </select>
+            </label>
+            <InputField name="location_city" label="Ort" defaultValue={sanitizeImportedLocationCity(result.location_city)} />
+            {isGermanProjectCountry(locationCountry) && <InputField name="location_state" label="Bundesland" defaultValue={String(result.location_state ?? '')} />}
             <InputField name="pv_kwp" label="PV-Leistung" type="number" unit="kWp" defaultValue={plainNumber(result.pv_kwp)} />
             <InputField name="bess_mwh" label="BESS-Kapazität" type="number" unit="MWh" defaultValue={plainNumber(result.bess_mwh)} />
             <InputField name="purchase_price" label="EK-Kaufpreis" type="number" unit="€" defaultValue={plainNumber(result.purchase_price)} />
