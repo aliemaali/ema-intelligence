@@ -11,6 +11,7 @@ import {
 import { getProjects } from '@/lib/actions/project.actions'
 import { EmptyState } from '@/components/ui'
 import ExposeButton from '@/components/projects/ExposeButton'
+import { formatProjectLocationLabel } from '@/lib/projects/location'
 import type { ProjectType, ProjectStatus } from '@/lib/types/database.types'
 
 export const metadata = { title: 'Projekte' }
@@ -29,7 +30,7 @@ function typeLabel(type?: string | null) {
 }
 
 function projectLocation(project: any) {
-  return [project.location_city, project.location_state].filter(Boolean).join(', ') || 'Standort offen'
+  return formatProjectLocationLabel(project.location_country, project.location_city, project.location_state)
 }
 
 function projectPower(project: any) {
