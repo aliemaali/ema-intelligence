@@ -117,8 +117,8 @@ function KpiCard({ title, value, subtitle, icon, tone }: {
   )
 }
 
-function ProjectImage({ kind }: { kind: ProjectKind }) {
-  const image = kind === 'dach'
+function ProjectImage({ kind, imageUrl, projectName }: { kind: ProjectKind; imageUrl?: string | null; projectName: string }) {
+  const fallbackImage = kind === 'dach'
     ? '/project-dach.svg'
     : kind === 'bess'
       ? '/project-bess.svg'
@@ -130,11 +130,12 @@ function ProjectImage({ kind }: { kind: ProjectKind }) {
             ? '/hero-wind.svg'
             : '/project-freiflaeche.svg'
 
+  const image = imageUrl || fallbackImage
   const badge = kind === 'bess' ? 'BESS' : kind === 'hybrid' ? 'HYB' : kind === 'rechenzentrum' ? 'RZ' : kind === 'sonstiges' ? 'SON' : kind === 'wind' ? 'WIND' : 'PV'
 
   return (
     <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-32 sm:w-40">
-      <img src={image} alt="Projekt" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+      <img src={image} alt={`Projektbild ${projectName}`} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent" />
       <div className="absolute right-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-extrabold text-[#1F2A44] shadow-sm">{badge}</div>
     </div>
@@ -249,7 +250,7 @@ export default async function DashboardPage() {
             {latestProjects.map((project: any) => (
               <Link key={project.id} href={`/projects/${project.id}/overview`} className="premium-lift block rounded-[1.6rem] border border-border/80 bg-white p-3 shadow-sm md:p-4">
                 <div className="flex gap-3 sm:gap-4">
-                  <ProjectImage kind={getProjectKind(project)} />
+                  <ProjectImage kind={getProjectKind(project)} imageUrl={project.project_image_url} projectName={project.project_name || project.project_number || 'Projekt'} />
                   <div className="min-w-0 flex-1 py-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-lg font-extrabold text-[#07142F]">{project.project_number ?? project.project_name}</p><p className="mt-1 flex items-center gap-1 truncate text-sm text-muted-foreground"><MapPin className="h-4 w-4" /> {getLocation(project)}</p></div><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00]"><ArrowRight className="h-5 w-5" /></span></div><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><div className="min-w-0"><p className="text-muted-foreground">Leistung</p><p className="mt-1 truncate font-extrabold text-[#132060]">{getProjectPower(project)}</p></div><div className="min-w-0"><p className="text-muted-foreground">Volumen</p><p className="mt-1 truncate font-extrabold text-[#132060]">{formatMoney(getPurchasePrice(project))}</p></div><div className="min-w-0"><p className="text-muted-foreground">Art / Status</p><p className="mt-1 truncate font-extrabold text-[#132060]">{getProjectDetail(project)}</p></div></div></div>
                 </div>
               </Link>
