@@ -53,11 +53,10 @@ with (security_invoker = true)
 as
 select
   i.*,
-  count(distinct l.id)::integer as project_count,
-  count(distinct n.id)::integer as note_count
+  count(distinct pi.id)::integer as project_count,
+  0::integer as note_count
 from public.investors i
-left join public.investor_project_links l on l.investor_id = i.id
-left join public.investor_notes n on n.investor_id = i.id
+left join public.project_investors pi on pi.investor_id = i.id
 group by i.id;
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
