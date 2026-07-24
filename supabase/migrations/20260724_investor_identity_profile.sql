@@ -48,7 +48,8 @@ before insert or update of email, website, country, location_country
 on public.investors
 for each row execute function public.infer_investor_identity_fields();
 
-create or replace view public.investors_with_stats
+drop view if exists public.investors_with_stats;
+create view public.investors_with_stats
 with (security_invoker = true)
 as
 select
