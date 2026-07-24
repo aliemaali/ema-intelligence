@@ -8,6 +8,12 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
 
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '8mb',
+    },
+  },
+
   images: {
     remotePatterns: [
       {
@@ -15,6 +21,12 @@ const nextConfig = {
         hostname: '*.supabase.co',
         port: '',
         pathname: '/storage/v1/object/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'flagcdn.com',
+        port: '',
+        pathname: '/**',
       },
     ],
   },
