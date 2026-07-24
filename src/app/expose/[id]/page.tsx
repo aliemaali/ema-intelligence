@@ -143,7 +143,14 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
 
   return (
     <div className="min-h-screen bg-[#eef2f5] pb-16 print:bg-white print:pb-0">
-      <header className="print:hidden border-b border-slate-200 bg-white px-4 py-4 shadow-sm md:px-8"><div className="mx-auto flex max-w-[1480px] items-center justify-between"><Link href="/dashboard"><img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-16 w-auto" /></Link><PrintButton data={pdfData} /></div></header>
+      <header className="print:hidden border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:py-4">
+        <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
+          <Link href="/dashboard" className="shrink-0">
+            <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-14 w-auto sm:h-16" />
+          </Link>
+          <PrintButton data={pdfData} />
+        </div>
+      </header>
       <div className="print:hidden mx-auto flex max-w-[1480px] px-4 py-4 md:px-8"><Link href="/expose" className="inline-flex items-center gap-2 rounded-2xl border bg-white px-4 py-3 text-sm font-extrabold"><ArrowLeft className="h-4 w-4" /> Zurück</Link></div>
 
       <article className="memorandum-page mx-auto w-full max-w-[1180px] overflow-hidden bg-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] print:shadow-none">
