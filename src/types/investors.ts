@@ -85,6 +85,9 @@ export interface Investor {
   contact_person: string;
   email: string;
   phone: string | null;
+  website?: string | null;
+  country?: string | null;
+  logo_url?: string | null;
   position_title?: string | null;
 
   ticket_size_min_eur: number | null;
@@ -149,12 +152,13 @@ export interface InvestorFormInput {
   contact_person: string;
   email: string;
   phone?: string | null;
+  website?: string | null;
+  country?: string | null;
+  logo_url?: string | null;
   ticket_size_min_eur?: number | null;
   ticket_size_max_eur?: number | null;
   focus: InvestorFocus;
   status: InvestorStatus;
-  last_contact_at?: string | null;
-  next_contact_at?: string | null;
   notes?: string | null;
 }
 
@@ -163,7 +167,7 @@ export interface InvestorFilters {
   focus?: InvestorFocus | "Alle";
   status?: InvestorStatus | "Alle";
   projectId?: string | "Alle";
-  sortBy?: "company_name" | "last_contact_at" | "next_contact_at" | "created_at";
+  sortBy?: "company_name" | "created_at";
   sortDirection?: "asc" | "desc";
 }
 
@@ -171,8 +175,6 @@ export interface InvestorDashboardKpis {
   totalInvestors: number;
   activeInvestors: number;
   totalTicketVolumeEur: number;
-  contactedLast30Days: number;
-  mostRecentContactAt: string | null;
 }
 
 export type ActionResult<T> =
