@@ -8,6 +8,7 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
 
+  // Project images are validated again server-side before storage upload.
   experimental: {
     serverActions: {
       bodySizeLimit: '8mb',
