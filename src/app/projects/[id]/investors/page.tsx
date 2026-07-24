@@ -10,6 +10,18 @@ interface InvestorsTabProps {
   params: { id: string }
 }
 
+const COUNTRY_CODES: Record<string, string> = {
+  Deutschland: 'de', Germany: 'de', Italien: 'it', Italy: 'it', Türkei: 'tr', Turkey: 'tr',
+  Österreich: 'at', Austria: 'at', Schweiz: 'ch', Switzerland: 'ch', Frankreich: 'fr', France: 'fr',
+  Spanien: 'es', Spain: 'es', Niederlande: 'nl', Netherlands: 'nl', Polen: 'pl', Poland: 'pl',
+  Griechenland: 'gr', Greece: 'gr', Portugal: 'pt', Belgien: 'be', Belgium: 'be',
+}
+
+function flagUrl(country: string) {
+  const code = COUNTRY_CODES[country]
+  return code ? `https://flagcdn.com/w80/${code}.png` : ''
+}
+
 function formatNumber(value: unknown, digits = 0) {
   const number = Number(value)
   if (!Number.isFinite(number)) return '—'
@@ -70,7 +82,9 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
     purchase_price: activeDeal?.purchase_price ?? null,
     sales_price: activeDeal?.sales_price ?? null,
   }
-  const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || 'Deutschland'
+  const country = String((project as any).location_country || 'Deutschland')
+  const countryFlag = flagUrl(country)
+  const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || country
   const presentation = getExposePresentation(projectData, location, {
     number: formatNumber,
     money: formatMoney,
@@ -95,8 +109,10 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
     projectType: String((project as any).project_type || 'sonstiges'),
     typeLabel: presentation.typeLabel,
     location,
+    country,
+    countryFlag,
     dateLabel: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date()),
-    status: String((project as any).status || 'Projektstatus offen'),
+    status: String((project as any).project_stage || 'planung'),
     summary: presentation.summary,
     metrics: presentation.metrics,
     profile: presentation.profile,
