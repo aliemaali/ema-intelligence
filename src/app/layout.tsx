@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/useAuth'
 import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
+import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
 import '@/styles/globals.css'
 
 const inter = Inter({
@@ -59,6 +60,7 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <DashboardCalendarShortcut />
+            <DashboardTemplateShortcut />
             <Toaster
               position="top-center"
               toastOptions={{
