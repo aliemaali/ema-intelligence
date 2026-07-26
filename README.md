@@ -43,6 +43,17 @@ supabase/migrations/011_agent_job_engine.sql
 
 ---
 
+## Dokumentenzentrale
+
+Die Dokumentenzentrale unterstützt aktuell:
+
+- NDA-Generator in Deutsch und Englisch
+- Provisionsvereinbarungen mit Pauschalbetrag, €/kWp, €/MWh oder Prozent
+- Investoren-Suchprofile als PDF
+- Ordnerzuordnung und Dokumentenvorschau
+
+---
+
 ## Schnellstart
 
 ### 1. Voraussetzungen
