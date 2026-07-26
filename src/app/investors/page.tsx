@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export default async function InvestorsPage() {
   const supabase = await createClient()
   const [investorsResult, kpisResult, projectsResult] = await Promise.all([
-    getInvestors({ sortBy: 'last_contact_at', sortDirection: 'desc' }),
+    getInvestors({ sortBy: 'company_name', sortDirection: 'asc' }),
     getInvestorDashboardKpis(),
     supabase.from('projects').select('id, name').order('name'),
   ])
@@ -20,8 +20,6 @@ export default async function InvestorsPage() {
         totalInvestors: 0,
         activeInvestors: 0,
         totalTicketVolumeEur: 0,
-        contactedLast30Days: 0,
-        mostRecentContactAt: null,
       }
   const projects = projectsResult.data ?? []
 
