@@ -10,6 +10,7 @@ import {
   Calculator,
   CheckSquare,
   ClipboardPenLine,
+  FileText,
   FolderOpen,
   Handshake,
   LayoutDashboard,
@@ -31,6 +32,7 @@ const MAIN_ITEMS = [
 ] as const
 
 const MORE_ITEMS = [
+  { label: 'Dokumente', href: '/dokumente', icon: FileText },
   { label: 'EMA Scout', href: '/acquisition', icon: Target },
   { label: 'Kundenaufnahme', href: '/customer-intake', icon: ClipboardPenLine },
   { label: 'Investoren', href: '/investors', icon: Building2 },
@@ -63,7 +65,7 @@ export function BottomNav() {
             className="absolute inset-0 bg-[#07142F]/30 backdrop-blur-[2px]"
           />
 
-          <div className="absolute inset-x-0 bottom-0 rounded-t-[2rem] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] pt-4 shadow-2xl">
+          <div className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-[2rem] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+6.5rem)] pt-4 shadow-2xl">
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-slate-200" />
             <div className="mb-4 flex items-center justify-between">
               <div>
