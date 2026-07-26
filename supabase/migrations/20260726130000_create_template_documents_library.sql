@@ -78,6 +78,7 @@ using (
 create or replace function public.set_template_documents_updated_at()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   new.updated_at = now();
