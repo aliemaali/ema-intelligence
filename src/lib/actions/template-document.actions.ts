@@ -54,6 +54,17 @@ export async function moveDocumentToFolder(documentId: string, folderId: string 
   return { success: true }
 }
 
+export async function renameTemplateDocument(documentId: string, displayName: string) {
+  const cleanName = displayName.trim()
+  if (!cleanName) return { error: 'Bitte einen Dokumentnamen eingeben.' }
+  if (cleanName.length > 160) return { error: 'Der Dokumentname darf maximal 160 Zeichen lang sein.' }
+  const { supabase, userId } = await requireUser()
+  const { error } = await (supabase as any).from('template_documents').update({ display_name: cleanName }).eq('id', documentId).eq('user_id', userId)
+  if (error) return { error: error.message }
+  revalidateDocuments()
+  return { success: true }
+}
+
 export async function deleteDocumentFolder(folderId: string) {
   const { supabase, userId } = await requireUser()
   await (supabase as any).from('template_documents').update({ folder_id: null }).eq('folder_id', folderId).eq('user_id', userId)
