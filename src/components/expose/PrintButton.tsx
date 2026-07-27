@@ -16,10 +16,12 @@ function buildFilename(projectName: string, projectNumber: string) {
 }
 
 function isIosDevice() {
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  )
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+function currentProjectId() {
+  const match = window.location.pathname.match(/^\/expose\/([^/]+)/)
+  return match?.[1] ? decodeURIComponent(match[1]) : null
 }
 
 function openOrDownloadPdf(blob: Blob, filename: string) {
@@ -57,12 +59,9 @@ async function generatePdfWithoutHeroStatusBadge(data: MemorandumPdfData) {
   }
 }
 
-interface PrintButtonProps {
-  data: MemorandumPdfData
-  projectId: string
-}
+interface PrintButtonProps { data: MemorandumPdfData }
 
-export function PrintButton({ data, projectId }: PrintButtonProps) {
+export function PrintButton({ data }: PrintButtonProps) {
   const [isPreparing, setIsPreparing] = useState(false)
 
   const createPdf = async () => {
@@ -73,9 +72,12 @@ export function PrintButton({ data, projectId }: PrintButtonProps) {
     try {
       step = 'PDF erzeugen'
       const blob = await generatePdfWithoutHeroStatusBadge(data)
-      step = 'Dokumentversion speichern'
-      const result = await markProjectOutputGenerated(projectId, 'investment_memorandum')
-      if (result.error) throw new Error(result.error)
+      const projectId = currentProjectId()
+      if (projectId) {
+        step = 'Dokumentversion speichern'
+        const result = await markProjectOutputGenerated(projectId, 'investment_memorandum')
+        if (result.error) throw new Error(result.error)
+      }
       step = 'PDF öffnen oder speichern'
       openOrDownloadPdf(blob, buildFilename(data.projectName, data.projectNumber))
     } catch (error) {
@@ -92,11 +94,7 @@ export function PrintButton({ data, projectId }: PrintButtonProps) {
   }
 
   return (
-    <button
-      disabled={isPreparing}
-      onClick={createPdf}
-      className="print:hidden inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70"
-    >
+    <button disabled={isPreparing} onClick={createPdf} className="print:hidden inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70">
       <Download className="h-4 w-4" />
       {isPreparing ? 'PDF wird erstellt…' : 'PDF erstellen'}
     </button>
