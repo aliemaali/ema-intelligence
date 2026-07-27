@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { DevelopmentStatusEditor } from '@/components/projects/DevelopmentStatusEditor'
 import { CustomerIntakeEditor } from '@/components/projects/CustomerIntakeEditor'
+import { ProjectOutputCenter } from '@/components/projects/ProjectOutputCenter'
 import { SectionHeader, InfoRow } from '@/components/ui'
 import { formatMW, formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils'
 import {
@@ -10,11 +11,9 @@ import {
   MARKETING_STATUS_LABELS, PROJECT_TYPE_LABELS,
 } from '@/lib/types/constants'
 import { formatProjectCountryLabel } from '@/lib/projects/location'
-import type { ProjectCustomerIntake } from '@/lib/projects/master-data'
+import type { ProjectCustomerIntake, ProjectGeneratedOutput } from '@/lib/projects/master-data'
 
-interface OverviewTabProps {
-  params: { id: string }
-}
+interface OverviewTabProps { params: { id: string } }
 
 export default async function OverviewTab({ params }: OverviewTabProps) {
   const supabase = await createClient()
@@ -22,17 +21,14 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
   if (!user) redirect('/login')
 
   let project: any
-  try {
-    project = await getProject(params.id)
-  } catch {
-    notFound()
-  }
+  try { project = await getProject(params.id) } catch { notFound() }
   if (!project) notFound()
 
   const hasPv = project.pv_mwp !== null
   const hasBess = project.bess_mwh !== null
   const status = project.dev_status ?? {}
   const customerIntake = (project.customer_intake ?? {}) as ProjectCustomerIntake
+  const outputMetadata = (project.output_metadata ?? {}) as Record<string, ProjectGeneratedOutput>
 
   const devItems = project.project_type === 'pv_dach'
     ? [
@@ -52,10 +48,7 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
   return (
     <div className="py-4 space-y-5 max-w-2xl">
       <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
-        <SectionHeader title="Exposé & Amortisation" />
-        <p className="text-sm leading-6 text-muted-foreground">
-          Exposés und Amortisationsberechnungen werden ausschließlich zentral über EMA-AI erstellt.
-        </p>
+        <ProjectOutputCenter projectId={project.id} masterDataVersion={project.master_data_version} outputMetadata={outputMetadata} />
       </div>
 
       <div className="card-padded">
@@ -86,35 +79,18 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
         </div>
       )}
 
-      <div className="card-padded">
-        <CustomerIntakeEditor projectId={project.id} value={customerIntake} />
-      </div>
+      <div className="card-padded"><CustomerIntakeEditor projectId={project.id} value={customerIntake} /></div>
 
       <div className="card-padded">
         <SectionHeader title="Technische Daten" />
         <div className="space-y-0">
-          {hasPv && (
-            <>
-              <InfoRow label="DC-Leistung" value={formatMW(project.pv_mwp, 'kWp')} />
-              {project.pv_ac_mw && <InfoRow label="AC-Leistung" value={formatMW(project.pv_ac_mw, 'kWp')} />}
-            </>
-          )}
-          {hasBess && (
-            <>
-              <InfoRow label="BESS Leistung" value={formatMW(project.bess_mw, 'MW')} />
-              <InfoRow label="BESS Energie" value={formatMW(project.bess_mwh, 'MWh')} />
-              {project.bess_duration_h && <InfoRow label="Dauer" value={`${project.bess_duration_h} h`} />}
-            </>
-          )}
-          {!hasPv && !hasBess && (
-            <p className="text-sm text-muted-foreground py-2">Noch keine technischen Daten erfasst.</p>
-          )}
+          {hasPv && <><InfoRow label="DC-Leistung" value={formatMW(project.pv_mwp, 'kWp')} />{project.pv_ac_mw && <InfoRow label="AC-Leistung" value={formatMW(project.pv_ac_mw, 'kWp')} />}</>}
+          {hasBess && <><InfoRow label="BESS Leistung" value={formatMW(project.bess_mw, 'MW')} /><InfoRow label="BESS Energie" value={formatMW(project.bess_mwh, 'MWh')} />{project.bess_duration_h && <InfoRow label="Dauer" value={`${project.bess_duration_h} h`} />}</>}
+          {!hasPv && !hasBess && <p className="text-sm text-muted-foreground py-2">Noch keine technischen Daten erfasst.</p>}
         </div>
       </div>
 
-      <div className="card-padded">
-        <DevelopmentStatusEditor projectId={project.id} items={devItems} />
-      </div>
+      <div className="card-padded"><DevelopmentStatusEditor projectId={project.id} items={devItems} /></div>
 
       {project.deal_net_profit !== null && (
         <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
@@ -123,24 +99,12 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
             <InfoRow label="EK-Preis" value={formatCurrency(project.deal_purchase_price)} />
             <InfoRow label="Verkaufspreis" value={formatCurrency(project.deal_sales_price)} />
             <InfoRow label="Bruttomarge" value={formatCurrency(project.deal_gross_margin)} />
-            <div className="flex items-center justify-between py-2 gap-3">
-              <span className="text-xs text-muted-foreground">Nettogewinn</span>
-              <span className="text-base font-bold text-[#5CB800]">
-                {formatCurrency(project.deal_net_profit)}
-              </span>
-            </div>
+            <div className="flex items-center justify-between py-2 gap-3"><span className="text-xs text-muted-foreground">Nettogewinn</span><span className="text-base font-bold text-[#5CB800]">{formatCurrency(project.deal_net_profit)}</span></div>
           </div>
         </div>
       )}
 
-      {project.notes && (
-        <div className="card-padded">
-          <SectionHeader title="Notizen" />
-          <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-            {project.notes}
-          </p>
-        </div>
-      )}
+      {project.notes && <div className="card-padded"><SectionHeader title="Notizen" /><p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{project.notes}</p></div>}
     </div>
   )
 }
