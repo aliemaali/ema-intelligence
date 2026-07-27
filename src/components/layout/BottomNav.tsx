@@ -19,7 +19,6 @@ import {
   LogOut,
   MoreHorizontal,
   Settings,
-  Target,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -36,7 +35,6 @@ const MORE_ITEMS = [
   { label: 'Dokumente', href: '/dokumente', icon: FileText },
   { label: 'Partner', href: '/partners', icon: Handshake },
   { label: 'Kalender', href: '/calendar', icon: CalendarDays },
-  { label: 'EMA Scout', href: '/acquisition', icon: Target },
   { label: 'Kundenaufnahme', href: '/customer-intake', icon: ClipboardPenLine },
   { label: 'CAPEX', href: '/capex', icon: Calculator },
   { label: 'Aufgaben', href: '/tasks', icon: CheckSquare },
