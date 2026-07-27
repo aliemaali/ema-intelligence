@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { DevelopmentStatusEditor } from '@/components/projects/DevelopmentStatusEditor'
+import { CustomerIntakeEditor } from '@/components/projects/CustomerIntakeEditor'
 import { SectionHeader, InfoRow } from '@/components/ui'
 import { formatMW, formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils'
 import {
@@ -9,6 +10,7 @@ import {
   MARKETING_STATUS_LABELS, PROJECT_TYPE_LABELS,
 } from '@/lib/types/constants'
 import { formatProjectCountryLabel } from '@/lib/projects/location'
+import type { ProjectCustomerIntake } from '@/lib/projects/master-data'
 
 interface OverviewTabProps {
   params: { id: string }
@@ -30,6 +32,7 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
   const hasPv = project.pv_mwp !== null
   const hasBess = project.bess_mwh !== null
   const status = project.dev_status ?? {}
+  const customerIntake = (project.customer_intake ?? {}) as ProjectCustomerIntake
 
   const devItems = project.project_type === 'pv_dach'
     ? [
@@ -82,6 +85,10 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
           </div>
         </div>
       )}
+
+      <div className="card-padded">
+        <CustomerIntakeEditor projectId={project.id} value={customerIntake} />
+      </div>
 
       <div className="card-padded">
         <SectionHeader title="Technische Daten" />
