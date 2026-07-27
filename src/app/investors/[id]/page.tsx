@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { ContactDocuments } from '@/components/crm/ContactDocuments'
+import { InvestorProjectAssignments } from '@/components/investors-crm/InvestorProjectAssignments'
 import { InvestorSearchProfileSummary } from '@/components/investors-crm/InvestorSearchProfileSummary'
 import type { InvestorSearchProfile } from '@/types/investors'
 
@@ -11,12 +12,26 @@ export default async function InvestorDetailPage({ params }: { params: { id: str
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: investor } = await supabase
-    .from('investors')
-    .select('id, company_name, contact_person, position_title, email, phone, location_city, location_country, focus, status, notes, search_profile, profile_imported_at')
-    .eq('id', params.id)
-    .eq('user_id', user.id)
-    .single()
+  const [{ data: investor }, { data: projects }, { data: assignments }] = await Promise.all([
+    supabase
+      .from('investors')
+      .select('id, company_name, contact_person, position_title, email, phone, location_city, location_country, focus, status, notes, search_profile, profile_imported_at')
+      .eq('id', params.id)
+      .eq('user_id', user.id)
+      .single(),
+    supabase
+      .from('projects')
+      .select('id, project_name, project_number, location_city, project_type')
+      .eq('user_id', user.id)
+      .eq('is_archived', false)
+      .order('project_name'),
+    (supabase as any)
+      .from('investor_project_assignments')
+      .select('id, project_id, status, expose_sent_at, notes')
+      .eq('user_id', user.id)
+      .eq('investor_id', params.id)
+      .order('created_at', { ascending: false }),
+  ])
 
   if (!investor) notFound()
   const searchProfile = investor.search_profile && Object.keys(investor.search_profile as object).length > 0
@@ -47,6 +62,8 @@ export default async function InvestorDetailPage({ params }: { params: { id: str
       </section>
 
       {searchProfile && <InvestorSearchProfileSummary profile={searchProfile} importedAt={investor.profile_imported_at} />}
+
+      <InvestorProjectAssignments investorId={investor.id} projects={(projects ?? []) as any} assignments={(assignments ?? []) as any} />
 
       <ContactDocuments
         entityType="investor"
