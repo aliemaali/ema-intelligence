@@ -1,30 +1,25 @@
 // src/lib/capex/calculations.ts
 //
-// 1:1-Migration der Berechnungslogik aus EMA_CAPEX_Rechner.html (`calcAll`).
-// Reine, server- und clientseitig nutzbare Funktionen ohne React-Abhängigkeit.
+// Adapter zwischen dem bestehenden CAPEX-UI-Modell und der zentralen EMA Finance Engine.
+// Die Oberfläche bleibt unverändert, sämtliche Finanzkennzahlen kommen jedoch aus
+// `src/lib/finance/calculate.ts`.
 
+import { calculateProjectFinancials } from '@/lib/finance/calculate'
 import type { CapexCalcResult, CapexPosition, CapexProject, CapexYearCashflow } from '@/lib/types/capex.types'
 
 export function calcAll(p: CapexProject): CapexCalcResult {
   const kwp = Number(p.anlagenleistungKwp) || 0
 
-  // ── Module ───────────────────────────────────────────────────────────────
   const moduleCount = kwp > 0 ? Math.ceil((kwp * 1000) / (Number(p.modulleistungWp) || 1)) : 0
   const moduleCost = moduleCount * (Number(p.preisProModul) || 0)
   const actualKwp = (moduleCount * (Number(p.modulleistungWp) || 0)) / 1000
 
-  // ── Wechselrichter ───────────────────────────────────────────────────────
   const wrTotal = (Number(p.wrEinzelpreis) || 0) * (Number(p.wrAnzahl) || 0)
   const wrEurPerKwp = kwp > 0 ? wrTotal / kwp : 0
-
-  // ── Unterkonstruktion ────────────────────────────────────────────────────
   const ukTotal = (Number(p.ukPreisProKwp) || 0) * kwp
-
-  // ── DC / AC ──────────────────────────────────────────────────────────────
   const dcTotal = (Number(p.dcPreisProKwp) || 0) * kwp
   const acTotal = (Number(p.acPreisProKwp) || 0) * kwp
 
-  // ── CAPEX-Positionen ─────────────────────────────────────────────────────
   const rawPositions: Array<{ name: string; cost: number }> = [
     { name: 'PV-Module', cost: moduleCost },
     { name: 'Wechselrichter', cost: wrTotal },
@@ -40,83 +35,92 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     { name: 'Einmalige Zahlung für Projektrechte', cost: (Number(p.projektrechteProKwp) || 0) * kwp },
   ]
 
-  const totalCapex = rawPositions.reduce((s, x) => s + x.cost, 0)
-
-  const positions: CapexPosition[] = rawPositions.map((x) => ({
-    ...x,
-    share: totalCapex > 0 ? x.cost / totalCapex : 0,
-    eurPerKwp: kwp > 0 ? x.cost / kwp : 0,
+  const totalCapex = rawPositions.reduce((sum, position) => sum + position.cost, 0)
+  const positions: CapexPosition[] = rawPositions.map((position) => ({
+    ...position,
+    share: totalCapex > 0 ? position.cost / totalCapex : 0,
+    eurPerKwp: kwp > 0 ? position.cost / kwp : 0,
   }))
 
-  const specificCapex = kwp > 0 ? totalCapex / kwp : 0
+  const emptyResult: CapexCalcResult = {
+    moduleCount,
+    moduleCost,
+    actualKwp,
+    wrTotal,
+    wrEurPerKwp,
+    ukTotal,
+    dcTotal,
+    acTotal,
+    positions,
+    totalCapex,
+    specificCapex: kwp > 0 ? totalCapex / kwp : 0,
+    energyY1: 0,
+    revenueY1: 0,
+    opexY1: 0,
+    ncfY1: 0,
+    staticPayback: null,
+    years: [{ year: 0, energy: null, price: null, revenue: null, opex: null, ncf: -totalCapex, cum: -totalCapex }],
+    irr: 0,
+    npv: 0,
+    dynPayback: null,
+  }
 
-  // ── Kennzahlen Jahr 1 ────────────────────────────────────────────────────
-  const energyY1 = kwp * (Number(p.spezErtragKwhKwp) || 0)
-  const revenueY1 = energyY1 * (Number(p.strompreisEurKwh) || 0)
-  const opexY1 = totalCapex * ((Number(p.betriebskostenPct) || 0) / 100)
-  const ncfY1 = revenueY1 - opexY1
-  const staticPayback = ncfY1 > 0 ? totalCapex / ncfY1 : null
+  if (kwp <= 0 || totalCapex <= 0 || Number(p.spezErtragKwhKwp) <= 0 || Number(p.strompreisEurKwh) <= 0) {
+    return emptyResult
+  }
 
-  // ── 20-Jahres-Cashflow ───────────────────────────────────────────────────
-  const degr = (Number(p.degradationPct) || 0) / 100
+  const engineResult = calculateProjectFinancials({
+    leistung_kwp: kwp,
+    spez_ertrag_kwh_kwp: Number(p.spezErtragKwhKwp),
+    performance_ratio: null,
+    degradation_pct_pa: Number(p.degradationPct) || 0,
+    betrachtungszeitraum_jahre: 20,
+    erloesmodell: 'eeg_einspeiseverguetung',
+    eeg_verguetung_ct_kwh: Number(p.strompreisEurKwh) * 100,
+    direktvermarktung_ct_kwh: null,
+    ppa_preis_ct_kwh: null,
+    verguetungsdauer_jahre: 20,
+    eigenverbrauchsquote_pct: null,
+    strompreis_eigenverbrauch_ct_kwh: null,
+    strompreissteigerung_pct_pa: Number(p.strompreissteigerungPct) || 0,
+    opex_betriebsfuehrung_eur_pa: totalCapex * ((Number(p.betriebskostenPct) || 0) / 100),
+    opex_wartung_eur_pa: 0,
+    opex_versicherung_eur_pa: 0,
+    opex_pacht_eur_pa: 0,
+    opex_sonstige_eur_pa: 0,
+    ruecklage_rueckbau_eur_pa: 0,
+    opex_steigerung_pct_pa: 0,
+    ek_quote_pct: null,
+    fk_zins_pct: null,
+    fk_laufzeit_jahre: null,
+    diskontsatz_pct: Number(p.waccPct) || 0,
+    capex_positions: rawPositions.map((position, index) => ({
+      kategorie: 'sonstige',
+      bezeichnung: position.name,
+      menge: 1,
+      einheit: 'pauschal',
+      einzelpreis_eur: position.cost,
+      betrag_eur: position.cost,
+      sortierung: index + 1,
+    })),
+  })
+
+  if (!engineResult.ok) return emptyResult
+
   const priceGrowth = (Number(p.strompreissteigerungPct) || 0) / 100
-  const wacc = (Number(p.waccPct) || 0) / 100
-  const opexPct = (Number(p.betriebskostenPct) || 0) / 100
+  const basePrice = Number(p.strompreisEurKwh) || 0
+  const years: CapexYearCashflow[] = engineResult.data.cashflow_reihe.map((row) => ({
+    year: row.jahr,
+    energy: row.ertrag_kwh,
+    price: row.jahr === 0 ? null : basePrice * Math.pow(1 + priceGrowth, row.jahr - 1),
+    revenue: row.erloes_eur,
+    opex: row.opex_eur,
+    ncf: row.cashflow_vor_finanzierung_eur,
+    cum: row.kumulierter_cashflow_eur,
+  }))
 
-  const years: CapexYearCashflow[] = []
-  const cashflows: number[] = [-totalCapex]
-  let cum = -totalCapex
-  let energy = energyY1
-  let price = Number(p.strompreisEurKwh) || 0
-
-  years.push({ year: 0, energy: null, price: null, revenue: null, opex: null, ncf: -totalCapex, cum })
-
-  for (let y = 1; y <= 20; y++) {
-    if (y > 1) {
-      energy = energy * (1 - degr)
-      price = price * (1 + priceGrowth)
-    }
-    const revenue = energy * price
-    const opex = totalCapex * opexPct
-    const ncf = revenue - opex
-    cum += ncf
-    cashflows.push(ncf)
-    years.push({ year: y, energy, price, revenue, opex, ncf, cum })
-  }
-
-  // ── IRR via Newton-Verfahren ─────────────────────────────────────────────
-  function irrFunc(rate: number): number {
-    return cashflows.reduce((s, cf, i) => s + cf / Math.pow(1 + rate, i), 0)
-  }
-  function irrDeriv(rate: number): number {
-    return cashflows.reduce((s, cf, i) => s - (i * cf) / Math.pow(1 + rate, i + 1), 0)
-  }
-
-  let irr = 0.1
-  for (let i = 0; i < 100; i++) {
-    const f = irrFunc(irr)
-    const d = irrDeriv(irr)
-    if (Math.abs(d) < 1e-9) break
-    const next = irr - f / d
-    if (Math.abs(next - irr) < 1e-7) {
-      irr = next
-      break
-    }
-    irr = next
-  }
-  if (!isFinite(irr) || isNaN(irr)) irr = 0
-
-  // ── NPV ──────────────────────────────────────────────────────────────────
-  const npv = cashflows.reduce((s, cf, i) => s + cf / Math.pow(1 + wacc, i), 0)
-
-  // ── Dynamischer Payback ──────────────────────────────────────────────────
-  let dynPayback: number | null = null
-  for (let y = 0; y <= 20; y++) {
-    if (years[y].cum >= 0) {
-      dynPayback = y
-      break
-    }
-  }
+  const yearOne = years[1]
+  const staticPayback = yearOne && yearOne.ncf > 0 ? totalCapex / yearOne.ncf : null
 
   return {
     moduleCount,
@@ -128,16 +132,16 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     dcTotal,
     acTotal,
     positions,
-    totalCapex,
-    specificCapex,
-    energyY1,
-    revenueY1,
-    opexY1,
-    ncfY1,
+    totalCapex: engineResult.data.capex_gesamt_eur,
+    specificCapex: engineResult.data.capex_eur_pro_kwp,
+    energyY1: yearOne?.energy ?? 0,
+    revenueY1: yearOne?.revenue ?? 0,
+    opexY1: yearOne?.opex ?? 0,
+    ncfY1: yearOne?.ncf ?? 0,
     staticPayback,
     years,
-    irr,
-    npv,
-    dynPayback,
+    irr: engineResult.data.irr_projekt_pct / 100,
+    npv: engineResult.data.npv_eur,
+    dynPayback: engineResult.data.payback_jahre,
   }
 }
