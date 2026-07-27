@@ -11,7 +11,9 @@ const fieldClass =
 
 export function CustomerIntakeEditor({ projectId, value }: CustomerIntakeEditorProps) {
   const intake = value ?? {}
-  const action = saveProjectCustomerIntake.bind(null, projectId)
+  const action = async (formData: FormData): Promise<void> => {
+    await saveProjectCustomerIntake(projectId, formData)
+  }
 
   return (
     <form action={action} className="space-y-4">
