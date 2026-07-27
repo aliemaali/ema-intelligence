@@ -8,7 +8,7 @@ export type InvestorProjectAssignment = {
   projectId: string
   projectName: string
   assigned: boolean
-  exposes: Array<{ id: string; displayName: string; filePath: string }>
+  memorandumUrl: string
 }
 
 async function requireUser() {
@@ -34,23 +34,13 @@ export async function getInvestorProjectAssignments(investorId: string, allProje
     const idsToLoad = Array.from(new Set([...projectIds, ...linkedProjectIds]))
     if (idsToLoad.length === 0) return { success: true as const, data: [] as InvestorProjectAssignment[] }
 
-    const [{ data: projects, error: projectsError }, { data: documents, error: documentsError }] = await Promise.all([
-      supabase
-        .from('projects')
-        .select('id, project_name')
-        .eq('user_id', userId)
-        .in('id', idsToLoad),
-      supabase
-        .from('documents')
-        .select('id, project_id, display_name, file_path, document_type, is_archived')
-        .eq('user_id', userId)
-        .eq('document_type', 'expose')
-        .eq('is_archived', false)
-        .in('project_id', idsToLoad),
-    ])
+    const { data: projects, error: projectsError } = await supabase
+      .from('projects')
+      .select('id, project_name')
+      .eq('user_id', userId)
+      .in('id', idsToLoad)
 
     if (projectsError) return { success: false as const, error: projectsError.message }
-    if (documentsError) return { success: false as const, error: documentsError.message }
 
     const linkMap = new Map((links ?? []).map((link: any) => [link.project_id, link.id]))
     const result: InvestorProjectAssignment[] = (projects ?? []).map((project: any) => ({
@@ -58,43 +48,12 @@ export async function getInvestorProjectAssignments(investorId: string, allProje
       projectId: project.id,
       projectName: project.project_name ?? 'Projekt',
       assigned: linkMap.has(project.id),
-      exposes: (documents ?? [])
-        .filter((doc: any) => doc.project_id === project.id)
-        .map((doc: any) => ({
-          id: doc.id,
-          displayName: doc.display_name || 'Exposé',
-          filePath: doc.file_path,
-        })),
+      memorandumUrl: `/expose/${project.id}`,
     }))
 
     return { success: true as const, data: result }
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : 'Zuordnungen konnten nicht geladen werden.' }
-  }
-}
-
-export async function getProjectExposeUrl(filePath: string) {
-  try {
-    const { supabase, userId } = await requireUser()
-    const { data: document, error: documentError } = await supabase
-      .from('documents')
-      .select('file_path')
-      .eq('user_id', userId)
-      .eq('file_path', filePath)
-      .eq('document_type', 'expose')
-      .eq('is_archived', false)
-      .single()
-
-    if (documentError || !document) return { error: 'Exposé wurde nicht gefunden.' }
-
-    const { data, error } = await supabase.storage
-      .from('project-documents')
-      .createSignedUrl(filePath, 3600)
-
-    if (error) return { error: error.message }
-    return { url: data.signedUrl }
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Exposé konnte nicht geöffnet werden.' }
   }
 }
 

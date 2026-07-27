@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { AlertCircle, Eye, FolderKanban, UserRound, X } from "lucide-react";
+import { AlertCircle, ExternalLink, FileDown, FolderKanban, UserRound, X } from "lucide-react";
 import { createInvestor, updateInvestor } from "@/lib/actions/investorActions";
 import {
   getInvestorProjectAssignments,
-  getProjectExposeUrl,
   saveInvestorProjectAssignments,
   type InvestorProjectAssignment,
 } from "@/lib/actions/investorProjectActions";
@@ -69,12 +68,11 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
   const update = <K extends keyof InvestorFormInput>(field: K, value: InvestorFormInput[K]) => setForm((current) => ({ ...current, [field]: value }));
   const toggleProject = (id: string) => setSelectedProjects((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
-  const openExpose = async (filePath: string) => {
-    const opened = window.open("about:blank", "_blank");
-    const result = await getProjectExposeUrl(filePath);
-    if (result.error || !result.url) { opened?.close(); setError(result.error ?? "Exposé konnte nicht geöffnet werden."); return; }
-    if (opened) { opened.opener = null; opened.location.href = result.url; } else window.location.assign(result.url);
-  };
+  function openMemorandum(projectId: string) {
+    const url = `/expose/${projectId}`;
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) window.location.assign(url);
+  }
 
   function handleSubmit() {
     setError(null);
@@ -119,18 +117,19 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
           </div>
           <Field label="Notizen" full><textarea value={form.notes ?? ""} onChange={(e) => update("notes", e.target.value)} rows={5} className="input resize-none" /></Field>
         </div> : <section>
-          <div className="mb-4 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1F2A44] text-white"><FolderKanban size={19} /></span><div><h3 className="font-extrabold text-[#1F2A44]">Zugeordnete Projekte & Exposés</h3><p className="text-xs text-slate-500">Projekte auswählen und Exposés direkt öffnen.</p></div></div>
+          <div className="mb-4 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1F2A44] text-white"><FileDown size={19} /></span><div><h3 className="font-extrabold text-[#1F2A44]">Projekte & Investment Memoranden</h3><p className="text-xs text-slate-500">Projekt auswählen und das zugehörige Investment Memorandum öffnen.</p></div></div>
           <div className="space-y-2 pb-4">
             {projects.map((project) => {
               const assignment = assignmentMap.get(project.id);
               const checked = selectedProjects.has(project.id);
               return <div key={project.id} className={`rounded-xl border bg-white p-3 ${checked ? "border-[#5CB800] shadow-sm" : "border-slate-200"}`}>
-                <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={checked} onChange={() => toggleProject(project.id)} className="h-5 w-5 accent-[#5CB800]" /><span className="min-w-0 flex-1 break-words font-bold text-slate-800">{project.name}</span><span className="shrink-0 text-xs font-semibold text-slate-400">{assignment?.exposes.length ?? 0} Exposé{(assignment?.exposes.length ?? 0) === 1 ? "" : "s"}</span></label>
-                {checked && assignment?.exposes?.length ? <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">{assignment.exposes.map((doc) => <button key={doc.id} type="button" onClick={() => openExpose(doc.filePath)} className="flex w-full items-center gap-2 rounded-lg bg-slate-50 px-3 py-3 text-left text-xs font-bold text-[#1F2A44]"><Eye size={14} /> <span className="min-w-0 flex-1 break-words">{doc.displayName}</span></button>)}</div> : checked ? <p className="mt-2 pl-8 text-xs text-slate-400">Noch kein Exposé am Projekt hinterlegt.</p> : null}
+                <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={checked} onChange={() => toggleProject(project.id)} className="h-5 w-5 accent-[#5CB800]" /><span className="min-w-0 flex-1 break-words font-bold text-slate-800">{project.name}</span>{checked && <span className="shrink-0 rounded-full bg-[#5CB800]/10 px-2 py-1 text-[10px] font-extrabold text-[#3D9200]">Zugeordnet</span>}</label>
+                {checked && <button type="button" onClick={() => openMemorandum(project.id)} className="mt-3 flex w-full items-center gap-2 rounded-xl bg-[#07142F] px-3 py-3 text-left text-xs font-extrabold text-white"><FileDown size={15} /><span className="min-w-0 flex-1">Investment Memorandum</span><ExternalLink size={14} /></button>}
+                {checked && !assignment && <p className="mt-2 text-[11px] text-slate-400">Das Memorandum wird direkt aus den aktuellen Projektdaten erzeugt.</p>}
               </div>;
             })}
             {!projects.length && <p className="py-8 text-center text-xs text-slate-500">Keine Projekte vorhanden.</p>}
-            {loadingAssignments && <p className="py-2 text-center text-xs text-slate-500">Zuordnungen und Exposés werden geladen…</p>}
+            {loadingAssignments && <p className="py-2 text-center text-xs text-slate-500">Zuordnungen werden geladen…</p>}
           </div>
         </section>}
       </div>
