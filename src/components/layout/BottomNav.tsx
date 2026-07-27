@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  BarChart3,
   Bot,
   BriefcaseBusiness,
   Building2,
@@ -42,7 +41,6 @@ const MORE_ITEMS = [
   { label: 'CAPEX', href: '/capex', icon: Calculator },
   { label: 'Aufgaben', href: '/tasks', icon: CheckSquare },
   { label: 'Projekt-Import', href: '/project-import', icon: BriefcaseBusiness },
-  { label: 'Statistiken', href: '/statistics', icon: BarChart3 },
   { label: 'Einstellungen', href: '/settings', icon: Settings },
 ] as const
 
