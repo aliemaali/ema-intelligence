@@ -140,7 +140,7 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     ncfY1: yearOne?.ncf ?? 0,
     staticPayback,
     years,
-    irr: engineResult.data.irr_projekt_pct / 100,
+    irr: (engineResult.data.irr_projekt_pct ?? 0) / 100,
     npv: engineResult.data.npv_eur,
     dynPayback: engineResult.data.payback_jahre,
   }
