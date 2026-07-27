@@ -13,12 +13,14 @@ import {
 
 const CAPEX_HIDDEN_TAG = 'hide_from_capex'
 
-/** Lädt alle sichtbaren Projekte für den CAPEX-Projekt-Picker. */
+/** Lädt alle sichtbaren Projekte inklusive zentraler Projektdaten für den CAPEX-Rechner. */
 export async function getProjectOptions(): Promise<ProjectOption[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('projects')
-    .select('id, project_name, tags, is_archived')
+    .select(
+      'id, project_name, tags, is_archived, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country, specific_yield_kwh_kwp, feed_in_tariff_ct_kwh, lease_term_years, master_data_version'
+    )
     .eq('is_archived', false)
     .order('project_name', { ascending: true })
 
@@ -32,6 +34,21 @@ export async function getProjectOptions(): Promise<ProjectOption[]> {
     .map((project: any) => ({
       id: project.id,
       name: project.project_name,
+      pv_mwp: project.pv_mwp,
+      pv_ac_mw: project.pv_ac_mw,
+      bess_mw: project.bess_mw,
+      bess_mwh: project.bess_mwh,
+      bess_duration_h: project.bess_duration_h,
+      location_city: project.location_city,
+      location_state: project.location_state,
+      location_country: project.location_country,
+      specific_yield: project.specific_yield_kwh_kwp,
+      tariff_eur_kwh:
+        project.feed_in_tariff_ct_kwh == null
+          ? null
+          : Number(project.feed_in_tariff_ct_kwh) / 100,
+      lease_term_years: project.lease_term_years,
+      master_data_version: project.master_data_version,
     }))
 }
 
@@ -94,7 +111,50 @@ export async function getCapexCalculation(id: string): Promise<CapexProject | nu
   return rowToCapexProject(data as CapexCalculationRow)
 }
 
-/** Speichert eine CAPEX-Kalkulation (Insert bei neuer, Update bei vorhandener id). */
+async function syncCapexValuesToProject(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  project: CapexProject
+): Promise<string | null> {
+  if (!project.projectId) return 'Kein Projekt ausgewählt.'
+
+  const { data: masterProject, error: readError } = await supabase
+    .from('projects')
+    .select('source_metadata')
+    .eq('id', project.projectId)
+    .single()
+
+  if (readError) return readError.message
+
+  const now = new Date().toISOString()
+  const currentSources =
+    masterProject?.source_metadata && typeof masterProject.source_metadata === 'object'
+      ? masterProject.source_metadata
+      : {}
+
+  const capexSource = { source: 'capex', sourceName: project.calculationName, importedAt: now }
+  const sourceMetadata = {
+    ...currentSources,
+    pvKwp: capexSource,
+    specificYieldKwhKwp: capexSource,
+    feedInTariffCtKwh: capexSource,
+    leaseTermYears: capexSource,
+  }
+
+  const { error } = await supabase
+    .from('projects')
+    .update({
+      pv_mwp: project.anlagenleistungKwp,
+      specific_yield_kwh_kwp: project.spezErtragKwhKwp,
+      feed_in_tariff_ct_kwh: project.strompreisEurKwh * 100,
+      lease_term_years: project.pachtdauerJahre,
+      source_metadata: sourceMetadata,
+    } as never)
+    .eq('id', project.projectId)
+
+  return error?.message ?? null
+}
+
+/** Speichert eine CAPEX-Kalkulation und synchronisiert gemeinsame Werte mit dem Projekt. */
 export async function saveCapexCalculation(
   project: CapexProject
 ): Promise<{ data: CapexProject | null; error: string | null }> {
@@ -109,6 +169,7 @@ export async function saveCapexCalculation(
   }
 
   const payload = capexProjectToRow(project, { createdBy: user?.id ?? null })
+  let savedRow: CapexCalculationRow
 
   if (project.id) {
     const { data, error } = await supabase
@@ -122,22 +183,34 @@ export async function saveCapexCalculation(
       console.error('saveCapexCalculation (update) error:', error)
       return { data: null, error: error.message }
     }
-    revalidatePath(`/capex/${project.projectId}`)
-    return { data: rowToCapexProject(data as CapexCalculationRow), error: null }
+    savedRow = data as CapexCalculationRow
+  } else {
+    const { data, error } = await supabase
+      .from('capex_calculations')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('saveCapexCalculation (insert) error:', error)
+      return { data: null, error: error.message }
+    }
+    savedRow = data as CapexCalculationRow
   }
 
-  const { data, error } = await supabase
-    .from('capex_calculations')
-    .insert(payload)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('saveCapexCalculation (insert) error:', error)
-    return { data: null, error: error.message }
+  const syncError = await syncCapexValuesToProject(supabase, project)
+  if (syncError) {
+    console.error('syncCapexValuesToProject error:', syncError)
+    return {
+      data: rowToCapexProject(savedRow),
+      error: `Kalkulation gespeichert, Projektdaten konnten aber nicht synchronisiert werden: ${syncError}`,
+    }
   }
+
   revalidatePath(`/capex/${project.projectId}`)
-  return { data: rowToCapexProject(data as CapexCalculationRow), error: null }
+  revalidatePath(`/projects/${project.projectId}`)
+  revalidatePath('/projects')
+  return { data: rowToCapexProject(savedRow), error: null }
 }
 
 /** Löscht eine CAPEX-Kalkulation. */
