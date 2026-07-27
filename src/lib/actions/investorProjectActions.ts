@@ -22,7 +22,7 @@ export async function getInvestorProjectAssignments(investorId: string) {
     const { supabase, userId } = await requireUser()
     const { data: links, error: linkError } = await supabase
       .from('investor_project_links')
-      .select('id, project_id, projects(id, name)')
+      .select('id, project_id, projects(id, project_name)')
       .eq('investor_id', investorId)
 
     if (linkError) return { success: false as const, error: linkError.message }
@@ -41,7 +41,7 @@ export async function getInvestorProjectAssignments(investorId: string) {
     const result: InvestorProjectAssignment[] = (links ?? []).map((link: any) => ({
       linkId: link.id,
       projectId: link.project_id,
-      projectName: link.projects?.name ?? 'Projekt',
+      projectName: link.projects?.project_name ?? 'Projekt',
       exposes: (assignments ?? [])
         .filter((row: any) => row.entity_id === link.project_id && row.template_documents && !row.template_documents.is_archived)
         .filter((row: any) => {
