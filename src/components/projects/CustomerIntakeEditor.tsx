@@ -1,4 +1,4 @@
-import { saveProjectCustomerIntake } from '@/lib/actions/project.actions'
+import { saveProjectCustomerIntake } from '@/lib/actions/customer-intake.actions'
 import type { ProjectCustomerIntake } from '@/lib/projects/master-data'
 
 interface CustomerIntakeEditorProps {
