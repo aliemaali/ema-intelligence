@@ -10,7 +10,7 @@ export default async function InvestorsPage() {
   const [investorsResult, kpisResult, projectsResult] = await Promise.all([
     getInvestors({ sortBy: 'last_contact_at', sortDirection: 'desc' }),
     getInvestorDashboardKpis(),
-    supabase.from('projects').select('id, name').order('name'),
+    supabase.from('projects').select('id, project_name').order('project_name'),
   ])
 
   const initialInvestors = investorsResult.success ? investorsResult.data : []
@@ -23,7 +23,10 @@ export default async function InvestorsPage() {
         contactedLast30Days: 0,
         mostRecentContactAt: null,
       }
-  const projects = projectsResult.data ?? []
+  const projects = (projectsResult.data ?? []).map((project) => ({
+    id: project.id,
+    name: project.project_name,
+  }))
 
   return (
     <div className="min-h-screen w-full" style={{ background: '#F4F6F9' }}>
