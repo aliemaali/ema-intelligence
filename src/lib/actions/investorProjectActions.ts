@@ -7,6 +7,7 @@ export type InvestorProjectAssignment = {
   linkId: string
   projectId: string
   projectName: string
+  assigned: boolean
   exposes: Array<{ id: string; displayName: string; filePath: string }>
 }
 
@@ -17,44 +18,83 @@ async function requireUser() {
   return { supabase, userId: user.id }
 }
 
-export async function getInvestorProjectAssignments(investorId: string) {
+export async function getInvestorProjectAssignments(investorId: string, allProjectIds: string[] = []) {
   try {
     const { supabase, userId } = await requireUser()
+    const projectIds = Array.from(new Set(allProjectIds.filter(Boolean)))
+
     const { data: links, error: linkError } = await supabase
       .from('investor_project_links')
-      .select('id, project_id, projects(id, project_name)')
+      .select('id, project_id')
       .eq('investor_id', investorId)
 
     if (linkError) return { success: false as const, error: linkError.message }
-    const projectIds = (links ?? []).map((item: any) => item.project_id)
-    if (projectIds.length === 0) return { success: true as const, data: [] as InvestorProjectAssignment[] }
 
-    const { data: assignments, error: assignmentError } = await (supabase as any)
-      .from('document_assignments')
-      .select('entity_id, document_id, template_documents(id, display_name, file_path, category, user_id, is_archived)')
-      .eq('entity_type', 'project')
-      .eq('user_id', userId)
-      .in('entity_id', projectIds)
+    const linkedProjectIds = (links ?? []).map((item: any) => item.project_id)
+    const idsToLoad = Array.from(new Set([...projectIds, ...linkedProjectIds]))
+    if (idsToLoad.length === 0) return { success: true as const, data: [] as InvestorProjectAssignment[] }
 
-    if (assignmentError) return { success: false as const, error: assignmentError.message }
+    const [{ data: projects, error: projectsError }, { data: documents, error: documentsError }] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('id, project_name')
+        .eq('user_id', userId)
+        .in('id', idsToLoad),
+      supabase
+        .from('documents')
+        .select('id, project_id, display_name, file_path, document_type, is_archived')
+        .eq('user_id', userId)
+        .eq('document_type', 'expose')
+        .eq('is_archived', false)
+        .in('project_id', idsToLoad),
+    ])
 
-    const result: InvestorProjectAssignment[] = (links ?? []).map((link: any) => ({
-      linkId: link.id,
-      projectId: link.project_id,
-      projectName: link.projects?.project_name ?? 'Projekt',
-      exposes: (assignments ?? [])
-        .filter((row: any) => row.entity_id === link.project_id && row.template_documents && !row.template_documents.is_archived)
-        .filter((row: any) => {
-          const category = String(row.template_documents.category ?? '').toLowerCase()
-          const name = String(row.template_documents.display_name ?? '').toLowerCase()
-          return category.includes('expos') || name.includes('exposé') || name.includes('expose')
-        })
-        .map((row: any) => ({ id: row.template_documents.id, displayName: row.template_documents.display_name, filePath: row.template_documents.file_path })),
+    if (projectsError) return { success: false as const, error: projectsError.message }
+    if (documentsError) return { success: false as const, error: documentsError.message }
+
+    const linkMap = new Map((links ?? []).map((link: any) => [link.project_id, link.id]))
+    const result: InvestorProjectAssignment[] = (projects ?? []).map((project: any) => ({
+      linkId: linkMap.get(project.id) ?? '',
+      projectId: project.id,
+      projectName: project.project_name ?? 'Projekt',
+      assigned: linkMap.has(project.id),
+      exposes: (documents ?? [])
+        .filter((doc: any) => doc.project_id === project.id)
+        .map((doc: any) => ({
+          id: doc.id,
+          displayName: doc.display_name || 'Exposé',
+          filePath: doc.file_path,
+        })),
     }))
 
     return { success: true as const, data: result }
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : 'Zuordnungen konnten nicht geladen werden.' }
+  }
+}
+
+export async function getProjectExposeUrl(filePath: string) {
+  try {
+    const { supabase, userId } = await requireUser()
+    const { data: document, error: documentError } = await supabase
+      .from('documents')
+      .select('file_path')
+      .eq('user_id', userId)
+      .eq('file_path', filePath)
+      .eq('document_type', 'expose')
+      .eq('is_archived', false)
+      .single()
+
+    if (documentError || !document) return { error: 'Exposé wurde nicht gefunden.' }
+
+    const { data, error } = await supabase.storage
+      .from('project-documents')
+      .createSignedUrl(filePath, 3600)
+
+    if (error) return { error: error.message }
+    return { url: data.signedUrl }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Exposé konnte nicht geöffnet werden.' }
   }
 }
 

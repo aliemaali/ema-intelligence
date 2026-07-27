@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { AlertCircle, Eye, FolderKanban, UserRound, X } from "lucide-react";
 import { createInvestor, updateInvestor } from "@/lib/actions/investorActions";
-import { getTemplateDocumentUrl } from "@/lib/actions/template-document.actions";
 import {
   getInvestorProjectAssignments,
+  getProjectExposeUrl,
   saveInvestorProjectAssignments,
   type InvestorProjectAssignment,
 } from "@/lib/actions/investorProjectActions";
@@ -56,14 +56,14 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
   useEffect(() => {
     if (!initial) return;
     setLoadingAssignments(true);
-    getInvestorProjectAssignments(initial.id).then((result) => {
+    getInvestorProjectAssignments(initial.id, projects.map((project) => project.id)).then((result) => {
       if (result.success) {
         setAssignments(result.data);
-        setSelectedProjects(new Set(result.data.map((item) => item.projectId)));
+        setSelectedProjects(new Set(result.data.filter((item) => item.assigned).map((item) => item.projectId)));
       } else setError(result.error);
       setLoadingAssignments(false);
     });
-  }, [initial]);
+  }, [initial, projects]);
 
   const assignmentMap = useMemo(() => new Map(assignments.map((item) => [item.projectId, item])), [assignments]);
   const update = <K extends keyof InvestorFormInput>(field: K, value: InvestorFormInput[K]) => setForm((current) => ({ ...current, [field]: value }));
@@ -71,7 +71,7 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
 
   const openExpose = async (filePath: string) => {
     const opened = window.open("about:blank", "_blank");
-    const result = await getTemplateDocumentUrl(filePath);
+    const result = await getProjectExposeUrl(filePath);
     if (result.error || !result.url) { opened?.close(); setError(result.error ?? "Exposé konnte nicht geöffnet werden."); return; }
     if (opened) { opened.opener = null; opened.location.href = result.url; } else window.location.assign(result.url);
   };
@@ -130,7 +130,7 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
               </div>;
             })}
             {!projects.length && <p className="py-8 text-center text-xs text-slate-500">Keine Projekte vorhanden.</p>}
-            {loadingAssignments && <p className="py-2 text-center text-xs text-slate-500">Zuordnungen werden geladen…</p>}
+            {loadingAssignments && <p className="py-2 text-center text-xs text-slate-500">Zuordnungen und Exposés werden geladen…</p>}
           </div>
         </section>}
       </div>
