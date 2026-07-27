@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Download } from 'lucide-react'
 import { generateMemorandumPdf, PdfGenerationError, type MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
+import { markProjectOutputGenerated } from '@/lib/actions/project-output.actions'
 
 function buildFilename(projectName: string, projectNumber: string) {
   const namePart = projectName
@@ -15,24 +16,16 @@ function buildFilename(projectName: string, projectNumber: string) {
 }
 
 function isIosDevice() {
-  return (
-    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  )
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 }
 
-/**
- * Hands the finished PDF to the user. Deliberately avoids window.print(),
- * navigator.share() as a required step, and opening a blank new tab:
- * - iOS Safari ignores the `download` attribute on anchors, but it does
- *   open a `blob:` URL with a PDF mime type in its built-in PDF viewer when
- *   navigated to directly - from there the user can tap Share/Save
- *   themselves via the native UI. No Share API call is needed or made.
- * - Everywhere else, a normal downloading anchor click is used.
- */
+function currentProjectId() {
+  const match = window.location.pathname.match(/^\/expose\/([^/]+)/)
+  return match?.[1] ? decodeURIComponent(match[1]) : null
+}
+
 function openOrDownloadPdf(blob: Blob, filename: string) {
   const blobUrl = URL.createObjectURL(blob)
-
   if (isIosDevice()) {
     window.location.href = blobUrl
   } else {
@@ -44,7 +37,6 @@ function openOrDownloadPdf(blob: Blob, filename: string) {
     anchor.click()
     anchor.remove()
   }
-
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
 }
 
@@ -52,15 +44,11 @@ async function generatePdfWithoutHeroStatusBadge(data: MemorandumPdfData) {
   const { default: jsPDF } = await import('jspdf')
   const api = (jsPDF as unknown as { API: Record<string, unknown> }).API
   const originalRoundedRect = api.roundedRect as ((...args: unknown[]) => unknown) | undefined
-
   if (!originalRoundedRect) return generateMemorandumPdf(data)
 
   api.roundedRect = function patchedRoundedRect(this: unknown, ...args: unknown[]) {
     const [x, y, width, height] = args as number[]
-
-    // Remove only the clipped white project-status badge on page 1.
     if (x === 22 && y === 88 && width === 40 && height === 6) return this
-
     return originalRoundedRect.apply(this, args)
   }
 
@@ -71,9 +59,7 @@ async function generatePdfWithoutHeroStatusBadge(data: MemorandumPdfData) {
   }
 }
 
-interface PrintButtonProps {
-  data: MemorandumPdfData
-}
+interface PrintButtonProps { data: MemorandumPdfData }
 
 export function PrintButton({ data }: PrintButtonProps) {
   const [isPreparing, setIsPreparing] = useState(false)
@@ -81,24 +67,25 @@ export function PrintButton({ data }: PrintButtonProps) {
   const createPdf = async () => {
     if (isPreparing) return
     setIsPreparing(true)
-
     let step = 'Daten prüfen'
 
     try {
       step = 'PDF erzeugen'
       const blob = await generatePdfWithoutHeroStatusBadge(data)
-
+      const projectId = currentProjectId()
+      if (projectId) {
+        step = 'Dokumentversion speichern'
+        const result = await markProjectOutputGenerated(projectId, 'investment_memorandum')
+        if (result.error) throw new Error(result.error)
+      }
       step = 'PDF öffnen oder speichern'
-      const filename = buildFilename(data.projectName, data.projectNumber)
-      openOrDownloadPdf(blob, filename)
+      openOrDownloadPdf(blob, buildFilename(data.projectName, data.projectNumber))
     } catch (error) {
       const failedStep = error instanceof PdfGenerationError ? error.step : step
       const name = error instanceof Error ? error.name : 'Error'
       const message = error instanceof Error ? error.message : String(error)
       const stack = error instanceof Error ? error.stack : undefined
       const cause = error instanceof PdfGenerationError ? error.cause : undefined
-
-      // eslint-disable-next-line no-console
       console.error('PDF-Erstellung fehlgeschlagen', { step: failedStep, name, message, stack, cause })
       window.alert(`Die PDF konnte nicht erstellt werden.\n\nSchritt: ${failedStep}\n${name}: ${message}`)
     } finally {
@@ -107,11 +94,7 @@ export function PrintButton({ data }: PrintButtonProps) {
   }
 
   return (
-    <button
-      disabled={isPreparing}
-      onClick={createPdf}
-      className="print:hidden inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70"
-    >
+    <button disabled={isPreparing} onClick={createPdf} className="print:hidden inline-flex items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#5CB800]/20 transition hover:-translate-y-0.5 hover:bg-[#4EA000] disabled:cursor-wait disabled:opacity-70">
       <Download className="h-4 w-4" />
       {isPreparing ? 'PDF wird erstellt…' : 'PDF erstellen'}
     </button>
