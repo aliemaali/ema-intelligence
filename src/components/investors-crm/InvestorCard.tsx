@@ -46,7 +46,7 @@ export function InvestorCard({ investor, onOpen, onEdit, onDelete }: InvestorCar
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-1.5"><span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10.5px] font-medium text-slate-600">{INVESTOR_FOCUS_LABELS[investor.focus]}</span><span className="text-[11.5px] text-slate-500">{investmentVolumeRange}</span></div>
         {investor.notes && <p className="mb-3 line-clamp-2 text-[12px] leading-snug text-slate-500">{investor.notes}</p>}
-        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[11.5px] text-slate-400"><span className="flex items-center gap-1"><Link2 size={12} />{investor.project_count} Projekt{investor.project_count === 1 ? "" : "e"}</span><span>{investor.country || "Land offen"}</span></div>
+        <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[11.5px] text-slate-400"><span className="flex items-center gap-1"><Link2 size={12} />{investor.project_count} Projekt{investor.project_count === 1 ? "" : "e"}</span><span>{investor.email || "E-Mail offen"}</span></div>
       </button>
 
       <div className="grid grid-cols-4 border-t border-slate-100">
