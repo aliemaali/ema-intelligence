@@ -7,6 +7,7 @@ export const MICROSOFT_SCOPES = [
   'User.Read',
   'Contacts.ReadWrite',
   'Calendars.ReadWrite',
+  'Mail.Send',
 ].join(' ')
 
 export const MICROSOFT_REFRESH_COOKIE = 'ema_ms_refresh'
