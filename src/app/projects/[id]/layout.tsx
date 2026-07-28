@@ -1,25 +1,25 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Home, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
-import { StatusBadge, TypeBadge, PriorityBadge } from '@/components/ui'
+import { TypeBadge } from '@/components/ui'
 import { ProjectActions } from '@/components/projects/ProjectActions'
 import { TabLinkClient } from '@/components/projects/TabLink'
 import { BackNavigation } from '@/components/navigation/BackNavigation'
 
 interface ProjectLayoutProps {
   children: React.ReactNode
-  params:   { id: string }
+  params: { id: string }
 }
 
 const TABS = [
-  { key: 'overview',  label: 'Übersicht' },
-  { key: 'deal',      label: 'Deal' },
+  { key: 'overview', label: 'Übersicht' },
+  { key: 'deal', label: 'Deal' },
   { key: 'documents', label: 'Dokumente' },
   { key: 'investors', label: 'Investoren' },
-  { key: 'activity',  label: 'Aktivität' },
-  { key: 'analysis',  label: 'Analyse' },
+  { key: 'activity', label: 'Aktivität' },
+  { key: 'analysis', label: 'Analyse' },
 ]
 
 export default async function ProjectLayout({ children, params }: ProjectLayoutProps) {
@@ -41,16 +41,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
       <div className="border-b border-border bg-card">
         <div className="page-container pb-0">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2">
-              <BackNavigation fallbackHref="/dashboard" label="Zurück" />
-              <Link
-                href="/dashboard"
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#1F2A44] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#162039]"
-              >
-                <Home className="h-4 w-4" />
-                <span className="hidden sm:inline">Dashboard</span>
-              </Link>
-            </div>
+            <BackNavigation fallbackHref="/projects" label="Zurück" />
 
             <div className="flex items-center gap-2">
               <Link
@@ -73,8 +64,6 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
                 {project.project_number}
               </span>
               <TypeBadge type={project.project_type} />
-              <StatusBadge status={project.status} />
-              <PriorityBadge priority={project.priority} />
             </div>
             <h1 className="text-lg font-semibold leading-tight text-foreground">
               {project.project_name}
