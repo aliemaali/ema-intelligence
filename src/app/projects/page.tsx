@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, BatteryCharging, FileText, MapPin, Plus, Sparkles, Zap } from 'lucide-react'
+import { Archive, ArrowRight, BatteryCharging, FileText, MapPin, Plus, Sparkles, Zap } from 'lucide-react'
 import { getProjects } from '@/lib/actions/project.actions'
 import { EmptyState } from '@/components/ui'
 import ExposeButton from '@/components/projects/ExposeButton'
@@ -65,7 +65,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
           <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/96 via-[#07142F]/64 to-[#07142F]/10" />
           <div className="absolute inset-x-0 bottom-0 h-72 bg-gradient-to-t from-[#07142F] via-[#07142F]/72 to-transparent" />
           <div className="relative flex min-h-[470px] flex-col justify-between px-6 py-8 md:min-h-[520px] md:px-10 md:py-10">
-            <div className="flex items-center justify-between gap-4"><span className="inline-flex items-center gap-2 rounded-full bg-[#07142F]/72 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] ring-1 ring-white/15"><Sparkles className="h-4 w-4" /> EMA Intelligence</span><Link href="/projects/new" className="inline-flex items-center gap-2 rounded-full bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white"><Plus className="h-5 w-5" /> Neu</Link></div>
+            <div className="flex items-center justify-between gap-3"><span className="inline-flex items-center gap-2 rounded-full bg-[#07142F]/72 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] ring-1 ring-white/15"><Sparkles className="h-4 w-4" /> EMA Intelligence</span><div className="flex items-center gap-2"><Link href="/projects/archive" className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/12 text-white ring-1 ring-white/20" aria-label="Projektarchiv"><Archive className="h-5 w-5" /></Link><Link href="/projects/new" className="inline-flex items-center gap-2 rounded-full bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-white"><Plus className="h-5 w-5" /> Neu</Link></div></div>
             <div className="max-w-3xl pb-2"><p className="text-sm font-extrabold uppercase tracking-[.24em] text-[#87D33B]">Projektportfolio</p><h1 className="mt-4 text-5xl font-extrabold md:text-7xl">Projekte</h1><p className="mt-5 max-w-2xl text-base leading-7 text-white/82 md:text-lg">Alle PV-, BESS-, Hybrid- und Windprojekte zentral verwalten, bewerten und für Investoren aufbereiten.</p><div className="mt-6 inline-flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm font-bold"><FileText className="h-5 w-5 text-[#87D33B]" /> {projects.length} Projekt{projects.length === 1 ? '' : 'e'} im Portfolio</div></div>
           </div>
         </div>
