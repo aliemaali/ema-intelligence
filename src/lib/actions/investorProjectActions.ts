@@ -13,6 +13,13 @@ export type InvestorProjectAssignment = {
   memorandumUrl: string
 }
 
+type AssignmentRow = {
+  id: string
+  project_id: string
+  status: string
+  expose_sent_at: string | null
+}
+
 async function requireUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -33,7 +40,8 @@ export async function getInvestorProjectAssignments(investorId: string, allProje
 
     if (assignmentError) return { success: false as const, error: assignmentError.message }
 
-    const assignedProjectIds = (assignments ?? []).map((item: any) => item.project_id)
+    const assignmentRows = (assignments ?? []) as AssignmentRow[]
+    const assignedProjectIds = assignmentRows.map((item) => item.project_id)
     const idsToLoad = Array.from(new Set([...projectIds, ...assignedProjectIds]))
     if (idsToLoad.length === 0) return { success: true as const, data: [] as InvestorProjectAssignment[] }
 
@@ -45,7 +53,9 @@ export async function getInvestorProjectAssignments(investorId: string, allProje
 
     if (projectsError) return { success: false as const, error: projectsError.message }
 
-    const assignmentMap = new Map((assignments ?? []).map((assignment: any) => [assignment.project_id, assignment]))
+    const assignmentMap = new Map<string, AssignmentRow>(
+      assignmentRows.map((assignment) => [assignment.project_id, assignment])
+    )
     const result: InvestorProjectAssignment[] = (projects ?? []).map((project: any) => {
       const assignment = assignmentMap.get(project.id)
       return {
@@ -78,9 +88,10 @@ export async function saveInvestorProjectAssignments(investorId: string, project
 
     if (readError) return { success: false as const, error: readError.message }
 
+    const existingRows = (existing ?? []) as Array<Pick<AssignmentRow, 'id' | 'project_id'>>
     const desired = new Set(uniqueProjectIds)
-    const existingByProject = new Map((existing ?? []).map((item: any) => [item.project_id, item.id]))
-    const idsToDelete = (existing ?? []).filter((item: any) => !desired.has(item.project_id)).map((item: any) => item.id)
+    const existingByProject = new Map(existingRows.map((item) => [item.project_id, item.id]))
+    const idsToDelete = existingRows.filter((item) => !desired.has(item.project_id)).map((item) => item.id)
     const projectIdsToInsert = uniqueProjectIds.filter((projectId) => !existingByProject.has(projectId))
 
     if (idsToDelete.length > 0) {
