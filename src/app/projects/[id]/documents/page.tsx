@@ -5,12 +5,9 @@ import { DocumentUploader } from '@/components/projects/DocumentUploader'
 import { DocumentList } from '@/components/projects/DocumentList'
 import { ProjectDocumentChecklist } from '@/components/projects/ProjectDocumentChecklist'
 import { ProjectOutputCenter } from '@/components/projects/ProjectOutputCenter'
-import { EmptyState } from '@/components/ui'
 import type { ProjectGeneratedOutput } from '@/lib/projects/master-data'
 
-interface DocumentsTabProps {
-  params: { id: string }
-}
+interface DocumentsTabProps { params: { id: string } }
 
 const ROOF_ITEMS = [
   { type: 'expose', label: 'Exposé' },
@@ -28,19 +25,13 @@ const DEFAULT_ITEMS = [
 ]
 
 function normalize(value: string | null | undefined) {
-  return (value ?? '')
-    .toLocaleLowerCase('de-DE')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
+  return (value ?? '').toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 function autoDetected(type: string, documents: Array<{ document_type?: string | null; display_name?: string | null; file_name?: string | null }>) {
   return documents.some((document) => {
     const documentType = normalize(document.document_type)
     const text = `${normalize(document.display_name)} ${normalize(document.file_name)}`
-
     if (type === 'expose') return documentType === 'expose' || /\bexpose\b|projekt expos/.test(text)
     if (type === 'pvsol') return documentType === 'pvsol' || /pv sol|pvsol|ertragsprognose/.test(text)
     if (type === 'netzanschluss') return documentType === 'netzanschluss' || /netzanschluss|nvp|netzverknupfung/.test(text)
@@ -58,17 +49,8 @@ export default async function DocumentsTab({ params }: DocumentsTabProps) {
 
   const [documents, { data: project }, { data: checklistRows }] = await Promise.all([
     getDocuments(params.id),
-    supabase
-      .from('projects')
-      .select('project_type, master_data_version, output_metadata')
-      .eq('id', params.id)
-      .eq('user_id', user.id)
-      .single(),
-    supabase
-      .from('project_document_checklists')
-      .select('document_type, status')
-      .eq('project_id', params.id)
-      .eq('user_id', user.id),
+    supabase.from('projects').select('project_type, master_data_version, output_metadata').eq('id', params.id).eq('user_id', user.id).single(),
+    supabase.from('project_document_checklists').select('document_type, status').eq('project_id', params.id).eq('user_id', user.id),
   ])
 
   if (!project) redirect('/projects')
@@ -83,44 +65,29 @@ export default async function DocumentsTab({ params }: DocumentsTabProps) {
   const outputMetadata = (project.output_metadata ?? {}) as Record<string, ProjectGeneratedOutput>
 
   return (
-    <div className="py-4 space-y-5 max-w-2xl">
-      <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
-        <ProjectOutputCenter
-          projectId={params.id}
-          masterDataVersion={project.master_data_version}
-          outputMetadata={outputMetadata}
-        />
-      </div>
+    <div className="max-w-2xl space-y-4 py-4">
+      <section className="card-padded">
+        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#5CB800]">Erstellen</p>
+        <div className="mt-3"><ProjectOutputCenter projectId={params.id} masterDataVersion={project.master_data_version} outputMetadata={outputMetadata} /></div>
+      </section>
 
-      <ProjectDocumentChecklist
-        projectId={params.id}
-        userId={user.id}
-        items={checklistItems}
-      />
+      <section className="card-padded">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.16em] text-muted-foreground">Unterlagenstatus</p>
+        <ProjectDocumentChecklist projectId={params.id} userId={user.id} items={checklistItems} />
+      </section>
 
-      <div className="card-padded">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          Dokument hochladen
-        </h3>
+      <section className="card-padded">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.16em] text-muted-foreground">Hochladen</p>
         <DocumentUploader projectId={params.id} userId={user.id} />
-      </div>
+      </section>
 
-      {documents.length === 0 ? (
-        <EmptyState
-          icon="📎"
-          title="Noch keine Dokumente"
-          description="Lade Exposés, Lagepläne, Netzanschlussdokumente und mehr hoch."
-        />
-      ) : (
-        <div className="card overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {documents.length} Dokument{documents.length !== 1 ? 'e' : ''}
-            </span>
-          </div>
-          <DocumentList documents={documents} projectId={params.id} />
+      <section className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+          <h3 className="text-sm font-extrabold text-[#1F2A44]">Gespeicherte Dokumente</h3>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{documents.length}</span>
         </div>
-      )}
+        {documents.length > 0 ? <DocumentList documents={documents} projectId={params.id} /> : <p className="px-4 py-8 text-center text-sm text-muted-foreground">Noch keine Dokumente gespeichert.</p>}
+      </section>
     </div>
   )
 }
