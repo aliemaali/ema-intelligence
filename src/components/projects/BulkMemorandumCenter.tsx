@@ -51,7 +51,6 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
   async function pickDeviceContact() {
     if (isAppleMobile()) {
       toast.info('Auf dem iPhone wählst du den Kontakt direkt nach dem Tippen auf „Über WhatsApp teilen“ im Teilen-Menü aus.')
-      document.getElementById('whatsapp-phone')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
 
@@ -71,12 +70,18 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       setDeviceContact({ name, phone })
       setManualPhone(phone)
     } catch (error) {
-      if (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'NotAllowedError' || error.name === 'SecurityError')) {
-        toast.info('Der Zugriff auf Kontakte ist in diesem Browser nicht erlaubt. Bitte den Kontakt später direkt in WhatsApp auswählen.')
-        return
-      }
+      if (error instanceof DOMException && ['AbortError', 'NotAllowedError', 'SecurityError'].includes(error.name)) return
       toast.error('Der Kontakt konnte nicht übernommen werden.')
     }
+  }
+
+  function resetCenter() {
+    setOpen(false)
+    setSelectedProjects([])
+    setSelectedRecipients([])
+    setManualEmail('')
+    setDeviceContact(null)
+    setManualPhone('')
   }
 
   async function dispatch() {
@@ -88,11 +93,16 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       const result = await getBulkMemorandumData(selectedProjects)
       if (!result.success || !result.data.length) throw new Error('Keine Memoranden konnten erstellt werden.')
 
-      const generated: Array<{ projectId: string; name: string; file: File; contentBytes: string }> = []
+      const generated: Array<{ projectId: string; name: string; file: File; contentBytes?: string }> = []
       for (const item of result.data) {
         const blob = await generateMemorandumPdf(item.data)
         const name = `EMA_Investment_Memorandum_${safeFileName(item.data.projectName)}.pdf`
-        generated.push({ projectId: item.projectId, name, file: new File([blob], name, { type: 'application/pdf' }), contentBytes: await blobToBase64(blob) })
+        generated.push({
+          projectId: item.projectId,
+          name,
+          file: new File([blob], name, { type: 'application/pdf' }),
+          contentBytes: channel === 'email' ? await blobToBase64(blob) : undefined,
+        })
       }
 
       const selected = selectedRecipients.map((id) => recipientMap.get(id)).filter(Boolean) as RecipientOption[]
@@ -102,7 +112,8 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
 
       if (channel === 'email') {
         const response = await fetch('/api/microsoft/send-mail', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: deliveryRecipients.map((item) => 'email' in item ? item.email : '').filter(Boolean).join(','),
             subject: `Investment Memoranden – ${generated.length} Projekt${generated.length === 1 ? '' : 'e'}`,
@@ -114,19 +125,28 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
         if (!response.ok) throw new Error(payload.error || 'E-Mail-Versand fehlgeschlagen.')
         await recordMemorandumDeliveries({ projectIds: selectedProjects, recipients: deliveryRecipients, channel: 'email', status: 'sent' })
         toast.success(`${generated.length} Memorandum${generated.length === 1 ? '' : 'en'} versendet.`)
-      } else {
-        if (!navigator.share || !navigator.canShare?.({ files: generated.map((item) => item.file) })) throw new Error('Das Teilen mehrerer PDFs wird auf diesem Gerät nicht unterstützt.')
-        await navigator.share({ title: 'EMA Investment Memoranden', text: 'Anbei erhalten Sie die ausgewählten Investment Memoranden zur Prüfung.', files: generated.map((item) => item.file) })
-        await recordMemorandumDeliveries({ projectIds: selectedProjects, recipients: deliveryRecipients, channel: 'whatsapp', status: 'shared' })
-        toast.success('WhatsApp-Teilen wurde abgeschlossen.')
+        resetCenter()
+        return
       }
 
-      setOpen(false)
-      setSelectedProjects([])
-      setSelectedRecipients([])
-      setManualEmail('')
-      setDeviceContact(null)
-      setManualPhone('')
+      const files = generated.map((item) => item.file)
+      if (!navigator.share || !navigator.canShare?.({ files })) throw new Error('Das Teilen mehrerer PDFs wird auf diesem Gerät nicht unterstützt.')
+
+      await navigator.share({
+        title: 'EMA Investment Memoranden',
+        text: 'Anbei erhalten Sie die ausgewählten Investment Memoranden zur Prüfung.',
+        files,
+      })
+
+      resetCenter()
+      toast.success('WhatsApp-Teilen wurde abgeschlossen.')
+
+      void recordMemorandumDeliveries({
+        projectIds: selectedProjects,
+        recipients: deliveryRecipients,
+        channel: 'whatsapp',
+        status: 'shared',
+      }).catch(() => undefined)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       toast.error(error instanceof Error ? error.message : 'Versand fehlgeschlagen.')
