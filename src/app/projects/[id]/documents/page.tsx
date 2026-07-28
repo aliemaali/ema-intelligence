@@ -4,7 +4,9 @@ import { getDocuments } from '@/lib/actions/document.actions'
 import { DocumentUploader } from '@/components/projects/DocumentUploader'
 import { DocumentList } from '@/components/projects/DocumentList'
 import { ProjectDocumentChecklist } from '@/components/projects/ProjectDocumentChecklist'
+import { ProjectOutputCenter } from '@/components/projects/ProjectOutputCenter'
 import { EmptyState } from '@/components/ui'
+import type { ProjectGeneratedOutput } from '@/lib/projects/master-data'
 
 interface DocumentsTabProps {
   params: { id: string }
@@ -58,7 +60,7 @@ export default async function DocumentsTab({ params }: DocumentsTabProps) {
     getDocuments(params.id),
     supabase
       .from('projects')
-      .select('project_type')
+      .select('project_type, master_data_version, output_metadata')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single(),
@@ -78,9 +80,18 @@ export default async function DocumentsTab({ params }: DocumentsTabProps) {
     status: (checklistMap.get(item.type) ?? null) as 'vorhanden' | 'fehlt' | 'nicht_erforderlich' | null,
     autoDetected: autoDetected(item.type, documents as any),
   }))
+  const outputMetadata = (project.output_metadata ?? {}) as Record<string, ProjectGeneratedOutput>
 
   return (
     <div className="py-4 space-y-5 max-w-2xl">
+      <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
+        <ProjectOutputCenter
+          projectId={params.id}
+          masterDataVersion={project.master_data_version}
+          outputMetadata={outputMetadata}
+        />
+      </div>
+
       <ProjectDocumentChecklist
         projectId={params.id}
         userId={user.id}
