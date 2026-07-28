@@ -42,6 +42,10 @@ const GREEN: [number, number, number] = [92, 184, 0]
 const BORDER: [number, number, number] = [218, 226, 232]
 const MUTED: [number, number, number] = [90, 104, 120]
 const LIGHT: [number, number, number] = [247, 249, 250]
+const PAGE_W = 210
+const PAGE_H = 297
+const MARGIN = 12
+const CONTENT_W = PAGE_W - MARGIN * 2
 const IMAGE_FETCH_TIMEOUT_MS = 8000
 
 type JsPdfDoc = InstanceType<typeof import('jspdf').default>
@@ -53,8 +57,8 @@ function safeText(value: unknown, fallback = '—') {
 }
 
 function safeNumber(value: unknown) {
-  const number = Number(value)
-  return Number.isFinite(number) ? number : 0
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 function number(value: unknown, digits = 0) {
@@ -78,17 +82,15 @@ async function loadImageAsDataUrl(url: string): Promise<LoadedImage | null> {
     const response = await fetch(url, { cache: 'force-cache', signal: controller.signal })
     if (!response.ok) return null
     const blob = await response.blob()
-    if (!blob.size) return null
     const mimeType = blob.type || ''
-    const format: 'JPEG' | 'PNG' = mimeType.includes('png') ? 'PNG' : 'JPEG'
-    if (!mimeType.includes('png') && !mimeType.includes('jpeg') && !mimeType.includes('jpg')) return null
+    if (!blob.size || (!mimeType.includes('png') && !mimeType.includes('jpeg') && !mimeType.includes('jpg'))) return null
     const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader()
       reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
       reader.onerror = () => resolve(null)
       reader.readAsDataURL(blob)
     })
-    return dataUrl ? { dataUrl, format } : null
+    return dataUrl ? { dataUrl, format: mimeType.includes('png') ? 'PNG' : 'JPEG' } : null
   } catch {
     return null
   } finally {
@@ -107,12 +109,12 @@ async function loadJsPdfConstructor() {
 
 function addImageSafely(doc: JsPdfDoc, image: LoadedImage | null, x: number, y: number, width: number, height: number) {
   if (!image) return
-  try { doc.addImage(image.dataUrl, image.format, x, y, width, height, undefined, 'FAST') } catch { /* optional image */ }
+  try { doc.addImage(image.dataUrl, image.format, x, y, width, height, undefined, 'FAST') } catch { /* optional */ }
 }
 
-function sectionHeading(doc: JsPdfDoc, label: string, x: number, y: number) {
+function heading(doc: JsPdfDoc, label: string, x: number, y: number) {
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8.5)
+  doc.setFontSize(8)
   doc.setTextColor(...NAVY)
   doc.text(label.toUpperCase(), x, y)
   doc.setDrawColor(...GREEN)
@@ -123,19 +125,19 @@ function sectionHeading(doc: JsPdfDoc, label: string, x: number, y: number) {
 function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string) {
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(...BORDER)
-  doc.roundedRect(x, y, width, 17, 2, 2, 'FD')
+  doc.roundedRect(x, y, width, 18, 2, 2, 'FD')
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.8)
+  doc.setFontSize(5.6)
   doc.setTextColor(...GREEN)
-  doc.text(label.toUpperCase(), x + width / 2, y + 5.2, { align: 'center' })
+  doc.text(label.toUpperCase(), x + width / 2, y + 5, { align: 'center' })
   doc.setTextColor(...NAVY)
-  doc.setFontSize(7.5)
-  doc.text(doc.splitTextToSize(value || '—', width - 5), x + width / 2, y + 10.8, { align: 'center' })
+  doc.setFontSize(7.2)
+  doc.text(doc.splitTextToSize(value || '—', width - 4), x + width / 2, y + 11, { align: 'center' })
 }
 
 function economyBar(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, percentage: number) {
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
+  doc.setFontSize(6.3)
   doc.setTextColor(...MUTED)
   doc.text(label, x, y)
   doc.setFont('helvetica', 'bold')
@@ -149,87 +151,110 @@ function economyBar(doc: JsPdfDoc, x: number, y: number, width: number, label: s
 
 function footer(doc: JsPdfDoc, data: MemorandumPdfData) {
   doc.setDrawColor(...BORDER)
-  doc.line(12, 197, 285, 197)
+  doc.line(MARGIN, 283, PAGE_W - MARGIN, 283)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.5)
+  doc.setFontSize(6)
   doc.setTextColor(...MUTED)
-  doc.text('EMA Enterprise GmbH · Gabriel-von-Seidl-Str. 56 · 67550 Worms', 12, 202)
-  doc.text('www.ema-enterprise.de · info@ema-enterprise.de', 148.5, 202, { align: 'center' })
-  doc.text(`${safeText(data.projectNumber)} · ${safeText(data.dateLabel)}`, 285, 202, { align: 'right' })
+  doc.text('EMA Enterprise GmbH · Gabriel-von-Seidl-Str. 56 · 67550 Worms', MARGIN, 288)
+  doc.text('www.ema-enterprise.de · info@ema-enterprise.de', PAGE_W / 2, 288, { align: 'center' })
+  doc.text(`${safeText(data.projectNumber)} · ${safeText(data.dateLabel)}`, PAGE_W - MARGIN, 288, { align: 'right' })
 }
 
 function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | null, hero: LoadedImage | null, flag: LoadedImage | null) {
   doc.setFillColor(255, 255, 255)
-  doc.rect(0, 0, 297, 210, 'F')
-  addImageSafely(doc, logo, 12, 6, 30, 13)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.setTextColor(...NAVY)
-  doc.text('INVESTMENT MEMORANDUM', 285, 12, { align: 'right' })
-  doc.setFontSize(7)
-  doc.setTextColor(...GREEN)
-  doc.text(`${safeText(data.projectNumber)} · ${safeText(data.typeLabel)}`.toUpperCase(), 285, 18, { align: 'right' })
+  doc.rect(0, 0, PAGE_W, PAGE_H, 'F')
 
+  addImageSafely(doc, logo, MARGIN, 8, 28, 12)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(...NAVY)
+  doc.text('INVESTMENT MEMORANDUM', PAGE_W - MARGIN, 13, { align: 'right' })
+  doc.setFontSize(6.5)
+  doc.setTextColor(...GREEN)
+  doc.text(`${safeText(data.projectNumber)} · ${safeText(data.typeLabel)}`.toUpperCase(), PAGE_W - MARGIN, 19, { align: 'right' })
+
+  const heroY = 25
+  const heroH = 66
   doc.setFillColor(...NAVY)
-  doc.rect(12, 24, 273, 48, 'F')
+  doc.roundedRect(MARGIN, heroY, CONTENT_W, heroH, 2, 2, 'F')
   if (hero) {
-    addImageSafely(doc, hero, 122, 24, 163, 48)
+    addImageSafely(doc, hero, 76, heroY, 122, heroH)
     doc.setFillColor(255, 255, 255)
-    doc.setGState(new (doc as any).GState({ opacity: 0.12 }))
-    doc.rect(122, 24, 163, 48, 'F')
+    doc.setGState(new (doc as any).GState({ opacity: 0.1 }))
+    doc.rect(76, heroY, 122, heroH, 'F')
     doc.setGState(new (doc as any).GState({ opacity: 1 }))
   }
-
   doc.setFillColor(...GREEN)
-  doc.roundedRect(20, 30, 48, 7, 2, 2, 'F')
+  doc.roundedRect(19, 34, 48, 7, 2, 2, 'F')
+  doc.setFontSize(6.7)
+  doc.setTextColor(255, 255, 255)
+  doc.text(safeText(data.typeLabel).toUpperCase(), 43, 38.8, { align: 'center' })
+  doc.setFontSize(17)
+  doc.text(doc.splitTextToSize(safeText(data.projectName, 'Projekt'), 52), 19, 51)
   doc.setFontSize(7)
-  doc.setTextColor(255, 255, 255)
-  doc.text(safeText(data.typeLabel).toUpperCase(), 44, 34.8, { align: 'center' })
-  doc.setFontSize(19)
-  doc.setTextColor(255, 255, 255)
-  doc.text(doc.splitTextToSize(safeText(data.projectName, 'Projekt'), 95), 20, 48)
-  doc.setFontSize(7.5)
-  addImageSafely(doc, flag, 20, 60, 8, 5)
-  doc.text(`${safeText(data.location)} · ${safeText(data.country)} · ${safeText(data.status)}`, flag ? 31 : 20, 64)
+  addImageSafely(doc, flag, 19, 76, 8, 5)
+  doc.text(`${safeText(data.location)} · ${safeText(data.country)} · ${safeText(data.status)}`, flag ? 30 : 19, 80)
 
   const metrics = data.metrics.slice(0, 6)
-  const cardWidth = 273 / Math.max(metrics.length, 1)
-  metrics.forEach((metric, index) => metricCard(doc, 12 + index * cardWidth, 76, cardWidth - 1, safeText(metric.label), safeText(metric.value)))
-
-  sectionHeading(doc, 'Executive Summary', 12, 102)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.2)
-  doc.setTextColor(40, 52, 68)
-  doc.text(doc.splitTextToSize(safeText(data.summary), 82), 12, 111)
-
-  sectionHeading(doc, 'Projektprofil', 103, 102)
-  data.profile.slice(0, 5).forEach((row, index) => {
-    const y = 111 + index * 7.2
-    doc.setDrawColor(...BORDER)
-    doc.line(103, y + 2.5, 193, y + 2.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.3)
-    doc.setTextColor(...MUTED)
-    doc.text(safeText(row.label), 105, y)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...NAVY)
-    doc.text(doc.splitTextToSize(safeText(row.value), 48), 191, y, { align: 'right' })
+  const gap = 2
+  const cardW = (CONTENT_W - gap * 2) / 3
+  metrics.forEach((metric, index) => {
+    const col = index % 3
+    const row = Math.floor(index / 3)
+    metricCard(doc, MARGIN + col * (cardW + gap), 96 + row * 20, cardW, safeText(metric.label), safeText(metric.value))
   })
 
-  sectionHeading(doc, 'Visuelle Wirtschaftlichkeit', 203, 102)
+  const leftX = MARGIN
+  const rightX = 108
+  heading(doc, 'Executive Summary', leftX, 140)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.setTextColor(40, 52, 68)
+  doc.text(doc.splitTextToSize(safeText(data.summary), 86), leftX, 149)
+
+  heading(doc, 'Projektprofil', rightX, 140)
+  data.profile.slice(0, 5).forEach((row, index) => {
+    const y = 149 + index * 8
+    doc.setDrawColor(...BORDER)
+    doc.line(rightX, y + 2.5, PAGE_W - MARGIN, y + 2.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.2)
+    doc.setTextColor(...MUTED)
+    doc.text(safeText(row.label), rightX + 1, y)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...NAVY)
+    doc.text(doc.splitTextToSize(safeText(row.value), 40), PAGE_W - MARGIN - 1, y, { align: 'right' })
+  })
+
+  heading(doc, 'Visuelle Wirtschaftlichkeit', leftX, 196)
   if (data.showPvEconomics && data.pvEconomics) {
-    const economics = data.pvEconomics
-    economyBar(doc, 203, 113, 82, 'Rendite p.a.', `${number(economics.roi, 2)} %`, Math.min(100, economics.roi * 7))
-    economyBar(doc, 203, 124, 82, 'Amortisation', `${number(economics.amortisation, 1)} Jahre`, Math.max(8, 100 - economics.amortisation * 4))
-    economyBar(doc, 203, 135, 82, 'Jahreserlös', money(economics.annualRevenue), economics.purchasePrice > 0 ? Math.min(100, economics.annualRevenue / economics.purchasePrice * 700) : 0)
+    const e = data.pvEconomics
+    economyBar(doc, leftX, 206, 84, 'Rendite p.a.', `${number(e.roi, 2)} %`, Math.min(100, e.roi * 7))
+    economyBar(doc, leftX, 218, 84, 'Amortisation', `${number(e.amortisation, 1)} Jahre`, Math.max(8, 100 - e.amortisation * 4))
+    economyBar(doc, leftX, 230, 84, 'Jahreserlös', money(e.annualRevenue), e.purchasePrice > 0 ? Math.min(100, e.annualRevenue / e.purchasePrice * 700) : 0)
   } else {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...MUTED)
-    doc.text(doc.splitTextToSize('Wirtschaftliche Kennzahlen werden ergänzt, sobald belastbare Erlös- und Investitionsdaten vorliegen.', 80), 203, 113)
+    doc.text(doc.splitTextToSize('Wirtschaftliche Kennzahlen werden ergänzt, sobald belastbare Erlös- und Investitionsdaten vorliegen.', 84), leftX, 206)
   }
 
-  sectionHeading(doc, data.showPvEconomics ? 'Wirtschaftliche Kennzahlen' : 'Projektkennzahlen', 12, 154)
+  heading(doc, 'Investment Highlights', rightX, 196)
+  const highlights = (data.highlights.length ? data.highlights : ['Projektunterlagen und Kennzahlen werden laufend ergänzt.']).slice(0, 4)
+  highlights.forEach((highlight, index) => {
+    const y = 205 + index * 12
+    doc.setFillColor(...LIGHT)
+    doc.setDrawColor(...BORDER)
+    doc.roundedRect(rightX, y - 4, 90, 10, 2, 2, 'FD')
+    doc.setFillColor(...GREEN)
+    doc.circle(rightX + 4, y, 1, 'F')
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.1)
+    doc.setTextColor(40, 52, 68)
+    doc.text(doc.splitTextToSize(safeText(highlight), 80), rightX + 7, y + 1)
+  })
+
+  heading(doc, data.showPvEconomics ? 'Wirtschaftliche Kennzahlen' : 'Projektkennzahlen', leftX, 253)
   const details = data.showPvEconomics && data.pvEconomics ? [
     ['Jahresproduktion', `${number(data.pvEconomics.annualYield)} kWh`],
     ['Jahreserlös', money(data.pvEconomics.annualRevenue)],
@@ -238,37 +263,18 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
     ['Rendite p.a.', `${number(data.pvEconomics.roi, 2)} %`],
     ['Amortisation', `${number(data.pvEconomics.amortisation, 1)} Jahre`],
   ] : data.metrics.slice(0, 6).map((item) => [item.label, item.value])
-
   details.slice(0, 6).forEach((row, index) => {
-    const column = index >= 3 ? 1 : 0
-    const rowIndex = index % 3
-    const x = 12 + column * 45
-    const y = 164 + rowIndex * 8
+    const col = index % 3
+    const line = Math.floor(index / 3)
+    const x = leftX + col * 62
+    const y = 263 + line * 10
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.3)
+    doc.setFontSize(5.8)
     doc.setTextColor(...MUTED)
     doc.text(safeText(row[0]), x, y)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...NAVY)
-    doc.text(safeText(row[1]), x + 41, y, { align: 'right' })
-  })
-
-  sectionHeading(doc, 'Investment Highlights', 112, 154)
-  const highlights = data.highlights.length ? data.highlights : ['Projektunterlagen und Kennzahlen werden laufend ergänzt.']
-  highlights.slice(0, 4).forEach((highlight, index) => {
-    const column = index >= 2 ? 1 : 0
-    const rowIndex = index % 2
-    const x = 112 + column * 87
-    const y = 164 + rowIndex * 13
-    doc.setFillColor(...LIGHT)
-    doc.setDrawColor(...BORDER)
-    doc.roundedRect(x, y - 4, 82, 10, 2, 2, 'FD')
-    doc.setFillColor(...GREEN)
-    doc.circle(x + 4, y, 1, 'F')
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.2)
-    doc.setTextColor(40, 52, 68)
-    doc.text(doc.splitTextToSize(safeText(highlight), 72), x + 7, y + 1)
+    doc.text(safeText(row[1]), x + 57, y, { align: 'right' })
   })
 
   footer(doc, data)
@@ -289,11 +295,11 @@ export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Bl
   } catch (error) {
     throw new PdfGenerationError('Bilder laden', 'Die PDF-Bilder konnten nicht geladen werden.', error)
   }
-  const doc = new JsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
   try {
     renderPage(doc, data, logo, hero, flag)
   } catch (error) {
-    throw new PdfGenerationError('Seite 1 erzeugen', 'Das einseitige Exposé konnte nicht erzeugt werden.', error)
+    throw new PdfGenerationError('Seite 1 erzeugen', 'Das einseitige A4-Hochformat konnte nicht erzeugt werden.', error)
   }
   try {
     return doc.output('blob')
