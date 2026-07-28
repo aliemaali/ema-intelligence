@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
-const PARTNER_ROLES = new Set(['partner', 'sales_partner', 'vertriebspartner'])
+const MANAGED_ROLES = new Set(['admin', 'partner', 'sales_partner', 'vertriebspartner'])
 
 async function requireAdmin() {
   const supabase = await createClient()
@@ -19,7 +19,7 @@ async function requireAdmin() {
     .maybeSingle()
 
   if (!profile || !['admin', 'owner'].includes(String(profile.role).toLowerCase())) {
-    throw new Error('Keine Berechtigung für die Partnerverwaltung.')
+    throw new Error('Keine Berechtigung für die Benutzerverwaltung.')
   }
 
   return { supabase, userId: user.id }
@@ -38,6 +38,12 @@ function getAdminClient() {
   })
 }
 
+function normalizeManagedRole(value: FormDataEntryValue | null) {
+  const role = String(value ?? 'partner').toLowerCase()
+  if (!MANAGED_ROLES.has(role)) throw new Error('Ungültige Benutzerrolle.')
+  return role === 'vertriebspartner' ? 'sales_partner' : role
+}
+
 export async function createPartnerAccount(formData: FormData) {
   await requireAdmin()
 
@@ -46,14 +52,14 @@ export async function createPartnerAccount(formData: FormData) {
   const fullName = String(formData.get('full_name') ?? '').trim()
   const company = String(formData.get('company') ?? '').trim()
   const phone = String(formData.get('phone') ?? '').trim()
-  const role = String(formData.get('role') ?? 'partner').toLowerCase()
+  const role = normalizeManagedRole(formData.get('role'))
 
   if (!email || !fullName || !password) throw new Error('Name, E-Mail und Passwort sind Pflichtfelder.')
   if (password.length < 6) throw new Error('Das Passwort muss mindestens 6 Zeichen lang sein.')
-  if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
 
   const admin = getAdminClient()
   const metadata = { full_name: fullName, company, phone, role }
+  const appMetadata = { role }
 
   const { data: usersData, error: listError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
   if (listError) throw new Error(listError.message)
@@ -67,9 +73,10 @@ export async function createPartnerAccount(formData: FormData) {
       password,
       email_confirm: true,
       user_metadata: metadata,
+      app_metadata: { ...(existingUser.app_metadata ?? {}), ...appMetadata },
     })
     if (error) throw new Error(error.message)
-    if (!data.user) throw new Error('Der vorhandene Partnerzugang konnte nicht aktualisiert werden.')
+    if (!data.user) throw new Error('Der vorhandene Benutzerzugang konnte nicht aktualisiert werden.')
     userId = data.user.id
   } else {
     const { data, error } = await admin.auth.admin.createUser({
@@ -77,9 +84,10 @@ export async function createPartnerAccount(formData: FormData) {
       password,
       email_confirm: true,
       user_metadata: metadata,
+      app_metadata: appMetadata,
     })
     if (error) throw new Error(error.message)
-    if (!data.user) throw new Error('Der Partnerzugang konnte nicht erstellt werden.')
+    if (!data.user) throw new Error('Der Benutzerzugang konnte nicht erstellt werden.')
     userId = data.user.id
     createdNewUser = true
   }
@@ -110,10 +118,9 @@ export async function invitePartnerAccount(formData: FormData) {
   const fullName = String(formData.get('full_name') ?? '').trim()
   const company = String(formData.get('company') ?? '').trim()
   const phone = String(formData.get('phone') ?? '').trim()
-  const role = String(formData.get('role') ?? 'partner').toLowerCase()
+  const role = normalizeManagedRole(formData.get('role'))
 
   if (!email || !fullName) throw new Error('Name und E-Mail sind Pflichtfelder.')
-  if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
 
   const admin = getAdminClient()
   const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.ema-enterprise.de'}/login`
@@ -124,7 +131,11 @@ export async function invitePartnerAccount(formData: FormData) {
   })
 
   if (error) throw new Error(error.message)
-  if (!data.user) throw new Error('Der Partnerzugang konnte nicht erstellt werden.')
+  if (!data.user) throw new Error('Der Benutzerzugang konnte nicht erstellt werden.')
+
+  await admin.auth.admin.updateUserById(data.user.id, {
+    app_metadata: { ...(data.user.app_metadata ?? {}), role },
+  })
 
   const { error: profileError } = await admin.from('profiles').upsert({
     id: data.user.id,
@@ -142,22 +153,44 @@ export async function invitePartnerAccount(formData: FormData) {
 }
 
 export async function updatePartnerAccount(formData: FormData) {
-  const { supabase } = await requireAdmin()
+  const { supabase, userId } = await requireAdmin()
 
-  const partnerId = String(formData.get('partner_id') ?? '')
+  const accountId = String(formData.get('partner_id') ?? '')
   const fullName = String(formData.get('full_name') ?? '').trim()
   const company = String(formData.get('company') ?? '').trim()
   const phone = String(formData.get('phone') ?? '').trim()
-  const role = String(formData.get('role') ?? 'partner').toLowerCase()
+  const role = normalizeManagedRole(formData.get('role'))
   const isActive = String(formData.get('is_active') ?? 'true') === 'true'
 
-  if (!partnerId || !fullName) throw new Error('Ungültiger Partnerdatensatz.')
-  if (!PARTNER_ROLES.has(role)) throw new Error('Ungültige Partnerrolle.')
+  if (!accountId || !fullName) throw new Error('Ungültiger Benutzerdatensatz.')
+  if (accountId === userId && (!isActive || role !== 'admin')) {
+    throw new Error('Du kannst deinen eigenen Admin-Zugang nicht sperren oder herabstufen.')
+  }
+
+  const admin = getAdminClient()
+  const { data: authUser, error: authReadError } = await admin.auth.admin.getUserById(accountId)
+  if (authReadError) throw new Error(authReadError.message)
+
+  const { error: authError } = await admin.auth.admin.updateUserById(accountId, {
+    user_metadata: {
+      ...(authUser.user?.user_metadata ?? {}),
+      full_name: fullName,
+      company,
+      phone,
+      role,
+    },
+    app_metadata: {
+      ...(authUser.user?.app_metadata ?? {}),
+      role,
+    },
+    ban_duration: isActive ? 'none' : '876000h',
+  })
+  if (authError) throw new Error(authError.message)
 
   const { error } = await supabase
     .from('profiles')
     .update({ full_name: fullName, company: company || null, phone: phone || null, role, is_active: isActive })
-    .eq('id', partnerId)
+    .eq('id', accountId)
 
   if (error) throw new Error(error.message)
   revalidatePath('/partner-management')
