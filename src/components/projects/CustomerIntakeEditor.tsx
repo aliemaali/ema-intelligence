@@ -12,6 +12,7 @@ const fieldClass =
 export function CustomerIntakeEditor({ projectId, value }: CustomerIntakeEditorProps) {
   const intake = value ?? {}
   const action = async (formData: FormData): Promise<void> => {
+    'use server'
     await saveProjectCustomerIntake(projectId, formData)
   }
 
