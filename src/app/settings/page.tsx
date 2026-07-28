@@ -23,8 +23,8 @@ export default function SettingsPage() {
             <UserCog className="h-7 w-7" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-lg font-extrabold text-[#07142F]">Partnerzugänge</span>
-            <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">Partner einladen, Kontaktdaten pflegen sowie Zugänge aktivieren oder sperren.</span>
+            <span className="block text-lg font-extrabold text-[#07142F]">Benutzerverwaltung</span>
+            <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">Administratoren, Vertriebspartner und Projektentwickler anlegen, bearbeiten, aktivieren oder sperren.</span>
           </span>
           <ChevronRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:text-[#5CB800]" />
         </Link>
