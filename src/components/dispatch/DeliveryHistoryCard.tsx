@@ -72,15 +72,15 @@ export function DeliveryHistoryCard({ item }: DeliveryHistoryCardProps) {
           </div>
 
           {editing ? (
-            <div className="mt-2 flex gap-2">
-              <input value={recipientName} onChange={(event) => setRecipientName(event.target.value)} className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-[#07142F] outline-none [-webkit-text-fill-color:#07142F] focus:border-[#5CB800]" placeholder="Name des Empfängers" />
-              <button type="button" onClick={saveRecipient} disabled={pending || !recipientName.trim()} className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#5CB800] text-white disabled:opacity-50" aria-label="Speichern"><Save className="h-4 w-4" /></button>
-              <button type="button" onClick={() => { setEditing(false); setRecipientName(item.recipientName) }} className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600" aria-label="Abbrechen"><X className="h-4 w-4" /></button>
+            <div className="-ml-14 mt-3 flex w-[calc(100%+3.5rem)] items-center gap-2 md:ml-0 md:w-full">
+              <input value={recipientName} onChange={(event) => setRecipientName(event.target.value)} className="min-h-11 min-w-[20ch] flex-1 rounded-xl border border-slate-200 bg-white px-3 text-[15px] text-[#07142F] outline-none [-webkit-text-fill-color:#07142F] focus:border-[#5CB800]" placeholder="Name des Empfängers" />
+              <button type="button" onClick={saveRecipient} disabled={pending || !recipientName.trim()} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#5CB800] text-white disabled:opacity-50" aria-label="Speichern"><Save className="h-4 w-4" /></button>
+              <button type="button" onClick={() => { setEditing(false); setRecipientName(item.recipientName) }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600" aria-label="Abbrechen"><X className="h-4 w-4" /></button>
             </div>
           ) : (
-            <div className="mt-1 flex items-center gap-2">
-              <p className="min-w-0 flex-1 truncate text-sm text-slate-600">{item.recipientName}{item.recipientEmail ? ` · ${item.recipientEmail}` : ''}</p>
-              {isWhatsapp && <button type="button" onClick={() => setEditing(true)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500" aria-label="Empfänger bearbeiten"><Pencil className="h-3.5 w-3.5" /></button>}
+            <div className="-ml-14 mt-3 flex w-[calc(100%+3.5rem)] items-center gap-2 md:ml-0 md:w-full">
+              <p className="min-w-[20ch] flex-1 truncate rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[15px] text-slate-700">{item.recipientName}{item.recipientEmail ? ` · ${item.recipientEmail}` : ''}</p>
+              {isWhatsapp && <button type="button" onClick={() => setEditing(true)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500" aria-label="Empfänger bearbeiten"><Pencil className="h-4 w-4" /></button>}
             </div>
           )}
 
