@@ -13,14 +13,28 @@ export async function POST(request: NextRequest) {
     if (!accessToken) return NextResponse.json({ error: 'Microsoft 365 ist nicht verbunden.' }, { status: 401 })
 
     const payload = await request.json()
-    const to = String(payload.to || '').trim()
+    const recipients = String(payload.to || '')
+      .split(/[;,]/)
+      .map((value) => value.trim())
+      .filter(Boolean)
     const subject = String(payload.subject || '').trim()
     const body = String(payload.body || '').trim()
-    const fileName = String(payload.fileName || 'EMA_CAPEX.pdf').trim()
-    const contentBytes = String(payload.contentBytes || '').trim()
+    const legacyAttachment = payload.contentBytes ? [{
+      fileName: String(payload.fileName || 'EMA_Dokument.pdf').trim(),
+      contentBytes: String(payload.contentBytes || '').trim(),
+      contentType: 'application/pdf',
+    }] : []
+    const attachments = (Array.isArray(payload.attachments) ? payload.attachments : legacyAttachment)
+      .map((attachment: any) => ({
+        fileName: String(attachment.fileName || 'EMA_Dokument.pdf').trim(),
+        contentBytes: String(attachment.contentBytes || '').trim(),
+        contentType: String(attachment.contentType || 'application/pdf').trim(),
+      }))
+      .filter((attachment: any) => attachment.contentBytes)
+      .slice(0, 20)
 
-    if (!to || !subject || !contentBytes) {
-      return NextResponse.json({ error: 'Empfänger, Betreff und PDF sind erforderlich.' }, { status: 400 })
+    if (!recipients.length || !subject || !attachments.length) {
+      return NextResponse.json({ error: 'Empfänger, Betreff und mindestens ein Dokument sind erforderlich.' }, { status: 400 })
     }
 
     await graphFetch<void>(accessToken, '/me/sendMail', {
@@ -28,14 +42,14 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         message: {
           subject,
-          body: { contentType: 'Text', content: body || 'Anbei erhalten Sie die CAPEX-Kalkulation.' },
-          toRecipients: [{ emailAddress: { address: to } }],
-          attachments: [{
+          body: { contentType: 'Text', content: body || 'Anbei erhalten Sie die ausgewählten Dokumente.' },
+          toRecipients: recipients.map((address) => ({ emailAddress: { address } })),
+          attachments: attachments.map((attachment: any) => ({
             '@odata.type': '#microsoft.graph.fileAttachment',
-            name: fileName,
-            contentType: 'application/pdf',
-            contentBytes,
-          }],
+            name: attachment.fileName,
+            contentType: attachment.contentType,
+            contentBytes: attachment.contentBytes,
+          })),
         },
         saveToSentItems: true,
       }),
