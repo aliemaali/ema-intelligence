@@ -3,7 +3,6 @@ import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { DevelopmentStatusEditor } from '@/components/projects/DevelopmentStatusEditor'
 import { CustomerIntakeEditor } from '@/components/projects/CustomerIntakeEditor'
-import { ProjectOutputCenter } from '@/components/projects/ProjectOutputCenter'
 import { SectionHeader, InfoRow } from '@/components/ui'
 import { formatMW, formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils'
 import {
@@ -11,7 +10,7 @@ import {
   MARKETING_STATUS_LABELS, PROJECT_TYPE_LABELS,
 } from '@/lib/types/constants'
 import { formatProjectCountryLabel } from '@/lib/projects/location'
-import type { ProjectCustomerIntake, ProjectGeneratedOutput } from '@/lib/projects/master-data'
+import type { ProjectCustomerIntake } from '@/lib/projects/master-data'
 
 interface OverviewTabProps { params: { id: string } }
 
@@ -28,7 +27,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
   const hasBess = project.bess_mwh !== null
   const status = project.dev_status ?? {}
   const customerIntake = (project.customer_intake ?? {}) as ProjectCustomerIntake
-  const outputMetadata = (project.output_metadata ?? {}) as Record<string, ProjectGeneratedOutput>
 
   const devItems = project.project_type === 'pv_dach'
     ? [
@@ -47,10 +45,6 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
 
   return (
     <div className="py-4 space-y-5 max-w-2xl">
-      <div className="card-padded border-[#5CB800]/20 bg-[#5CB800]/5">
-        <ProjectOutputCenter projectId={project.id} masterDataVersion={project.master_data_version} outputMetadata={outputMetadata} />
-      </div>
-
       <div className="card-padded">
         <SectionHeader title="Allgemeine Daten" />
         <div className="space-y-0">
