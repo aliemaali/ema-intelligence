@@ -1,5 +1,4 @@
 import { EmaAiAssistantV2 } from '@/components/ai/EmaAiAssistantV2'
-import { TopHeader } from '@/components/layout/TopHeader'
 import { getProjects } from '@/lib/actions/project.actions'
 
 export const metadata = {
@@ -65,11 +64,8 @@ export default async function EmaAiPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1]">
-      <TopHeader />
-      <div className="[&>div]:!pt-6 md:[&>div]:!pt-8">
-        <EmaAiAssistantV2 projects={aiProjects} />
-      </div>
+    <div className="min-h-screen bg-[#F7F9FC]">
+      <EmaAiAssistantV2 projects={aiProjects} />
     </div>
   )
 }
