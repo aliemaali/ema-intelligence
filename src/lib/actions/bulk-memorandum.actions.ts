@@ -158,7 +158,7 @@ export async function recordMemorandumDeliveries(input: DeliveryLogInput) {
     user_id: userId,
     project_id: projectId,
     document_type: 'investment_memorandum',
-    recipient_id: recipient.id || null,
+    recipient_id: recipient.id ? recipient.id.split(':').pop() || null : null,
     recipient_name: recipient.name,
     recipient_email: recipient.email || null,
     recipient_type: recipient.type,
