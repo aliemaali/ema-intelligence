@@ -8,6 +8,8 @@ export type InvestorProjectAssignment = {
   projectId: string
   projectName: string
   assigned: boolean
+  status: string
+  exposeSentAt: string | null
   memorandumUrl: string
 }
 
@@ -23,15 +25,16 @@ export async function getInvestorProjectAssignments(investorId: string, allProje
     const { supabase, userId } = await requireUser()
     const projectIds = Array.from(new Set(allProjectIds.filter(Boolean)))
 
-    const { data: links, error: linkError } = await supabase
-      .from('investor_project_links')
-      .select('id, project_id')
+    const { data: assignments, error: assignmentError } = await (supabase as any)
+      .from('investor_project_assignments')
+      .select('id, project_id, status, expose_sent_at')
+      .eq('user_id', userId)
       .eq('investor_id', investorId)
 
-    if (linkError) return { success: false as const, error: linkError.message }
+    if (assignmentError) return { success: false as const, error: assignmentError.message }
 
-    const linkedProjectIds = (links ?? []).map((item: any) => item.project_id)
-    const idsToLoad = Array.from(new Set([...projectIds, ...linkedProjectIds]))
+    const assignedProjectIds = (assignments ?? []).map((item: any) => item.project_id)
+    const idsToLoad = Array.from(new Set([...projectIds, ...assignedProjectIds]))
     if (idsToLoad.length === 0) return { success: true as const, data: [] as InvestorProjectAssignment[] }
 
     const { data: projects, error: projectsError } = await supabase
@@ -42,14 +45,19 @@ export async function getInvestorProjectAssignments(investorId: string, allProje
 
     if (projectsError) return { success: false as const, error: projectsError.message }
 
-    const linkMap = new Map((links ?? []).map((link: any) => [link.project_id, link.id]))
-    const result: InvestorProjectAssignment[] = (projects ?? []).map((project: any) => ({
-      linkId: linkMap.get(project.id) ?? '',
-      projectId: project.id,
-      projectName: project.project_name ?? 'Projekt',
-      assigned: linkMap.has(project.id),
-      memorandumUrl: `/expose/${project.id}`,
-    }))
+    const assignmentMap = new Map((assignments ?? []).map((assignment: any) => [assignment.project_id, assignment]))
+    const result: InvestorProjectAssignment[] = (projects ?? []).map((project: any) => {
+      const assignment = assignmentMap.get(project.id)
+      return {
+        linkId: assignment?.id ?? '',
+        projectId: project.id,
+        projectName: project.project_name ?? 'Projekt',
+        assigned: Boolean(assignment),
+        status: assignment?.status ?? 'vorgemerkt',
+        exposeSentAt: assignment?.expose_sent_at ?? null,
+        memorandumUrl: `/expose/${project.id}`,
+      }
+    })
 
     return { success: true as const, data: result }
   } catch (error) {
@@ -62,20 +70,42 @@ export async function saveInvestorProjectAssignments(investorId: string, project
     const { supabase, userId } = await requireUser()
     const uniqueProjectIds = Array.from(new Set(projectIds.filter(Boolean)))
 
-    const { error: deleteError } = await supabase
-      .from('investor_project_links')
-      .delete()
+    const { data: existing, error: readError } = await (supabase as any)
+      .from('investor_project_assignments')
+      .select('id, project_id')
+      .eq('user_id', userId)
       .eq('investor_id', investorId)
-    if (deleteError) return { success: false as const, error: deleteError.message }
 
-    if (uniqueProjectIds.length > 0) {
-      const { error: insertError } = await supabase
-        .from('investor_project_links')
-        .insert(uniqueProjectIds.map((projectId) => ({ investor_id: investorId, project_id: projectId, created_by: userId })))
+    if (readError) return { success: false as const, error: readError.message }
+
+    const desired = new Set(uniqueProjectIds)
+    const existingByProject = new Map((existing ?? []).map((item: any) => [item.project_id, item.id]))
+    const idsToDelete = (existing ?? []).filter((item: any) => !desired.has(item.project_id)).map((item: any) => item.id)
+    const projectIdsToInsert = uniqueProjectIds.filter((projectId) => !existingByProject.has(projectId))
+
+    if (idsToDelete.length > 0) {
+      const { error: deleteError } = await (supabase as any)
+        .from('investor_project_assignments')
+        .delete()
+        .eq('user_id', userId)
+        .in('id', idsToDelete)
+      if (deleteError) return { success: false as const, error: deleteError.message }
+    }
+
+    if (projectIdsToInsert.length > 0) {
+      const { error: insertError } = await (supabase as any)
+        .from('investor_project_assignments')
+        .insert(projectIdsToInsert.map((projectId) => ({
+          user_id: userId,
+          investor_id: investorId,
+          project_id: projectId,
+          status: 'vorgemerkt',
+        })))
       if (insertError) return { success: false as const, error: insertError.message }
     }
 
     revalidatePath('/investors')
+    revalidatePath(`/investors/${investorId}`)
     revalidatePath('/projects')
     return { success: true as const }
   } catch (error) {
