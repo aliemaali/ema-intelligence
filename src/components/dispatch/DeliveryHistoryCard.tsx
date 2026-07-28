@@ -29,7 +29,10 @@ export function DeliveryHistoryCard({ item }: DeliveryHistoryCardProps) {
   function saveRecipient() {
     startTransition(async () => {
       const result = await updateDeliveryRecipient(item.id, recipientName)
-      if ('error' in result && result.error) return toast.error(result.error)
+      if ('error' in result && result.error) {
+        toast.error(result.error)
+        return
+      }
       setEditing(false)
       toast.success('Empfänger aktualisiert.')
     })
@@ -39,7 +42,10 @@ export function DeliveryHistoryCard({ item }: DeliveryHistoryCardProps) {
     if (!window.confirm('Diesen Eintrag wirklich aus der Versandhistorie löschen?')) return
     startTransition(async () => {
       const result = await deleteDeliveryHistoryEntry(item.id)
-      if ('error' in result && result.error) return toast.error(result.error)
+      if ('error' in result && result.error) {
+        toast.error(result.error)
+        return
+      }
       toast.success('Eintrag gelöscht.')
     })
   }
