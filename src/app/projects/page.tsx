@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { Archive, ArrowRight, BatteryCharging, FileText, MapPin, Plus, Search, Sparkles, Zap } from 'lucide-react'
 import { getProjects } from '@/lib/actions/project.actions'
 import { EmptyState } from '@/components/ui'
+import { BulkMemorandumCenter } from '@/components/projects/BulkMemorandumCenter'
 import { formatProjectLocationLabel } from '@/lib/projects/location'
+import { createClient } from '@/lib/supabase/server'
 import type { ProjectType, ProjectStatus } from '@/lib/types/database.types'
 
 export const metadata = { title: 'Projekte' }
@@ -59,6 +61,23 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     { value: 'bess', label: 'BESS' }, { value: 'hybrid', label: 'Hybrid' }, { value: 'wind', label: 'Wind' },
   ]
 
+  const supabase = await createClient()
+  const [{ data: investors }, { data: partners }] = await Promise.all([
+    supabase.from('investors').select('id, company_name, contact_person, email').not('email', 'is', null).order('company_name'),
+    supabase.from('profiles').select('id, company, full_name, email, role').in('role', ['partner', 'sales_partner', 'vertriebspartner']).eq('is_active', true).not('email', 'is', null).order('company'),
+  ])
+  const recipients = [
+    ...(investors ?? []).map((item: any) => ({ id: `investor:${item.id}`, name: item.company_name || item.contact_person || item.email, email: item.email, type: 'investor' as const })),
+    ...(partners ?? []).map((item: any) => ({ id: `partner:${item.id}`, name: item.company || item.full_name || item.email, email: item.email, type: 'partner' as const })),
+  ]
+  const bulkProjects = allProjects.map((project: any) => ({
+    id: project.id,
+    name: project.project_name || 'Projekt',
+    number: project.project_number || 'Ohne Projektnummer',
+    location: projectLocation(project),
+    typeLabel: typeLabel(project.project_type),
+  }))
+
   return (
     <div className="w-full max-w-full space-y-6 overflow-x-hidden pb-28 md:mx-auto md:max-w-[1480px] md:space-y-7">
       <section className="relative mx-3 overflow-hidden rounded-[2rem] bg-[#07142F] text-white shadow-[0_20px_55px_rgba(15,23,42,0.16)] md:mx-0">
@@ -74,7 +93,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
       </section>
 
       <section className="px-3 md:px-0">
-        <div className="flex items-end justify-between gap-4"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#5CB800]">Portfolioübersicht</p><h2 className="mt-2 text-3xl font-extrabold text-[#07142F] md:text-4xl">Projekte verwalten</h2></div><span className="rounded-full border bg-white px-4 py-2 text-sm font-extrabold text-slate-600">{projects.length}</span></div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#5CB800]">Portfolioübersicht</p><h2 className="mt-2 text-3xl font-extrabold text-[#07142F] md:text-4xl">Projekte verwalten</h2></div><BulkMemorandumCenter projects={bulkProjects} recipients={recipients} /></div>
 
         <form className="mt-5 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm" action="/projects">
           {searchParams.type && <input type="hidden" name="type" value={searchParams.type} />}
