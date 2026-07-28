@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, FileText, Mail, MessageCircle, Send, X } from 'lucide-react'
+import { Check, Contact, FileText, Mail, MessageCircle, Send, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { generateMemorandumPdf } from '@/lib/pdf/memorandumPdf'
 import { getBulkMemorandumData, recordMemorandumDeliveries } from '@/lib/actions/bulk-memorandum.actions'
@@ -19,6 +19,11 @@ interface RecipientOption {
   name: string
   email: string
   type: 'investor' | 'partner'
+}
+
+interface DeviceContact {
+  name: string
+  phone: string
 }
 
 interface BulkMemorandumCenterProps {
@@ -44,6 +49,8 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
   const [selectedProjects, setSelectedProjects] = useState<string[]>([])
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([])
   const [manualEmail, setManualEmail] = useState('')
+  const [deviceContact, setDeviceContact] = useState<DeviceContact | null>(null)
+  const [manualPhone, setManualPhone] = useState('')
   const [channel, setChannel] = useState<'email' | 'whatsapp'>('email')
   const [busy, setBusy] = useState(false)
 
@@ -56,6 +63,34 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
 
   function toggleRecipient(id: string) {
     setSelectedRecipients((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+  }
+
+  async function pickDeviceContact() {
+    type ContactPickerNavigator = Navigator & {
+      contacts?: {
+        select: (properties: Array<'name' | 'tel'>, options: { multiple: boolean }) => Promise<Array<{ name?: string[]; tel?: string[] }>>
+      }
+    }
+
+    const contactNavigator = navigator as ContactPickerNavigator
+    if (!contactNavigator.contacts?.select) {
+      toast.info('Apple erlaubt EMA auf dem iPhone keinen direkten Zugriff auf das Adressbuch. Bitte Telefonnummer eingeben oder den Kontakt anschließend in WhatsApp auswählen.')
+      window.setTimeout(() => document.getElementById('whatsapp-phone')?.focus(), 50)
+      return
+    }
+
+    try {
+      const selected = await contactNavigator.contacts.select(['name', 'tel'], { multiple: false })
+      const contact = selected[0]
+      const phone = contact?.tel?.[0]?.trim() || ''
+      if (!phone) return toast.error('Der ausgewählte Kontakt enthält keine Telefonnummer.')
+      const name = contact?.name?.[0]?.trim() || phone
+      setDeviceContact({ name, phone })
+      setManualPhone(phone)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      toast.error('Der Kontakt konnte nicht übernommen werden.')
+    }
   }
 
   async function dispatch() {
@@ -76,14 +111,17 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
 
       const selected = selectedRecipients.map((id) => recipientMap.get(id)).filter(Boolean) as RecipientOption[]
       const manual = manualEmail.trim() ? [{ name: manualEmail.trim(), email: manualEmail.trim(), type: 'manual' as const }] : []
-      const deliveryRecipients = [...selected, ...manual]
+      const whatsappContact = channel === 'whatsapp' && (deviceContact || manualPhone.trim())
+        ? [{ name: deviceContact?.name || manualPhone.trim(), type: 'manual' as const }]
+        : []
+      const deliveryRecipients = [...selected, ...manual, ...whatsappContact]
 
       if (channel === 'email') {
         const response = await fetch('/api/microsoft/send-mail', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: deliveryRecipients.map((item) => item.email).join(','),
+            to: deliveryRecipients.map((item) => 'email' in item ? item.email : '').filter(Boolean).join(','),
             subject: `Investment Memoranden – ${generated.length} Projekt${generated.length === 1 ? '' : 'e'}`,
             body: 'Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ausgewählten Investment Memoranden zur Prüfung.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH',
             attachments: generated.map((item) => ({ fileName: item.name, contentBytes: item.contentBytes, contentType: 'application/pdf' })),
@@ -110,6 +148,8 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       setSelectedProjects([])
       setSelectedRecipients([])
       setManualEmail('')
+      setDeviceContact(null)
+      setManualPhone('')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Versand fehlgeschlagen.')
     } finally {
@@ -163,8 +203,19 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
                   </button>
                 })}
               </div>
-              <input type="email" value={manualEmail} onChange={(event) => setManualEmail(event.target.value)} placeholder="Oder E-Mail-Adresse manuell eingeben" className="form-input mt-3" />
-              {channel === 'whatsapp' && <p className="mt-2 text-xs leading-5 text-slate-500">Der tatsächliche WhatsApp-Kontakt wird anschließend im iPhone-Teilen-Menü ausgewählt. EMA dokumentiert den abgeschlossenen Teilvorgang.</p>}
+
+              {channel === 'email' ? (
+                <input type="email" value={manualEmail} onChange={(event) => setManualEmail(event.target.value)} placeholder="Oder E-Mail-Adresse manuell eingeben" className="form-input mt-3" />
+              ) : (
+                <div className="mt-3 space-y-2">
+                  <button type="button" onClick={pickDeviceContact} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 font-extrabold text-[#07142F]">
+                    <Contact className="h-5 w-5 text-[#5CB800]" /> Kontakt aus Adressbuch wählen
+                  </button>
+                  {deviceContact && <div className="rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/8 px-4 py-3"><p className="text-sm font-extrabold text-[#07142F]">{deviceContact.name}</p><p className="text-xs text-slate-500">{deviceContact.phone}</p></div>}
+                  <input id="whatsapp-phone" type="tel" inputMode="tel" autoComplete="tel" value={manualPhone} onChange={(event) => { setManualPhone(event.target.value); setDeviceContact(null) }} placeholder="Telefonnummer manuell eingeben" className="form-input" />
+                  <p className="text-xs leading-5 text-slate-500">Auf unterstützten Geräten öffnet EMA die Kontaktauswahl. Auf dem iPhone wird der tatsächliche WhatsApp-Kontakt weiterhin im Teilen-Menü ausgewählt.</p>
+                </div>
+              )}
             </div>
 
             <button type="button" onClick={dispatch} disabled={busy || !selectedProjects.length} className="mt-5 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-4 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">
