@@ -47,6 +47,20 @@ function firstValue(source: Record<string, unknown>, keys: string[]) {
   return null
 }
 
+function positiveNumber(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function pvCapacityKwp(project: Record<string, unknown>) {
+  const directKwp = firstValue(project, ['pv_kwp', 'capacity_kwp', 'plant_capacity_kwp'])
+  const direct = positiveNumber(directKwp)
+  if (direct !== null) return direct
+
+  const mwp = positiveNumber(project.pv_mwp)
+  return mwp !== null ? mwp * 1000 : null
+}
+
 function stageLabel(raw: unknown) {
   if (raw === 'rtb') return 'RTB'
   return 'In Planung'
@@ -83,20 +97,24 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || country
   const dateLabel = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
   const purchasePrice = firstValue(project, ['purchase_price', 'deal_purchase_price', 'total_purchase_price'])
-  const pvKwp = firstValue(project, ['pv_kwp', 'pv_mwp', 'capacity_kwp', 'plant_capacity_kwp'])
+  const pvKwp = pvCapacityKwp(project)
   const specificYield = firstValue(project, ['specific_yield', 'specific_yield_kwh_kwp', 'yield_kwh_kwp'])
   const tariff = firstValue(project, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh'])
   const storedAnnualYield = firstValue(project, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh'])
-  const storedAmortisation = firstValue(project, ['amortisation_years', 'amortization_years', 'payback_years'])
+  const storedNetCashFlow = firstValue(project, ['annual_net_cash_flow', 'annual_net_income', 'annual_profit', 'net_cashflow_year', 'cashflow_annual'])
+  const storedAnnualOpex = firstValue(project, ['annual_opex', 'opex_annual', 'operating_costs_annual'])
+  const opexPerKwp = positiveNumber(firstValue(project, ['opex_per_kwp', 'opex_eur_kwp'])) ?? 7
   const pv = Number(pvKwp)
   const yieldPerKwp = Number(specificYield)
   const price = Number(purchasePrice)
   const tariffEur = tariffEuroPerKwh(tariff)
-  const calculatedAnnualYield = Number.isFinite(pv) && Number.isFinite(yieldPerKwp) ? pv * yieldPerKwp : null
-  const annualYield = storedAnnualYield ?? calculatedAnnualYield
-  const annualRevenue = Number(annualYield) * (tariffEur ?? 0)
-  const amortisation = storedAmortisation ?? (price > 0 && annualRevenue > 0 ? price / annualRevenue : null)
-  const roi = price > 0 && annualRevenue > 0 ? (annualRevenue / price) * 100 : null
+  const calculatedAnnualYield = Number.isFinite(pv) && pv > 0 && Number.isFinite(yieldPerKwp) && yieldPerKwp > 0 ? pv * yieldPerKwp : null
+  const annualYield = positiveNumber(storedAnnualYield) ?? calculatedAnnualYield
+  const annualRevenue = annualYield !== null && tariffEur !== null ? annualYield * tariffEur : 0
+  const annualOpex = positiveNumber(storedAnnualOpex) ?? (Number.isFinite(pv) && pv > 0 ? pv * opexPerKwp : 0)
+  const annualNetCashFlow = positiveNumber(storedNetCashFlow) ?? Math.max(0, annualRevenue - annualOpex)
+  const amortisation = price > 0 && annualNetCashFlow > 0 ? price / annualNetCashFlow : null
+  const roi = price > 0 && annualNetCashFlow > 0 ? (annualNetCashFlow / price) * 100 : null
   const presentation = getExposePresentation(
     { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: specificYield, feed_in_tariff: tariff },
     location,
