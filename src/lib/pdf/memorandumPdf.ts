@@ -14,6 +14,8 @@ export interface MemorandumPdfData {
   highlights: string[]
   heroImage: string
   showPvEconomics: boolean
+  latitude?: number | null
+  longitude?: number | null
   pvEconomics: {
     annualYield: number
     annualRevenue: number
@@ -150,7 +152,6 @@ function drawSymbol(doc: JsPdfDoc, label: string, cx: number, cy: number, highli
   doc.setDrawColor(...ink)
   doc.setTextColor(...ink)
   doc.setLineWidth(0.75 * scale)
-
   if (key.includes('amort')) {
     doc.circle(cx, cy, 4.4 * scale, 'S')
     doc.line(cx, cy, cx, cy - 2.8 * scale)
@@ -199,14 +200,17 @@ function drawSymbol(doc: JsPdfDoc, label: string, cx: number, cy: number, highli
   doc.circle(cx, cy, 4.1 * scale, 'S')
 }
 
-function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, highlighted = false) {
-  if (highlighted) {
-    doc.setFillColor(...GREEN)
-    doc.setDrawColor(...GREEN)
-  } else {
-    doc.setFillColor(255, 255, 255)
-    doc.setDrawColor(...BORDER)
-  }
+function parsePvKwp(metrics: MemorandumPdfData['metrics']) {
+  const metric = metrics.find((item) => item.label.toLowerCase().includes('pv-leistung') || item.label.toLowerCase() === 'leistung')
+  if (!metric) return 0
+  const normalized = metric.value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')
+  const value = Number.parseFloat(normalized)
+  return Number.isFinite(value) ? value : 0
+}
+
+function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, highlighted = false, secondary = '') {
+  doc.setFillColor(...(highlighted ? GREEN : [255, 255, 255] as [number, number, number]))
+  doc.setDrawColor(...(highlighted ? GREEN : BORDER))
   doc.roundedRect(x, y, width, 35, 2.5, 2.5, 'FD')
   const cx = x + width / 2
   const cy = y + 9.2
@@ -220,6 +224,68 @@ function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: s
   doc.text(label.toUpperCase(), cx, y + 19, { align: 'center' })
   doc.setFontSize(10.2)
   doc.text(doc.splitTextToSize(value, width - 5), cx, y + 26, { align: 'center' })
+  if (secondary) {
+    doc.setFontSize(6.4)
+    doc.setTextColor(...(highlighted ? [240, 255, 230] as [number, number, number] : MUTED))
+    doc.text(secondary, cx, y + 32, { align: 'center' })
+  }
+}
+
+function locationPoint(data: MemorandumPdfData) {
+  const lat = Number(data.latitude)
+  const lon = Number(data.longitude)
+  if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= 47 && lat <= 55.2 && lon >= 5.5 && lon <= 15.5) return { lat, lon }
+  const location = data.location.toLowerCase()
+  const states: Array<[string, number, number]> = [
+    ['schleswig', 54.25, 9.6], ['hamburg', 53.55, 10], ['bremen', 53.08, 8.8], ['niedersachsen', 52.7, 9.3],
+    ['mecklenburg', 53.7, 12.5], ['brandenburg', 52.4, 13.2], ['berlin', 52.52, 13.4], ['sachsen-anhalt', 51.95, 11.7],
+    ['nordrhein', 51.45, 7.4], ['hessen', 50.6, 9], ['thüringen', 50.9, 11], ['sachsen', 51, 13.2],
+    ['rheinland', 49.9, 7.3], ['saarland', 49.4, 6.9], ['baden', 48.6, 9], ['bayern', 48.9, 11.5],
+  ]
+  const match = states.find(([name]) => location.includes(name))
+  return match ? { lat: match[1], lon: match[2] } : null
+}
+
+function drawLocationMap(doc: JsPdfDoc, data: MemorandumPdfData, x: number, y: number, width: number, height: number) {
+  const point = locationPoint(data)
+  doc.setFillColor(...LIGHT)
+  doc.setDrawColor(...BORDER)
+  doc.roundedRect(x, y, width, height, 2.5, 2.5, 'FD')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(5.5)
+  doc.setTextColor(...NAVY)
+  doc.text('PROJEKTSTANDORT', x + 4, y + 5)
+  const mapX = x + 4
+  const mapY = y + 7
+  const mapW = 25
+  const mapH = height - 10
+  const outline: Array<[number, number]> = [
+    [0.44,0.02],[0.58,0.08],[0.65,0.18],[0.72,0.22],[0.67,0.32],[0.76,0.43],[0.69,0.52],[0.73,0.63],[0.61,0.70],[0.59,0.83],[0.48,0.98],[0.38,0.89],[0.29,0.91],[0.24,0.79],[0.18,0.70],[0.25,0.60],[0.19,0.49],[0.27,0.39],[0.25,0.28],[0.34,0.20],[0.35,0.09]
+  ]
+  doc.setFillColor(232, 238, 242)
+  doc.setDrawColor(170, 184, 194)
+  const lines = outline.slice(1).map(([px, py], index) => {
+    const [prevX, prevY] = outline[index]
+    return [(px - prevX) * mapW, (py - prevY) * mapH] as [number, number]
+  })
+  const [startX, startY] = outline[0]
+  doc.lines(lines, mapX + startX * mapW, mapY + startY * mapH, [1, 1], 'FD', true)
+  if (point) {
+    const markerX = mapX + ((point.lon - 5.5) / 10) * mapW
+    const markerY = mapY + ((55.2 - point.lat) / 8.2) * mapH
+    doc.setFillColor(...GREEN)
+    doc.circle(markerX, markerY, 2.2, 'F')
+    doc.setFillColor(255, 255, 255)
+    doc.circle(markerX, markerY, 0.8, 'F')
+  }
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(6.2)
+  doc.setTextColor(...NAVY)
+  doc.text(doc.splitTextToSize(data.location, width - 36), x + 34, y + 11)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(5.5)
+  doc.setTextColor(...MUTED)
+  doc.text(point ? 'Markierung anhand der gespeicherten Standortdaten' : 'Standort anhand des Bundeslands eingeordnet', x + 34, y + height - 6)
 }
 
 function economyBar(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, percentage: number) {
@@ -269,7 +335,6 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
   doc.setFillColor(...NAVY)
   doc.roundedRect(MARGIN, heroY, 70, heroH, 3, 3, 'F')
   drawHeroFade(doc, 69, heroY, 31, heroH)
-
   doc.setFillColor(...GREEN)
   doc.roundedRect(14, 31, 39, 7, 1.7, 1.7, 'F')
   doc.setFont('helvetica', 'bold')
@@ -289,17 +354,21 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
   const metrics = data.metrics.filter((item) => hasValue(item.value) && !item.label.toLowerCase().includes('pachtdauer')).slice(0, 5)
   const gap = 2.5
   const cardW = (CONTENT_W - gap * 4) / 5
+  const pvKwp = parsePvKwp(metrics)
+  const pricePerKwp = data.pvEconomics && pvKwp > 0 && data.pvEconomics.purchasePrice > 0 ? data.pvEconomics.purchasePrice / pvKwp : 0
   metrics.forEach((metric, index) => {
-    metricCard(doc, MARGIN + index * (cardW + gap), 99, cardW, safeText(metric.label), safeText(metric.value), metric.label.toLowerCase().includes('amort'))
+    const secondary = metric.label.toLowerCase().includes('kaufpreis') && pricePerKwp > 0 ? `${number(pricePerKwp, 0)} €/kWp` : ''
+    metricCard(doc, MARGIN + index * (cardW + gap), 99, cardW, safeText(metric.label), safeText(metric.value), metric.label.toLowerCase().includes('amort'), secondary)
   })
 
   const leftX = MARGIN
   const rightX = 101
   heading(doc, 'Executive Summary', leftX, 145)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.8)
+  doc.setFontSize(6.6)
   doc.setTextColor(40, 52, 68)
   doc.text(doc.splitTextToSize(safeText(data.summary), 83), leftX, 154)
+  drawLocationMap(doc, data, leftX, 166, 83, 24)
 
   heading(doc, 'Projektprofil', rightX, 145)
   data.profile.filter((row) => hasValue(row.value)).slice(0, 5).forEach((row, index) => {
@@ -345,16 +414,14 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
   doc.setFillColor(...LIGHT)
   doc.setDrawColor(...BORDER)
   doc.roundedRect(leftX, 255, CONTENT_W, 23, 2.5, 2.5, 'FD')
-
   const details = data.showPvEconomics && data.pvEconomics ? [
     data.pvEconomics.annualYield > 0 ? ['Jahresproduktion', `${number(data.pvEconomics.annualYield)} kWh`] : null,
     data.pvEconomics.annualRevenue > 0 ? ['Jahreserlös', money(data.pvEconomics.annualRevenue)] : null,
     data.pvEconomics.purchasePrice > 0 ? ['Kaufpreis', money(data.pvEconomics.purchasePrice)] : null,
-    data.pvEconomics.tariffEurKwh > 0 ? ['Vergütung', `${number(data.pvEconomics.tariffEurKwh, 3)} €/kWh`] : null,
+    pricePerKwp > 0 ? ['Preis pro kWp', `${number(pricePerKwp, 0)} €/kWp`] : null,
     data.pvEconomics.roi > 0 ? ['Rendite p.a.', `${number(data.pvEconomics.roi, 2)} %`] : null,
     data.pvEconomics.amortisation > 0 ? ['Amortisation', `${number(data.pvEconomics.amortisation, 1)} Jahre`] : null,
   ].filter(Boolean) as string[][] : data.metrics.filter((item) => hasValue(item.value)).slice(0, 6).map((item) => [item.label, item.value])
-
   details.slice(0, 6).forEach((row, index) => {
     const col = index % 3
     const line = Math.floor(index / 3)
@@ -370,7 +437,6 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
     doc.setTextColor(...NAVY)
     doc.text(safeText(row[1]), x + 15, y + 4.8)
   })
-
   footer(doc, data)
 }
 
