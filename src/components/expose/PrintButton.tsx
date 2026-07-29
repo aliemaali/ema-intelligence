@@ -8,32 +8,13 @@ import { markProjectOutputGenerated } from '@/lib/actions/project-output.actions
 type MemorandumLanguage = 'de' | 'en'
 
 const translations: Record<string, string> = {
-  Projekttyp: 'Project type',
-  'PV-Leistung': 'PV capacity',
-  Leistung: 'Capacity',
-  Kaufpreis: 'Purchase price',
-  'Spez. Ertrag': 'Specific yield',
-  Vergütung: 'Feed-in tariff',
-  Pachtdauer: 'Lease term',
-  Amortisation: 'Payback period',
-  Standort: 'Location',
-  Projektstatus: 'Project status',
-  Netzanschluss: 'Grid connection',
-  Einspeiseart: 'Feed-in model',
-  Grundstück: 'Land area',
-  Investitionsvolumen: 'Investment volume',
-  Kapazität: 'Capacity',
-  Dauer: 'Duration',
-  'Transformator / Umspannwerk': 'Transformer / substation',
-  Jahresproduktion: 'Annual production',
-  Jahreserlös: 'Annual revenue',
-  'Rendite p.a.': 'Annual return',
-  Vorhanden: 'Available',
-  'Nicht vorhanden': 'Not available',
-  'Noch offen': 'Pending',
-  'In Planung': 'In planning',
-  'Im Betrieb': 'Operational',
-  Jahre: 'years',
+  Projekttyp: 'Project type', 'PV-Leistung': 'PV capacity', Leistung: 'Capacity', Kaufpreis: 'Purchase price',
+  'Spez. Ertrag': 'Specific yield', Vergütung: 'Feed-in tariff', Pachtdauer: 'Lease term', Amortisation: 'Payback period',
+  Standort: 'Location', Projektstatus: 'Project status', Netzanschluss: 'Grid connection', Einspeiseart: 'Feed-in model',
+  Grundstück: 'Land area', Investitionsvolumen: 'Investment volume', Kapazität: 'Capacity', Dauer: 'Duration',
+  'Transformator / Umspannwerk': 'Transformer / substation', Jahresproduktion: 'Annual production', Jahreserlös: 'Annual revenue',
+  'Rendite p.a.': 'Annual return', Vorhanden: 'Available', 'Nicht vorhanden': 'Not available', 'Noch offen': 'Pending',
+  'In Planung': 'In planning', 'Im Betrieb': 'Operational',
 }
 
 function translateText(value: string): string {
@@ -52,14 +33,12 @@ function translateText(value: string): string {
 }
 
 function dataForLanguage(data: MemorandumPdfData, language: MemorandumLanguage): MemorandumPdfData {
-  if (language === 'de') return { ...data, language }
+  if (language === 'de') return data
   return {
     ...data,
-    language,
     typeLabel: translateText(data.typeLabel),
     status: translateText(data.status),
     summary: data.summary
-      .replace(/ in /, ' in ')
       .replace(/mit den hinterlegten technischen und wirtschaftlichen Kennzahlen\./, 'with the available technical and economic data.')
       .replace(/mit den verfügbaren Leistungs-, Kapazitäts- und Entwicklungsdaten\./, 'with the available power, capacity and development data.')
       .replace(/mit den hinterlegten Anschluss-, Grundstücks- und Investitionsdaten\./, 'with the available grid, land and investment data.'),
@@ -123,9 +102,8 @@ export function PrintButton({ data }: PrintButtonProps) {
     setIsPreparing(true)
     let step = 'Daten prüfen'
     try {
-      const localizedData = dataForLanguage(data, language)
       step = 'PDF erzeugen'
-      const blob = await generatePdfWithoutHeroStatusBadge(localizedData)
+      const blob = await generatePdfWithoutHeroStatusBadge(dataForLanguage(data, language))
       const projectId = currentProjectId()
       if (projectId) {
         step = 'Dokumentversion speichern'
