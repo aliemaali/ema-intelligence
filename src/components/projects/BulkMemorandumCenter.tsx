@@ -10,6 +10,8 @@ interface ProjectOption { id: string; name: string; number: string; location: st
 interface RecipientOption { id: string; name: string; email: string; type: 'investor' | 'partner' }
 interface DeviceContact { name: string; phone: string }
 interface BulkMemorandumCenterProps { projects: ProjectOption[]; recipients: RecipientOption[] }
+type DeliveryRecipient = RecipientOption | { name: string; email: string; type: 'manual' } | { name: string; type: 'manual' }
+interface PreparedShare { files: File[]; projectIds: string[]; recipients: DeliveryRecipient[] }
 
 function safeFileName(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_').replace(/^_+|_+$/g, '') || 'Projekt'
@@ -27,6 +29,10 @@ function isAppleMobile() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 }
 
+function isBlockedShareError(error: unknown) {
+  return error instanceof DOMException && ['NotAllowedError', 'SecurityError'].includes(error.name)
+}
+
 export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCenterProps) {
   const [open, setOpen] = useState(false)
   const [selectedProjects, setSelectedProjects] = useState<string[]>([])
@@ -36,21 +42,33 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
   const [manualPhone, setManualPhone] = useState('')
   const [channel, setChannel] = useState<'email' | 'whatsapp'>('email')
   const [busy, setBusy] = useState(false)
+  const [preparedShare, setPreparedShare] = useState<PreparedShare | null>(null)
 
   const recipientMap = useMemo(() => new Map(recipients.map((item) => [item.id, item])), [recipients])
   const allSelected = projects.length > 0 && selectedProjects.length === projects.length
 
+  function clearPreparedShare() {
+    setPreparedShare(null)
+  }
+
   function toggleProject(id: string) {
+    clearPreparedShare()
     setSelectedProjects((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
   }
 
   function toggleRecipient(id: string) {
+    clearPreparedShare()
     setSelectedRecipients((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+  }
+
+  function changeChannel(nextChannel: 'email' | 'whatsapp') {
+    clearPreparedShare()
+    setChannel(nextChannel)
   }
 
   async function pickDeviceContact() {
     if (isAppleMobile()) {
-      toast.info('Auf dem iPhone wählst du den Kontakt direkt nach dem Tippen auf „Über WhatsApp teilen“ im Teilen-Menü aus.')
+      toast.info('Auf dem iPhone wählst du den Kontakt nach dem Tippen auf „Jetzt WhatsApp öffnen“ im Teilen-Menü aus.')
       return
     }
 
@@ -67,6 +85,7 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       const phone = contact?.tel?.[0]?.trim() || ''
       if (!phone) return toast.error('Der ausgewählte Kontakt enthält keine Telefonnummer.')
       const name = contact?.name?.[0]?.trim() || phone
+      clearPreparedShare()
       setDeviceContact({ name, phone })
       setManualPhone(phone)
     } catch (error) {
@@ -82,6 +101,41 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
     setManualEmail('')
     setDeviceContact(null)
     setManualPhone('')
+    setPreparedShare(null)
+  }
+
+  async function sharePreparedFiles() {
+    if (!preparedShare) return
+    const { files, projectIds, recipients: deliveryRecipients } = preparedShare
+
+    if (!navigator.share || !navigator.canShare?.({ files })) {
+      toast.error('Das Teilen dieser PDFs wird auf diesem Gerät nicht unterstützt.')
+      return
+    }
+
+    setBusy(true)
+    try {
+      // Dieser Aufruf läuft direkt im zweiten Tastendruck. Dadurch bleibt die von iOS
+      // verlangte Benutzeraktivierung erhalten, auch wenn die PDF-Erstellung länger dauert.
+      await navigator.share({ files })
+      toast.success('WhatsApp-Teilen wurde abgeschlossen.')
+      resetCenter()
+      void recordMemorandumDeliveries({
+        projectIds,
+        recipients: deliveryRecipients,
+        channel: 'whatsapp',
+        status: 'shared',
+      }).catch(() => undefined)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      if (isBlockedShareError(error)) {
+        toast.error('Das iPhone hat das Teilen blockiert. Bitte tippe erneut direkt auf „Jetzt WhatsApp öffnen“.')
+        return
+      }
+      toast.error(error instanceof Error ? error.message : 'WhatsApp-Teilen fehlgeschlagen.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function dispatch() {
@@ -108,7 +162,7 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       const selected = selectedRecipients.map((id) => recipientMap.get(id)).filter(Boolean) as RecipientOption[]
       const manual = manualEmail.trim() ? [{ name: manualEmail.trim(), email: manualEmail.trim(), type: 'manual' as const }] : []
       const whatsappContact = channel === 'whatsapp' && (deviceContact || manualPhone.trim()) ? [{ name: deviceContact?.name || manualPhone.trim(), type: 'manual' as const }] : []
-      const deliveryRecipients = [...selected, ...manual, ...whatsappContact]
+      const deliveryRecipients: DeliveryRecipient[] = [...selected, ...manual, ...whatsappContact]
 
       if (channel === 'email') {
         const response = await fetch('/api/microsoft/send-mail', {
@@ -132,23 +186,14 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       const files = generated.map((item) => item.file)
       if (!navigator.share || !navigator.canShare?.({ files })) throw new Error('Das Teilen mehrerer PDFs wird auf diesem Gerät nicht unterstützt.')
 
-      await navigator.share({
-        title: 'EMA Investment Memoranden',
-        text: 'Anbei erhalten Sie die ausgewählten Investment Memoranden zur Prüfung.',
-        files,
-      })
-
-      resetCenter()
-      toast.success('WhatsApp-Teilen wurde abgeschlossen.')
-
-      void recordMemorandumDeliveries({
-        projectIds: selectedProjects,
-        recipients: deliveryRecipients,
-        channel: 'whatsapp',
-        status: 'shared',
-      }).catch(() => undefined)
+      setPreparedShare({ files, projectIds: [...selectedProjects], recipients: deliveryRecipients })
+      toast.success('Memoranden sind bereit. Tippe jetzt auf „Jetzt WhatsApp öffnen“.')
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
+      if (isBlockedShareError(error)) {
+        toast.error('Das iPhone hat den Vorgang blockiert. Bitte erneut versuchen.')
+        return
+      }
       toast.error(error instanceof Error ? error.message : 'Versand fehlgeschlagen.')
     } finally {
       setBusy(false)
@@ -159,33 +204,33 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
     <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white shadow-sm"><Send className="h-4 w-4" /> Mehrere Memoranden versenden</button>
 
     {open && <div className="fixed inset-0 z-[320] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
-      <button aria-label="Schließen" className="absolute inset-0" onClick={() => !busy && setOpen(false)} />
+      <button aria-label="Schließen" className="absolute inset-0" onClick={() => !busy && resetCenter()} />
       <section className="relative z-10 flex h-[calc(100dvh-env(safe-area-inset-top)-1rem)] w-full flex-col overflow-hidden rounded-t-[2rem] bg-[#F7F9FC] shadow-2xl sm:h-auto sm:max-h-[90dvh] sm:max-w-3xl sm:rounded-[2rem]">
         <header className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] sm:p-6">
           <div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#5CB800]">Versandcenter</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Memoranden auswählen</h2><p className="mt-1 text-sm text-slate-500">Projekte markieren und gesammelt versenden.</p></div>
-          <button type="button" disabled={busy} onClick={() => setOpen(false)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"><X className="h-5 w-5" /></button>
+          <button type="button" disabled={busy} onClick={resetCenter} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"><X className="h-5 w-5" /></button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"><span className="text-sm font-extrabold text-[#07142F]">{selectedProjects.length} ausgewählt</span><button type="button" onClick={() => setSelectedProjects(allSelected ? [] : projects.map((item) => item.id))} className="text-sm font-extrabold text-[#3D9200]">{allSelected ? 'Auswahl aufheben' : 'Alle auswählen'}</button></div>
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"><span className="text-sm font-extrabold text-[#07142F]">{selectedProjects.length} ausgewählt</span><button type="button" onClick={() => { clearPreparedShare(); setSelectedProjects(allSelected ? [] : projects.map((item) => item.id)) }} className="text-sm font-extrabold text-[#3D9200]">{allSelected ? 'Auswahl aufheben' : 'Alle auswählen'}</button></div>
 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">{projects.map((project) => {
             const checked = selectedProjects.includes(project.id)
             return <button key={project.id} type="button" onClick={() => toggleProject(project.id)} className={`flex items-center gap-3 rounded-2xl border p-3 text-left ${checked ? 'border-[#5CB800] bg-[#5CB800]/8' : 'border-slate-200 bg-white'}`}><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${checked ? 'border-[#5CB800] bg-[#5CB800] text-white' : 'border-slate-300 text-transparent'}`}><Check className="h-4 w-4" /></span><span className="min-w-0"><span className="block truncate font-extrabold text-[#07142F]">{project.name}</span><span className="block truncate text-xs text-slate-500">{project.number} · {project.location} · {project.typeLabel}</span></span></button>
           })}</div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => setChannel('email')} className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl font-extrabold ${channel === 'email' ? 'bg-[#07142F] text-white' : 'border border-slate-200 bg-white text-[#07142F]'}`}><Mail className="h-5 w-5" /> E-Mail</button><button type="button" onClick={() => setChannel('whatsapp')} className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl font-extrabold ${channel === 'whatsapp' ? 'bg-[#5CB800] text-white' : 'border border-slate-200 bg-white text-[#07142F]'}`}><MessageCircle className="h-5 w-5" /> WhatsApp</button></div>
+          <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => changeChannel('email')} className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl font-extrabold ${channel === 'email' ? 'bg-[#07142F] text-white' : 'border border-slate-200 bg-white text-[#07142F]'}`}><Mail className="h-5 w-5" /> E-Mail</button><button type="button" onClick={() => changeChannel('whatsapp')} className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl font-extrabold ${channel === 'whatsapp' ? 'bg-[#5CB800] text-white' : 'border border-slate-200 bg-white text-[#07142F]'}`}><MessageCircle className="h-5 w-5" /> WhatsApp</button></div>
 
           <div className="mt-5"><div className="flex items-center justify-between"><h3 className="font-extrabold text-[#07142F]">Empfänger</h3><span className="text-xs font-bold text-slate-400">Investoren & Partner</span></div><div className="mt-2 max-h-52 space-y-2 overflow-y-auto">{recipients.map((recipient) => {
             const checked = selectedRecipients.includes(recipient.id)
             return <button key={recipient.id} type="button" onClick={() => toggleRecipient(recipient.id)} className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left ${checked ? 'border-[#5CB800] bg-[#5CB800]/8' : 'border-slate-200 bg-white'}`}><span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${checked ? 'border-[#5CB800] bg-[#5CB800] text-white' : 'border-slate-300 text-transparent'}`}><Check className="h-3.5 w-3.5" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-extrabold text-[#07142F]">{recipient.name}</span><span className="block truncate text-xs text-slate-500">{recipient.type === 'investor' ? 'Investor' : 'Partner'} · {recipient.email}</span></span></button>
           })}</div>
 
-          {channel === 'email' ? <input type="email" value={manualEmail} onChange={(event) => setManualEmail(event.target.value)} placeholder="Oder E-Mail-Adresse manuell eingeben" className="form-input mt-3" /> : <div className="mt-3 space-y-2"><button type="button" onClick={pickDeviceContact} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 font-extrabold text-[#07142F]"><Contact className="h-5 w-5 text-[#5CB800]" /> Kontakt auswählen</button>{deviceContact && <div className="rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/8 px-4 py-3"><p className="text-sm font-extrabold text-[#07142F]">{deviceContact.name}</p><p className="text-xs text-slate-500">{deviceContact.phone}</p></div>}<input id="whatsapp-phone" type="tel" inputMode="tel" autoComplete="tel" value={manualPhone} onChange={(event) => { setManualPhone(event.target.value); setDeviceContact(null) }} placeholder="Telefonnummer optional eingeben" className="form-input" /><div className="rounded-xl bg-[#07142F]/5 px-4 py-3 text-xs leading-5 text-slate-600"><strong className="text-[#07142F]">Auf dem iPhone:</strong> Kontakt wird nach dem Tippen auf „Über WhatsApp teilen“ direkt im iPhone-Teilen-Menü ausgewählt.</div></div>}
+          {channel === 'email' ? <input type="email" value={manualEmail} onChange={(event) => { clearPreparedShare(); setManualEmail(event.target.value) }} placeholder="Oder E-Mail-Adresse manuell eingeben" className="form-input mt-3" /> : <div className="mt-3 space-y-2"><button type="button" onClick={pickDeviceContact} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 font-extrabold text-[#07142F]"><Contact className="h-5 w-5 text-[#5CB800]" /> Kontakt auswählen</button>{deviceContact && <div className="rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/8 px-4 py-3"><p className="text-sm font-extrabold text-[#07142F]">{deviceContact.name}</p><p className="text-xs text-slate-500">{deviceContact.phone}</p></div>}<input id="whatsapp-phone" type="tel" inputMode="tel" autoComplete="tel" value={manualPhone} onChange={(event) => { clearPreparedShare(); setManualPhone(event.target.value); setDeviceContact(null) }} placeholder="Telefonnummer optional eingeben" className="form-input" /><div className="rounded-xl bg-[#07142F]/5 px-4 py-3 text-xs leading-5 text-slate-600"><strong className="text-[#07142F]">Auf dem iPhone:</strong> Zuerst werden die PDFs vorbereitet. Danach öffnest du WhatsApp mit einem zweiten, direkten Tastendruck.</div></div>}
           </div>
         </div>
 
-        <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:p-6"><button type="button" onClick={dispatch} disabled={busy || !selectedProjects.length} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-4 font-extrabold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50">{busy ? <><FileText className="h-5 w-5 animate-pulse" /> Memoranden werden erstellt…</> : <><Send className="h-5 w-5" /> {channel === 'email' ? 'Auswahl per E-Mail senden' : 'Über WhatsApp teilen'}</>}</button></footer>
+        <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:p-6"><button type="button" onClick={preparedShare && channel === 'whatsapp' ? sharePreparedFiles : dispatch} disabled={busy || !selectedProjects.length} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-4 font-extrabold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50">{busy ? <><FileText className="h-5 w-5 animate-pulse" /> {preparedShare ? 'WhatsApp wird geöffnet…' : 'Memoranden werden erstellt…'}</> : <><Send className="h-5 w-5" /> {channel === 'email' ? 'Auswahl per E-Mail senden' : preparedShare ? 'Jetzt WhatsApp öffnen' : 'Memoranden vorbereiten'}</>}</button></footer>
       </section>
     </div>}
   </>
