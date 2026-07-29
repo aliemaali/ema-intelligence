@@ -128,59 +128,75 @@ function heading(doc: JsPdfDoc, label: string, x: number, y: number) {
   doc.line(x, y + 1.8, x + 12, y + 1.8)
 }
 
-function drawIcon(doc: JsPdfDoc, label: string, cx: number, cy: number, highlighted = false) {
+function drawHeroFade(doc: JsPdfDoc, x: number, y: number, width: number, height: number) {
+  const pdf = doc as any
+  try {
+    for (let i = 0; i < 18; i += 1) {
+      const opacity = 0.92 * (1 - i / 18)
+      pdf.setGState(new pdf.GState({ opacity }))
+      doc.setFillColor(...NAVY)
+      doc.rect(x + i * (width / 18), y, width / 18 + 0.3, height, 'F')
+    }
+    pdf.setGState(new pdf.GState({ opacity: 1 }))
+  } catch {
+    doc.setFillColor(...NAVY)
+    doc.rect(x, y, width * 0.42, height, 'F')
+  }
+}
+
+function drawSymbol(doc: JsPdfDoc, label: string, cx: number, cy: number, highlighted = false, scale = 1) {
   const key = label.toLowerCase()
   const ink = highlighted ? [255, 255, 255] as [number, number, number] : DARK_GREEN
   doc.setDrawColor(...ink)
   doc.setTextColor(...ink)
-  doc.setLineWidth(0.8)
+  doc.setLineWidth(0.75 * scale)
 
   if (key.includes('amort')) {
-    doc.circle(cx, cy, 4.1, 'S')
-    doc.line(cx, cy, cx, cy - 2.5)
-    doc.line(cx, cy, cx + 2, cy + 1.2)
+    doc.circle(cx, cy, 4.4 * scale, 'S')
+    doc.line(cx, cy, cx, cy - 2.8 * scale)
+    doc.line(cx, cy, cx + 2.2 * scale, cy + 1.4 * scale)
     return
   }
-  if (key.includes('kaufpreis')) {
-    doc.roundedRect(cx - 3.5, cy - 2.5, 7, 5.5, 0.8, 0.8, 'S')
-    doc.line(cx - 1.7, cy - 2.5, cx - 1.7, cy - 4)
-    doc.line(cx + 1.7, cy - 2.5, cx + 1.7, cy - 4)
-    doc.line(cx - 1.7, cy - 4, cx + 1.7, cy - 4)
+  if (key.includes('kaufpreis') || key.includes('investitions')) {
+    doc.roundedRect(cx - 4 * scale, cy - 3 * scale, 8 * scale, 6.2 * scale, 0.9, 0.9, 'S')
+    doc.line(cx - 1.9 * scale, cy - 3 * scale, cx - 1.9 * scale, cy - 4.7 * scale)
+    doc.line(cx + 1.9 * scale, cy - 3 * scale, cx + 1.9 * scale, cy - 4.7 * scale)
+    doc.line(cx - 1.9 * scale, cy - 4.7 * scale, cx + 1.9 * scale, cy - 4.7 * scale)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.text('€', cx, cy + 1.7, { align: 'center' })
+    doc.setFontSize(8.6 * scale)
+    doc.text('€', cx, cy + 2.4 * scale, { align: 'center' })
     return
   }
   if (key.includes('vergütung')) {
-    doc.circle(cx - 1, cy, 3.6, 'S')
+    doc.circle(cx - 1.4 * scale, cy, 4.2 * scale, 'S')
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6)
-    doc.text('€', cx - 1, cy + 1.8, { align: 'center' })
-    doc.line(cx + 2.7, cy + 2.6, cx + 4.4, cy + 2.6)
-    doc.line(cx + 2.7, cy + 0.8, cx + 4.4, cy + 0.8)
-    doc.line(cx + 2.7, cy - 1, cx + 4.4, cy - 1)
+    doc.setFontSize(8.4 * scale)
+    doc.text('€', cx - 1.4 * scale, cy + 2.3 * scale, { align: 'center' })
+    doc.line(cx + 3.2 * scale, cy + 3 * scale, cx + 5.2 * scale, cy + 3 * scale)
+    doc.line(cx + 3.2 * scale, cy + 0.9 * scale, cx + 5.2 * scale, cy + 0.9 * scale)
+    doc.line(cx + 3.2 * scale, cy - 1.2 * scale, cx + 5.2 * scale, cy - 1.2 * scale)
     return
   }
   if (key.includes('ertrag') || key.includes('rendite')) {
-    doc.line(cx - 4, cy + 3, cx - 1.3, cy + 0.7)
-    doc.line(cx - 1.3, cy + 0.7, cx + 0.8, cy + 1.8)
-    doc.line(cx + 0.8, cy + 1.8, cx + 4, cy - 3)
-    doc.line(cx + 1.8, cy - 3, cx + 4, cy - 3)
-    doc.line(cx + 4, cy - 3, cx + 4, cy - 0.8)
+    doc.line(cx - 4.6 * scale, cy + 3.4 * scale, cx - 1.6 * scale, cy + 0.8 * scale)
+    doc.line(cx - 1.6 * scale, cy + 0.8 * scale, cx + 0.8 * scale, cy + 2 * scale)
+    doc.line(cx + 0.8 * scale, cy + 2 * scale, cx + 4.7 * scale, cy - 3.6 * scale)
+    doc.line(cx + 2.2 * scale, cy - 3.6 * scale, cx + 4.7 * scale, cy - 3.6 * scale)
+    doc.line(cx + 4.7 * scale, cy - 3.6 * scale, cx + 4.7 * scale, cy - 1.1 * scale)
     return
   }
   if (key.includes('leistung') || key.includes('produktion')) {
-    doc.line(cx - 4, cy + 2.7, cx - 3, cy - 2.7)
-    doc.line(cx - 3, cy - 2.7, cx + 2.4, cy - 2.7)
-    doc.line(cx + 2.4, cy - 2.7, cx + 3.5, cy + 2.7)
-    doc.line(cx + 3.5, cy + 2.7, cx - 4, cy + 2.7)
-    doc.line(cx - 2.5, cy - 0.8, cx + 2.8, cy - 0.8)
-    doc.line(cx - 2.8, cy + 0.9, cx + 3.1, cy + 0.9)
-    doc.line(cx, cy + 2.7, cx, cy + 4)
-    doc.line(cx - 2, cy + 4, cx + 2, cy + 4)
+    doc.line(cx - 4.5 * scale, cy + 2.9 * scale, cx - 3.3 * scale, cy - 3 * scale)
+    doc.line(cx - 3.3 * scale, cy - 3 * scale, cx + 2.7 * scale, cy - 3 * scale)
+    doc.line(cx + 2.7 * scale, cy - 3 * scale, cx + 4 * scale, cy + 2.9 * scale)
+    doc.line(cx + 4 * scale, cy + 2.9 * scale, cx - 4.5 * scale, cy + 2.9 * scale)
+    doc.line(cx - 2.9 * scale, cy - 0.9 * scale, cx + 3.2 * scale, cy - 0.9 * scale)
+    doc.line(cx - 3.2 * scale, cy + 1.1 * scale, cx + 3.5 * scale, cy + 1.1 * scale)
+    doc.line(cx, cy + 2.9 * scale, cx, cy + 4.5 * scale)
+    doc.line(cx - 2.2 * scale, cy + 4.5 * scale, cx + 2.2 * scale, cy + 4.5 * scale)
     return
   }
-  doc.circle(cx, cy, 3.5, 'S')
+  doc.circle(cx, cy, 4.1 * scale, 'S')
 }
 
 function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, highlighted = false) {
@@ -192,17 +208,22 @@ function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: s
     doc.setDrawColor(...BORDER)
   }
   doc.roundedRect(x, y, width, 35, 2.5, 2.5, 'FD')
-  drawIcon(doc, label, x + width / 2, y + 9, highlighted)
+  const cx = x + width / 2
+  const cy = y + 9.2
+  doc.setDrawColor(...(highlighted ? [255, 255, 255] as [number, number, number] : GREEN))
+  doc.setLineWidth(0.45)
+  doc.circle(cx, cy, 7.2, 'S')
+  drawSymbol(doc, label, cx, cy, highlighted, 1.05)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(5.7)
   doc.setTextColor(...(highlighted ? [255, 255, 255] as [number, number, number] : NAVY))
-  doc.text(label.toUpperCase(), x + width / 2, y + 18, { align: 'center' })
+  doc.text(label.toUpperCase(), cx, y + 19, { align: 'center' })
   doc.setFontSize(10.2)
-  doc.text(doc.splitTextToSize(value, width - 5), x + width / 2, y + 25, { align: 'center' })
+  doc.text(doc.splitTextToSize(value, width - 5), cx, y + 26, { align: 'center' })
 }
 
 function economyBar(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, percentage: number) {
-  drawIcon(doc, label, x + 4, y + 1.5)
+  drawSymbol(doc, label, x + 4, y + 1.5, false, 0.72)
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.2)
   doc.setTextColor(...MUTED)
@@ -231,7 +252,6 @@ function footer(doc: JsPdfDoc, data: MemorandumPdfData) {
 function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | null, hero: LoadedImage | null, flag: LoadedImage | null) {
   doc.setFillColor(255, 255, 255)
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F')
-
   addImageSafely(doc, logo, MARGIN, 5, 31, 13)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
@@ -245,9 +265,11 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
   const heroH = 71
   doc.setFillColor(...NAVY)
   doc.roundedRect(MARGIN, heroY, CONTENT_W, heroH, 3, 3, 'F')
-  if (hero) addImageSafely(doc, hero, 88, heroY, PAGE_W - MARGIN - 88, heroH)
+  if (hero) addImageSafely(doc, hero, 76, heroY, PAGE_W - MARGIN - 76, heroH)
   doc.setFillColor(...NAVY)
-  doc.roundedRect(MARGIN, heroY, 86, heroH, 3, 3, 'F')
+  doc.roundedRect(MARGIN, heroY, 70, heroH, 3, 3, 'F')
+  drawHeroFade(doc, 69, heroY, 31, heroH)
+
   doc.setFillColor(...GREEN)
   doc.roundedRect(14, 31, 39, 7, 1.7, 1.7, 'F')
   doc.setFont('helvetica', 'bold')
@@ -255,7 +277,7 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
   doc.setTextColor(255, 255, 255)
   doc.text(safeText(data.typeLabel).toUpperCase(), 33.5, 35.7, { align: 'center' })
   doc.setFontSize(18)
-  doc.text(doc.splitTextToSize(safeText(data.projectName, 'Projekt'), 67), 14, 51)
+  doc.text(doc.splitTextToSize(safeText(data.projectName, 'Projekt'), 60), 14, 51)
   doc.setDrawColor(...GREEN)
   doc.setLineWidth(0.8)
   doc.line(14, 61, 27, 61)
@@ -338,7 +360,7 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
     const line = Math.floor(index / 3)
     const x = leftX + col * (CONTENT_W / 3)
     const y = 262 + line * 10
-    drawIcon(doc, row[0], x + 7, y + 1)
+    drawSymbol(doc, row[0], x + 7, y + 1, false, 0.72)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(5.4)
     doc.setTextColor(...MUTED)
