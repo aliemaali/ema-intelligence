@@ -49,14 +49,28 @@ const PAGE_W = 210
 const PAGE_H = 297
 const MARGIN = 8
 const CONTENT_W = PAGE_W - MARGIN * 2
-const IMAGE_FETCH_TIMEOUT_MS = 8000
 
 type JsPdfDoc = InstanceType<typeof import('jspdf').default>
 type LoadedImage = { dataUrl: string; format: 'JPEG' | 'PNG' }
+type Point = { x: number; y: number }
+
+const STATE_POINTS: Record<string, Point> = {
+  'schleswig-holstein': { x: 49, y: 10 }, hamburg: { x: 48, y: 19 }, bremen: { x: 36, y: 27 },
+  niedersachsen: { x: 42, y: 31 }, 'mecklenburg-vorpommern': { x: 66, y: 23 }, brandenburg: { x: 67, y: 41 },
+  berlin: { x: 70, y: 40 }, sachsen: { x: 68, y: 59 }, 'sachsen-anhalt': { x: 56, y: 45 },
+  thüringen: { x: 54, y: 57 }, hessen: { x: 43, y: 58 }, 'nordrhein-westfalen': { x: 28, y: 49 },
+  'rheinland-pfalz': { x: 31, y: 66 }, saarland: { x: 24, y: 73 }, 'baden-württemberg': { x: 38, y: 82 },
+  bayern: { x: 59, y: 79 },
+}
+
+const CITY_POINTS: Record<string, Point> = {
+  worms: { x: 34, y: 69 }, berlin: { x: 70, y: 40 }, hamburg: { x: 48, y: 19 }, münchen: { x: 59, y: 89 },
+  stuttgart: { x: 39, y: 79 }, frankfurt: { x: 41, y: 62 }, leipzig: { x: 61, y: 53 }, dresden: { x: 70, y: 57 },
+  köln: { x: 28, y: 52 }, hannover: { x: 43, y: 35 }, polßen: { x: 67, y: 41 }, polssen: { x: 67, y: 41 },
+}
 
 function safeText(value: unknown, fallback = '—') {
-  if (value === null || value === undefined || value === '') return fallback
-  return String(value)
+  return value === null || value === undefined || value === '' ? fallback : String(value)
 }
 
 function safeNumber(value: unknown) {
@@ -77,393 +91,161 @@ function hasValue(value: unknown) {
   return Boolean(text && text !== '—' && text !== 'noch offen' && text !== 'pending' && text !== 'not available')
 }
 
-function assertValidData(data: MemorandumPdfData) {
-  if (!data || typeof data !== 'object') throw new PdfGenerationError('Daten prüfen', 'Es wurden keine Projektdaten übergeben.')
-  if (!safeText(data.projectName, '').trim()) throw new PdfGenerationError('Daten prüfen', 'Der Projektname fehlt.')
-}
-
 async function loadImageAsDataUrl(url: string): Promise<LoadedImage | null> {
   if (!url || url.toLowerCase().endsWith('.svg')) return null
-  const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS)
   try {
-    const response = await fetch(url, { cache: 'force-cache', signal: controller.signal })
+    const response = await fetch(url, { cache: 'force-cache' })
     if (!response.ok) return null
     const blob = await response.blob()
-    const mimeType = blob.type || ''
-    if (!blob.size || (!mimeType.includes('png') && !mimeType.includes('jpeg') && !mimeType.includes('jpg'))) return null
+    const mime = blob.type || ''
+    if (!blob.size || (!mime.includes('png') && !mime.includes('jpeg') && !mime.includes('jpg'))) return null
     const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader()
       reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
       reader.onerror = () => resolve(null)
       reader.readAsDataURL(blob)
     })
-    return dataUrl ? { dataUrl, format: mimeType.includes('png') ? 'PNG' : 'JPEG' } : null
-  } catch {
-    return null
-  } finally {
-    window.clearTimeout(timeout)
-  }
+    return dataUrl ? { dataUrl, format: mime.includes('png') ? 'PNG' : 'JPEG' } : null
+  } catch { return null }
 }
 
-async function loadJsPdfConstructor() {
+function resolveMapPoint(data: MemorandumPdfData): Point {
+  const location = safeText(data.location, '').toLowerCase()
+  const city = Object.entries(CITY_POINTS).find(([name]) => location.includes(name))?.[1]
+  if (city) return city
+  const state = Object.entries(STATE_POINTS).find(([name]) => location.includes(name))?.[1]
+  return state ?? { x: 50, y: 50 }
+}
+
+async function createDashboardMapImage(data: MemorandumPdfData): Promise<LoadedImage | null> {
   try {
-    const module = await import('jspdf')
-    return module.default
-  } catch (error) {
-    throw new PdfGenerationError('jsPDF laden', 'Die PDF-Bibliothek konnte nicht geladen werden.', error)
-  }
+    const module = await import('@svg-maps/germany')
+    const germany = module.default
+    const point = resolveMapPoint(data)
+    const [minX, minY, vbW, vbH] = germany.viewBox.split(' ').map(Number)
+    const markerX = minX + (point.x / 100) * vbW
+    const markerY = minY + (point.y / 100) * vbH
+    const paths = germany.locations.map((location) => `<path d="${location.path}" fill="url(#fill)" stroke="#CBD5E1" stroke-width="0.9" vector-effect="non-scaling-stroke"/>`).join('')
+    const radius = Math.max(vbW, vbH) * 0.025
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${germany.viewBox}" width="560" height="680"><defs><linearGradient id="fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="100%" stop-color="#EAF4E4"/></linearGradient></defs>${paths}<circle cx="${markerX}" cy="${markerY}" r="${radius * 1.45}" fill="#FFFFFF" opacity="0.96"/><circle cx="${markerX}" cy="${markerY}" r="${radius}" fill="#5CB800"/><circle cx="${markerX}" cy="${markerY}" r="${radius * 0.35}" fill="#FFFFFF"/></svg>`
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const image = new Image()
+    const loaded = await new Promise<boolean>((resolve) => { image.onload = () => resolve(true); image.onerror = () => resolve(false); image.src = url })
+    if (!loaded) { URL.revokeObjectURL(url); return null }
+    const canvas = document.createElement('canvas')
+    canvas.width = 560
+    canvas.height = 680
+    const context = canvas.getContext('2d')
+    if (!context) { URL.revokeObjectURL(url); return null }
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    URL.revokeObjectURL(url)
+    return { dataUrl: canvas.toDataURL('image/png'), format: 'PNG' }
+  } catch { return null }
 }
 
-function addImageSafely(doc: JsPdfDoc, image: LoadedImage | null, x: number, y: number, width: number, height: number) {
+function addImage(doc: JsPdfDoc, image: LoadedImage | null, x: number, y: number, width: number, height: number) {
   if (!image) return
-  try { doc.addImage(image.dataUrl, image.format, x, y, width, height, undefined, 'FAST') } catch { /* optional */ }
+  try { doc.addImage(image.dataUrl, image.format, x, y, width, height, undefined, 'FAST') } catch { /* optional image */ }
 }
 
 function heading(doc: JsPdfDoc, label: string, x: number, y: number) {
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7.3)
-  doc.setTextColor(...NAVY)
-  doc.text(label.toUpperCase(), x, y)
-  doc.setDrawColor(...GREEN)
-  doc.setLineWidth(0.8)
-  doc.line(x, y + 1.8, x + 12, y + 1.8)
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.3); doc.setTextColor(...NAVY); doc.text(label.toUpperCase(), x, y)
+  doc.setDrawColor(...GREEN); doc.setLineWidth(0.8); doc.line(x, y + 1.8, x + 12, y + 1.8)
 }
 
-function drawHeroFade(doc: JsPdfDoc, x: number, y: number, width: number, height: number) {
-  const pdf = doc as any
-  try {
-    for (let i = 0; i < 18; i += 1) {
-      const opacity = 0.92 * (1 - i / 18)
-      pdf.setGState(new pdf.GState({ opacity }))
-      doc.setFillColor(...NAVY)
-      doc.rect(x + i * (width / 18), y, width / 18 + 0.3, height, 'F')
-    }
-    pdf.setGState(new pdf.GState({ opacity: 1 }))
-  } catch {
-    doc.setFillColor(...NAVY)
-    doc.rect(x, y, width * 0.42, height, 'F')
-  }
-}
-
-function drawSymbol(doc: JsPdfDoc, label: string, cx: number, cy: number, highlighted = false, scale = 1) {
-  const key = label.toLowerCase()
+function drawSymbol(doc: JsPdfDoc, label: string, cx: number, cy: number, highlighted = false) {
   const ink = highlighted ? [255, 255, 255] as [number, number, number] : DARK_GREEN
-  doc.setDrawColor(...ink)
-  doc.setTextColor(...ink)
-  doc.setLineWidth(0.75 * scale)
-  if (key.includes('amort')) {
-    doc.circle(cx, cy, 4.4 * scale, 'S')
-    doc.line(cx, cy, cx, cy - 2.8 * scale)
-    doc.line(cx, cy, cx + 2.2 * scale, cy + 1.4 * scale)
-    return
-  }
-  if (key.includes('kaufpreis') || key.includes('investitions')) {
-    doc.roundedRect(cx - 4 * scale, cy - 3 * scale, 8 * scale, 6.2 * scale, 0.9, 0.9, 'S')
-    doc.line(cx - 1.9 * scale, cy - 3 * scale, cx - 1.9 * scale, cy - 4.7 * scale)
-    doc.line(cx + 1.9 * scale, cy - 3 * scale, cx + 1.9 * scale, cy - 4.7 * scale)
-    doc.line(cx - 1.9 * scale, cy - 4.7 * scale, cx + 1.9 * scale, cy - 4.7 * scale)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8.6 * scale)
-    doc.text('€', cx, cy + 2.4 * scale, { align: 'center' })
-    return
-  }
-  if (key.includes('vergütung')) {
-    doc.circle(cx - 1.4 * scale, cy, 4.2 * scale, 'S')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8.4 * scale)
-    doc.text('€', cx - 1.4 * scale, cy + 2.3 * scale, { align: 'center' })
-    doc.line(cx + 3.2 * scale, cy + 3 * scale, cx + 5.2 * scale, cy + 3 * scale)
-    doc.line(cx + 3.2 * scale, cy + 0.9 * scale, cx + 5.2 * scale, cy + 0.9 * scale)
-    doc.line(cx + 3.2 * scale, cy - 1.2 * scale, cx + 5.2 * scale, cy - 1.2 * scale)
-    return
-  }
-  if (key.includes('ertrag') || key.includes('rendite')) {
-    doc.line(cx - 4.6 * scale, cy + 3.4 * scale, cx - 1.6 * scale, cy + 0.8 * scale)
-    doc.line(cx - 1.6 * scale, cy + 0.8 * scale, cx + 0.8 * scale, cy + 2 * scale)
-    doc.line(cx + 0.8 * scale, cy + 2 * scale, cx + 4.7 * scale, cy - 3.6 * scale)
-    doc.line(cx + 2.2 * scale, cy - 3.6 * scale, cx + 4.7 * scale, cy - 3.6 * scale)
-    doc.line(cx + 4.7 * scale, cy - 3.6 * scale, cx + 4.7 * scale, cy - 1.1 * scale)
-    return
-  }
-  if (key.includes('leistung') || key.includes('produktion')) {
-    doc.line(cx - 4.5 * scale, cy + 2.9 * scale, cx - 3.3 * scale, cy - 3 * scale)
-    doc.line(cx - 3.3 * scale, cy - 3 * scale, cx + 2.7 * scale, cy - 3 * scale)
-    doc.line(cx + 2.7 * scale, cy - 3 * scale, cx + 4 * scale, cy + 2.9 * scale)
-    doc.line(cx + 4 * scale, cy + 2.9 * scale, cx - 4.5 * scale, cy + 2.9 * scale)
-    doc.line(cx - 2.9 * scale, cy - 0.9 * scale, cx + 3.2 * scale, cy - 0.9 * scale)
-    doc.line(cx - 3.2 * scale, cy + 1.1 * scale, cx + 3.5 * scale, cy + 1.1 * scale)
-    doc.line(cx, cy + 2.9 * scale, cx, cy + 4.5 * scale)
-    doc.line(cx - 2.2 * scale, cy + 4.5 * scale, cx + 2.2 * scale, cy + 4.5 * scale)
-    return
-  }
-  doc.circle(cx, cy, 4.1 * scale, 'S')
+  doc.setDrawColor(...ink); doc.setTextColor(...ink); doc.setLineWidth(0.75)
+  if (label.toLowerCase().includes('amort')) { doc.circle(cx, cy, 4.2, 'S'); doc.line(cx, cy, cx, cy - 2.7); doc.line(cx, cy, cx + 2.1, cy + 1.3); return }
+  if (label.toLowerCase().includes('kaufpreis')) { doc.roundedRect(cx - 4, cy - 3, 8, 6, 1, 1, 'S'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('€', cx, cy + 2.3, { align: 'center' }); return }
+  if (label.toLowerCase().includes('leistung') || label.toLowerCase().includes('produktion')) { doc.line(cx - 4, cy + 3, cx - 3, cy - 3); doc.line(cx - 3, cy - 3, cx + 3, cy - 3); doc.line(cx + 3, cy - 3, cx + 4, cy + 3); doc.line(cx + 4, cy + 3, cx - 4, cy + 3); return }
+  doc.circle(cx, cy, 4, 'S')
 }
 
 function parsePvKwp(metrics: MemorandumPdfData['metrics']) {
   const metric = metrics.find((item) => item.label.toLowerCase().includes('pv-leistung') || item.label.toLowerCase() === 'leistung')
   if (!metric) return 0
-  const normalized = metric.value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')
-  const value = Number.parseFloat(normalized)
+  const value = Number.parseFloat(metric.value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''))
   return Number.isFinite(value) ? value : 0
 }
 
-function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, highlighted = false, secondary = '') {
-  doc.setFillColor(...(highlighted ? GREEN : [255, 255, 255] as [number, number, number]))
-  doc.setDrawColor(...(highlighted ? GREEN : BORDER))
+function metricCard(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, highlighted: boolean, secondary = '') {
+  doc.setFillColor(...(highlighted ? GREEN : [255, 255, 255] as [number, number, number])); doc.setDrawColor(...(highlighted ? GREEN : BORDER))
   doc.roundedRect(x, y, width, 35, 2.5, 2.5, 'FD')
   const cx = x + width / 2
-  const cy = y + 9.2
-  doc.setDrawColor(...(highlighted ? [255, 255, 255] as [number, number, number] : GREEN))
-  doc.setLineWidth(0.45)
-  doc.circle(cx, cy, 7.2, 'S')
-  drawSymbol(doc, label, cx, cy, highlighted, 1.05)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.7)
-  doc.setTextColor(...(highlighted ? [255, 255, 255] as [number, number, number] : NAVY))
-  doc.text(label.toUpperCase(), cx, y + 19, { align: 'center' })
-  doc.setFontSize(10.2)
-  doc.text(doc.splitTextToSize(value, width - 5), cx, y + 26, { align: 'center' })
-  if (secondary) {
-    doc.setFontSize(6.4)
-    doc.setTextColor(...(highlighted ? [240, 255, 230] as [number, number, number] : MUTED))
-    doc.text(secondary, cx, y + 32, { align: 'center' })
-  }
-}
-
-function locationPoint(data: MemorandumPdfData) {
-  const lat = Number(data.latitude)
-  const lon = Number(data.longitude)
-  if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= 47 && lat <= 55.2 && lon >= 5.5 && lon <= 15.5) return { lat, lon }
-  const location = data.location.toLowerCase()
-  const states: Array<[string, number, number]> = [
-    ['schleswig', 54.25, 9.6], ['hamburg', 53.55, 10], ['bremen', 53.08, 8.8], ['niedersachsen', 52.7, 9.3],
-    ['mecklenburg', 53.7, 12.5], ['brandenburg', 52.4, 13.2], ['berlin', 52.52, 13.4], ['sachsen-anhalt', 51.95, 11.7],
-    ['nordrhein', 51.45, 7.4], ['hessen', 50.6, 9], ['thüringen', 50.9, 11], ['sachsen', 51, 13.2],
-    ['rheinland', 49.9, 7.3], ['saarland', 49.4, 6.9], ['baden', 48.6, 9], ['bayern', 48.9, 11.5],
-  ]
-  const match = states.find(([name]) => location.includes(name))
-  return match ? { lat: match[1], lon: match[2] } : null
-}
-
-function drawLocationMap(doc: JsPdfDoc, data: MemorandumPdfData, x: number, y: number, width: number, height: number) {
-  const point = locationPoint(data)
-  doc.setFillColor(...LIGHT)
-  doc.setDrawColor(...BORDER)
-  doc.roundedRect(x, y, width, height, 2.5, 2.5, 'FD')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(5.5)
-  doc.setTextColor(...NAVY)
-  doc.text('PROJEKTSTANDORT', x + 4, y + 5)
-  const mapX = x + 4
-  const mapY = y + 7
-  const mapW = 25
-  const mapH = height - 10
-  const outline: Array<[number, number]> = [
-    [0.44,0.02],[0.58,0.08],[0.65,0.18],[0.72,0.22],[0.67,0.32],[0.76,0.43],[0.69,0.52],[0.73,0.63],[0.61,0.70],[0.59,0.83],[0.48,0.98],[0.38,0.89],[0.29,0.91],[0.24,0.79],[0.18,0.70],[0.25,0.60],[0.19,0.49],[0.27,0.39],[0.25,0.28],[0.34,0.20],[0.35,0.09]
-  ]
-  doc.setFillColor(232, 238, 242)
-  doc.setDrawColor(170, 184, 194)
-  const lines = outline.slice(1).map(([px, py], index) => {
-    const [prevX, prevY] = outline[index]
-    return [(px - prevX) * mapW, (py - prevY) * mapH] as [number, number]
-  })
-  const [startX, startY] = outline[0]
-  doc.lines(lines, mapX + startX * mapW, mapY + startY * mapH, [1, 1], 'FD', true)
-  if (point) {
-    const markerX = mapX + ((point.lon - 5.5) / 10) * mapW
-    const markerY = mapY + ((55.2 - point.lat) / 8.2) * mapH
-    doc.setFillColor(...GREEN)
-    doc.circle(markerX, markerY, 2.2, 'F')
-    doc.setFillColor(255, 255, 255)
-    doc.circle(markerX, markerY, 0.8, 'F')
-  }
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.2)
-  doc.setTextColor(...NAVY)
-  doc.text(doc.splitTextToSize(data.location, width - 36), x + 34, y + 11)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(5.5)
-  doc.setTextColor(...MUTED)
-  doc.text(point ? 'Markierung anhand der gespeicherten Standortdaten' : 'Standort anhand des Bundeslands eingeordnet', x + 34, y + height - 6)
+  doc.setDrawColor(...(highlighted ? [255, 255, 255] as [number, number, number] : GREEN)); doc.circle(cx, y + 9.2, 7.2, 'S')
+  drawSymbol(doc, label, cx, y + 9.2, highlighted)
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(5.7); doc.setTextColor(...(highlighted ? [255,255,255] as [number,number,number] : NAVY)); doc.text(label.toUpperCase(), cx, y + 19, { align: 'center' })
+  doc.setFontSize(10.2); doc.text(doc.splitTextToSize(value, width - 5), cx, y + 26, { align: 'center' })
+  if (secondary) { doc.setFontSize(6.3); doc.setTextColor(...(highlighted ? [240,255,230] as [number,number,number] : MUTED)); doc.text(secondary, cx, y + 32, { align: 'center' }) }
 }
 
 function economyBar(doc: JsPdfDoc, x: number, y: number, width: number, label: string, value: string, percentage: number) {
-  drawSymbol(doc, label, x + 4, y + 1.5, false, 0.72)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.2)
-  doc.setTextColor(...MUTED)
-  doc.text(label, x + 11, y)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(...NAVY)
-  doc.text(value, x + width, y, { align: 'right' })
-  doc.setFillColor(232, 236, 240)
-  doc.roundedRect(x + 11, y + 2, width - 11, 3, 1.5, 1.5, 'F')
-  doc.setFillColor(...GREEN)
-  doc.roundedRect(x + 11, y + 2, Math.max(0, Math.min(width - 11, (width - 11) * percentage / 100)), 3, 1.5, 1.5, 'F')
+  drawSymbol(doc, label, x + 4, y + 1.5)
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.2); doc.setTextColor(...MUTED); doc.text(label, x + 11, y)
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...NAVY); doc.text(value, x + width, y, { align: 'right' })
+  doc.setFillColor(232,236,240); doc.roundedRect(x + 11, y + 2, width - 11, 3, 1.5, 1.5, 'F')
+  doc.setFillColor(...GREEN); doc.roundedRect(x + 11, y + 2, Math.max(0, Math.min(width - 11, (width - 11) * percentage / 100)), 3, 1.5, 1.5, 'F')
 }
 
-function footer(doc: JsPdfDoc, data: MemorandumPdfData) {
-  doc.setDrawColor(...GREEN)
-  doc.setLineWidth(0.4)
-  doc.line(MARGIN, 282, PAGE_W - MARGIN, 282)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(5.8)
-  doc.setTextColor(...MUTED)
-  doc.text('EMA Enterprise GmbH · Gabriel-von-Seidl-Str. 56 · 67550 Worms', MARGIN, 287)
-  doc.text('info@ema-enterprise.de · www.ema-enterprise.de', PAGE_W / 2, 287, { align: 'center' })
-  doc.text(`${safeText(data.projectNumber)} · ${safeText(data.dateLabel)}`, PAGE_W - MARGIN, 287, { align: 'right' })
-}
+function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | null, hero: LoadedImage | null, flag: LoadedImage | null, map: LoadedImage | null) {
+  doc.setFillColor(255,255,255); doc.rect(0,0,PAGE_W,PAGE_H,'F')
+  addImage(doc, logo, MARGIN, 5, 31, 13)
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(...NAVY); doc.text('INVESTMENT MEMORANDUM', PAGE_W-MARGIN, 11, { align:'right' })
+  doc.setFontSize(6.4); doc.setTextColor(...GREEN); doc.text(`${safeText(data.projectNumber)} · ${safeText(data.typeLabel)}`.toUpperCase(), PAGE_W-MARGIN, 17, { align:'right' })
 
-function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | null, hero: LoadedImage | null, flag: LoadedImage | null) {
-  doc.setFillColor(255, 255, 255)
-  doc.rect(0, 0, PAGE_W, PAGE_H, 'F')
-  addImageSafely(doc, logo, MARGIN, 5, 31, 13)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(12)
-  doc.setTextColor(...NAVY)
-  doc.text('INVESTMENT MEMORANDUM', PAGE_W - MARGIN, 11, { align: 'right' })
-  doc.setFontSize(6.4)
-  doc.setTextColor(...GREEN)
-  doc.text(`${safeText(data.projectNumber)} · ${safeText(data.typeLabel)}`.toUpperCase(), PAGE_W - MARGIN, 17, { align: 'right' })
+  const heroY=23, heroH=71
+  doc.setFillColor(...NAVY); doc.roundedRect(MARGIN,heroY,CONTENT_W,heroH,3,3,'F'); addImage(doc,hero,76,heroY,PAGE_W-MARGIN-76,heroH)
+  doc.setFillColor(...NAVY); doc.roundedRect(MARGIN,heroY,70,heroH,3,3,'F')
+  doc.setFillColor(...GREEN); doc.roundedRect(14,31,39,7,1.7,1.7,'F'); doc.setTextColor(255,255,255); doc.setFontSize(6.2); doc.text(safeText(data.typeLabel).toUpperCase(),33.5,35.7,{align:'center'})
+  doc.setFontSize(18); doc.text(doc.splitTextToSize(safeText(data.projectName,'Projekt'),60),14,51); doc.setDrawColor(...GREEN); doc.line(14,61,27,61)
+  addImage(doc,flag,14,71,9,6); doc.setFontSize(7); doc.text(safeText(data.location),flag?27:14,75); doc.text(`${safeText(data.country)} · ${safeText(data.status)}`,flag?27:14,81)
 
-  const heroY = 23
-  const heroH = 71
-  doc.setFillColor(...NAVY)
-  doc.roundedRect(MARGIN, heroY, CONTENT_W, heroH, 3, 3, 'F')
-  if (hero) addImageSafely(doc, hero, 76, heroY, PAGE_W - MARGIN - 76, heroH)
-  doc.setFillColor(...NAVY)
-  doc.roundedRect(MARGIN, heroY, 70, heroH, 3, 3, 'F')
-  drawHeroFade(doc, 69, heroY, 31, heroH)
-  doc.setFillColor(...GREEN)
-  doc.roundedRect(14, 31, 39, 7, 1.7, 1.7, 'F')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(6.2)
-  doc.setTextColor(255, 255, 255)
-  doc.text(safeText(data.typeLabel).toUpperCase(), 33.5, 35.7, { align: 'center' })
-  doc.setFontSize(18)
-  doc.text(doc.splitTextToSize(safeText(data.projectName, 'Projekt'), 60), 14, 51)
-  doc.setDrawColor(...GREEN)
-  doc.setLineWidth(0.8)
-  doc.line(14, 61, 27, 61)
-  addImageSafely(doc, flag, 14, 71, 9, 6)
-  doc.setFontSize(7)
-  doc.text(safeText(data.location), flag ? 27 : 14, 75)
-  doc.text(`${safeText(data.country)} · ${safeText(data.status)}`, flag ? 27 : 14, 81)
+  const metrics=data.metrics.filter((item)=>hasValue(item.value)&&!item.label.toLowerCase().includes('pachtdauer')).slice(0,5)
+  const gap=2.5, cardW=(CONTENT_W-gap*4)/5, pvKwp=parsePvKwp(metrics)
+  const pricePerKwp=data.pvEconomics&&pvKwp>0&&data.pvEconomics.purchasePrice>0?data.pvEconomics.purchasePrice/pvKwp:0
+  metrics.forEach((metric,index)=>metricCard(doc,MARGIN+index*(cardW+gap),99,cardW,metric.label,metric.value,metric.label.toLowerCase().includes('amort'),metric.label.toLowerCase().includes('kaufpreis')&&pricePerKwp>0?`${number(pricePerKwp)} €/kWp`:''))
 
-  const metrics = data.metrics.filter((item) => hasValue(item.value) && !item.label.toLowerCase().includes('pachtdauer')).slice(0, 5)
-  const gap = 2.5
-  const cardW = (CONTENT_W - gap * 4) / 5
-  const pvKwp = parsePvKwp(metrics)
-  const pricePerKwp = data.pvEconomics && pvKwp > 0 && data.pvEconomics.purchasePrice > 0 ? data.pvEconomics.purchasePrice / pvKwp : 0
-  metrics.forEach((metric, index) => {
-    const secondary = metric.label.toLowerCase().includes('kaufpreis') && pricePerKwp > 0 ? `${number(pricePerKwp, 0)} €/kWp` : ''
-    metricCard(doc, MARGIN + index * (cardW + gap), 99, cardW, safeText(metric.label), safeText(metric.value), metric.label.toLowerCase().includes('amort'), secondary)
-  })
+  const leftX=MARGIN,rightX=101
+  heading(doc,'Executive Summary',leftX,145); doc.setFont('helvetica','normal'); doc.setFontSize(6.6); doc.setTextColor(40,52,68); doc.text(doc.splitTextToSize(safeText(data.summary),83),leftX,154)
+  doc.setFillColor(...LIGHT); doc.setDrawColor(...BORDER); doc.roundedRect(leftX,166,83,24,2.5,2.5,'FD')
+  doc.setFont('helvetica','bold'); doc.setFontSize(5.5); doc.setTextColor(...NAVY); doc.text('PROJEKTSTANDORT',leftX+4,171)
+  addImage(doc,map,leftX+4,172,24,16)
+  doc.setFontSize(6.2); doc.text(doc.splitTextToSize(data.location,45),leftX+34,177)
+  doc.setFont('helvetica','normal'); doc.setFontSize(5.2); doc.setTextColor(...MUTED); doc.text('Identische Kartenbasis wie im Dashboard',leftX+34,185)
 
-  const leftX = MARGIN
-  const rightX = 101
-  heading(doc, 'Executive Summary', leftX, 145)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(6.6)
-  doc.setTextColor(40, 52, 68)
-  doc.text(doc.splitTextToSize(safeText(data.summary), 83), leftX, 154)
-  drawLocationMap(doc, data, leftX, 166, 83, 24)
+  heading(doc,'Projektprofil',rightX,145)
+  data.profile.filter((row)=>hasValue(row.value)).slice(0,5).forEach((row,index)=>{const y=154+index*7.8;doc.setDrawColor(...BORDER);doc.line(rightX,y+2.5,PAGE_W-MARGIN,y+2.5);doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(...MUTED);doc.text(row.label,rightX+1,y);doc.setFont('helvetica','bold');doc.setTextColor(...NAVY);doc.text(doc.splitTextToSize(row.value,39),PAGE_W-MARGIN-1,y,{align:'right'})})
 
-  heading(doc, 'Projektprofil', rightX, 145)
-  data.profile.filter((row) => hasValue(row.value)).slice(0, 5).forEach((row, index) => {
-    const y = 154 + index * 7.8
-    doc.setDrawColor(...BORDER)
-    doc.line(rightX, y + 2.5, PAGE_W - MARGIN, y + 2.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6)
-    doc.setTextColor(...MUTED)
-    doc.text(safeText(row.label), rightX + 1, y)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...NAVY)
-    doc.text(doc.splitTextToSize(safeText(row.value), 39), PAGE_W - MARGIN - 1, y, { align: 'right' })
-  })
+  heading(doc,'Visuelle Wirtschaftlichkeit',leftX,196)
+  if(data.showPvEconomics&&data.pvEconomics){const e=data.pvEconomics;if(e.roi>0)economyBar(doc,leftX,206,87,'Rendite p.a.',`${number(e.roi,2)} %`,Math.min(100,e.roi*7));if(e.amortisation>0)economyBar(doc,leftX,218,87,'Amortisation',`${number(e.amortisation,1)} Jahre`,Math.max(8,100-e.amortisation*4));if(e.annualRevenue>0)economyBar(doc,leftX,230,87,'Jahreserlös',money(e.annualRevenue),e.purchasePrice>0?Math.min(100,e.annualRevenue/e.purchasePrice*700):0)}
 
-  heading(doc, 'Visuelle Wirtschaftlichkeit', leftX, 196)
-  if (data.showPvEconomics && data.pvEconomics) {
-    const e = data.pvEconomics
-    if (e.roi > 0) economyBar(doc, leftX, 206, 87, 'Rendite p.a.', `${number(e.roi, 2)} %`, Math.min(100, e.roi * 7))
-    if (e.amortisation > 0) economyBar(doc, leftX, 218, 87, 'Amortisation', `${number(e.amortisation, 1)} Jahre`, Math.max(8, 100 - e.amortisation * 4))
-    if (e.annualRevenue > 0) economyBar(doc, leftX, 230, 87, 'Jahreserlös', money(e.annualRevenue), e.purchasePrice > 0 ? Math.min(100, e.annualRevenue / e.purchasePrice * 700) : 0)
-  }
+  heading(doc,'Investment Highlights',rightX,196)
+  data.highlights.filter(hasValue).slice(0,4).forEach((highlight,index)=>{const y=205+index*10.6;doc.setFillColor(...LIGHT);doc.setDrawColor(...BORDER);doc.roundedRect(rightX,y-4.5,PAGE_W-MARGIN-rightX,9,2,2,'FD');doc.setFillColor(...DARK_GREEN);doc.circle(rightX+4,y,2,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.text('✓',rightX+4,y+1.8,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(5.9);doc.setTextColor(40,52,68);doc.text(doc.splitTextToSize(highlight,PAGE_W-MARGIN-rightX-10),rightX+8,y+1)})
 
-  heading(doc, 'Investment Highlights', rightX, 196)
-  data.highlights.filter(hasValue).slice(0, 4).forEach((highlight, index) => {
-    const y = 205 + index * 10.6
-    doc.setFillColor(...LIGHT)
-    doc.setDrawColor(...BORDER)
-    doc.roundedRect(rightX, y - 4.5, PAGE_W - MARGIN - rightX, 9, 2, 2, 'FD')
-    doc.setFillColor(...DARK_GREEN)
-    doc.circle(rightX + 4, y, 2, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(5.5)
-    doc.text('✓', rightX + 4, y + 1.8, { align: 'center' })
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(5.9)
-    doc.setTextColor(40, 52, 68)
-    doc.text(doc.splitTextToSize(safeText(highlight), PAGE_W - MARGIN - rightX - 10), rightX + 8, y + 1)
-  })
+  heading(doc,data.showPvEconomics?'Wirtschaftliche Kennzahlen':'Projektkennzahlen',leftX,251)
+  doc.setFillColor(...LIGHT);doc.setDrawColor(...BORDER);doc.roundedRect(leftX,255,CONTENT_W,23,2.5,2.5,'FD')
+  const details=data.showPvEconomics&&data.pvEconomics?[
+    data.pvEconomics.annualYield>0?['Jahresproduktion',`${number(data.pvEconomics.annualYield)} kWh`]:null,
+    data.pvEconomics.annualRevenue>0?['Jahreserlös',money(data.pvEconomics.annualRevenue)]:null,
+    data.pvEconomics.purchasePrice>0?['Kaufpreis',money(data.pvEconomics.purchasePrice)]:null,
+    pricePerKwp>0?['Preis pro kWp',`${number(pricePerKwp)} €/kWp`]:null,
+    data.pvEconomics.roi>0?['Rendite p.a.',`${number(data.pvEconomics.roi,2)} %`]:null,
+    data.pvEconomics.amortisation>0?['Amortisation',`${number(data.pvEconomics.amortisation,1)} Jahre`]:null,
+  ].filter(Boolean) as string[][]:metrics.slice(0,6).map((item)=>[item.label,item.value])
+  details.slice(0,6).forEach((row,index)=>{const col=index%3,line=Math.floor(index/3),x=leftX+col*(CONTENT_W/3),y=262+line*10;drawSymbol(doc,row[0],x+7,y+1);doc.setFont('helvetica','normal');doc.setFontSize(5.4);doc.setTextColor(...MUTED);doc.text(row[0].toUpperCase(),x+15,y);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(...NAVY);doc.text(row[1],x+15,y+4.8)})
 
-  heading(doc, data.showPvEconomics ? 'Wirtschaftliche Kennzahlen' : 'Projektkennzahlen', leftX, 251)
-  doc.setFillColor(...LIGHT)
-  doc.setDrawColor(...BORDER)
-  doc.roundedRect(leftX, 255, CONTENT_W, 23, 2.5, 2.5, 'FD')
-  const details = data.showPvEconomics && data.pvEconomics ? [
-    data.pvEconomics.annualYield > 0 ? ['Jahresproduktion', `${number(data.pvEconomics.annualYield)} kWh`] : null,
-    data.pvEconomics.annualRevenue > 0 ? ['Jahreserlös', money(data.pvEconomics.annualRevenue)] : null,
-    data.pvEconomics.purchasePrice > 0 ? ['Kaufpreis', money(data.pvEconomics.purchasePrice)] : null,
-    pricePerKwp > 0 ? ['Preis pro kWp', `${number(pricePerKwp, 0)} €/kWp`] : null,
-    data.pvEconomics.roi > 0 ? ['Rendite p.a.', `${number(data.pvEconomics.roi, 2)} %`] : null,
-    data.pvEconomics.amortisation > 0 ? ['Amortisation', `${number(data.pvEconomics.amortisation, 1)} Jahre`] : null,
-  ].filter(Boolean) as string[][] : data.metrics.filter((item) => hasValue(item.value)).slice(0, 6).map((item) => [item.label, item.value])
-  details.slice(0, 6).forEach((row, index) => {
-    const col = index % 3
-    const line = Math.floor(index / 3)
-    const x = leftX + col * (CONTENT_W / 3)
-    const y = 262 + line * 10
-    drawSymbol(doc, row[0], x + 7, y + 1, false, 0.72)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(5.4)
-    doc.setTextColor(...MUTED)
-    doc.text(safeText(row[0]).toUpperCase(), x + 15, y)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...NAVY)
-    doc.text(safeText(row[1]), x + 15, y + 4.8)
-  })
-  footer(doc, data)
+  doc.setDrawColor(...GREEN);doc.setLineWidth(0.4);doc.line(MARGIN,282,PAGE_W-MARGIN,282);doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor(...MUTED);doc.text('EMA Enterprise GmbH · Gabriel-von-Seidl-Str. 56 · 67550 Worms',MARGIN,287);doc.text('info@ema-enterprise.de · www.ema-enterprise.de',PAGE_W/2,287,{align:'center'});doc.text(`${safeText(data.projectNumber)} · ${safeText(data.dateLabel)}`,PAGE_W-MARGIN,287,{align:'right'})
 }
 
 export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Blob> {
-  assertValidData(data)
-  const JsPDF = await loadJsPdfConstructor()
-  let logo: LoadedImage | null = null
-  let hero: LoadedImage | null = null
-  let flag: LoadedImage | null = null
-  try {
-    ;[logo, hero, flag] = await Promise.all([
-      loadImageAsDataUrl('/ema-logo.jpeg'),
-      loadImageAsDataUrl(data.heroImage),
-      loadImageAsDataUrl(data.countryFlag),
-    ])
-  } catch (error) {
-    throw new PdfGenerationError('Bilder laden', 'Die PDF-Bilder konnten nicht geladen werden.', error)
-  }
-  const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true })
-  try {
-    renderPage(doc, data, logo, hero, flag)
-  } catch (error) {
-    throw new PdfGenerationError('Seite 1 erzeugen', 'Das einseitige A4-Hochformat konnte nicht erzeugt werden.', error)
-  }
-  try {
-    return doc.output('blob')
-  } catch (error) {
-    throw new PdfGenerationError('Blob erzeugen', 'Die PDF-Datei konnte nicht fertiggestellt werden.', error)
-  }
+  if (!data || !safeText(data.projectName,'').trim()) throw new PdfGenerationError('Daten prüfen','Der Projektname fehlt.')
+  let JsPDF: typeof import('jspdf').default
+  try { JsPDF=(await import('jspdf')).default } catch(error){throw new PdfGenerationError('jsPDF laden','Die PDF-Bibliothek konnte nicht geladen werden.',error)}
+  const [logo,hero,flag,map]=await Promise.all([loadImageAsDataUrl('/ema-logo.jpeg'),loadImageAsDataUrl(data.heroImage),loadImageAsDataUrl(data.countryFlag),createDashboardMapImage(data)])
+  const doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4',compress:true})
+  try { renderPage(doc,data,logo,hero,flag,map) } catch(error){throw new PdfGenerationError('Seite 1 erzeugen','Das einseitige A4-Hochformat konnte nicht erzeugt werden.',error)}
+  try { return doc.output('blob') } catch(error){throw new PdfGenerationError('Blob erzeugen','Die PDF-Datei konnte nicht fertiggestellt werden.',error)}
 }
