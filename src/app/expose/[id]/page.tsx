@@ -15,7 +15,6 @@ import {
   Mail,
   MapPin,
   Network,
-  SolarPanel,
   TrendingUp,
   Zap,
 } from 'lucide-react'
@@ -85,7 +84,7 @@ function metricIcon(label: string) {
   if (key.includes('kapazität')) return BatteryCharging
   if (key.includes('netzanschluss')) return Network
   if (key.includes('ertrag')) return TrendingUp
-  if (key.includes('leistung')) return SolarPanel
+  if (key.includes('leistung')) return Zap
   return BarChart3
 }
 
