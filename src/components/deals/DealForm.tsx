@@ -25,12 +25,30 @@ interface Props {
 }
 
 function parseGerman(value: string) {
-  return parseFloat(value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '')) || 0
+  const cleaned = value.trim().replace(/[^\d,.-]/g, '')
+  if (!cleaned) return 0
+
+  const commaIndex = cleaned.lastIndexOf(',')
+  const dotIndex = cleaned.lastIndexOf('.')
+  let normalized = cleaned
+
+  if (commaIndex >= 0) {
+    normalized = cleaned.replace(/\./g, '').replace(/,/g, (match, offset) => offset === commaIndex ? '.' : '')
+  } else if (dotIndex >= 0) {
+    const decimalDigits = cleaned.length - dotIndex - 1
+    normalized = decimalDigits > 0 && decimalDigits <= 2
+      ? cleaned.replace(/\./g, (match, offset) => offset === dotIndex ? '.' : '')
+      : cleaned.replace(/\./g, '')
+  }
+
+  return Number.parseFloat(normalized) || 0
 }
+
 function formatNumber(value: number, decimals = 0) {
   if (!value) return ''
   return value.toLocaleString('de-DE', { maximumFractionDigits: decimals })
 }
+
 function existingPrice(project: DealProject) {
   return Number(project.purchase_price ?? project.deal_purchase_price ?? project.active_deal_purchase_price ?? 0)
 }
@@ -42,9 +60,11 @@ export function DealForm({ projectId, project, deal, expenses = [] }: Props) {
   const savedDeal = deal as (Deal & { purchase_price_type?: PricingMode; included_margin_per_kwp?: number | null }) | null | undefined
   const initialTotal = Number(savedDeal?.purchase_price ?? existingPrice(project))
   const initialMode: PricingMode = savedDeal?.purchase_price_type === 'per_kwp' && hasPv ? 'per_kwp' : 'total'
+  const initialPurchaseInput = initialMode === 'per_kwp' && hasPv ? initialTotal / pvKwp : initialTotal
 
   const [pricingMode, setPricingMode] = useState<PricingMode>(initialMode)
-  const [purchaseInput, setPurchaseInput] = useState(initialMode === 'per_kwp' && hasPv ? initialTotal / pvKwp : initialTotal)
+  const [purchaseInputText, setPurchaseInputText] = useState(formatNumber(initialPurchaseInput, 2))
+  const purchaseInput = parseGerman(purchaseInputText)
   const initialMarginType = savedDeal?.margin_type === 'per_mwh' ? 'percent' : savedDeal?.margin_type ?? 'percent'
   const [marginType, setMarginType] = useState<MarginType>(initialMarginType)
   const [marginValue, setMarginValue] = useState(Number(savedDeal?.margin_value ?? savedDeal?.included_margin_per_kwp ?? 0))
@@ -58,6 +78,15 @@ export function DealForm({ projectId, project, deal, expenses = [] }: Props) {
   const totalExpenses = externalTotal + otherCosts
   const calc = calculateDeal({ purchase_price: purchasePrice, margin_type: marginType, margin_value: marginValue, pv_mwp: project.pv_mwp, bess_mwh: project.bess_mwh, expenses_total: totalExpenses })
   const sensitivity = useMemo(() => calculateSensitivity({ purchase_price: purchasePrice, margin_type: marginType, margin_value: marginValue, pv_mwp: project.pv_mwp, bess_mwh: project.bess_mwh, expenses_total: totalExpenses }), [purchasePrice, marginType, marginValue, project.pv_mwp, project.bess_mwh, totalExpenses])
+
+  function changePricingMode(nextMode: PricingMode) {
+    if (nextMode === pricingMode || (nextMode === 'per_kwp' && !hasPv)) return
+
+    const currentTotal = pricingMode === 'per_kwp' ? purchaseInput * pvKwp : purchaseInput
+    const nextInput = nextMode === 'per_kwp' && hasPv ? currentTotal / pvKwp : currentTotal
+    setPricingMode(nextMode)
+    setPurchaseInputText(formatNumber(nextInput, 2))
+  }
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -83,8 +112,8 @@ export function DealForm({ projectId, project, deal, expenses = [] }: Props) {
         <div>
           <label className="form-label">Berechnungsart EK</label>
           <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-border">
-            <button type="button" onClick={() => setPricingMode('total')} className={cn('px-3 py-2 text-sm font-semibold', pricingMode === 'total' ? 'bg-[#5CB800] text-white' : 'bg-card text-muted-foreground')}>Pauschalpreis</button>
-            <button type="button" disabled={!hasPv} onClick={() => hasPv && setPricingMode('per_kwp')} className={cn('px-3 py-2 text-sm font-semibold', pricingMode === 'per_kwp' ? 'bg-[#5CB800] text-white' : 'bg-card text-muted-foreground', !hasPv && 'cursor-not-allowed opacity-30')}>Preis pro kWp</button>
+            <button type="button" onClick={() => changePricingMode('total')} className={cn('px-3 py-2 text-sm font-semibold', pricingMode === 'total' ? 'bg-[#5CB800] text-white' : 'bg-card text-muted-foreground')}>Pauschalpreis</button>
+            <button type="button" disabled={!hasPv} onClick={() => changePricingMode('per_kwp')} className={cn('px-3 py-2 text-sm font-semibold', pricingMode === 'per_kwp' ? 'bg-[#5CB800] text-white' : 'bg-card text-muted-foreground', !hasPv && 'cursor-not-allowed opacity-30')}>Preis pro kWp</button>
           </div>
           <input type="hidden" name="purchase_price_type" value={pricingMode} />
         </div>
@@ -93,7 +122,14 @@ export function DealForm({ projectId, project, deal, expenses = [] }: Props) {
           <label className="form-label">{pricingMode === 'total' ? 'EK-Preis gesamt' : 'EK-Preis pro kWp'}</label>
           <div className="relative">
             <input type="hidden" name="purchase_input" value={purchaseInput || ''} />
-            <input value={formatNumber(purchaseInput, 2)} onChange={(event) => setPurchaseInput(parseGerman(event.target.value))} inputMode="decimal" className="form-input pr-20" placeholder="0" />
+            <input
+              value={purchaseInputText}
+              onChange={(event) => setPurchaseInputText(event.target.value.replace(/[^\d,.-]/g, ''))}
+              onBlur={() => setPurchaseInputText(formatNumber(purchaseInput, 2))}
+              inputMode="decimal"
+              className="form-input pr-20"
+              placeholder="0"
+            />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground">{pricingMode === 'total' ? '€' : '€/kWp'}</span>
           </div>
           {purchasePrice > 0 && <p className="mt-1 text-xs text-muted-foreground">Gesamt-EK: {formatCurrency(purchasePrice)}{hasPv ? ` · ${formatNumber(purchasePrice / pvKwp, 2)} €/kWp` : ''}</p>}
