@@ -116,7 +116,7 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
   const amortisation = price > 0 && annualNetCashFlow > 0 ? price / annualNetCashFlow : null
   const roi = price > 0 && annualNetCashFlow > 0 ? (annualNetCashFlow / price) * 100 : null
   const presentation = getExposePresentation(
-    { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: specificYield, feed_in_tariff: tariff },
+    { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: specificYield, feed_in_tariff: tariff, amortisation_years: amortisation },
     location,
     { number: formatNumber, money: formatMoney, tariff: tariffDisplay },
   )
