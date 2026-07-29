@@ -51,7 +51,7 @@ const MARGIN = 8
 const CONTENT_W = PAGE_W - MARGIN * 2
 
 type JsPdfDoc = InstanceType<typeof import('jspdf').default>
-type LoadedImage = { dataUrl: string; format: 'JPEG' | 'PNG' }
+type LoadedImage = { dataUrl: string; format: 'JPEG' | 'PNG'; aspect?: number }
 type Point = { x: number; y: number }
 
 const STATE_POINTS: Record<string, Point> = {
@@ -125,23 +125,27 @@ async function createDashboardMapImage(data: MemorandumPdfData): Promise<LoadedI
     const [minX, minY, vbW, vbH] = germany.viewBox.split(' ').map(Number)
     const markerX = minX + (point.x / 100) * vbW
     const markerY = minY + (point.y / 100) * vbH
-    const paths = germany.locations.map((location) => `<path d="${location.path}" fill="url(#fill)" stroke="#CBD5E1" stroke-width="0.9" vector-effect="non-scaling-stroke"/>`).join('')
-    const radius = Math.max(vbW, vbH) * 0.025
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${germany.viewBox}" width="560" height="680"><defs><linearGradient id="fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFFFFF"/><stop offset="100%" stop-color="#EAF4E4"/></linearGradient></defs>${paths}<circle cx="${markerX}" cy="${markerY}" r="${radius * 1.45}" fill="#FFFFFF" opacity="0.96"/><circle cx="${markerX}" cy="${markerY}" r="${radius}" fill="#5CB800"/><circle cx="${markerX}" cy="${markerY}" r="${radius * 0.35}" fill="#FFFFFF"/></svg>`
+    const aspect = vbW > 0 && vbH > 0 ? vbW / vbH : 0.75
+    const canvasH = 1020
+    const canvasW = Math.round(canvasH * aspect)
+    const border = Math.max(vbW, vbH) * 0.008
+    const paths = germany.locations.map((location) => `<path d="${location.path}" fill="url(#fill)" stroke="#1F2A44" stroke-width="${border}" stroke-linejoin="round" stroke-linecap="round"/>`).join('')
+    const radius = Math.max(vbW, vbH) * 0.034
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${germany.viewBox}" width="${canvasW}" height="${canvasH}"><defs><linearGradient id="fill" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#EDF4E4"/><stop offset="100%" stop-color="#CFE3B4"/></linearGradient></defs>${paths}<circle cx="${markerX}" cy="${markerY}" r="${radius * 1.7}" fill="#FFFFFF" opacity="0.97"/><circle cx="${markerX}" cy="${markerY}" r="${radius * 1.2}" fill="#1F2A44"/><circle cx="${markerX}" cy="${markerY}" r="${radius}" fill="#5CB800"/><circle cx="${markerX}" cy="${markerY}" r="${radius * 0.34}" fill="#FFFFFF"/></svg>`
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const image = new Image()
     const loaded = await new Promise<boolean>((resolve) => { image.onload = () => resolve(true); image.onerror = () => resolve(false); image.src = url })
     if (!loaded) { URL.revokeObjectURL(url); return null }
     const canvas = document.createElement('canvas')
-    canvas.width = 560
-    canvas.height = 680
+    canvas.width = canvasW
+    canvas.height = canvasH
     const context = canvas.getContext('2d')
     if (!context) { URL.revokeObjectURL(url); return null }
     context.clearRect(0, 0, canvas.width, canvas.height)
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
     URL.revokeObjectURL(url)
-    return { dataUrl: canvas.toDataURL('image/png'), format: 'PNG' }
+    return { dataUrl: canvas.toDataURL('image/png'), format: 'PNG', aspect }
   } catch { return null }
 }
 
@@ -155,13 +159,75 @@ function heading(doc: JsPdfDoc, label: string, x: number, y: number) {
   doc.setDrawColor(...GREEN); doc.setLineWidth(0.8); doc.line(x, y + 1.8, x + 12, y + 1.8)
 }
 
+function symbolKey(label: string) {
+  return safeText(label, '')
+    .toLowerCase()
+    .replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 'ss')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+function drawSolarPanel(doc: JsPdfDoc, cx: number, cy: number) {
+  doc.line(cx - 4.2, cy + 3, cx - 3, cy - 3); doc.line(cx - 3, cy - 3, cx + 3, cy - 3)
+  doc.line(cx + 3, cy - 3, cx + 4.2, cy + 3); doc.line(cx + 4.2, cy + 3, cx - 4.2, cy + 3)
+  doc.line(cx - 3.6, cy, cx + 3.6, cy); doc.line(cx - 1, cy - 3, cx - 1.4, cy + 3); doc.line(cx + 1, cy - 3, cx + 1.4, cy + 3)
+}
+
+function drawClock(doc: JsPdfDoc, cx: number, cy: number) {
+  doc.circle(cx, cy, 4.2, 'S'); doc.line(cx, cy, cx, cy - 2.7); doc.line(cx, cy, cx + 2.1, cy + 1.3)
+}
+
+function drawBanknote(doc: JsPdfDoc, cx: number, cy: number) {
+  doc.roundedRect(cx - 4.4, cy - 3, 8.8, 6, 1, 1, 'S')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.4); doc.text('€', cx, cy + 2.1, { align: 'center' })
+}
+
+function drawEuroCircle(doc: JsPdfDoc, cx: number, cy: number) {
+  doc.circle(cx, cy, 4.2, 'S')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(6.6); doc.text('€', cx, cy + 2.1, { align: 'center' })
+}
+
+function drawCoins(doc: JsPdfDoc, cx: number, cy: number, ink: [number, number, number]) {
+  doc.setFillColor(...ink)
+  doc.circle(cx - 1.3, cy + 1.2, 3.1, 'S'); doc.circle(cx + 1.6, cy - 1.2, 3.1, 'S')
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(5.2); doc.text('€', cx + 1.6, cy + 0.5, { align: 'center' })
+}
+
+function drawRisingBars(doc: JsPdfDoc, cx: number, cy: number, ink: [number, number, number]) {
+  doc.setFillColor(...ink)
+  doc.rect(cx - 4.2, cy + 0.6, 1.9, 2.6, 'F')
+  doc.rect(cx - 1.6, cy - 1.2, 1.9, 4.4, 'F')
+  doc.rect(cx + 1, cy - 3.2, 1.9, 6.4, 'F')
+  doc.line(cx - 4.6, cy + 3.4, cx + 4.4, cy + 3.4)
+}
+
+function drawYieldCurve(doc: JsPdfDoc, cx: number, cy: number, ink: [number, number, number]) {
+  doc.setFillColor(...ink)
+  doc.line(cx - 4.2, cy - 3.4, cx - 4.2, cy + 3.2); doc.line(cx - 4.2, cy + 3.2, cx + 4.2, cy + 3.2)
+  doc.line(cx - 3.6, cy + 2, cx - 1.2, cy + 0.2); doc.line(cx - 1.2, cy + 0.2, cx + 0.8, cy + 1.1); doc.line(cx + 0.8, cy + 1.1, cx + 3.4, cy - 2.6)
+  doc.triangle(cx + 3.4, cy - 2.6, cx + 1.5, cy - 2.2, cx + 3, cy - 0.7, 'F')
+}
+
+function drawDataSheet(doc: JsPdfDoc, cx: number, cy: number) {
+  doc.roundedRect(cx - 3.4, cy - 4, 6.8, 8, 0.9, 0.9, 'S')
+  doc.line(cx - 2, cy - 1.8, cx + 2, cy - 1.8); doc.line(cx - 2, cy, cx + 2, cy); doc.line(cx - 2, cy + 1.8, cx + 0.8, cy + 1.8)
+}
+
 function drawSymbol(doc: JsPdfDoc, label: string, cx: number, cy: number, highlighted = false) {
   const ink = highlighted ? [255, 255, 255] as [number, number, number] : DARK_GREEN
-  doc.setDrawColor(...ink); doc.setTextColor(...ink); doc.setLineWidth(0.75)
-  if (label.toLowerCase().includes('amort')) { doc.circle(cx, cy, 4.2, 'S'); doc.line(cx, cy, cx, cy - 2.7); doc.line(cx, cy, cx + 2.1, cy + 1.3); return }
-  if (label.toLowerCase().includes('kaufpreis')) { doc.roundedRect(cx - 4, cy - 3, 8, 6, 1, 1, 'S'); doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('€', cx, cy + 2.3, { align: 'center' }); return }
-  if (label.toLowerCase().includes('leistung') || label.toLowerCase().includes('produktion')) { doc.line(cx - 4, cy + 3, cx - 3, cy - 3); doc.line(cx - 3, cy - 3, cx + 3, cy - 3); doc.line(cx + 3, cy - 3, cx + 4, cy + 3); doc.line(cx + 4, cy + 3, cx - 4, cy + 3); return }
-  doc.circle(cx, cy, 4, 'S')
+  doc.setDrawColor(...ink); doc.setTextColor(...ink); doc.setLineWidth(0.62)
+  const key = symbolKey(label)
+
+  // Spezifische Treffer immer vor dem allgemeinen Fallback prüfen.
+  if (key.includes('amort')) { drawClock(doc, cx, cy); return }
+  if (key.includes('kaufpreis')) { drawBanknote(doc, cx, cy); return }
+  if (key.includes('leistung') || key.includes('produktion')) { drawSolarPanel(doc, cx, cy); return }
+  if (key.includes('spezertrag') || key.includes('spezifischerertrag') || key.includes('spezifisch') || key.includes('ertragkwp') || key.includes('ertrag')) { drawYieldCurve(doc, cx, cy, ink); return }
+  if (key.includes('rendite') || key.includes('irr') || key.includes('roi')) { drawRisingBars(doc, cx, cy, ink); return }
+  if (key.includes('verguetung') || key.includes('vergutung') || key.includes('tarif') || key.includes('eeg')) { drawCoins(doc, cx, cy, ink); return }
+  if (key.includes('erlos') || key.includes('umsatz') || key.includes('einnahme') || key.includes('cashflow')) { drawCoins(doc, cx, cy, ink); return }
+  if (key.includes('preis') || key.includes('eur') || key.includes('capex') || key.includes('opex') || key.includes('wert')) { drawEuroCircle(doc, cx, cy); return }
+  drawDataSheet(doc, cx, cy)
 }
 
 function parsePvKwp(metrics: MemorandumPdfData['metrics']) {
@@ -212,7 +278,8 @@ function renderPage(doc: JsPdfDoc, data: MemorandumPdfData, logo: LoadedImage | 
   heading(doc,'Executive Summary',leftX,145); doc.setFont('helvetica','normal'); doc.setFontSize(6.6); doc.setTextColor(40,52,68); doc.text(doc.splitTextToSize(safeText(data.summary),83),leftX,154)
   doc.setFillColor(...LIGHT); doc.setDrawColor(...BORDER); doc.roundedRect(leftX,166,83,24,2.5,2.5,'FD')
   doc.setFont('helvetica','bold'); doc.setFontSize(5.5); doc.setTextColor(...NAVY); doc.text('PROJEKTSTANDORT',leftX+4,171)
-  addImage(doc,map,leftX+4,172,24,16)
+  const mapH=16, mapW=Math.min(24,mapH*(map?.aspect??0.75))
+  addImage(doc,map,leftX+4+(24-mapW)/2,172,mapW,mapH)
   doc.setFontSize(6.2); doc.text(doc.splitTextToSize(data.location,45),leftX+34,177)
   doc.setFont('helvetica','normal'); doc.setFontSize(5.2); doc.setTextColor(...MUTED); doc.text('Identische Kartenbasis wie im Dashboard',leftX+34,185)
 
