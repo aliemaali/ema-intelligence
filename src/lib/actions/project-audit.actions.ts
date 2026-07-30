@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { calculatedAnnualYieldKwh, firstProjectValue, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp } from '@/lib/projects/pv-units'
+import { calculatedAnnualYieldKwh, firstProjectValue, normalizedPricePerKwp, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp, resolvedPurchasePrice } from '@/lib/projects/pv-units'
 
 export interface ProjectAuditRecord {
   id: string
@@ -82,7 +82,7 @@ export async function getProjectAuditData(projectIds: string[]) {
 
     const merged = Object.assign({}, project, ...optionalData) as Record<string, unknown>
     const pvKwp = projectPvCapacityKwp(merged)
-    const purchasePrice = positiveNumber(firstProjectValue(merged, ['purchase_price', 'deal_purchase_price', 'total_purchase_price']))
+    const purchasePrice = resolvedPurchasePrice(merged)
     const specificYield = projectSpecificYieldKwhPerKwp(merged)
     const feedInTariff = positiveNumber(firstProjectValue(merged, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh']))
     const storedAnnualYield = positiveNumber(firstProjectValue(merged, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh']))
@@ -96,8 +96,7 @@ export async function getProjectAuditData(projectIds: string[]) {
     const annualOpex = storedOpex ?? (pvKwp && opexPerKwp ? pvKwp * opexPerKwp : null)
     const storedNet = positiveNumber(firstProjectValue(merged, ['annual_net_cash_flow', 'annual_net_income', 'annual_profit', 'net_cashflow_year', 'cashflow_annual']))
     const annualNetCashFlow = storedNet ?? (annualRevenue !== null && annualOpex !== null ? Math.max(0, annualRevenue - annualOpex) : null)
-    const storedAmortisation = positiveNumber(firstProjectValue(merged, ['amortisation_years', 'payback_years']))
-    const amortisationYears = storedAmortisation ?? (purchasePrice && annualNetCashFlow ? purchasePrice / annualNetCashFlow : null)
+    const amortisationYears = purchasePrice && annualNetCashFlow ? purchasePrice / annualNetCashFlow : null
 
     const devStatus = merged.dev_status && typeof merged.dev_status === 'object' ? merged.dev_status as Record<string, unknown> : {}
     const gridRaw = firstProjectValue(merged, ['grid_connection', 'netzanschluss', 'grid_connection_secured']) ?? devStatus.netzanschluss
@@ -114,7 +113,7 @@ export async function getProjectAuditData(projectIds: string[]) {
       bessMw: positiveNumber(firstProjectValue(merged, ['bess_mw', 'storage_power_mw'])),
       bessMwh: positiveNumber(firstProjectValue(merged, ['bess_mwh', 'storage_capacity_mwh'])),
       purchasePrice,
-      storedPricePerKwp: positiveNumber(firstProjectValue(merged, ['price_per_kwp', 'purchase_price_per_kwp', 'ek_price_per_kwp', 'purchase_per_kwp'])),
+      storedPricePerKwp: normalizedPricePerKwp(firstProjectValue(merged, ['price_per_kwp', 'purchase_price_per_kwp', 'ek_price_per_kwp', 'purchase_per_kwp'])),
       feedInTariff,
       specificYield,
       annualYield,
