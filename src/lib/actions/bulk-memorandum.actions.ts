@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getExposePresentation } from '@/lib/expose/projectPresentation'
 import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
+import { calculatedAnnualYieldKwh, firstProjectValue, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp } from '@/lib/projects/pv-units'
 
 const COUNTRY_CODES: Record<string, string> = {
   Deutschland: 'de', Germany: 'de', Italien: 'it', Italy: 'it', Türkei: 'tr', Turkey: 'tr',
@@ -37,28 +38,6 @@ function tariffEuroPerKwh(raw: unknown) {
   const parsed = Number(raw)
   if (!Number.isFinite(parsed) || parsed <= 0) return null
   return parsed <= 1 ? parsed : parsed / 100
-}
-
-function firstValue(source: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const current = source[key]
-    if (current !== null && current !== undefined && current !== '') return current
-  }
-  return null
-}
-
-function positiveNumber(value: unknown) {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
-}
-
-function pvCapacityKwp(project: Record<string, unknown>) {
-  const directKwp = firstValue(project, ['pv_kwp', 'capacity_kwp', 'plant_capacity_kwp'])
-  const direct = positiveNumber(directKwp)
-  if (direct !== null) return direct
-
-  const mwp = positiveNumber(project.pv_mwp)
-  return mwp !== null ? mwp * 1000 : null
 }
 
 function stageLabel(raw: unknown) {
@@ -96,22 +75,20 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
   const code = COUNTRY_CODES[country]
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || country
   const dateLabel = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
-  const purchasePrice = firstValue(project, ['purchase_price', 'deal_purchase_price', 'total_purchase_price'])
-  const pvKwp = pvCapacityKwp(project)
-  const specificYield = firstValue(project, ['specific_yield', 'specific_yield_kwh_kwp', 'yield_kwh_kwp'])
-  const tariff = firstValue(project, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh'])
-  const storedAnnualYield = firstValue(project, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh'])
-  const storedNetCashFlow = firstValue(project, ['annual_net_cash_flow', 'annual_net_income', 'annual_profit', 'net_cashflow_year', 'cashflow_annual'])
-  const storedAnnualOpex = firstValue(project, ['annual_opex', 'opex_annual', 'operating_costs_annual'])
-  const opexPerKwp = positiveNumber(firstValue(project, ['opex_per_kwp', 'opex_eur_kwp'])) ?? 7
-  const pv = Number(pvKwp)
-  const yieldPerKwp = Number(specificYield)
+  const purchasePrice = firstProjectValue(project, ['purchase_price', 'deal_purchase_price', 'total_purchase_price'])
+  const pvKwp = projectPvCapacityKwp(project)
+  const specificYield = projectSpecificYieldKwhPerKwp(project)
+  const tariff = firstProjectValue(project, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh'])
+  const storedAnnualYield = firstProjectValue(project, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh'])
+  const storedNetCashFlow = firstProjectValue(project, ['annual_net_cash_flow', 'annual_net_income', 'annual_profit', 'net_cashflow_year', 'cashflow_annual'])
+  const storedAnnualOpex = firstProjectValue(project, ['annual_opex', 'opex_annual', 'operating_costs_annual'])
+  const opexPerKwp = positiveNumber(firstProjectValue(project, ['opex_per_kwp', 'opex_eur_kwp'])) ?? 7
   const price = Number(purchasePrice)
   const tariffEur = tariffEuroPerKwh(tariff)
-  const calculatedAnnualYield = Number.isFinite(pv) && pv > 0 && Number.isFinite(yieldPerKwp) && yieldPerKwp > 0 ? pv * yieldPerKwp : null
+  const calculatedAnnualYield = calculatedAnnualYieldKwh(project)
   const annualYield = positiveNumber(storedAnnualYield) ?? calculatedAnnualYield
   const annualRevenue = annualYield !== null && tariffEur !== null ? annualYield * tariffEur : 0
-  const annualOpex = positiveNumber(storedAnnualOpex) ?? (Number.isFinite(pv) && pv > 0 ? pv * opexPerKwp : 0)
+  const annualOpex = positiveNumber(storedAnnualOpex) ?? (pvKwp !== null ? pvKwp * opexPerKwp : 0)
   const annualNetCashFlow = positiveNumber(storedNetCashFlow) ?? Math.max(0, annualRevenue - annualOpex)
   const amortisation = price > 0 && annualNetCashFlow > 0 ? price / annualNetCashFlow : null
   const roi = price > 0 && annualNetCashFlow > 0 ? (annualNetCashFlow / price) * 100 : null
