@@ -99,7 +99,13 @@ async function logActivity(
 
 export async function getProjects(filters?: { type?: ProjectType; status?: ProjectStatus; search?: string }) {
   const { supabase, userId } = await requireUser()
-  let query = supabase.from('v_projects_with_deals').select('*').eq('user_id', userId).eq('is_archived', false).order('last_activity_at', { ascending: false })
+  let query = supabase
+    .from('v_projects_with_deals')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_archived', false)
+    .order('project_number', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: true })
   if (filters?.type) query = query.eq('project_type', filters.type)
   if (filters?.status) query = query.eq('status', filters.status)
   if (filters?.search) query = query.or(`project_name.ilike.%${filters.search}%,project_number.ilike.%${filters.search}%,location_city.ilike.%${filters.search}%`)
