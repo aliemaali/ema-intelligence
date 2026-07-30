@@ -1,8 +1,15 @@
 import { jsPDF } from 'jspdf'
 import type { ProjectAuditRecord } from '@/lib/actions/project-audit.actions'
 
-type Severity = 'ok' | 'warning' | 'error' | 'missing'
-interface CheckResult { severity: Severity; label: string; detail: string }
+export type Severity = 'ok' | 'warning' | 'error' | 'missing'
+export interface CheckResult { severity: Severity; label: string; detail: string }
+export interface ProjectAuditEvaluation {
+  project: ProjectAuditRecord
+  checks: CheckResult[]
+  worst: Severity
+  affectedCount: number
+  pricePerKwp: number | null
+}
 
 const money = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 const number = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 })
@@ -11,11 +18,16 @@ function relDiff(a: number, b: number) {
   return Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b), 1)
 }
 
-function statusRank(value: Severity) {
+export function statusRank(value: Severity) {
   return value === 'error' ? 3 : value === 'missing' ? 2 : value === 'warning' ? 1 : 0
 }
 
-function checkProject(project: ProjectAuditRecord): CheckResult[] {
+export function projectPricePerKwp(project: ProjectAuditRecord) {
+  const amount = project.purchasePrice ?? project.investmentVolume
+  return amount && project.pvKwp ? amount / project.pvKwp : null
+}
+
+export function checkProject(project: ProjectAuditRecord): CheckResult[] {
   const checks: CheckResult[] = []
   const isPv = ['pv_dach', 'pv_freiflaeche', 'hybrid'].includes(project.projectType)
   const isBess = ['bess', 'hybrid'].includes(project.projectType)
@@ -44,15 +56,14 @@ function checkProject(project: ProjectAuditRecord): CheckResult[] {
       add(diff > 0.1 ? 'error' : diff > 0.03 ? 'warning' : 'ok', 'Jahresertrag', `${number.format(project.annualYield)} kWh · Soll ${number.format(expected)} kWh`)
     } else add('missing', 'Jahresertrag', 'Nicht vollständig berechenbar')
 
-    if (project.purchasePrice && project.pvKwp) {
-      const calculated = project.purchasePrice / project.pvKwp
-      const severity: Severity = calculated < 50 || calculated > 2_500 ? 'warning' : 'ok'
-      add(severity, 'EK pro kWp', `${money.format(calculated)} / kWp`)
+    const calculatedPrice = projectPricePerKwp(project)
+    if (calculatedPrice) {
+      add(calculatedPrice < 30 || calculatedPrice > 3_500 ? 'warning' : 'ok', 'Preis pro kWp', `${money.format(calculatedPrice)} / kWp`)
       if (project.storedPricePerKwp) {
-        const diff = relDiff(project.storedPricePerKwp, calculated)
-        if (diff > 0.02) add('error', 'Gespeicherter €/kWp', `${money.format(project.storedPricePerKwp)} statt berechnet ${money.format(calculated)}`)
+        const diff = relDiff(project.storedPricePerKwp, calculatedPrice)
+        if (diff > 0.02) add('error', 'Gespeicherter €/kWp', `${money.format(project.storedPricePerKwp)} statt berechnet ${money.format(calculatedPrice)}`)
       }
-    } else add('missing', 'EK pro kWp', 'Kaufpreis oder Leistung fehlt')
+    } else add('missing', 'Preis pro kWp', 'Kaufpreis oder Leistung fehlt')
 
     if (project.annualOpex && project.pvKwp) {
       const calculated = project.annualOpex / project.pvKwp
@@ -69,9 +80,9 @@ function checkProject(project: ProjectAuditRecord): CheckResult[] {
     }
   }
 
-  if (!project.purchasePrice && !project.investmentVolume) add('missing', 'Kaufpreis', 'Kein EK-Kaufpreis oder Investitionsvolumen')
-  else if ((project.purchasePrice ?? project.investmentVolume ?? 0) <= 0) add('error', 'Kaufpreis', 'Wert muss größer als 0 sein')
-  else add('ok', 'Kaufpreis', money.format(project.purchasePrice ?? project.investmentVolume ?? 0))
+  if (!project.purchasePrice && !project.investmentVolume) add('missing', 'Kaufpreis / Investitionsvolumen', 'Kein Wert hinterlegt')
+  else if ((project.purchasePrice ?? project.investmentVolume ?? 0) <= 0) add('error', 'Kaufpreis / Investitionsvolumen', 'Wert muss größer als 0 sein')
+  else add('ok', 'Kaufpreis / Investitionsvolumen', money.format(project.purchasePrice ?? project.investmentVolume ?? 0))
 
   if (project.annualRevenue && project.annualOpex && project.annualNetCashFlow) {
     const expected = project.annualRevenue - project.annualOpex
@@ -95,7 +106,52 @@ function checkProject(project: ProjectAuditRecord): CheckResult[] {
   return checks
 }
 
-function severityLabel(value: Severity) {
+function median(values: number[]) {
+  if (!values.length) return null
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2
+}
+
+export function evaluateProjectPortfolio(projects: ProjectAuditRecord[]): ProjectAuditEvaluation[] {
+  const peerPrices = new Map<string, number[]>()
+  for (const project of projects) {
+    const price = projectPricePerKwp(project)
+    if (!price) continue
+    const values = peerPrices.get(project.projectType) ?? []
+    values.push(price)
+    peerPrices.set(project.projectType, values)
+  }
+
+  return projects.map((project) => {
+    const checks = checkProject(project)
+    const pricePerKwp = projectPricePerKwp(project)
+    const peers = peerPrices.get(project.projectType) ?? []
+    const peerMedian = median(peers)
+
+    if (pricePerKwp && peerMedian && peers.length >= 3) {
+      const ratio = pricePerKwp / peerMedian
+      if (ratio < 0.6 || ratio > 1.65) {
+        checks.push({
+          severity: 'warning',
+          label: 'Portfoliovergleich',
+          detail: `${money.format(pricePerKwp)} / kWp liegt ${ratio < 1 ? 'deutlich unter' : 'deutlich über'} dem Median ähnlicher Projekte (${money.format(peerMedian)} / kWp).`,
+        })
+      }
+    }
+
+    const worst = checks.reduce<Severity>((current, item) => statusRank(item.severity) > statusRank(current) ? item.severity : current, 'ok')
+    return {
+      project,
+      checks,
+      worst,
+      affectedCount: checks.filter((check) => check.severity !== 'ok').length,
+      pricePerKwp,
+    }
+  })
+}
+
+export function severityLabel(value: Severity) {
   return value === 'ok' ? 'OK' : value === 'warning' ? 'PRÜFEN' : value === 'error' ? 'FEHLER' : 'FEHLT'
 }
 
@@ -106,9 +162,9 @@ export function generateProjectAuditPdf(projects: ProjectAuditRecord[]) {
   const margin = 14
   const navy: [number, number, number] = [7, 20, 47]
   const green: [number, number, number] = [92, 184, 0]
-  const checks = projects.map((project) => ({ project, checks: checkProject(project) }))
+  const audits = evaluateProjectPortfolio(projects)
   const counts = { ok: 0, warning: 0, error: 0, missing: 0 }
-  checks.forEach((item) => item.checks.forEach((check) => { counts[check.severity] += 1 }))
+  audits.forEach((item) => { counts[item.worst] += 1 })
 
   const footer = () => {
     doc.setFontSize(8)
@@ -122,7 +178,7 @@ export function generateProjectAuditPdf(projects: ProjectAuditRecord[]) {
   doc.setTextColor(255)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(22)
-  doc.text('EMA Projektübersicht', margin, 23)
+  doc.text('EMA Projektprüfung – Prüfbericht', margin, 23)
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
   doc.text('Automatische Plausibilitätsprüfung aller Projektwerte', margin, 33)
@@ -131,7 +187,7 @@ export function generateProjectAuditPdf(projects: ProjectAuditRecord[]) {
   doc.text(`${projects.length} Projekte geprüft`, margin, 44)
 
   const summary = [
-    ['Fehler', counts.error], ['Fehlende Werte', counts.missing], ['Hinweise', counts.warning], ['Plausible Prüfungen', counts.ok],
+    ['Fehler', counts.error], ['Fehlende Werte', counts.missing], ['Hinweise', counts.warning], ['Plausible Projekte', counts.ok],
   ] as const
   let sx = margin
   for (const [label, value] of summary) {
@@ -162,19 +218,18 @@ export function generateProjectAuditPdf(projects: ProjectAuditRecord[]) {
   doc.text('Hinweis: Die Prüfung ist eine automatisierte Plausibilitätskontrolle und ersetzt keine technische, rechtliche oder steuerliche Due Diligence.', margin, 150, { maxWidth: pageWidth - margin * 2 })
   footer()
 
-  checks.forEach(({ project, checks: projectChecks }, index) => {
+  audits.forEach(({ project, checks: projectChecks, worst }, index) => {
     doc.addPage()
     doc.setFillColor(...navy)
     doc.rect(0, 0, pageWidth, 34, 'F')
     doc.setTextColor(255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(15)
-    doc.text(`${project.projectNumber} · ${project.projectName}`, margin, 15, { maxWidth: 160 })
+    doc.text(`${project.projectNumber} · ${project.projectName}`, margin, 15, { maxWidth: 145 })
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`${project.location} · ${project.stage}`, margin, 24, { maxWidth: 180 })
+    doc.text(`${project.location} · ${project.stage}`, margin, 24, { maxWidth: 145 })
 
-    const worst = projectChecks.reduce<Severity>((current, item) => statusRank(item.severity) > statusRank(current) ? item.severity : current, 'ok')
     doc.setFillColor(worst === 'error' ? 180 : worst === 'missing' ? 90 : worst === 'warning' ? 215 : 92, worst === 'error' ? 35 : worst === 'missing' ? 100 : worst === 'warning' ? 145 : 184, worst === 'error' ? 35 : worst === 'missing' ? 120 : worst === 'warning' ? 0 : 0)
     doc.roundedRect(165, 10, 31, 10, 2, 2, 'F')
     doc.setTextColor(255)
@@ -203,7 +258,7 @@ export function generateProjectAuditPdf(projects: ProjectAuditRecord[]) {
       y += 16
     })
     footer()
-    if (index === checks.length - 1) return
+    if (index === audits.length - 1) return
   })
 
   doc.save(`EMA_Projektpruefung_${new Date().toISOString().slice(0, 10)}.pdf`)
