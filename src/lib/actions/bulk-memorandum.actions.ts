@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getExposePresentation } from '@/lib/expose/projectPresentation'
 import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
-import { calculatedAnnualYieldKwh, firstProjectValue, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp } from '@/lib/projects/pv-units'
+import { calculatedAnnualYieldKwh, firstProjectValue, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp, resolvedPurchasePrice } from '@/lib/projects/pv-units'
 
 const COUNTRY_CODES: Record<string, string> = {
   Deutschland: 'de', Germany: 'de', Italien: 'it', Italy: 'it', Türkei: 'tr', Turkey: 'tr',
@@ -75,7 +75,7 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
   const code = COUNTRY_CODES[country]
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || country
   const dateLabel = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
-  const purchasePrice = firstProjectValue(project, ['purchase_price', 'deal_purchase_price', 'total_purchase_price'])
+  const purchasePrice = resolvedPurchasePrice(project)
   const pvKwp = projectPvCapacityKwp(project)
   const specificYield = projectSpecificYieldKwhPerKwp(project)
   const tariff = firstProjectValue(project, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh'])
