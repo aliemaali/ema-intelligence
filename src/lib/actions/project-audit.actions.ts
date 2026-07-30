@@ -9,6 +9,7 @@ export interface ProjectAuditRecord {
   projectNumber: string
   projectName: string
   projectType: string
+  projectImageUrl: string | null
   location: string
   stage: string
   pvKwp: number | null
@@ -46,6 +47,16 @@ function tariffEuroPerKwh(value: unknown) {
   return parsed <= 1 ? parsed : parsed / 100
 }
 
+function firstRowByProject(rows: unknown[] | null | undefined) {
+  const map = new Map<string, Record<string, unknown>>()
+  for (const raw of rows ?? []) {
+    const row = raw as Record<string, unknown>
+    const projectId = String(row.project_id ?? '')
+    if (projectId && !map.has(projectId)) map.set(projectId, row)
+  }
+  return map
+}
+
 async function requireUser() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -66,19 +77,28 @@ export async function getProjectAuditData(projectIds: string[]) {
 
   if (error) return { success: false as const, error: error.message, data: [] as ProjectAuditRecord[] }
 
+  const [dealsResult, financialsResult, economicsResult, capexResult] = await Promise.all([
+    supabase.from('deals').select('*').eq('user_id', userId).eq('is_active', true).in('project_id', ids),
+    supabase.from('project_financials').select('*').in('project_id', ids).order('updated_at', { ascending: false }),
+    supabase.from('project_economics').select('*').in('project_id', ids).order('updated_at', { ascending: false }),
+    supabase.from('capex_calculations').select('*').in('project_id', ids).order('updated_at', { ascending: false }),
+  ])
+
+  const dealByProject = firstRowByProject(dealsResult.data)
+  const financialsByProject = firstRowByProject(financialsResult.data)
+  const economicsByProject = firstRowByProject(economicsResult.data)
+  const capexByProject = firstRowByProject(capexResult.data)
+
   const records: ProjectAuditRecord[] = []
   for (const raw of projects ?? []) {
     const project = raw as unknown as Record<string, unknown>
     const projectId = String(project.id)
-    const optionalData: Record<string, unknown>[] = []
-
-    const { data: deal } = await supabase.from('deals').select('*').eq('project_id', projectId).eq('user_id', userId).eq('is_active', true).maybeSingle()
-    if (deal) optionalData.push(deal as unknown as Record<string, unknown>)
-
-    for (const table of ['project_financials', 'project_economics', 'capex_calculations']) {
-      const { data } = await supabase.from(table).select('*').eq('project_id', projectId).order('updated_at', { ascending: false }).limit(1).maybeSingle()
-      if (data) optionalData.push(data as unknown as Record<string, unknown>)
-    }
+    const optionalData = [
+      dealByProject.get(projectId),
+      financialsByProject.get(projectId),
+      economicsByProject.get(projectId),
+      capexByProject.get(projectId),
+    ].filter(Boolean) as Record<string, unknown>[]
 
     const merged = Object.assign({}, project, ...optionalData) as Record<string, unknown>
     const pvKwp = projectPvCapacityKwp(merged)
@@ -107,6 +127,7 @@ export async function getProjectAuditData(projectIds: string[]) {
       projectNumber: String(merged.project_number || '—'),
       projectName: String(merged.project_name || 'Projekt'),
       projectType: String(merged.project_type || ''),
+      projectImageUrl: typeof merged.project_image_url === 'string' && merged.project_image_url ? merged.project_image_url : null,
       location: [merged.location_city, merged.location_state, merged.location_country].filter(Boolean).join(', ') || '—',
       stage: merged.project_stage === 'rtb' ? 'RTB' : 'In Planung',
       pvKwp,
