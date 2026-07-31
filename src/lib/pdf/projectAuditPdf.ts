@@ -155,111 +155,359 @@ export function severityLabel(value: Severity) {
   return value === 'ok' ? 'OK' : value === 'warning' ? 'PRÜFEN' : value === 'error' ? 'FEHLER' : 'FEHLT'
 }
 
+type PdfColor = [number, number, number]
+
+const PDF_COLORS = {
+  navy: [31, 42, 68] as PdfColor,
+  green: [92, 184, 0] as PdfColor,
+  greenDark: [72, 145, 0] as PdfColor,
+  surface: [246, 248, 251] as PdfColor,
+  border: [224, 229, 237] as PdfColor,
+  muted: [103, 116, 139] as PdfColor,
+  error: [190, 45, 55] as PdfColor,
+  warning: [220, 145, 0] as PdfColor,
+  missing: [93, 105, 128] as PdfColor,
+  info: [40, 105, 190] as PdfColor,
+}
+
+function pdfSafeText(value: string) {
+  return value
+    .replace(/[–—−]/g, '-')
+    .replace(/≥/g, '>=')
+    .replace(/≤/g, '<=')
+    .replace(/·/g, '|')
+    .replace(/\u00a0/g, ' ')
+}
+
+function projectTypeLabel(value: string) {
+  const labels: Record<string, string> = {
+    pv_dach: 'PV Dachanlage',
+    pv_freiflaeche: 'PV Freifläche',
+    bess: 'BESS',
+    hybrid: 'Hybrid',
+    wind: 'Windkraft',
+    datacenter: 'Rechenzentrum',
+    rechenzentrum: 'Rechenzentrum',
+    sonstiges: 'Sonstiges',
+  }
+  return labels[value] ?? (value.replaceAll('_', ' ') || 'Sonstiges')
+}
+
+function severityColor(value: Severity): PdfColor {
+  if (value === 'error') return PDF_COLORS.error
+  if (value === 'warning') return PDF_COLORS.warning
+  if (value === 'missing') return PDF_COLORS.missing
+  return PDF_COLORS.greenDark
+}
+
+function clippedText(doc: jsPDF, value: string, maxWidth: number) {
+  const safe = pdfSafeText(value)
+  if (doc.getTextWidth(safe) <= maxWidth) return safe
+  let clipped = safe
+  while (clipped.length > 1 && doc.getTextWidth(`${clipped}...`) > maxWidth) clipped = clipped.slice(0, -1)
+  return `${clipped.trim()}...`
+}
+
+function drawBrand(doc: jsPDF, x: number, y: number, inverse = true) {
+  doc.setFillColor(...PDF_COLORS.green)
+  doc.roundedRect(x, y, 8, 8, 1.8, 1.8, 'F')
+  doc.setTextColor(...(inverse ? [255, 255, 255] as PdfColor : PDF_COLORS.navy))
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.text('EMA', x + 11, y + 6.2)
+}
+
+function drawMetricCard(doc: jsPDF, options: {
+  x: number
+  y: number
+  width: number
+  height: number
+  label: string
+  value: string
+  accent?: PdfColor
+  compact?: boolean
+}) {
+  const { x, y, width, height, label, value, accent = PDF_COLORS.green, compact = false } = options
+  doc.setFillColor(255, 255, 255)
+  doc.setDrawColor(...PDF_COLORS.border)
+  doc.setLineWidth(0.3)
+  doc.roundedRect(x, y, width, height, 2.5, 2.5, 'FD')
+  doc.setFillColor(...accent)
+  doc.roundedRect(x, y, 2.3, height, 1.1, 1.1, 'F')
+  doc.setTextColor(...PDF_COLORS.muted)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(compact ? 6.8 : 7.3)
+  doc.text(pdfSafeText(label).toUpperCase(), x + 6, y + (compact ? 7 : 8))
+  doc.setTextColor(...PDF_COLORS.navy)
+  doc.setFontSize(compact ? 11 : 13)
+  doc.text(clippedText(doc, value, width - 10), x + 6, y + (compact ? 17 : 21))
+}
+
+function drawStatusCard(doc: jsPDF, x: number, y: number, width: number, label: string, value: number, color: PdfColor) {
+  doc.setFillColor(...PDF_COLORS.surface)
+  doc.setDrawColor(...PDF_COLORS.border)
+  doc.roundedRect(x, y, width, 23, 2.5, 2.5, 'FD')
+  doc.setFillColor(...color)
+  doc.circle(x + 7, y + 7, 2.2, 'F')
+  doc.setTextColor(...PDF_COLORS.navy)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(13)
+  doc.text(String(value), x + 12, y + 9.5)
+  doc.setTextColor(...PDF_COLORS.muted)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.3)
+  doc.text(pdfSafeText(label), x + 7, y + 17.5)
+}
+
+function drawOverviewTable(doc: jsPDF, audits: ProjectAuditEvaluation[], startIndex: number, startY: number) {
+  const margin = 14
+  const widths = [18, 42, 26, 35, 22, 25, 14]
+  const headers = ['Nr.', 'Projekt', 'Art', 'Standort', 'Leistung', 'Volumen', 'Status']
+  const rowHeight = 11.5
+  const maxRows = Math.max(1, Math.floor((278 - startY - 10) / rowHeight))
+  const pageItems = audits.slice(startIndex, startIndex + maxRows)
+
+  doc.setFillColor(...PDF_COLORS.navy)
+  doc.roundedRect(margin, startY, 182, 9, 1.7, 1.7, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(6.6)
+  let x = margin + 2.5
+  headers.forEach((header, index) => {
+    doc.text(header, x, startY + 6)
+    x += widths[index]
+  })
+
+  pageItems.forEach(({ project, worst }, index) => {
+    const y = startY + 9 + index * rowHeight
+    doc.setFillColor(...(index % 2 ? [250, 251, 253] as PdfColor : [255, 255, 255] as PdfColor))
+    doc.setDrawColor(...PDF_COLORS.border)
+    doc.rect(margin, y, 182, rowHeight, 'FD')
+    doc.setTextColor(...PDF_COLORS.navy)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(6.6)
+    const amount = project.purchasePrice ?? project.investmentVolume
+    const capacity = project.pvKwp
+      ? `${number.format(project.pvKwp)} kWp`
+      : project.bessMwh ? `${number.format(project.bessMwh)} MWh` : '-'
+    const values = [
+      project.projectNumber,
+      project.projectName,
+      projectTypeLabel(project.projectType),
+      project.location,
+      capacity,
+      amount ? money.format(amount) : '-',
+    ]
+    x = margin + 2.5
+    values.forEach((value, valueIndex) => {
+      if (valueIndex > 0) doc.setFont('helvetica', 'normal')
+      doc.text(clippedText(doc, value, widths[valueIndex] - 4), x, y + 7.1)
+      x += widths[valueIndex]
+    })
+    const badgeColor = severityColor(worst)
+    doc.setFillColor(...badgeColor)
+    doc.roundedRect(x, y + 3, widths[6] - 3, 5.5, 1.4, 1.4, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(5.4)
+    doc.text(severityLabel(worst), x + (widths[6] - 3) / 2, y + 6.9, { align: 'center' })
+  })
+
+  return startIndex + pageItems.length
+}
+
+function drawPageFooter(doc: jsPDF, pageNumber: number, pageCount: number, date: string) {
+  const pageHeight = 297
+  doc.setDrawColor(...PDF_COLORS.border)
+  doc.setLineWidth(0.25)
+  doc.line(14, pageHeight - 13, 196, pageHeight - 13)
+  doc.setTextColor(...PDF_COLORS.muted)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.text('EMA Enterprise GmbH | Vertraulich | Automatisierte Prüfung, keine Due Diligence', 14, pageHeight - 7)
+  doc.text(`${date} | Seite ${pageNumber} von ${pageCount}`, 196, pageHeight - 7, { align: 'right' })
+}
+
 export function generateProjectAuditPdf(projects: ProjectAuditRecord[]) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = 210
-  const pageHeight = 297
   const margin = 14
-  const navy: [number, number, number] = [7, 20, 47]
-  const green: [number, number, number] = [92, 184, 0]
   const audits = evaluateProjectPortfolio(projects)
   const counts = { ok: 0, warning: 0, error: 0, missing: 0 }
   audits.forEach((item) => { counts[item.worst] += 1 })
-
-  const footer = () => {
-    doc.setFontSize(8)
-    doc.setTextColor(120)
-    doc.text(`EMA Enterprise GmbH · Projektprüfung · ${new Intl.DateTimeFormat('de-DE').format(new Date())}`, margin, pageHeight - 7)
-    doc.text(String(doc.getNumberOfPages()), pageWidth - margin, pageHeight - 7, { align: 'right' })
-  }
-
-  doc.setFillColor(...navy)
-  doc.rect(0, 0, pageWidth, 54, 'F')
-  doc.setTextColor(255)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(22)
-  doc.text('EMA Projektprüfung – Prüfbericht', margin, 23)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Automatische Plausibilitätsprüfung aller Projektwerte', margin, 33)
-  doc.setTextColor(...green)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`${projects.length} Projekte geprüft`, margin, 44)
-
-  const summary = [
-    ['Fehler', counts.error], ['Fehlende Werte', counts.missing], ['Hinweise', counts.warning], ['Plausible Projekte', counts.ok],
-  ] as const
-  let sx = margin
-  for (const [label, value] of summary) {
-    doc.setFillColor(246, 248, 251)
-    doc.roundedRect(sx, 64, 42, 25, 3, 3, 'F')
-    doc.setTextColor(...navy)
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.text(String(value), sx + 5, 75)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.text(label, sx + 5, 83)
-    sx += 45
-  }
-
-  doc.setTextColor(...navy)
-  doc.setFontSize(13)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Gesamtportfolio', margin, 105)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'normal')
+  const date = new Intl.DateTimeFormat('de-DE').format(new Date())
   const totalPv = projects.reduce((sum, item) => sum + (item.pvKwp ?? 0), 0)
   const totalBess = projects.reduce((sum, item) => sum + (item.bessMwh ?? 0), 0)
   const totalPrice = projects.reduce((sum, item) => sum + (item.purchasePrice ?? item.investmentVolume ?? 0), 0)
-  doc.text(`PV-Leistung: ${number.format(totalPv)} kWp`, margin, 116)
-  doc.text(`BESS-Kapazität: ${number.format(totalBess)} MWh`, margin, 124)
-  doc.text(`Kaufpreis / Investitionsvolumen: ${money.format(totalPrice)}`, margin, 132)
-  doc.text('Hinweis: Die Prüfung ist eine automatisierte Plausibilitätskontrolle und ersetzt keine technische, rechtliche oder steuerliche Due Diligence.', margin, 150, { maxWidth: pageWidth - margin * 2 })
-  footer()
 
-  audits.forEach(({ project, checks: projectChecks, worst }, index) => {
+  // Portfolio cover and management overview
+  doc.setFillColor(...PDF_COLORS.navy)
+  doc.rect(0, 0, pageWidth, 51, 'F')
+  drawBrand(doc, margin, 10)
+  doc.setTextColor(215, 223, 235)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.text(`PORTFOLIOBERICHT | ${date}`, pageWidth - margin, 16, { align: 'right' })
+  doc.setTextColor(255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(21)
+  doc.text('Projektprüfung und Portfolioübersicht', margin, 33)
+  doc.setFontSize(9.5)
+  doc.setFont('helvetica', 'normal')
+  doc.text('Automatische Plausibilitätskontrolle aller zentralen Projektdaten', margin, 42)
+
+  const metricGap = 3
+  const metricWidth = (182 - metricGap * 3) / 4
+  const metrics = [
+    ['Projekte gesamt', number.format(projects.length), PDF_COLORS.navy],
+    ['PV-Leistung', `${number.format(totalPv)} kWp`, PDF_COLORS.green],
+    ['BESS-Kapazität', `${number.format(totalBess)} MWh`, PDF_COLORS.info],
+    ['Gesamtvolumen', money.format(totalPrice), PDF_COLORS.green],
+  ] as const
+  metrics.forEach(([label, value, accent], index) => drawMetricCard(doc, {
+    x: margin + index * (metricWidth + metricGap), y: 61, width: metricWidth, height: 31,
+    label, value, accent,
+  }))
+
+  doc.setTextColor(...PDF_COLORS.navy)
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Prüfstatus', margin, 106)
+  const statusGap = 3
+  const statusWidth = (182 - statusGap * 3) / 4
+  const statuses = [
+    ['Plausible Projekte', counts.ok, PDF_COLORS.greenDark],
+    ['Hinweise', counts.warning, PDF_COLORS.info],
+    ['Fehlende Werte', counts.missing, PDF_COLORS.warning],
+    ['Fehler', counts.error, PDF_COLORS.error],
+  ] as const
+  statuses.forEach(([label, value, color], index) => drawStatusCard(doc, margin + index * (statusWidth + statusGap), 112, statusWidth, label, value, color))
+
+  doc.setTextColor(...PDF_COLORS.navy)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('Projektübersicht', margin, 151)
+  doc.setTextColor(...PDF_COLORS.muted)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7)
+  doc.text('Alle Projekte auf Basis der aktuell hinterlegten Stammdaten', margin, 157)
+
+  let overviewIndex = drawOverviewTable(doc, audits, 0, 162)
+  while (overviewIndex < audits.length) {
     doc.addPage()
-    doc.setFillColor(...navy)
-    doc.rect(0, 0, pageWidth, 34, 'F')
-    doc.setTextColor(255)
+    drawBrand(doc, margin, 12, false)
+    doc.setTextColor(...PDF_COLORS.navy)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(15)
-    doc.text(`${project.projectNumber} · ${project.projectName}`, margin, 15, { maxWidth: 145 })
-    doc.setFontSize(9)
+    doc.setFontSize(16)
+    doc.text('Projektübersicht', margin, 35)
+    doc.setTextColor(...PDF_COLORS.muted)
     doc.setFont('helvetica', 'normal')
-    doc.text(`${project.location} · ${project.stage}`, margin, 24, { maxWidth: 145 })
-
-    doc.setFillColor(worst === 'error' ? 180 : worst === 'missing' ? 90 : worst === 'warning' ? 215 : 92, worst === 'error' ? 35 : worst === 'missing' ? 100 : worst === 'warning' ? 145 : 184, worst === 'error' ? 35 : worst === 'missing' ? 120 : worst === 'warning' ? 0 : 0)
-    doc.roundedRect(165, 10, 31, 10, 2, 2, 'F')
-    doc.setTextColor(255)
     doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.text(severityLabel(worst), 180.5, 16.5, { align: 'center' })
+    doc.text('Fortsetzung der Gesamtübersicht', margin, 43)
+    overviewIndex = drawOverviewTable(doc, audits, overviewIndex, 51)
+  }
 
-    let y = 46
+  audits.forEach(({ project, checks: projectChecks, worst }) => {
+    doc.addPage()
+    doc.setFillColor(...PDF_COLORS.navy)
+    doc.rect(0, 0, pageWidth, 39, 'F')
+    drawBrand(doc, margin, 9)
+    doc.setTextColor(215, 223, 235)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.text('PROJEKTPRÜFUNG', pageWidth - margin, 15, { align: 'right' })
+    doc.setTextColor(255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(15.5)
+    doc.text(clippedText(doc, `${project.projectNumber} | ${project.projectName}`, 143), margin, 29)
+
+    const badgeColor = severityColor(worst)
+    doc.setFillColor(...badgeColor)
+    doc.roundedRect(164, 23, 32, 9, 2, 2, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(7.2)
+    doc.text(severityLabel(worst), 180, 28.8, { align: 'center' })
+
+    doc.setTextColor(...PDF_COLORS.navy)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.text(projectTypeLabel(project.projectType), margin, 51)
+    doc.setTextColor(...PDF_COLORS.muted)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text(`${pdfSafeText(project.location)} | ${pdfSafeText(project.stage)}`, margin, 58)
+
+    const detailGap = 3
+    const detailWidth = (182 - detailGap * 3) / 4
+    const amount = project.purchasePrice ?? project.investmentVolume
+    const detailMetrics = [
+      ['PV-Leistung', project.pvKwp ? `${number.format(project.pvKwp)} kWp` : '-'],
+      ['BESS-Kapazität', project.bessMwh ? `${number.format(project.bessMwh)} MWh` : '-'],
+      ['Kaufpreis / Volumen', amount ? money.format(amount) : '-'],
+      ['Preis pro kWp', projectPricePerKwp(project) ? `${money.format(projectPricePerKwp(project) ?? 0)}/kWp` : '-'],
+    ] as const
+    detailMetrics.forEach(([label, value], metricIndex) => drawMetricCard(doc, {
+      x: margin + metricIndex * (detailWidth + detailGap), y: 67, width: detailWidth, height: 25,
+      label, value, compact: true, accent: metricIndex === 1 ? PDF_COLORS.info : PDF_COLORS.green,
+    }))
+
+    doc.setTextColor(...PDF_COLORS.navy)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.text('Prüfergebnisse', margin, 108)
+    doc.setTextColor(...PDF_COLORS.muted)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.text(`${projectChecks.filter((check) => check.severity !== 'ok').length} Auffälligkeiten bei ${projectChecks.length} Prüfpunkten`, margin, 114)
+
+    let y = 121
     projectChecks.forEach((check) => {
-      if (y > 270) { footer(); doc.addPage(); y = 20 }
-      const color: [number, number, number] = check.severity === 'error' ? [180, 35, 35] : check.severity === 'warning' ? [205, 130, 0] : check.severity === 'missing' ? [95, 105, 125] : [70, 145, 0]
-      doc.setFillColor(248, 250, 252)
-      doc.roundedRect(margin, y, pageWidth - margin * 2, 14, 2, 2, 'F')
+      const detailLines = doc.splitTextToSize(pdfSafeText(check.detail), 126) as string[]
+      const visibleLines = detailLines.slice(0, 2)
+      const rowHeight = Math.max(11.5, 7.2 + visibleLines.length * 3)
+      if (y + rowHeight > 279) {
+        doc.addPage()
+        drawBrand(doc, margin, 12, false)
+        doc.setTextColor(...PDF_COLORS.navy)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(13)
+        doc.text(clippedText(doc, `${project.projectNumber} | ${project.projectName}`, 150), margin, 35)
+        doc.setTextColor(...PDF_COLORS.muted)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text('Prüfergebnisse - Fortsetzung', margin, 43)
+        y = 53
+      }
+      const color = severityColor(check.severity)
+      doc.setFillColor(...PDF_COLORS.surface)
+      doc.setDrawColor(...PDF_COLORS.border)
+      doc.setLineWidth(0.25)
+      doc.roundedRect(margin, y, pageWidth - margin * 2, rowHeight, 2, 2, 'FD')
       doc.setFillColor(...color)
-      doc.circle(margin + 5, y + 7, 2.2, 'F')
-      doc.setTextColor(...navy)
+      doc.roundedRect(margin, y, 2.2, rowHeight, 1, 1, 'F')
+      doc.setFillColor(...color)
+      doc.circle(margin + 8, y + rowHeight / 2, 2, 'F')
+      doc.setTextColor(...PDF_COLORS.navy)
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.text(check.label, margin + 10, y + 5.5)
+      doc.setFontSize(8.5)
+      doc.text(clippedText(doc, check.label, 42), margin + 13, y + rowHeight / 2 + 1.6)
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.text(check.detail, margin + 10, y + 10.5, { maxWidth: 145 })
+      doc.setFontSize(7.2)
+      doc.text(visibleLines, margin + 57, y + 5.2)
       doc.setTextColor(...color)
       doc.setFont('helvetica', 'bold')
-      doc.text(severityLabel(check.severity), pageWidth - margin - 4, y + 8.5, { align: 'right' })
-      y += 16
+      doc.setFontSize(6.5)
+      doc.text(severityLabel(check.severity), pageWidth - margin - 4, y + rowHeight / 2 + 2, { align: 'right' })
+      y += rowHeight + 1.4
     })
-    footer()
-    if (index === audits.length - 1) return
   })
+
+  // Footers are added after pagination so every page has an exact page count.
+  const pageCount = doc.getNumberOfPages()
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+    doc.setPage(pageNumber)
+    drawPageFooter(doc, pageNumber, pageCount, date)
+  }
 
   doc.save(`EMA_Projektpruefung_${new Date().toISOString().slice(0, 10)}.pdf`)
 }
