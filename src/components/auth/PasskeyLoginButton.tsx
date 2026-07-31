@@ -5,17 +5,26 @@ import { useRouter } from 'next/navigation'
 import { Fingerprint, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
+const CANONICAL_HOSTNAME = 'app.ema-enterprise.de'
+const CANONICAL_LOGIN_URL = 'https://app.ema-enterprise.de/login'
+
 function getPasskeyErrorMessage(error: unknown) {
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
     return 'Face ID oder die Passkey-Anmeldung wurde abgebrochen.'
   }
 
   if (error instanceof Error) {
-    if (error.message.includes('passkey_disabled')) {
+    const message = error.message.toLowerCase()
+
+    if (message.includes('passkey_disabled')) {
       return 'Passkeys sind für EMA noch nicht in Supabase aktiviert.'
     }
 
-    return error.message
+    if (message.includes('rp id') || message.includes('invalid for this domain')) {
+      return 'Face ID konnte nicht gestartet werden, weil diese installierte EMA-Version noch eine alte Domain verwendet. Bitte öffne EMA einmal über app.ema-enterprise.de und installiere die App anschließend neu.'
+    }
+
+    return 'Die Passkey-Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut oder nutze vorübergehend dein Passwort.'
   }
 
   return 'Die Passkey-Anmeldung konnte nicht gestartet werden.'
@@ -32,6 +41,11 @@ export function PasskeyLoginButton() {
       return
     }
 
+    if (window.location.hostname !== CANONICAL_HOSTNAME) {
+      window.location.replace(CANONICAL_LOGIN_URL)
+      return
+    }
+
     setIsLoading(true)
     setErrorMessage(null)
 
@@ -44,6 +58,7 @@ export function PasskeyLoginButton() {
       router.replace('/dashboard')
       router.refresh()
     } catch (error) {
+      console.error('Passkey login failed', error)
       setErrorMessage(getPasskeyErrorMessage(error))
     } finally {
       setIsLoading(false)
@@ -67,7 +82,7 @@ export function PasskeyLoginButton() {
       </button>
 
       {errorMessage && (
-        <p role="alert" className="text-center text-sm text-destructive">
+        <p role="alert" className="break-words px-2 text-center text-sm leading-5 text-destructive">
           {errorMessage}
         </p>
       )}
