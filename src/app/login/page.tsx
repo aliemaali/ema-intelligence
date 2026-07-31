@@ -1,5 +1,6 @@
 import { login } from '@/lib/actions/auth.actions'
 import { PasswordInput } from '@/components/auth/PasswordInput'
+import { PasskeyLoginButton } from '@/components/auth/PasskeyLoginButton'
 import { AppInstallButtons } from '@/components/pwa/AppInstallButtons'
 
 interface LoginPageProps {
@@ -28,9 +29,21 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
 
         {error && (
           <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
-            <p className="text-sm text-destructive">{decodeURIComponent(error)}</p>
+            <p className="break-words text-sm leading-5 text-destructive">
+              {decodeURIComponent(error)}
+            </p>
           </div>
         )}
+
+        <PasskeyLoginButton />
+
+        <div className="my-5 flex items-center gap-3" aria-hidden="true">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            oder mit Passwort
+          </span>
+          <div className="h-px flex-1 bg-border" />
+        </div>
 
         <form action={login} className="space-y-4">
           {searchParams.redirectTo && (
