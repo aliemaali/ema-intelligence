@@ -1,0 +1,1 @@
+The import requires manual confirmation and never overwrites existing projects.
