@@ -57,73 +57,118 @@ function buildWarnings(row: Omit<ProjectListRow, 'warnings' | 'selected'>) {
   return warnings
 }
 
+function makeRow(values: {
+  externalNumber: string
+  region: string
+  permissionDate?: string
+  mwp: number | null
+  gridDistanceKm: number | null
+  structure: string
+  studiesStart?: string
+  commissioning?: string
+  securedLandHa: number | null
+  specificYield: number | null
+}): ProjectListRow {
+  const base = {
+    externalNumber: values.externalNumber,
+    region: values.region,
+    projectName: `FR-${String(values.region || 'XX').padStart(2, '0')}-${String(values.externalNumber).padStart(3, '0')}`,
+    permissionDate: normalizeDate(values.permissionDate ?? ''),
+    pvKwp: values.mwp !== null ? values.mwp * 1000 : null,
+    gridDistanceKm: values.gridDistanceKm,
+    structure: values.structure || 'PV Freifläche',
+    studiesStart: normalizeDate(values.studiesStart ?? ''),
+    commissioning: normalizeDate(values.commissioning ?? ''),
+    securedLandHa: values.securedLandHa,
+    specificYield: values.specificYield,
+  }
+  return { ...base, selected: true, warnings: buildWarnings(base) }
+}
+
 function parseDelimitedLine(line: string): ProjectListRow | null {
   const delimiter = line.includes(';') ? ';' : line.includes('\t') ? '\t' : null
   if (!delimiter) return null
   const cells = line.split(delimiter).map((cell) => cleanLine(cell)).filter(Boolean)
   if (cells.length < 7 || !/^\d{1,5}$/.test(cells[0])) return null
-  const mwp = parseNumber(cells[3])
-  const base = {
+  return makeRow({
     externalNumber: cells[0],
     region: cells[1] ?? '',
-    projectName: `FR-${String(cells[1] ?? 'XX').padStart(2, '0')}-${String(cells[0]).padStart(3, '0')}`,
-    permissionDate: normalizeDate(cells[2] ?? ''),
-    pvKwp: mwp !== null ? mwp * 1000 : null,
+    permissionDate: cells[2] ?? '',
+    mwp: parseNumber(cells[3]),
     gridDistanceKm: parseNumber(cells[4]),
     structure: cells[5] ?? 'PV Freifläche',
-    studiesStart: normalizeDate(cells[6] ?? ''),
-    commissioning: normalizeDate(cells[7] ?? ''),
+    studiesStart: cells[6] ?? '',
+    commissioning: cells[7] ?? '',
     securedLandHa: parseNumber(cells[8]),
     specificYield: parseNumber(cells[9]),
-  }
-  return { ...base, selected: true, warnings: buildWarnings(base) }
+  })
 }
 
 function parseWhitespaceLine(line: string): ProjectListRow | null {
   const normalized = cleanLine(line)
-  if (!/^\d{1,5}\s+/.test(normalized)) return null
-  const tokens = normalized.split(' ')
-  const dates = [...normalized.matchAll(/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/g)].map((match) => ({ value: match[0], index: match.index ?? 0 }))
-  if (dates.length < 2) return null
-
-  const externalNumber = tokens[0]
-  const region = tokens[1] ?? ''
-  const firstDate = dates[0]
-  const afterFirst = normalized.slice(firstDate.index + firstDate.value.length).trim()
-  const numericAfterDate = [...afterFirst.matchAll(/\d+(?:[.,]\d+)?/g)].map((match) => ({ value: match[0], index: match.index ?? 0 }))
-  if (numericAfterDate.length < 4) return null
-
-  const mwp = parseNumber(numericAfterDate[0].value)
-  const gridDistanceKm = parseNumber(numericAfterDate[1].value)
-  const structureStart = numericAfterDate[1].index + numericAfterDate[1].value.length
-  const secondDateInTail = afterFirst.match(/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/)
-  const structureEnd = secondDateInTail?.index ?? structureStart
-  const structure = cleanLine(afterFirst.slice(structureStart, structureEnd)) || 'PV Freifläche'
-  const trailingNumbers = numericAfterDate.slice(-2)
-  const base = {
-    externalNumber,
-    region,
-    projectName: `FR-${String(region || 'XX').padStart(2, '0')}-${String(externalNumber).padStart(3, '0')}`,
-    permissionDate: normalizeDate(firstDate.value),
-    pvKwp: mwp !== null ? mwp * 1000 : null,
-    gridDistanceKm,
+  const match = normalized.match(/^(\d{1,5})\s+(\d{2,3})\s+(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+(\d+(?:[.,]\d+)?)\s+(.+?)\s+(?:(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+)?(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+(\d+(?:[.,]\d+)?)\s+(\d{3,4})$/)
+  if (!match) return null
+  const structure = cleanLine(match[5])
+  const grid = structure.match(/(?:PS\s*:\s*|grid\s*:?\s*)(\d+(?:[.,]\d+)?)/i)
+  return makeRow({
+    externalNumber: match[1],
+    region: match[2],
+    permissionDate: match[3],
+    mwp: parseNumber(match[4]),
+    gridDistanceKm: parseNumber(grid?.[1]),
     structure,
-    studiesStart: normalizeDate(dates[1]?.value ?? ''),
-    commissioning: normalizeDate(dates[2]?.value ?? dates[1]?.value ?? ''),
-    securedLandHa: parseNumber(trailingNumbers[0]?.value),
-    specificYield: parseNumber(trailingNumbers[1]?.value),
+    studiesStart: match[6] ?? '',
+    commissioning: match[7],
+    securedLandHa: parseNumber(match[8]),
+    specificYield: parseNumber(match[9]),
+  })
+}
+
+function parseFlattenedPdf(text: string): ProjectListRow[] {
+  const flattened = text
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  const rows: ProjectListRow[] = []
+  const record = /(?:^|\s)(\d{1,5})\s+(\d{2,3})\s+(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+(\d+(?:[.,]\d+)?)\s+(.{2,180}?)\s+(?:(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+)?(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\s+(\d+(?:[.,]\d+)?)\s+(\d{3,4})(?=\s+(?:\d{1,5}\s+\d{2,3}\s+\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|MWp\b|YEAR\b|Commissionning\b|$))/g
+
+  for (const match of flattened.matchAll(record)) {
+    const structure = cleanLine(match[5])
+    const gridMatches = [...structure.matchAll(/(?:PS\s*:\s*|HTA\/BT\s*:\s*)(\d+(?:[.,]\d+)?)/gi)]
+    const gridDistanceKm = gridMatches.length ? parseNumber(gridMatches.at(-1)?.[1]) : null
+    rows.push(makeRow({
+      externalNumber: match[1],
+      region: match[2],
+      permissionDate: match[3],
+      mwp: parseNumber(match[4]),
+      gridDistanceKm,
+      structure,
+      studiesStart: match[6] ?? '',
+      commissioning: match[7],
+      securedLandHa: parseNumber(match[8]),
+      specificYield: parseNumber(match[9]),
+    }))
   }
-  return { ...base, selected: true, warnings: buildWarnings(base) }
+  return rows
 }
 
 function parseProjectList(text: string) {
   const rows: ProjectListRow[] = []
   const seen = new Set<string>()
+  const candidates: ProjectListRow[] = []
+
   for (const rawLine of text.replace(/\r/g, '\n').split('\n')) {
     const line = cleanLine(rawLine)
     if (!line) continue
     const row = parseDelimitedLine(line) ?? parseWhitespaceLine(line)
-    if (!row) continue
+    if (row) candidates.push(row)
+  }
+
+  if (candidates.length < 2) candidates.push(...parseFlattenedPdf(text))
+
+  for (const row of candidates) {
     const key = `${row.externalNumber}-${row.region}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -169,7 +214,11 @@ export async function prepareProjectListImport(importId: string) {
   }
 
   const projects = parseProjectList(combinedText)
-  return { success: true, projects, isProjectList: projects.length > 1 }
+  const looksLikeProjectList = /Power\s+asked|Planning\s+Permission|Commissionning|PVSYST|Secured\s+land/i.test(combinedText)
+  if (looksLikeProjectList && projects.length === 0) {
+    return { error: 'Die Datei ist eine Projektliste, aber die Tabellenzeilen konnten nicht sicher erkannt werden. Bitte als Excel oder CSV hochladen.' }
+  }
+  return { success: true, projects, isProjectList: projects.length > 1, looksLikeProjectList }
 }
 
 function getField(formData: FormData, index: number, name: string) {
