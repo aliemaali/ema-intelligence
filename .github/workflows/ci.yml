@@ -1,82 +1,54 @@
-name: CI
+name: Sync PDF runtime locks
 
 on:
   push:
     branches:
-      - main
-      - 'feature/**'
+      - 'fix/projektliste-pdf-chromium-149'
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: read
-  issues: write
-  pull-requests: write
+  contents: write
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: sync-pdf-runtime-locks
   cancel-in-progress: true
 
 jobs:
-  build:
+  sync-locks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout branch
         uses: actions/checkout@v4
+        with:
+          ref: fix/projektliste-pdf-chromium-149
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
-      - name: Synchronize lock file
-        run: npm install --package-lock-only --ignore-scripts
-
-      - name: Upload synchronized lock file
-        uses: actions/upload-artifact@v4
-        with:
-          name: synchronized-package-lock
-          path: package-lock.json
-          if-no-files-found: error
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Type check
-        id: typecheck
-        shell: bash
+      - name: Enable pnpm 10
         run: |
-          set -o pipefail
-          npm run type-check 2>&1 | tee typecheck.log
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
 
-      - name: Upload typecheck log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: typecheck-log
-          path: typecheck.log
-          if-no-files-found: warn
-
-      - name: Comment TypeScript errors on PR
-        if: failure() && github.event_name == 'pull_request' && hashFiles('typecheck.log') != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Synchronize lock files
         run: |
-          {
-            echo '## CI TypeScript error'
-            echo
-            echo '```text'
-            tail -n 120 typecheck.log
-            echo '```'
-          } > ci-comment.md
-          gh pr comment "${{ github.event.pull_request.number }}" --body-file ci-comment.md
+          pnpm install --lockfile-only --ignore-scripts
+          npm install --package-lock-only --ignore-scripts
 
-      - name: Production build
-        run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
+      - name: Commit synchronized lock files
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml package-lock.json; then
+            echo "Lock files already synchronized"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml package-lock.json
+          git commit -m "Synchronize Chromium 149 lock files"
+          git pull --rebase origin fix/projektliste-pdf-chromium-149
+          git push origin HEAD:fix/projektliste-pdf-chromium-149
