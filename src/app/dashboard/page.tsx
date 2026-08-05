@@ -9,6 +9,15 @@ import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
 
+const countryFlags: Record<string, string> = {
+  Deutschland: '🇩🇪',
+  Frankreich: '🇫🇷',
+  Italien: '🇮🇹',
+  Spanien: '🇪🇸',
+  Türkei: '🇹🇷',
+  Niederlande: '🇳🇱',
+}
+
 function formatKwp(value: number | null | undefined) {
   if (!value) return '–'
   return formatPowerFromKwp(value)
@@ -140,8 +149,19 @@ export default async function DashboardPage() {
   const totalProjects = activeProjects + projectsInLists
   const totalKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_mwp ?? 0), 0)
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
-  const latestProjects = projects.slice(0, 5)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
+
+  const projectsByCountry = new Map<string, any[]>()
+  for (const project of projects) {
+    const country = String(project.location_country || 'Ohne Länderzuordnung')
+    const grouped = projectsByCountry.get(country) ?? []
+    grouped.push(project)
+    projectsByCountry.set(country, grouped)
+  }
+  const countryProjectGroups = Array.from(projectsByCountry.entries()).sort(([a], [b]) => a.localeCompare(b, 'de'))
+  const listOnlyCountries = Array.from(latestListByCountry.entries())
+    .filter(([country]) => !projectsByCountry.has(country))
+    .sort(([a], [b]) => a.localeCompare(b, 'de'))
 
   return (
     <div className="w-full max-w-full space-y-6 overflow-x-hidden md:mx-auto md:max-w-[1480px] md:space-y-7">
@@ -182,12 +202,27 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-5 px-3 md:px-0 xl:grid-cols-[0.92fr_1.45fr]">
         <div className="card-padded rounded-[2rem]">
-          <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-extrabold text-[#07142F]">Aktuelle Projekte</h2><p className="mt-1 text-sm text-muted-foreground">Zuletzt aktive Projekte.</p></div><Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00]">Alle <ArrowRight className="h-4 w-4" /></Link></div>
-          <div className="space-y-3">
-            {latestProjects.length === 0 && <p className="rounded-2xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">Noch keine Projekte vorhanden.</p>}
-            {latestProjects.map((project: any) => (
-              <Link key={project.id} href={`/projects/${project.id}/overview`} className="premium-lift block rounded-[1.4rem] border border-border/80 bg-white p-3 shadow-sm">
-                <div className="flex gap-3"><ProjectImage kind={getProjectKind(project)} imageUrl={project.project_image_url} projectName={project.project_name || project.project_number || 'Projekt'} /><div className="min-w-0 flex-1 py-0.5"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-extrabold text-[#07142F]">{project.project_name || project.project_number}</p><p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{project.project_number}</p></div><ArrowRight className="h-5 w-5 shrink-0 text-[#2F8A00]" /></div><p className="mt-2 flex items-center gap-1 truncate text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {getLocation(project)}</p><p className="mt-1 truncate text-xs font-extrabold text-[#132060]">{getProjectPower(project)}</p></div></div>
+          <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-extrabold text-[#07142F]">Aktuelle Projekte</h2><p className="mt-1 text-sm text-muted-foreground">Nach Ländern sortiert.</p></div><Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00]">Alle <ArrowRight className="h-4 w-4" /></Link></div>
+          <div className="space-y-6">
+            {countryProjectGroups.length === 0 && listOnlyCountries.length === 0 && <p className="rounded-2xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">Noch keine Projekte vorhanden.</p>}
+            {countryProjectGroups.map(([country, countryProjects]) => (
+              <section key={country}>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2"><span className="text-2xl">{countryFlags[country] ?? '🌍'}</span><div><h3 className="font-extrabold text-[#07142F]">{country}</h3><p className="text-xs text-muted-foreground">{countryProjects.length} aktive Projekte</p></div></div>
+                  <Link href={`/projects/country/${encodeURIComponent(country)}`} className="inline-flex items-center gap-1 text-xs font-extrabold text-[#2F8A00]">Alle <ArrowRight className="h-3.5 w-3.5" /></Link>
+                </div>
+                <div className="space-y-3">
+                  {countryProjects.slice(0, 3).map((project: any) => (
+                    <Link key={project.id} href={`/projects/${project.id}/overview`} className="premium-lift block rounded-[1.4rem] border border-border/80 bg-white p-3 shadow-sm">
+                      <div className="flex gap-3"><ProjectImage kind={getProjectKind(project)} imageUrl={project.project_image_url} projectName={project.project_name || project.project_number || 'Projekt'} /><div className="min-w-0 flex-1 py-0.5"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-extrabold text-[#07142F]">{project.project_name || project.project_number}</p><p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{project.project_number}</p></div><ArrowRight className="h-5 w-5 shrink-0 text-[#2F8A00]" /></div><p className="mt-2 flex items-center gap-1 truncate text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {getLocation(project)}</p><p className="mt-1 truncate text-xs font-extrabold text-[#132060]">{getProjectPower(project)}</p></div></div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+            {listOnlyCountries.map(([country, count]) => (
+              <Link key={country} href={`/projects/country/${encodeURIComponent(country)}`} className="block rounded-[1.4rem] border border-[#5CB800]/25 bg-[#5CB800]/5 p-4">
+                <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="text-2xl">{countryFlags[country] ?? '🌍'}</span><div><h3 className="font-extrabold text-[#07142F]">{country}</h3><p className="mt-1 text-xs font-bold text-[#2F8A00]">{count} Projekte in gespeicherter Projektliste</p><p className="mt-1 text-xs text-muted-foreground">Noch keine einzelnen aktiven Projekte</p></div></div><ArrowRight className="h-5 w-5 text-[#2F8A00]" /></div>
               </Link>
             ))}
           </div>
