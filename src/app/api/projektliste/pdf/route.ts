@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import chromium from '@sparticuz/chromium-min'
+import chromium from '@sparticuz/chromium'
 import { NextResponse } from 'next/server'
 import puppeteer from 'puppeteer-core'
 import { z } from 'zod'
@@ -15,10 +15,6 @@ import { createClient } from '@/lib/supabase/server'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
-
-const CHROMIUM_PACK_URL =
-  process.env.CHROMIUM_PACK_URL ??
-  'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
 const optionalText = z.string().trim().max(500).nullish()
 const optionalNumber = z.union([z.number(), z.string().trim().max(100)]).nullish()
@@ -45,9 +41,7 @@ const requestSchema = z.object({
 let fontFaceCssCache: string | null = null
 
 function getFontFaceCss() {
-  fontFaceCssCache ??= buildInterFontFaceCss(
-    path.join(process.cwd(), 'public/fonts/inter'),
-  )
+  fontFaceCssCache ??= buildInterFontFaceCss(path.join(process.cwd(), 'public/fonts/inter'))
   return fontFaceCssCache
 }
 
@@ -61,23 +55,9 @@ function safeFilename(value: string) {
   return cleaned || 'EMA-Projektliste'
 }
 
-function chromiumEnvironment() {
-  const libraryPaths = ['/tmp/al2023/lib', '/tmp/al2/lib']
-  if (process.env.LD_LIBRARY_PATH) {
-    libraryPaths.push(process.env.LD_LIBRARY_PATH)
-  }
-
-  return {
-    ...process.env,
-    LD_LIBRARY_PATH: libraryPaths.join(':'),
-  }
-}
-
 export async function POST(request: Request) {
   const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })
@@ -93,26 +73,17 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(json)
   if (!parsed.success) {
     return NextResponse.json(
-      {
-        error: 'Die übermittelten Projektdaten sind ungültig.',
-        details: parsed.error.flatten(),
-      },
+      { error: 'Die übermittelten Projektdaten sind ungültig.', details: parsed.error.flatten() },
       { status: 400 },
     )
   }
 
-  const { records } = parsed.data
-  const { rows, report } = mapEmaProjects(records)
-
+  const { rows, report } = mapEmaProjects(parsed.data.records)
   if (rows.length === 0) {
-    return NextResponse.json(
-      { error: 'Keine verwertbaren Projektzeilen.', report },
-      { status: 422 },
-    )
+    return NextResponse.json({ error: 'Keine verwertbaren Projektzeilen.', report }, { status: 422 })
   }
 
-  const documentId =
-    parsed.data.documentId ??
+  const documentId = parsed.data.documentId ??
     `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
   const subtitle = parsed.data.subtitle ?? 'Frankreich – Utility Scale PV'
   const root = process.cwd()
@@ -130,51 +101,29 @@ export async function POST(request: Request) {
           'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot',
       },
       projects: rows,
-      heroImage: fileToDataUri(
-        path.join(root, 'public/pdf/hero-solarpark.jpg'),
-        'image/jpeg',
-      ),
+      heroImage: fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg'),
     },
     {
       regions: regions as unknown as RegionCollection,
       fontFaceCss: getFontFaceCss(),
-      logoDataUri: fileToDataUri(
-        path.join(root, 'public/brand/ema-logo.png'),
-        'image/png',
-      ),
-      logoMarkDataUri: fileToDataUri(
-        path.join(root, 'public/brand/ema-mark.png'),
-        'image/png',
-      ),
-      logoWhiteDataUri: fileToDataUri(
-        path.join(root, 'public/brand/ema-mark-white.png'),
-        'image/png',
-      ),
+      logoDataUri: fileToDataUri(path.join(root, 'public/brand/ema-logo.png'), 'image/png'),
+      logoMarkDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark.png'), 'image/png'),
+      logoWhiteDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark-white.png'), 'image/png'),
     },
   )
 
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
 
   try {
-    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL)
-    const headlessMode = 'shell' as const
-
     browser = await puppeteer.launch({
-      args: await puppeteer.defaultArgs({
-        args: chromium.args,
-        headless: headlessMode,
-      }),
-      executablePath,
-      headless: headlessMode,
-      env: chromiumEnvironment(),
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: 'shell',
     })
 
     const page = await browser.newPage()
     await page.emulateMediaType('print')
-    await page.setContent(html, {
-      waitUntil: 'load',
-      timeout: 45_000,
-    })
+    await page.setContent(html, { waitUntil: 'load', timeout: 45_000 })
 
     const pdf = await page.pdf({
       format: 'A4',

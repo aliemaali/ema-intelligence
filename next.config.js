@@ -8,14 +8,11 @@ const withPWA = require('next-pwa')({
 const nextConfig = {
   reactStrictMode: true,
 
-  // Project images are validated again server-side before storage upload.
   experimental: {
     serverActions: {
       bodySizeLimit: '8mb',
     },
-    // puppeteer-core/@sparticuz/chromium-min must not be bundled by webpack –
-    // they load the Chromium binary at runtime (Vercel Node.js function).
-    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
+    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
   },
 
   images: {
@@ -40,18 +37,9 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
-          },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],
       },
     ]
