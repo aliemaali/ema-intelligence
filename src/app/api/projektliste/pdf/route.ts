@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic'
 
 const CHROMIUM_PACK_URL =
   process.env.CHROMIUM_PACK_URL ??
-  'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.tar'
+  'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar'
 
 const optionalText = z.string().trim().max(500).nullish()
 const optionalNumber = z.union([z.number(), z.string().trim().max(100)]).nullish()
