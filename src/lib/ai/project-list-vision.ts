@@ -116,7 +116,10 @@ async function renderPageWithLayout(pageData: any) {
 
 export async function extractProjectListFromPdf(buffer: Buffer, _filename: string): Promise<VisualExtractionResult> {
   try {
-    const pdfParse = (await import('pdf-parse')).default
+    const pdfParse = (await import('pdf-parse')).default as unknown as (
+      data: Buffer,
+      options?: { pagerender?: (pageData: any) => Promise<string> },
+    ) => Promise<{ text?: string }>
     const parsed = await pdfParse(buffer, { pagerender: renderPageWithLayout })
     const projects = parseRows(parsed.text || '')
 
