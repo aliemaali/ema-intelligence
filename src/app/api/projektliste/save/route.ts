@@ -41,14 +41,18 @@ export async function POST(request: Request) {
   }
 
   const fileName = `${safePart(parsed.data.displayName)}.pdf`
-  const filePath = `country-project-lists/${user.id}/${safePart(parsed.data.country)}/${Date.now()}-${fileName}`
+  // Existing project-documents RLS requires the authenticated user id as the first path segment.
+  const filePath = `${user.id}/country-project-lists/${safePart(parsed.data.country)}/${Date.now()}-${fileName}`
   const buffer = Buffer.from(await file.arrayBuffer())
 
   const { error: uploadError } = await supabase.storage
     .from('project-documents')
     .upload(filePath, buffer, { contentType: 'application/pdf', upsert: false })
 
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  if (uploadError) {
+    console.error('Projektliste: Storage-Upload fehlgeschlagen', uploadError)
+    return NextResponse.json({ error: `PDF konnte nicht gespeichert werden: ${uploadError.message}` }, { status: 500 })
+  }
 
   const { data, error } = await supabase
     .from('country_project_lists')
@@ -68,8 +72,9 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
+    console.error('Projektliste: Datenbankeintrag fehlgeschlagen', error)
     await supabase.storage.from('project-documents').remove([filePath])
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: `Projektliste konnte nicht registriert werden: ${error.message}` }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, id: data.id })
