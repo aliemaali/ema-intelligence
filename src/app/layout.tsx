@@ -15,31 +15,28 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default:  'EMA Intelligence',
+    default: 'EMA Intelligence',
     template: '%s | EMA Intelligence',
   },
   description: 'Deal-Management-Plattform für PV-, BESS- und Hybridprojekte – EMA Enterprise GmbH',
-  manifest:    '/manifest.json',
+  manifest: '/manifest.json',
   icons: {
-    icon:  '/favicon.ico',
+    icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
   },
   appleWebApp: {
-    capable:       true,
-    statusBarStyle:'black-translucent',
-    title:         'EMA Intelligence',
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'EMA Intelligence',
   },
 }
 
 export const viewport: Viewport = {
-  width:                    'device-width',
-  initialScale:             1,
-  maximumScale:             1,
-  userScalable:             false,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#5CB800' },
-    { media: '(prefers-color-scheme: dark)', color: '#0F1623' },
-  ],
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#F7F9FC',
   viewportFit: 'cover',
 }
 
@@ -53,7 +50,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="light"
           enableSystem={false}
           disableTransitionOnChange
         >
@@ -66,8 +63,8 @@ export default function RootLayout({
               toastOptions={{
                 style: {
                   background: 'var(--toast-bg)',
-                  border:     '1px solid var(--toast-border)',
-                  color:      'var(--toast-color)',
+                  border: '1px solid var(--toast-border)',
+                  color: 'var(--toast-color)',
                 },
               }}
               richColors
