@@ -11,6 +11,7 @@ const schema = z.object({
   displayName: z.string().trim().min(1).max(160),
   plantType: z.enum(['Agri-PV', 'Freiflächen-PV', 'Carport', 'Dachanlage', 'Sonstiges']),
   projectCount: z.coerce.number().int().min(1).max(5000),
+  totalKwp: z.coerce.number().min(0).max(1000000000).default(0),
 })
 
 function safePart(value: string) {
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
     displayName: formData.get('displayName'),
     plantType: formData.get('plantType'),
     projectCount: formData.get('projectCount'),
+    totalKwp: formData.get('totalKwp') || 0,
   })
 
   if (!parsed.success || !(file instanceof File) || file.type !== 'application/pdf') {
@@ -41,7 +43,6 @@ export async function POST(request: Request) {
   }
 
   const fileName = `${safePart(parsed.data.displayName)}.pdf`
-  // Existing project-documents RLS requires the authenticated user id as the first path segment.
   const filePath = `${user.id}/country-project-lists/${safePart(parsed.data.country)}/${Date.now()}-${fileName}`
   const buffer = Buffer.from(await file.arrayBuffer())
 
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       mime_type: 'application/pdf',
       plant_type: parsed.data.plantType,
       project_count: parsed.data.projectCount,
+      total_kwp: parsed.data.totalKwp,
     } as never)
     .select('id')
     .single()
