@@ -12,7 +12,7 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '8mb',
     },
-    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
+    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
   },
 
   images: {
