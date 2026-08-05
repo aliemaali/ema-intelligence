@@ -1,34 +1,64 @@
-import { NextResponse } from 'next/server'
 import path from 'node:path'
-import puppeteer from 'puppeteer-core'
-import chromium from '@sparticuz/chromium-min'
 
-import { createClient } from '@/lib/supabase/server'
-import { renderProjektlisteHtml } from '@/lib/pdf/projektliste/template'
-import { mapEmaProjects, type EmaProjectRecord } from '@/lib/pdf/projektliste/mapEmaProjects'
-import { buildInterFontFaceCss, fileToDataUri } from '@/lib/pdf/projektliste/loadFonts'
-import type { RegionCollection } from '@/lib/pdf/projektliste/franceMap'
+import chromium from '@sparticuz/chromium-min'
+import { NextResponse } from 'next/server'
+import puppeteer from 'puppeteer-core'
+import { z } from 'zod'
+
 import regions from '@/data/geo/france-regions.json'
+import type { RegionCollection } from '@/lib/pdf/projektliste/franceMap'
+import { buildInterFontFaceCss, fileToDataUri } from '@/lib/pdf/projektliste/loadFonts'
+import { mapEmaProjects } from '@/lib/pdf/projektliste/mapEmaProjects'
+import { renderProjektlisteHtml } from '@/lib/pdf/projektliste/template'
+import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+export const dynamic = 'force-dynamic'
 
-/** Brotli-Paket der Chromium-Binary – Version zu @sparticuz/chromium-min passend wählen */
-const CHROMIUM_PACK =
+const CHROMIUM_PACK_URL =
   process.env.CHROMIUM_PACK_URL ??
   'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar'
 
-// Schrift einmal pro Lambda-Instanz einlesen, nicht pro Request
+const optionalText = z.string().trim().max(500).nullish()
+const optionalNumber = z.union([z.number(), z.string().trim().max(100)]).nullish()
+
+const projectRecordSchema = z.object({
+  externalNumber: z.union([z.string(), z.number()]).nullish(),
+  region: optionalText,
+  projectName: optionalText,
+  pvKwp: optionalNumber,
+  gridDistanceKm: optionalNumber,
+  structure: optionalText,
+  permissionDate: optionalText,
+  commissioning: optionalText,
+  securedLandHa: optionalNumber,
+  specificYield: optionalNumber,
+})
+
+const requestSchema = z.object({
+  records: z.array(projectRecordSchema).min(1).max(2_000),
+  documentId: z.string().trim().min(1).max(120).optional(),
+  subtitle: z.string().trim().min(1).max(240).optional(),
+})
+
 let fontFaceCssCache: string | null = null
-function fontFaceCss() {
-  fontFaceCssCache ??= buildInterFontFaceCss(path.join(process.cwd(), 'public/fonts/inter'))
+
+function getFontFaceCss() {
+  fontFaceCssCache ??= buildInterFontFaceCss(
+    path.join(process.cwd(), 'public/fonts/inter'),
+  )
   return fontFaceCssCache
 }
 
-type RequestBody = {
-  records?: EmaProjectRecord[]
-  documentId?: string
-  subtitle?: string
+function safeFilename(value: string) {
+  const cleaned = value
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100)
+
+  return cleaned || 'EMA-Projektliste'
 }
 
 export async function POST(request: Request) {
@@ -36,33 +66,45 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
   if (!user) {
-    return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
+    return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })
   }
 
-  let body: RequestBody
+  let json: unknown
   try {
-    body = (await request.json()) as RequestBody
+    json = await request.json()
   } catch {
-    return NextResponse.json({ error: 'Ungültiger Request-Body.' }, { status: 400 })
+    return NextResponse.json({ error: 'Ungültiger JSON-Request.' }, { status: 400 })
   }
 
-  const records = Array.isArray(body.records) ? body.records : []
-  if (records.length === 0) {
-    return NextResponse.json({ error: 'Keine Projektzeilen übergeben.' }, { status: 400 })
+  const parsed = requestSchema.safeParse(json)
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error: 'Die übermittelten Projektdaten sind ungültig.',
+        details: parsed.error.flatten(),
+      },
+      { status: 400 },
+    )
   }
 
-  // Ausschließlich über mapEmaProjects() gemappt – keine Ableitung von permit
-  // aus permissionDate, keine erfundenen Koordinaten, keine geratene Struktur.
+  const { records } = parsed.data
   const { rows, report } = mapEmaProjects(records)
+
   if (rows.length === 0) {
-    return NextResponse.json({ error: 'Keine verwertbaren Projektzeilen.', report }, { status: 422 })
+    return NextResponse.json(
+      { error: 'Keine verwertbaren Projektzeilen.', report },
+      { status: 422 },
+    )
   }
 
-  const documentId = body.documentId || `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
-  const subtitle = body.subtitle || 'Frankreich – Utility Scale PV'
-
+  const documentId =
+    parsed.data.documentId ??
+    `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
+  const subtitle = parsed.data.subtitle ?? 'Frankreich – Utility Scale PV'
   const root = process.cwd()
+
   const html = renderProjektlisteHtml(
     {
       meta: {
@@ -76,44 +118,67 @@ export async function POST(request: Request) {
           'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot',
       },
       projects: rows,
-      heroImage: fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg'),
+      heroImage: fileToDataUri(
+        path.join(root, 'public/pdf/hero-solarpark.jpg'),
+        'image/jpeg',
+      ),
     },
     {
       regions: regions as unknown as RegionCollection,
-      fontFaceCss: fontFaceCss(),
-      logoDataUri: fileToDataUri(path.join(root, 'public/brand/ema-logo.png'), 'image/png'),
-      logoMarkDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark.png'), 'image/png'),
-      logoWhiteDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark-white.png'), 'image/png'),
+      fontFaceCss: getFontFaceCss(),
+      logoDataUri: fileToDataUri(
+        path.join(root, 'public/brand/ema-logo.png'),
+        'image/png',
+      ),
+      logoMarkDataUri: fileToDataUri(
+        path.join(root, 'public/brand/ema-mark.png'),
+        'image/png',
+      ),
+      logoWhiteDataUri: fileToDataUri(
+        path.join(root, 'public/brand/ema-mark-white.png'),
+        'image/png',
+      ),
     },
   )
 
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
+
   try {
     browser = await puppeteer.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(CHROMIUM_PACK),
+      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
       headless: true,
     })
 
     const page = await browser.newPage()
-    await page.setContent(html, { waitUntil: 'load' })
+    await page.emulateMediaType('print')
+    await page.setContent(html, {
+      waitUntil: 'load',
+      timeout: 45_000,
+    })
+
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
+      tagged: true,
     })
 
-    return new NextResponse(pdf as unknown as BodyInit, {
+    return new NextResponse(Buffer.from(pdf), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${documentId}.pdf"`,
-        'X-Mapping-Report': JSON.stringify(report),
+        'Content-Disposition': `attachment; filename="${safeFilename(documentId)}.pdf"`,
+        'Cache-Control': 'private, no-store, max-age=0',
+        'X-Content-Type-Options': 'nosniff',
       },
     })
   } catch (error) {
-    console.error('Projektliste PDF generation failed', error)
-    return NextResponse.json({ error: 'Die PDF-Erstellung ist fehlgeschlagen.' }, { status: 500 })
+    console.error('Projektlisten-PDF konnte nicht erzeugt werden:', error)
+    return NextResponse.json(
+      { error: 'Die Projektliste konnte nicht als PDF erzeugt werden.' },
+      { status: 500 },
+    )
   } finally {
-    await browser?.close()
+    await browser?.close().catch(() => undefined)
   }
 }
