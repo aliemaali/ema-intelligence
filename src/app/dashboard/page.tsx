@@ -107,7 +107,7 @@ const submissionStatusLabels: Record<string, string> = {
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-  const [projects, submissionsResult] = await Promise.all([
+  const [projects, submissionsResult, projectListsResult] = await Promise.all([
     getProjects({}),
     supabase
       .from('project_submissions')
@@ -115,6 +115,10 @@ export default async function DashboardPage() {
       .in('status', ['eingereicht', 'in_pruefung', 'rueckfrage'])
       .order('submitted_at', { ascending: false })
       .limit(5),
+    supabase
+      .from('country_project_lists')
+      .select('country, project_count, created_at')
+      .order('created_at', { ascending: false }),
   ])
 
   const partnerSubmissions = submissionsResult.data ?? []
@@ -125,7 +129,14 @@ export default async function DashboardPage() {
     for (const partner of partners ?? []) partnerNames.set(partner.id, partner.company || partner.full_name || partner.email || 'Vertriebspartner')
   }
 
-  const totalProjects = projects.length
+  const latestListByCountry = new Map<string, number>()
+  for (const list of projectListsResult.data ?? []) {
+    const country = String((list as any).country || '').trim()
+    if (country && !latestListByCountry.has(country)) latestListByCountry.set(country, Number((list as any).project_count ?? 0))
+  }
+  const projectsInLists = Array.from(latestListByCountry.values()).reduce((sum, count) => sum + count, 0)
+  const activeProjects = projects.length
+  const totalProjects = activeProjects + projectsInLists
   const totalKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_mwp ?? 0), 0)
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
   const latestProjects = projects.slice(0, 5)
@@ -145,9 +156,9 @@ export default async function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
-        <KpiCard title="Projekte gesamt" value={totalProjects} subtitle="aktive Projekte" tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="PV-Leistung" value={totalKwp.toLocaleString('de-DE')} subtitle="kWp Gesamtleistung" tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="BESS-Kapazität" value={totalBess.toLocaleString('de-DE')} subtitle="MWh Gesamtkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Listen`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="PV-Leistung" value={totalKwp.toLocaleString('de-DE')} subtitle="kWp aktive Projekte" tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="BESS-Kapazität" value={totalBess.toLocaleString('de-DE')} subtitle="MWh aktive Projekte" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
       </div>
 
       {partnerSubmissions.length > 0 && (
