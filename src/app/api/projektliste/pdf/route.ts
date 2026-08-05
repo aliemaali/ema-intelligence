@@ -81,7 +81,9 @@ export async function POST(request: Request) {
     {
       regions: regions as unknown as RegionCollection,
       fontFaceCss: fontFaceCss(),
-      logoDataUri: fileToDataUri(path.join(root, 'public/brand/ema-logo.svg'), 'image/svg+xml'),
+      logoDataUri: fileToDataUri(path.join(root, 'public/brand/ema-logo.png'), 'image/png'),
+      logoMarkDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark.png'), 'image/png'),
+      logoWhiteDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark-white.png'), 'image/png'),
     },
   )
 

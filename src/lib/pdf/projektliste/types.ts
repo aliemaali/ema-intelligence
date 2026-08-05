@@ -19,6 +19,14 @@ export interface ProjectRow {
   areaHa?: number;
   /** optional – wird in der echten Liste nicht zuverlässig geliefert */
   structure?: DealStructure;
+  /** Département-Code und -Name, z. B. "55 · Meuse" */
+  department?: string;
+  /** Anlagentyp laut Entwicklerliste, z. B. "Ombrière élevage" */
+  techType?: string;
+  /** Datum der (geplanten) Baugenehmigung im Format TT.MM.JJJJ */
+  permitDate?: string;
+  /** true, wenn das PC-Datum mehr als 4 Monate zurückliegt (Indiz purgé) */
+  permitMature?: boolean;
   /** optional – NIE aus permissionDate abgeleitet */
   permit?: PermitStatus;
   /** Ziel-Inbetriebnahme, z. B. "Q3 2027" */

@@ -25,12 +25,14 @@ const regions = JSON.parse(
 ) as RegionCollection;
 
 // Optionale Assets – fehlen sie, greifen die Fallbacks aus assets.ts
-const logoDataUri = fileToDataUri(path.join(ROOT, 'public/brand/ema-logo.svg'), 'image/svg+xml');
+const logoDataUri = fileToDataUri(path.join(ROOT, 'public/brand/ema-logo.png'), 'image/png');
+const logoMarkDataUri = fileToDataUri(path.join(ROOT, 'public/brand/ema-mark.png'), 'image/png');
+const logoWhiteDataUri = fileToDataUri(path.join(ROOT, 'public/brand/ema-mark-white.png'), 'image/png');
 const heroImage = fileToDataUri(path.join(ROOT, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg');
 
 const html = renderProjektlisteHtml(
   { ...sampleInput, heroImage },
-  { regions, fontFaceCss, logoDataUri },
+  { regions, fontFaceCss, logoDataUri, logoMarkDataUri, logoWhiteDataUri },
 );
 
 const htmlPath = path.join(OUT, 'projektliste.html');

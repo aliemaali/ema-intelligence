@@ -29,6 +29,8 @@ export interface Analytics {
   avgSpecificYield: number | null;
   rtbShare: number;
   permitBreakdown: { label: string; count: number; capacityMwc: number }[];
+  techBreakdown: { label: string; count: number; capacityMwc: number }[];
+  maturityBreakdown: { label: string; count: number; capacityMwc: number }[];
   structureBreakdown: { label: string; count: number; capacityMwc: number }[];
   codBreakdown: { label: string; count: number; capacityMwc: number }[];
 }
@@ -62,12 +64,21 @@ export function computeAnalytics(projects: ProjectRow[]): Analytics {
     }))
     .sort((a, b) => b.capacityMwc - a.capacityMwc);
 
-  const classDefs: { label: string; test: (mw: number) => boolean }[] = [
-    { label: 'unter 20 MWc', test: (mw) => mw < 20 },
-    { label: '20 – 35 MWc', test: (mw) => mw >= 20 && mw < 35 },
-    { label: '35 – 50 MWc', test: (mw) => mw >= 35 && mw < 50 },
-    { label: 'ab 50 MWc', test: (mw) => mw >= 50 },
-  ];
+  // Klassengrenzen richten sich nach der tatsächlichen Größenverteilung
+  const large = projects.some((p) => p.capacityMwc >= 35);
+  const classDefs: { label: string; test: (mw: number) => boolean }[] = large
+    ? [
+        { label: 'unter 20 MW', test: (mw) => mw < 20 },
+        { label: '20 – 35 MW', test: (mw) => mw >= 20 && mw < 35 },
+        { label: '35 – 50 MW', test: (mw) => mw >= 35 && mw < 50 },
+        { label: 'ab 50 MW', test: (mw) => mw >= 50 },
+      ]
+    : [
+        { label: 'unter 5 MW', test: (mw) => mw < 5 },
+        { label: '5 – 10 MW', test: (mw) => mw >= 5 && mw < 10 },
+        { label: '10 – 20 MW', test: (mw) => mw >= 10 && mw < 20 },
+        { label: 'ab 20 MW', test: (mw) => mw >= 20 },
+      ];
   const sizeClasses: SizeClass[] = classDefs.map((c) => {
     const rows = projects.filter((p) => c.test(p.capacityMwc));
     const cap = rows.reduce((s, p) => s + p.capacityMwc, 0);
@@ -123,6 +134,16 @@ export function computeAnalytics(projects: ProjectRow[]): Analytics {
         )
       : null,
     rtbShare: rtbMwc / totalMwc,
+    techBreakdown: group((p) => p.techType),
+    maturityBreakdown: group(
+      (p) =>
+        p.permitMature === undefined
+          ? undefined
+          : p.permitMature
+            ? 'PC-Datum > 4 Monate zurück'
+            : 'PC-Datum < 4 Mon. / künftig',
+      ['PC-Datum > 4 Monate zurück', 'PC-Datum < 4 Mon. / künftig'],
+    ),
     permitBreakdown: group((p) => p.permit, [
       'PC erteilt · purgé',
       'PC erteilt',

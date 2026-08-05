@@ -38,7 +38,8 @@ body{
 
 /* ---------- Cover ---------- */
 .cover-hero{position:relative;height:128mm;flex:0 0 128mm;overflow:hidden;}
-.cover-hero svg,.cover-hero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.cover-hero>svg,.cover-hero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.cover-brand img{position:static;width:100%;height:auto;display:block;}
 .cover-hero .hero-scrim{
   position:absolute;inset:0;
   background:
@@ -166,7 +167,8 @@ table.projects tbody tr:nth-child(even) td{background:#F8F9FB;}
 }
 .tfoot-strip .l{font-size:7pt;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.72);font-weight:600;}
 .tfoot-strip .r{font-size:10.5pt;font-weight:700;}
-.legend-note{margin-top:3.5mm;font-size:6.5pt;color:var(--muted);line-height:1.55;}
+.footnote{margin-top:3mm;font-size:6.3pt;color:var(--muted);line-height:1.45;}
+.legend-note{margin-top:2.5mm;font-size:6.5pt;color:var(--muted);line-height:1.55;}
 
 /* ---------- Analyse ---------- */
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:3.5mm;}
@@ -181,7 +183,7 @@ table.projects tbody tr:nth-child(even) td{background:#F8F9FB;}
 .card h3{font-size:8.6pt;font-weight:700;color:var(--navy);letter-spacing:.01em;}
 .card .hint{font-size:6.6pt;color:var(--muted);margin-top:.8mm;margin-bottom:3.6mm;}
 
-.bars{display:flex;flex-direction:column;gap:2.3mm;}
+.bars{display:flex;flex-direction:column;gap:2.1mm;}
 .bar-row{display:grid;grid-template-columns:1fr auto;gap:2mm;align-items:baseline;}
 .bar-label{font-size:7.2pt;color:#2E3850;font-weight:500;}
 .bar-val{font-size:7.2pt;font-weight:700;color:var(--navy);font-variant-numeric:tabular-nums;}
@@ -212,7 +214,7 @@ table.projects tbody tr:nth-child(even) td{background:#F8F9FB;}
 
 /* ---------- Abschluss ---------- */
 .exec{display:grid;grid-template-columns:1.5fr 1fr;gap:7mm;}
-.exec p{font-size:8.1pt;line-height:1.58;color:#333C52;margin-bottom:2.8mm;}
+.exec p{font-size:8.1pt;line-height:1.54;color:#333C52;margin-bottom:2.6mm;}
 .exec p:last-child{margin-bottom:0;}
 .exec .pull{
   border-left:1.1mm solid var(--green);padding:1mm 0 1mm 4mm;
@@ -226,14 +228,14 @@ table.projects tbody tr:nth-child(even) td{background:#F8F9FB;}
 .fig-row .v{font-size:10pt;font-weight:700;}
 .fig-row .v small{font-size:7pt;font-weight:500;color:rgba(255,255,255,.7);margin-left:.8mm;}
 
-.focus{margin-top:5.5mm;}
+.focus{margin-top:4.5mm;}
 .focus-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;margin-top:4mm;}
 .focus-card{border:.3mm solid var(--line);border-radius:2.2mm;padding:4.5mm;background:var(--tint);}
 .focus-card .r{font-size:6.2pt;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green);}
 .focus-card .n{font-size:9.4pt;font-weight:700;color:var(--navy);margin-top:1.2mm;line-height:1.25;}
 .focus-card .d{font-size:7pt;color:var(--muted);margin-top:2mm;line-height:1.5;}
 
-.steps{margin-top:5.5mm;}
+.steps{margin-top:4.5mm;}
 .steps-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm 6mm;margin-top:4mm;}
 .step{display:flex;gap:3.5mm;}
 .step .i{
@@ -244,16 +246,18 @@ table.projects tbody tr:nth-child(even) td{background:#F8F9FB;}
 .step .c .d{font-size:7.2pt;color:#5A6377;line-height:1.5;margin-top:.8mm;}
 
 .contact{
-  margin-top:5.5mm;border-top:.3mm solid var(--line);padding-top:5mm;
+  margin-top:4.5mm;border-top:.3mm solid var(--line);padding-top:5mm;
   display:flex;justify-content:space-between;align-items:flex-end;gap:6mm;
 }
 .contact .who .n{font-size:9.2pt;font-weight:700;color:var(--navy);}
 .contact .who .r{font-size:7.2pt;color:var(--muted);margin-top:.6mm;}
 .contact .who .c{font-size:7.6pt;color:#333C52;margin-top:2.5mm;line-height:1.6;}
+.contact .brand-full{width:38mm;}
+.contact .brand-full img{width:100%;height:auto;display:block;}
 .contact .brand{display:flex;align-items:center;gap:3.2mm;}
 .contact .brand .mk{width:15mm;}
 .contact .brand .mk svg{width:100%;height:auto;display:block;}
 .contact .brand .wd{color:var(--navy);font-size:12pt;font-weight:700;letter-spacing:.14em;line-height:1;}
 .contact .brand .wd span{display:block;font-size:5.9pt;font-weight:500;letter-spacing:.22em;color:var(--muted);margin-top:1.3mm;}
-.disclaimer{margin-top:4mm;font-size:6.2pt;line-height:1.55;color:#8A90A0;}
+.disclaimer{margin-top:1.8mm;font-size:6pt;line-height:1.38;color:#8A90A0;}
 `;

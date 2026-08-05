@@ -4,8 +4,8 @@ import { buildFranceMap, type RegionCollection } from './franceMap';
 import { emaLogoSvg, franceFlagSvg, heroPanelSvg, NAVY, GREEN } from './assets';
 import { styles } from './styles';
 
-const ROWS_FIRST_PAGE = 22;
-const ROWS_NEXT_PAGE = 26;
+const ROWS_FIRST_PAGE = 24;
+const ROWS_NEXT_PAGE = 24;
 
 const nf = (v: number, d = 1) =>
   v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -59,6 +59,7 @@ interface Ctx {
   logoWhite: string;
   totalPages: number;
   hasCoords: boolean;
+  hasFullLogo: boolean;
 }
 
 const head = (c: Ctx, label: string) => `
@@ -80,7 +81,9 @@ const foot = (c: Ctx, page: number) => `
 function coverPage(c: Ctx, mapSvg: string): string {
   const { meta } = c.input;
   const a = c.a;
-  const rtb = a.permitBreakdown.find((x) => x.label === 'PC erteilt · purgé');
+  const rtb =
+    a.maturityBreakdown.find((x) => x.label.startsWith('PC-Datum > 4 Monate')) ??
+    a.permitBreakdown.find((x) => x.label === 'PC erteilt · purgé');
   const hero = c.input.heroImage
     ? `<img src="${c.input.heroImage}" alt=""><div class="hero-scrim"></div>`
     : heroPanelSvg();
@@ -105,20 +108,20 @@ function coverPage(c: Ctx, mapSvg: string): string {
 
   <div class="cover-body">
     <div class="cover-meta">
-      <p class="cover-lead">Kuratierte Übersicht von ${ni(a.count)} Freiflächen-Photovoltaikprojekten
-      in ${ni(a.regionCount)} französischen Regionen mit einer Gesamtleistung von ${nf(a.totalMwc)} MWc.
+      <p class="cover-lead">Kuratierte Übersicht von ${ni(a.count)} Photovoltaikprojekten
+      in ${ni(a.regionCount)} französischen Regionen mit einer Gesamtleistung von ${nf(a.totalMwc)} MWp.
       Alle Projekte werden über EMA Enterprise off-market angeboten; Detailunterlagen und Datenraum
       stehen nach gegengezeichneter Vertraulichkeitsvereinbarung zur Verfügung.</p>
       <div class="cover-facts">
-        <div class="fr"><span class="n">Baugenehmigung bestandskräftig (RTB)</span><span class="v">${rtb ? `${nf(rtb.capacityMwc)}<small>MWc</small>` : 'n. v.'}</span></div>
+        <div class="fr"><span class="n">PC-Datum älter als 4 Monate (Indiz purgé)</span><span class="v">${rtb ? `${nf(rtb.capacityMwc)}<small>MWp</small>` : 'n. v.'}</span></div>
         <div class="fr"><span class="n">Ø Distanz zum Netzverknüpfungspunkt</span><span class="v">${a.avgGridDistanceKm !== null ? `${nf(a.avgGridDistanceKm)}<small>km</small>` : 'n. v.'}</span></div>
-        <div class="fr"><span class="n">Ø spezifischer Ertrag (P50)</span><span class="v">${a.avgSpecificYield ? ni(a.avgSpecificYield) : 'n. v.'}<small>kWh/kWc</small></span></div>
+        <div class="fr"><span class="n">Ø Produktionsstunden PVSYST</span><span class="v">${a.avgSpecificYield ? ni(a.avgSpecificYield) : 'n. v.'}<small>h</small></span></div>
       </div>
       <div class="meta-grid">
         <div class="meta-item"><div class="k">Dokument-ID</div><div class="v">${esc(meta.documentId)}</div></div>
         <div class="meta-item"><div class="k">Erstellungsdatum</div><div class="v">${deDate(meta.createdAt)}</div></div>
         <div class="meta-item"><div class="k">Land</div><div class="v">${esc(meta.country)}</div></div>
-        <div class="meta-item"><div class="k">Technologie</div><div class="v">PV Freifläche</div></div>
+        <div class="meta-item"><div class="k">Technologie</div><div class="v">${esc(c.input.meta.subtitle.split('–').pop()?.trim() ?? 'Photovoltaik')}</div></div>
       </div>
     </div>
     <div class="cover-map">
@@ -129,7 +132,7 @@ function coverPage(c: Ctx, mapSvg: string): string {
 
   <div class="kpi-row">
     <div class="kpi"><div class="k">Projekte</div><div class="v">${ni(a.count)}</div><div class="s">Einzelvorhaben in der Liste</div></div>
-    <div class="kpi"><div class="k">Gesamtleistung</div><div class="v">${nf(a.totalMwc)}<small>MWc</small></div><div class="s">Ø ${nf(a.avgMwc)} MWc je Projekt</div></div>
+    <div class="kpi"><div class="k">Gesamtleistung</div><div class="v">${nf(a.totalMwc)}<small>MWp</small></div><div class="s">beantragte Leistung · Ø ${nf(a.avgMwc)} MWp</div></div>
     <div class="kpi"><div class="k">Regionen</div><div class="v">${ni(a.regionCount)}</div><div class="s">${esc(a.regions[0].region)} führend mit ${pct(a.regions[0].share * 100)}</div></div>
   </div>
 
@@ -155,13 +158,13 @@ function tablePages(c: Ctx): string {
           (p) => `
   <tr>
     <td class="t-no">${String(p.no).padStart(2, '0')}</td>
+    <td class="t-name">${esc(p.department ?? p.name)}</td>
     <td class="t-region">${esc(p.region)}</td>
-    <td class="t-name">${esc(p.name)}</td>
     <td class="num"><b>${nf(p.capacityMwc)}</b></td>
     <td class="num">${p.gridDistanceKm !== undefined ? nf(p.gridDistanceKm) : NA}</td>
     <td class="num">${p.areaHa !== undefined ? nf(p.areaHa) : NA}</td>
-    <td>${p.structure ? `<span class="badge b-share">${esc(p.structure)}</span>` : NA}</td>
-    <td>${p.permit ? `<span class="badge ${permitClass(p.permit)}">${esc(permitShort[p.permit])}</span>` : NA}</td>
+    <td>${p.techType ? esc(p.techType) : p.structure ? `<span class="badge b-share">${esc(p.structure)}</span>` : NA}</td>
+    <td style="white-space:nowrap">${p.permitDate ? `<span class="badge ${p.permitMature ? 'b-rtb' : 'b-filed'}">${esc(p.permitDate)}</span>` : p.permit ? `<span class="badge ${permitClass(p.permit)}">${esc(permitShort[p.permit])}</span>` : NA}</td>
     <td style="white-space:nowrap">${esc(p.cod)}</td>
     <td class="num">${p.specificYield ? ni(p.specificYield) : '<span class="unit">n. v.</span>'}</td>
   </tr>`,
@@ -175,24 +178,25 @@ function tablePages(c: Ctx): string {
     <div class="section-head">
       <div class="accent"></div>
       <h2>Projektübersicht</h2>
-      <div class="sub">${isFirst ? `${ni(a.count)} Projekte · ${nf(a.totalMwc)} MWc · Stand ${deDate(c.input.meta.createdAt)}` : `Fortsetzung · Projekte ${from}–${to}`}</div>
+      <div class="sub">${isFirst ? `${ni(a.count)} Projekte · ${nf(a.totalMwc)} MWp · Stand ${deDate(c.input.meta.createdAt)}` : `Fortsetzung · Projekte ${from}–${to}`}</div>
     </div>
 
     <table class="projects">
       <colgroup>
-        <col style="width:7mm"><col style="width:29mm"><col style="width:27mm">
-        <col style="width:14mm"><col style="width:14mm"><col style="width:13mm">
-        <col style="width:17mm"><col style="width:23mm"><col style="width:14mm"><col style="width:16mm">
+        <col style="width:8mm"><col style="width:28mm"><col style="width:26mm">
+        <col style="width:15mm"><col style="width:12mm"><col style="width:13mm">
+        <col style="width:24mm"><col style="width:17mm"><col style="width:14mm"><col style="width:12mm">
       </colgroup>
       <thead>
         <tr>
-          <th>Nr.</th><th>Region</th><th>Projektname</th>
-          <th style="text-align:right">Leistung<span class="u">MWc</span></th>
+          <th>Nr.</th><th>Département</th><th>Region</th>
+          <th style="text-align:right">Leistung<span class="u">MWp beantragt</span></th>
           <th style="text-align:right">Netz<span class="u">km</span></th>
           <th style="text-align:right">Fläche<span class="u">ha</span></th>
-          <th>Struktur</th><th>Genehmigung</th>
+          <th>Anlagentyp</th>
+          <th>PC-Datum</th>
           <th>IBN<span class="u">Ziel</span></th>
-          <th style="text-align:right">Ertrag<span class="u">kWh/kWc</span></th>
+          <th style="text-align:right">Ertrag<span class="u">h</span></th>
         </tr>
       </thead>
       <tbody>${body}</tbody>
@@ -200,11 +204,13 @@ function tablePages(c: Ctx): string {
 
     <div class="tfoot-strip">
       <div class="l">${isLast && pages.length === 1 ? 'Summe Portfolio' : `Zwischensumme Projekte ${from}–${to}`}</div>
-      <div class="r">${nf(pageCap)} MWc</div>
+      <div class="r">${nf(pageCap)} MWp</div>
     </div>
+    <div class="footnote">Leistung = beantragte Leistung („Power asked"), keine bestätigte Netzanschlusskapazität.
+    Maßgeblich ist die Kapazitätszusage des Netzbetreibers je Projekt.</div>
     ${
       isLast
-        ? `<div class="legend-note">Genehmigung: <b>RTB · purgé</b> (PC erteilt · purgé) = Baugenehmigung erteilt und Rechtsmittelfrist abgelaufen (ready-to-build) · <b>PC erteilt</b> = Genehmigung erteilt, Frist läuft · <b>PC eingereicht</b> = Antrag in Bearbeitung · <b>In Vorbereitung</b> = Antrag in Vorbereitung. Netzdistanz = Luftlinie zum vorgesehenen Verknüpfungspunkt. Spezifischer Ertrag = P50-Erwartungswert je kWc gemäß Projektunterlagen des Entwicklers.</div>`
+        ? `<div class="legend-note">PC-Datum = Datum der Baugenehmigung laut Entwicklerliste. <b>Grün hinterlegt</b> = Datum liegt mehr als vier Monate zurück, die Rechtsmittelfrist ist damit rechnerisch abgelaufen (Indiz für purgé, keine Bestätigung). <b>Gelb hinterlegt</b> = Datum liegt weniger als vier Monate zurück oder in der Zukunft; diese Projekte sind nicht bau- und finanzierbar. Netz = PS-Distanz laut Liste. Ertrag = Produktionsstunden PVSYST.</div>`
         : ''
     }
   </div>
@@ -236,15 +242,30 @@ function donut(slices: { label: string; value: number; color: string }[]): strin
 
 function analysisPage(c: Ctx, page: number): string {
   const a = c.a;
+  // Bei vielen Regionen: Top 8 einzeln, Rest als Sammelzeile – sonst sprengt
+  // die Liste die Seite und die kleinen Werte sind ohnehin nicht lesbar
+  const TOP = 7;
+  const shown = a.regions.slice(0, TOP);
+  const rest = a.regions.slice(TOP);
+  const restStat =
+    rest.length > 0
+      ? {
+          region: `${rest.length} weitere Regionen`,
+          count: rest.reduce((s, r) => s + r.count, 0),
+          capacityMwc: Math.round(rest.reduce((s, r) => s + r.capacityMwc, 0) * 10) / 10,
+          share: rest.reduce((s, r) => s + r.share, 0),
+        }
+      : null;
+  const barRows = restStat ? [...shown, restStat] : shown;
   const maxRegion = a.regions[0].capacityMwc;
   const classColors = ['#C6CEDC', '#8895AE', '#41527A', GREEN];
 
-  const bars = a.regions
+  const bars = barRows
     .map(
       (r) => `
   <div class="bar-row">
     <div class="bar-label">${esc(r.region)}</div>
-    <div class="bar-val">${nf(r.capacityMwc)} MWc</div>
+    <div class="bar-val">${nf(r.capacityMwc)} MWp</div>
     <div class="bar-track"><div class="bar-fill" style="width:${((r.capacityMwc / maxRegion) * 100).toFixed(1)}%"></div></div>
     <div class="bar-meta">${r.count} ${r.count === 1 ? 'Projekt' : 'Projekte'} · ${pct(r.share * 100, 1)} der Gesamtleistung</div>
   </div>`,
@@ -257,17 +278,40 @@ function analysisPage(c: Ctx, page: number): string {
   <div class="li">
     <span class="sw" style="background:${classColors[i]}"></span>
     <span class="nm">${esc(s.label)}</span>
-    <span class="vl">${nf(s.capacityMwc)} MWc</span>
+    <span class="vl">${nf(s.capacityMwc)} MWp</span>
     <span class="pc">${pct(s.share * 100)}</span>
   </div>`,
     )
     .join('');
 
+  // Lange Jahresreihen zusammenfassen, damit die Karte die Seite nicht sprengt
+  const capRows = (
+    items: { label: string; count: number; capacityMwc: number }[],
+    max: number,
+    restLabel: string,
+  ) => {
+    if (items.length <= max) return items;
+    // die kapazitätsstärksten Einträge bleiben einzeln, Reihenfolge bleibt erhalten
+    const keep = new Set(
+      [...items].sort((a, b) => b.capacityMwc - a.capacityMwc).slice(0, max - 1),
+    );
+    const head = items.filter((i) => keep.has(i));
+    const tail = items.filter((i) => !keep.has(i));
+    return [
+      ...head,
+      {
+        label: restLabel,
+        count: tail.reduce((s, i) => s + i.count, 0),
+        capacityMwc: Math.round(tail.reduce((s, i) => s + i.capacityMwc, 0) * 10) / 10,
+      },
+    ];
+  };
+
   const miniRows = (items: { label: string; count: number; capacityMwc: number }[]) =>
     items
       .map(
         (i) => `<div class="mini-row"><span class="n">${esc(i.label)}</span>
-      <span class="v">${nf(i.capacityMwc)} MWc<span>${i.count} Pr.</span></span></div>`,
+      <span class="v">${nf(i.capacityMwc)} MWp<span>${i.count} Pr.</span></span></div>`,
       )
       .join('');
 
@@ -282,10 +326,10 @@ function analysisPage(c: Ctx, page: number): string {
     </div>
 
     <div class="stat-row">
-      <div class="stat"><div class="k">Gesamtleistung</div><div class="v">${nf(a.totalMwc)}<small> MWc</small></div><div class="s">${a.totalAreaHa > 0 ? `${nf(a.totalAreaHa, 0)} ha Projektfläche` : 'Fläche n. v.'}</div></div>
-      <div class="stat"><div class="k">Ø Leistung</div><div class="v">${nf(a.avgMwc)}<small> MWc</small></div><div class="s">Median ${nf(a.medianMwc)} MWc</div></div>
-      <div class="stat"><div class="k">Größtes Projekt</div><div class="v">${nf(a.largest.capacityMwc)}<small> MWc</small></div><div class="s">${esc(a.largest.name)} · ${esc(a.largest.region)}</div></div>
-      <div class="stat"><div class="k">Kleinstes Projekt</div><div class="v">${nf(a.smallest.capacityMwc)}<small> MWc</small></div><div class="s">${esc(a.smallest.name)} · ${esc(a.smallest.region)}</div></div>
+      <div class="stat"><div class="k">Gesamtleistung</div><div class="v">${nf(a.totalMwc)}<small> MWp</small></div><div class="s">beantragt · ${a.totalAreaHa > 0 ? `${nf(a.totalAreaHa, 0)} ha Fläche` : 'Fläche n. v.'}</div></div>
+      <div class="stat"><div class="k">Ø Leistung</div><div class="v">${nf(a.avgMwc)}<small> MWp</small></div><div class="s">Median ${nf(a.medianMwc)} MWp</div></div>
+      <div class="stat"><div class="k">Größtes Projekt</div><div class="v">${nf(a.largest.capacityMwc)}<small> MWp</small></div><div class="s">${esc(a.largest.name)} · ${esc(a.largest.region)}</div></div>
+      <div class="stat"><div class="k">Kleinstes Projekt</div><div class="v">${nf(a.smallest.capacityMwc)}<small> MWp</small></div><div class="s">${esc(a.smallest.name)} · ${esc(a.smallest.region)}</div></div>
     </div>
 
     <div class="grid-2">
@@ -300,7 +344,7 @@ function analysisPage(c: Ctx, page: number): string {
         <div class="donut-wrap">
           <div class="donut">
             ${donut(a.sizeClasses.map((s, i) => ({ label: s.label, value: s.capacityMwc, color: classColors[i] })))}
-            <div class="center"><div class="v">${nf(a.totalMwc, 0)}</div><div class="k">MWc gesamt</div></div>
+            <div class="center"><div class="v">${nf(a.totalMwc, 0)}</div><div class="k">MWp gesamt</div></div>
           </div>
           <div class="legend">${legend}</div>
         </div>
@@ -308,9 +352,9 @@ function analysisPage(c: Ctx, page: number): string {
     </div>
 
     <div class="grid-3">
-      <div class="card"><h3>Genehmigungsstatus</h3><div class="hint">nach Leistung</div>${miniRows(a.permitBreakdown)}</div>
-      <div class="card"><h3>Transaktionsstruktur</h3><div class="hint">nach Leistung</div>${miniRows(a.structureBreakdown)}</div>
-      <div class="card"><h3>Inbetriebnahme</h3><div class="hint">nach Zieljahr</div>${miniRows(a.codBreakdown)}</div>
+      <div class="card"><h3>${a.techBreakdown.length ? 'Anlagentyp' : 'Genehmigungsstatus'}</h3><div class="hint">nach Leistung</div>${miniRows(a.techBreakdown.length ? a.techBreakdown.slice(0, 4) : a.permitBreakdown)}</div>
+      <div class="card"><h3>${a.maturityBreakdown.length ? 'Genehmigungsreife' : 'Transaktionsstruktur'}</h3><div class="hint">nach PC-Datum</div>${miniRows(a.maturityBreakdown.length ? a.maturityBreakdown : a.structureBreakdown)}</div>
+      <div class="card"><h3>Inbetriebnahme</h3><div class="hint">nach Zieljahr</div>${miniRows(capRows(a.codBreakdown, 5, 'übrige Jahre'))}</div>
     </div>
   </div>
   ${foot(c, page)}
@@ -321,7 +365,9 @@ function analysisPage(c: Ctx, page: number): string {
 function summaryPage(c: Ctx, page: number): string {
   const a = c.a;
   const top3 = a.regions.slice(0, 3);
-  const rtbMwc = a.permitBreakdown.find((p) => p.label === 'PC erteilt · purgé');
+  const rtbMwc =
+    a.maturityBreakdown.find((p) => p.label.startsWith('PC-Datum > 4 Monate')) ??
+    a.permitBreakdown.find((p) => p.label === 'PC erteilt · purgé');
   const firstCod = a.codBreakdown[0];
 
   return `
@@ -336,15 +382,15 @@ function summaryPage(c: Ctx, page: number): string {
 
     <div class="exec">
       <div>
-        <div class="pull">${ni(a.count)} Projekte · ${nf(a.totalMwc)} MWc · ${ni(a.regionCount)} Regionen –
-        ${rtbMwc ? `davon ${nf(rtbMwc.capacityMwc)} MWc mit bestandskräftiger Baugenehmigung.` : 'Genehmigungsstatus je Projekt in der Übersicht.'}</div>
-        <p>Die Liste bündelt ${ni(a.count)} französische Freiflächen-Photovoltaikprojekte mit einer
-        Gesamtleistung von ${nf(a.totalMwc)} MWc ${a.totalAreaHa > 0 ? `auf rund ${nf(a.totalAreaHa, 0)} ha Projektfläche` : ''}. Die
-        Einzelgrößen reichen von ${nf(a.smallest.capacityMwc)} MWc bis ${nf(a.largest.capacityMwc)} MWc bei
-        einem Median von ${nf(a.medianMwc)} MWc; das Portfolio ist damit sowohl für Einzelankäufe als auch
+        <div class="pull">${ni(a.count)} Projekte · ${nf(a.totalMwc)} MWp · ${ni(a.regionCount)} Regionen –
+        ${rtbMwc ? `davon ${nf(rtbMwc.capacityMwc)} MWp mit PC-Datum, das mehr als vier Monate zurückliegt.` : 'Genehmigungsstatus je Projekt in der Übersicht.'}</div>
+        <p>Die Liste bündelt ${ni(a.count)} französische Photovoltaikprojekte mit einer
+        Gesamtleistung von ${nf(a.totalMwc)} MWp ${a.totalAreaHa > 0 ? `auf rund ${nf(a.totalAreaHa, 0)} ha Projektfläche` : ''}. Die
+        Einzelgrößen reichen von ${nf(a.smallest.capacityMwc)} MWp bis ${nf(a.largest.capacityMwc)} MWp bei
+        einem Median von ${nf(a.medianMwc)} MWp; das Portfolio ist damit sowohl für Einzelankäufe als auch
         für eine Paketlösung geeignet.</p>
-        <p>${a.avgGridDistanceKm !== null ? `Die durchschnittliche Distanz zum vorgesehenen Netzverknüpfungspunkt beträgt ${nf(a.avgGridDistanceKm)} km${a.avgSpecificYield ? `, der mittlere spezifische Ertrag liegt bei ${ni(a.avgSpecificYield)} kWh/kWc` : ''}.` : a.avgSpecificYield ? `Der mittlere spezifische Ertrag liegt bei ${ni(a.avgSpecificYield)} kWh/kWc.` : ''}
-        ${rtbMwc ? `Auf Projekte mit bestandskräftiger Genehmigung entfallen ${pct(a.rtbShare * 100)} der Leistung – dieser Teil ist kurzfristig bau- und finanzierbar.` : ''}
+        <p>${a.avgGridDistanceKm !== null ? `Die durchschnittliche Distanz zum vorgesehenen Netzverknüpfungspunkt beträgt ${nf(a.avgGridDistanceKm)} km${a.avgSpecificYield ? `, die mittleren Produktionsstunden liegen bei ${ni(a.avgSpecificYield)} h` : ''}.` : a.avgSpecificYield ? `Die mittleren Produktionsstunden liegen bei ${ni(a.avgSpecificYield)} h.` : ''}
+        ${rtbMwc ? `Auf Projekte mit einem PC-Datum, das mehr als vier Monate zurückliegt, entfallen ${pct((rtbMwc.capacityMwc / a.totalMwc) * 100)} der Leistung. Das ist ein Reifeindikator, keine Bestätigung der Bestandskraft – der Nachweis erfolgt projektbezogen über den Genehmigungsbescheid.` : ''}
         ${firstCod ? `Die frühesten Inbetriebnahmen sind für ${firstCod.label} vorgesehen.` : ''}</p>
         <p>Sämtliche Angaben beruhen auf den Unterlagen der jeweiligen Projektentwickler. Sie ersetzen
         keine technische, rechtliche oder steuerliche Due Diligence; Netzanschlusszusagen, Flächenverträge,
@@ -354,12 +400,12 @@ function summaryPage(c: Ctx, page: number): string {
       <div class="figures">
         <h3>Kennzahlen</h3>
         <div class="fig-row"><span class="n">Projekte</span><span class="v">${ni(a.count)}</span></div>
-        <div class="fig-row"><span class="n">Gesamtleistung</span><span class="v">${nf(a.totalMwc)}<small>MWc</small></span></div>
-        <div class="fig-row"><span class="n">Ø Projektgröße</span><span class="v">${nf(a.avgMwc)}<small>MWc</small></span></div>
-        <div class="fig-row"><span class="n">Median</span><span class="v">${nf(a.medianMwc)}<small>MWc</small></span></div>
+        <div class="fig-row"><span class="n">Gesamtleistung (beantragt)</span><span class="v">${nf(a.totalMwc)}<small>MWp</small></span></div>
+        <div class="fig-row"><span class="n">Ø Projektgröße</span><span class="v">${nf(a.avgMwc)}<small>MWp</small></span></div>
+        <div class="fig-row"><span class="n">Median</span><span class="v">${nf(a.medianMwc)}<small>MWp</small></span></div>
         ${a.totalAreaHa > 0 ? `<div class="fig-row"><span class="n">Projektfläche</span><span class="v">${nf(a.totalAreaHa, 0)}<small>ha</small></span></div>` : ''}
         ${a.avgGridDistanceKm !== null ? `<div class="fig-row"><span class="n">Ø Netzdistanz</span><span class="v">${nf(a.avgGridDistanceKm)}<small>km</small></span></div>` : ''}
-        ${a.avgSpecificYield ? `<div class="fig-row"><span class="n">Ø spez. Ertrag</span><span class="v">${ni(a.avgSpecificYield)}<small>kWh/kWc</small></span></div>` : ''}
+        ${a.avgSpecificYield ? `<div class="fig-row"><span class="n">Ø Produktionsstunden</span><span class="v">${ni(a.avgSpecificYield)}<small>h</small></span></div>` : ''}
         <div class="fig-row"><span class="n">Regionen</span><span class="v">${ni(a.regionCount)}</span></div>
       </div>
     </div>
@@ -373,7 +419,7 @@ function summaryPage(c: Ctx, page: number): string {
         <div class="focus-card">
           <div class="r">Rang ${i + 1}</div>
           <div class="n">${esc(r.region)}</div>
-          <div class="d">${nf(r.capacityMwc)} MWc · ${r.count} ${r.count === 1 ? 'Projekt' : 'Projekte'}<br>${pct(r.share * 100, 1)} der Gesamtleistung</div>
+          <div class="d">${nf(r.capacityMwc)} MWp · ${r.count} ${r.count === 1 ? 'Projekt' : 'Projekte'}<br>${pct(r.share * 100, 1)} der Gesamtleistung</div>
         </div>`,
           )
           .join('')}
@@ -396,10 +442,12 @@ function summaryPage(c: Ctx, page: number): string {
         <div class="r">Geschäftsführer · EMA Enterprise GmbH</div>
         <div class="c">Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>unluer@ema-enterprise.de · +49 176 620 51 942</div>
       </div>
-      <div class="brand"><div class="mk">${c.logoMark}</div><div class="wd">EMA<span>ENTERPRISE GmbH</span></div></div>
+      ${c.hasFullLogo ? `<div class="brand-full">${c.logoFull}</div>` : `<div class="brand"><div class="mk">${c.logoMark}</div><div class="wd">EMA<span>ENTERPRISE GmbH</span></div></div>`}
     </div>
     <div class="disclaimer">Dieses Dokument dient ausschließlich der unverbindlichen Information des benannten Empfängers und stellt kein Angebot,
-    keine Anlageberatung und keine Aufforderung zur Abgabe eines Angebots dar. Angaben zu Leistung, Fläche, Netzdistanz, Genehmigungsstand und
+    keine Anlageberatung und keine Aufforderung zur Abgabe eines Angebots dar. Alle Leistungsangaben sind beantragte Leistungen („Power asked") und stellen weder eine bestätigte
+    Netzanschlusskapazität noch eine zugesicherte Anlagenleistung dar; maßgeblich ist die Kapazitätszusage des
+    Netzbetreibers je Projekt. Angaben zu Leistung, Fläche, Netzdistanz, Genehmigungsstand und
     Erträgen beruhen auf Informationen Dritter und wurden von EMA Enterprise GmbH nicht abschließend verifiziert. Eine Weitergabe an Dritte ist
     ohne schriftliche Zustimmung nicht gestattet.</div>
   </div>
@@ -413,8 +461,12 @@ export interface RenderOptions {
   regions: RegionCollection;
   /** @font-face-Block mit eingebetteten woff2-Daten (base64) */
   fontFaceCss?: string;
-  /** Data-URI des Original-EMA-Logos; überschreibt die Rekonstruktion */
+  /** Data-URI der EMA-Vollmarke (Bildmarke + Wortmarke); überschreibt die Rekonstruktion */
   logoDataUri?: string;
+  /** Data-URI der reinen Bildmarke ("ee") für Kopfzeilen */
+  logoMarkDataUri?: string;
+  /** Data-URI der Bildmarke in Negativfassung für das dunkle Cover */
+  logoWhiteDataUri?: string;
 }
 
 export function renderProjektlisteHtml(
@@ -432,9 +484,18 @@ export function renderProjektlisteHtml(
   const c: Ctx = {
     input,
     a,
-    logoMark: opts.logoDataUri ? img(opts.logoDataUri, 'EMA') : emaLogoSvg({ withWordmark: false }),
-    logoFull: opts.logoDataUri ? img(opts.logoDataUri, 'EMA Enterprise GmbH') : emaLogoSvg(),
-    logoWhite: emaLogoSvg({ onDark: true, withWordmark: false }),
+    logoMark: opts.logoMarkDataUri
+      ? img(opts.logoMarkDataUri, 'EMA')
+      : opts.logoDataUri
+        ? img(opts.logoDataUri, 'EMA')
+        : emaLogoSvg({ withWordmark: false }),
+    logoFull: opts.logoDataUri
+      ? img(opts.logoDataUri, 'EMA Enterprise GmbH')
+      : emaLogoSvg(),
+    logoWhite: opts.logoWhiteDataUri
+      ? img(opts.logoWhiteDataUri, 'EMA')
+      : emaLogoSvg({ onDark: true, withWordmark: false }),
+    hasFullLogo: Boolean(opts.logoDataUri),
     totalPages,
     hasCoords: input.projects.some(
       (p) => typeof p.lat === 'number' && typeof p.lon === 'number',
