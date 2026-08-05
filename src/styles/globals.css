@@ -87,6 +87,20 @@
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
+  input,
+  textarea,
+  select {
+    color-scheme: light;
+  }
+
+  .fixed input,
+  .fixed textarea,
+  .fixed select {
+    background-color: #ffffff !important;
+    color: #07142F !important;
+    -webkit-text-fill-color: #07142F !important;
+  }
+
   ::-webkit-scrollbar { @apply w-1.5; }
   ::-webkit-scrollbar-track { @apply bg-transparent; }
   ::-webkit-scrollbar-thumb { @apply rounded-full bg-border; }
