@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-import chromium from '@sparticuz/chromium'
+import chromium from '@sparticuz/chromium-min'
 import { NextResponse } from 'next/server'
 import puppeteer from 'puppeteer-core'
 import { z } from 'zod'
@@ -15,6 +15,10 @@ import { createClient } from '@/lib/supabase/server'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
+
+const CHROMIUM_PACK_URL =
+  process.env.CHROMIUM_PACK_URL ??
+  'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.tar'
 
 const optionalText = z.string().trim().max(500).nullish()
 const optionalNumber = z.union([z.number(), z.string().trim().max(100)]).nullish()
@@ -115,9 +119,12 @@ export async function POST(request: Request) {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
 
   try {
+    chromium.setGraphicsMode = false
+    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL)
+
     browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      args: await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }),
+      executablePath,
       headless: 'shell',
     })
 
