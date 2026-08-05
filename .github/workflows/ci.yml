@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-pnpm-lock
+  cancel-in-progress: true
+
 jobs:
   sync-lock:
     runs-on: ubuntu-latest
@@ -19,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: fix/projektliste-pdf-pnpm-lock
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -43,4 +48,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add pnpm-lock.yaml
           git commit -m "Synchronize pnpm lock file"
+          git pull --rebase origin fix/projektliste-pdf-pnpm-lock
           git push origin HEAD:fix/projektliste-pdf-pnpm-lock
