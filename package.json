@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@sparticuz/chromium-min": "^131.0.0",
+    "@sparticuz/chromium": "^131.0.1",
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.105.0",
     "@svg-maps/germany": "latest",
