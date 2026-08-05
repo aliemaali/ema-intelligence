@@ -31,7 +31,6 @@ export function ProjectListImportPreview({ importId, initialRows }: { importId: 
   const [pending, startTransition] = useTransition()
   const [pdfPending, setPdfPending] = useState(false)
   const selectedCount = useMemo(() => rows.filter((row) => row.selected).length, [rows])
-  const warningCount = useMemo(() => rows.filter((row) => row.warnings.length > 0).length, [rows])
 
   function update(index: number, patch: Partial<Row>) {
     setRows((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row))
@@ -77,14 +76,11 @@ export function ProjectListImportPreview({ importId, initialRows }: { importId: 
         <div className="flex items-start gap-3">
           <ListChecks className="mt-0.5 h-6 w-6 text-[#5CB800]" />
           <div>
-            <h2 className="text-lg font-extrabold text-[#07142F]">Projektliste prüfen</h2>
+            <h2 className="text-lg font-extrabold text-[#07142F]">Projektliste</h2>
             <p className="text-sm text-slate-500">Aus den ausgewählten Zeilen wird eine einzige hochwertige EMA-PDF erstellt.</p>
           </div>
         </div>
-        <div className="flex gap-2 text-xs font-extrabold">
-          <span className="rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-[#2F8A00]">{selectedCount} ausgewählt</span>
-          {warningCount > 0 && <span className="rounded-full bg-amber-50 px-3 py-1.5 text-amber-700">{warningCount} prüfen</span>}
-        </div>
+        <span className="w-fit rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold text-[#2F8A00]">{selectedCount} ausgewählt</span>
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/8 p-4">
@@ -92,7 +88,7 @@ export function ProjectListImportPreview({ importId, initialRows }: { importId: 
           <FileDown className="mt-0.5 h-6 w-6 shrink-0 text-[#5CB800]" />
           <div>
             <p className="font-extrabold text-[#07142F]">In eigene EMA-Projektliste umwandeln</p>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Die PDF enthält Deckblatt, Kennzahlen, alle Projekte als Liste, regionale Grafiken, Qualitätsbewertung und Hinweise – im EMA-Design.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Die PDF enthält Deckblatt, Kennzahlen, alle Projekte als Liste, regionale Grafiken und hochwertige Bildflächen im EMA-Design.</p>
           </div>
         </div>
         <button type="button" onClick={createPdf} disabled={selectedCount === 0 || pdfPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">
