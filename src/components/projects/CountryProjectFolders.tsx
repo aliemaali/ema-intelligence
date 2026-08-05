@@ -1,11 +1,19 @@
 import Link from 'next/link'
 import { ArrowRight, FolderOpen } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
 const flags: Record<string, string> = { Deutschland: '🇩🇪', Frankreich: '🇫🇷', Türkei: '🇹🇷', Spanien: '🇪🇸', Italien: '🇮🇹', Niederlande: '🇳🇱' }
 
 type ProjectListSummary = { country: string; project_count: number; total_kwp: number; created_at: string }
 
-export function CountryProjectFolders({ projects, projectLists }: { projects: any[]; projectLists: ProjectListSummary[] }) {
+export async function CountryProjectFolders({ projects }: { projects: any[]; projectLists?: ProjectListSummary[] }) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('country_project_lists')
+    .select('country, project_count, total_kwp, created_at')
+    .order('created_at', { ascending: false })
+  const projectLists = (data ?? []) as ProjectListSummary[]
+
   const grouped = new Map<string, { count: number; pvKwp: number; listCount: number; listedProjects: number; listedKwp: number }>()
   for (const project of projects) {
     const country = String(project.location_country || 'Ohne Länderzuordnung')
