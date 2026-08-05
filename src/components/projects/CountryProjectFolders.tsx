@@ -6,7 +6,7 @@ const flags: Record<string, string> = { Deutschland: '🇩🇪', Frankreich: '�
 
 type ProjectListSummary = { country: string; project_count: number; total_kwp: number; created_at: string }
 
-export async function CountryProjectFolders({ projects }: { projects: any[]; projectLists?: ProjectListSummary[] }) {
+export async function CountryProjectFolders({ projects }: { projects: any[]; projectLists?: unknown[] }) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('country_project_lists')
