@@ -8,10 +8,14 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts"
+    "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts",
+    "pl:render": "esbuild tools/renderProjektliste.ts --bundle --platform=node --target=node20 --outfile=.tmp/render.cjs && node .tmp/render.cjs",
+    "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
+    "pl:fonts": "pdffonts .tmp/EMA-Projektliste.pdf"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "@sparticuz/chromium-min": "^131.0.0",
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.105.0",
     "@svg-maps/germany": "latest",
@@ -26,6 +30,7 @@
     "next-themes": "^0.3.0",
     "numeral": "^2.0.6",
     "pdf-parse": "^1.1.1",
+    "puppeteer-core": "^24.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.52.2",
@@ -42,6 +47,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
+    "esbuild": "^0.25.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "postcss": "^8.4.39",

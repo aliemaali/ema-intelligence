@@ -4,7 +4,6 @@ import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, CheckCircle2, FileDown, ListChecks, Loader2 } from 'lucide-react'
 import { createVerifiedProjectsFromList } from '@/lib/actions/project-list-import.actions'
-import { createProjectListReport } from '@/lib/pdf/project-list-report'
 
 type Row = {
   externalNumber: string
@@ -41,7 +40,22 @@ export function ProjectListImportPreview({ importId, initialRows }: { importId: 
       setPdfPending(true)
       setMessage('EMA-Projektliste wird erstellt ...')
       const chosenRows = rows.filter((row) => row.selected)
-      await createProjectListReport(chosenRows, 'Frankreich.pdf')
+      const response = await fetch('/api/projektliste/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: chosenRows, subtitle: 'Frankreich – Utility Scale PV' }),
+      })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error || 'PDF-Erstellung fehlgeschlagen')
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'Frankreich.pdf'
+      link.click()
+      URL.revokeObjectURL(url)
       setMessage(`EMA-Projektliste mit ${chosenRows.length} Projekten wurde erstellt.`)
     } catch (error) {
       console.error('Project list PDF generation failed', error)
