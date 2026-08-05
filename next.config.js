@@ -13,6 +13,9 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '8mb',
     },
+    // puppeteer-core/@sparticuz/chromium-min must not be bundled by webpack –
+    // they load the Chromium binary at runtime (Vercel Node.js function).
+    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
   },
 
   images: {

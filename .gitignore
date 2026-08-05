@@ -28,6 +28,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Projektliste PDF render/check output
+.tmp/
+
 # Editor
 .vscode/
 .idea/
