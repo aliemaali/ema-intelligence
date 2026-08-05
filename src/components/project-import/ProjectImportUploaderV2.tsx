@@ -8,6 +8,8 @@ import { createVerifiedProjectFromImport } from '@/lib/actions/safe-project-impo
 import { ProjectListImportPreview } from './ProjectListImportPreview'
 import { formatProjectCountryLabel, isGermanProjectCountry, normalizeProjectCountry, PROJECT_COUNTRIES, sanitizeImportedLocationCity } from '@/lib/projects/location'
 
+type ImportMode = 'single' | 'list'
+
 function plainNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return ''
   const number = Number(value)
@@ -47,6 +49,8 @@ export function ProjectImportUploaderV2() {
   const [importId, setImportId] = useState<string | null>(null)
   const [result, setResult] = useState<Record<string, any> | null>(null)
   const [projectList, setProjectList] = useState<any[]>([])
+  const [importMode, setImportMode] = useState<ImportMode>('single')
+  const [listReadFailed, setListReadFailed] = useState(false)
   const [locationCountry, setLocationCountry] = useState('Deutschland')
   const [message, setMessage] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -66,11 +70,22 @@ export function ProjectImportUploaderV2() {
     return list
   }, [result, raw.plant_type])
 
-  function reset() {
+  function resetResults() {
     setImportId(null)
     setResult(null)
     setProjectList([])
-    setLocationCountry('Deutschland')
+    setListReadFailed(false)
+    setLocationCountry(importMode === 'list' ? 'Frankreich' : 'Deutschland')
+    setMessage('')
+  }
+
+  function changeMode(mode: ImportMode) {
+    setImportMode(mode)
+    setImportId(null)
+    setResult(null)
+    setProjectList([])
+    setListReadFailed(false)
+    setLocationCountry(mode === 'list' ? 'Frankreich' : 'Deutschland')
     setMessage('')
   }
 
@@ -79,9 +94,10 @@ export function ProjectImportUploaderV2() {
     const data = new FormData()
     files.forEach((file) => data.append('files', file))
     startTransition(async () => {
-      setMessage('Projektdateien werden analysiert ...')
+      setMessage(importMode === 'list' ? 'Projektliste wird gelesen ...' : 'Projektdateien werden analysiert ...')
       setResult(null)
       setProjectList([])
+      setListReadFailed(false)
       let id = importId
       if (!id) {
         const upload = await uploadProjectImportFiles(data)
@@ -91,19 +107,28 @@ export function ProjectImportUploaderV2() {
       }
       if (!id) return setMessage('Import-ID fehlt.')
 
-      const [singleResponse, listResponse] = await Promise.all([
-        prepareProjectImport(id),
-        prepareProjectListImport(id),
-      ])
-      if ('error' in singleResponse && singleResponse.error) return setMessage(`Fehler: ${singleResponse.error}`)
-
-      const rows = 'projects' in listResponse && Array.isArray(listResponse.projects) ? listResponse.projects : []
-      if (rows.length > 1) {
-        setProjectList(rows)
-        setMessage(`${rows.length} Projekte erkannt. Bitte die Liste prüfen und gewünschte Zeilen auswählen.`)
+      if (importMode === 'list') {
+        const listResponse = await prepareProjectListImport(id)
+        if ('error' in listResponse && listResponse.error) {
+          setListReadFailed(true)
+          setMessage(`Fehler: ${listResponse.error}`)
+          return
+        }
+        const rows = 'projects' in listResponse && Array.isArray(listResponse.projects) ? listResponse.projects : []
+        if (rows.length > 0) {
+          setProjectList(rows)
+          setLocationCountry('Frankreich')
+          setMessage(`${rows.length} Projekte erkannt. Bitte die Liste prüfen und gewünschte Zeilen auswählen.`)
+          return
+        }
+        setListReadFailed(true)
+        setLocationCountry('Frankreich')
+        setMessage('Die Tabelle konnte aus dieser PDF nicht sicher gelesen werden. Bitte dieselbe Liste als Excel oder CSV hochladen. Es wurde kein Einzelprojekt angelegt.')
         return
       }
 
+      const singleResponse = await prepareProjectImport(id)
+      if ('error' in singleResponse && singleResponse.error) return setMessage(`Fehler: ${singleResponse.error}`)
       const nextResult = 'result' in singleResponse ? singleResponse.result as Record<string, any> : null
       setResult(nextResult)
       setLocationCountry(normalizeProjectCountry(nextResult?.location_country ?? nextResult?.raw_result?.location_country))
@@ -125,22 +150,30 @@ export function ProjectImportUploaderV2() {
 
   return <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
     <section className="card-padded rounded-[2rem]">
-      <div className="mb-4 flex items-start gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00]"><FolderOpen className="h-5 w-5" /></div><div><h2 className="text-lg font-extrabold text-[#07142F]">Projektdateien importieren</h2><p className="text-sm text-slate-500">Einzelprojekt oder komplette Projektliste als PDF, CSV oder Textdatei.</p></div></div>
+      <div className="mb-4 flex items-start gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00]"><FolderOpen className="h-5 w-5" /></div><div><h2 className="text-lg font-extrabold text-[#07142F]">Projektdateien importieren</h2><p className="text-sm text-slate-500">Wähle zuerst, ob die Datei ein Einzelprojekt oder eine Projektliste enthält.</p></div></div>
+
+      <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
+        <button type="button" onClick={() => changeMode('single')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'single' ? 'bg-white text-[#07142F] shadow-sm' : 'text-slate-500'}`}>Einzelprojekt</button>
+        <button type="button" onClick={() => changeMode('list')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'list' ? 'bg-[#5CB800] text-white shadow-sm' : 'text-slate-500'}`}>Projektliste</button>
+      </div>
+
       <label className="flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-[#5CB800]/35 bg-gradient-to-br from-[#5CB800]/8 via-white to-blue-50/70 p-6 text-center">
-        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.txt,.csv,image/*,application/pdf,text/plain,text/csv" className="hidden" onChange={(event) => { setFiles(Array.from(event.target.files ?? [])); reset(); event.currentTarget.value = '' }} />
-        <CloudUpload className="h-12 w-12 text-[#2F8A00]" /><p className="mt-4 text-2xl font-extrabold text-[#07142F]">Dateien hier ablegen</p><p className="mt-2 text-sm text-slate-500">EMA erkennt automatisch Einzelprojekt oder Projektliste</p>
+        <input type="file" multiple={importMode === 'single'} accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.txt,.csv,.xlsx,.xls,image/*,application/pdf,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(event) => { setFiles(Array.from(event.target.files ?? [])); resetResults(); event.currentTarget.value = '' }} />
+        <CloudUpload className="h-12 w-12 text-[#2F8A00]" /><p className="mt-4 text-2xl font-extrabold text-[#07142F]">Dateien hier ablegen</p><p className="mt-2 text-sm text-slate-500">{importMode === 'list' ? 'Projektliste als PDF, Excel oder CSV' : 'Unterlagen zu einem einzelnen Projekt'}</p>
       </label>
-      {files.length > 0 && <div className="mt-5 space-y-3"><div className="flex items-center justify-between"><p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">{files.length} Dateien</p><button type="button" onClick={() => { setFiles([]); reset() }} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-600"><Trash2 className="h-3.5 w-3.5" /> Leeren</button></div>{files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">{file.type.startsWith('image/') ? <Image className="h-5 w-5 text-[#2F8A00]" /> : <FileText className="h-5 w-5 text-[#132060]" />}<span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span><button type="button" onClick={() => { setFiles((current) => current.filter((_, i) => i !== index)); reset() }} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100"><X className="h-4 w-4" /></button></div>)}</div>}
-      <button type="button" onClick={analyze} disabled={!files.length || isPending} className="btn-primary mt-5 w-full justify-center py-3 disabled:opacity-50">{isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Dateien analysieren</button>
-      {message && <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-sm font-bold text-[#07142F]">{message}</p>}
+      {files.length > 0 && <div className="mt-5 space-y-3"><div className="flex items-center justify-between"><p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">{files.length} Dateien</p><button type="button" onClick={() => { setFiles([]); resetResults() }} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-600"><Trash2 className="h-3.5 w-3.5" /> Leeren</button></div>{files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">{file.type.startsWith('image/') ? <Image className="h-5 w-5 text-[#2F8A00]" /> : <FileText className="h-5 w-5 text-[#132060]" />}<span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span><button type="button" onClick={() => { setFiles((current) => current.filter((_, i) => i !== index)); resetResults() }} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100"><X className="h-4 w-4" /></button></div>)}</div>}
+      <button type="button" onClick={analyze} disabled={!files.length || isPending} className="btn-primary mt-5 w-full justify-center py-3 disabled:opacity-50">{isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} {importMode === 'list' ? 'Projektliste analysieren' : 'Dateien analysieren'}</button>
+      {message && <p className={`mt-4 rounded-2xl p-3 text-sm font-bold ${listReadFailed ? 'border border-amber-200 bg-amber-50 text-amber-900' : 'bg-slate-50 text-[#07142F]'}`}>{message}</p>}
     </section>
 
-    <div className={`space-y-5 ${projectList.length > 1 ? 'xl:col-span-2' : ''}`}>
-      {!result && projectList.length === 0 && <section className="card-padded rounded-[2rem]"><div className="flex items-center gap-3"><Sparkles className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Geprüfte Import-Vorschau</h2></div><p className="mt-4 text-sm leading-6 text-slate-500">EMA legt nichts ungeprüft an. Bei Projektlisten kannst du jede Zeile bearbeiten oder abwählen.</p></section>}
+    <div className={`space-y-5 ${projectList.length > 0 ? 'xl:col-span-2' : ''}`}>
+      {!result && projectList.length === 0 && !listReadFailed && <section className="card-padded rounded-[2rem]"><div className="flex items-center gap-3"><Sparkles className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Geprüfte Import-Vorschau</h2></div><p className="mt-4 text-sm leading-6 text-slate-500">EMA legt nichts ungeprüft an. Bei Projektlisten kannst du jede Zeile bearbeiten oder abwählen.</p></section>}
 
-      {projectList.length > 1 && importId && <ProjectListImportPreview importId={importId} initialRows={projectList} />}
+      {listReadFailed && importMode === 'list' && <section className="card-padded rounded-[2rem] border border-amber-200 bg-amber-50"><div className="flex items-start gap-3"><AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-amber-700" /><div><h2 className="text-lg font-extrabold text-amber-900">Projektliste nicht lesbar</h2><p className="mt-2 text-sm leading-6 text-amber-800">Diese PDF enthält eine optische Tabelle, liefert technisch aber keine verlässlichen Tabellenzeilen. Bitte lade die Liste als Excel oder CSV hoch. EMA wechselt bewusst nicht mehr zur Einzelprojekt-Maske.</p></div></div></section>}
 
-      {result && projectList.length === 0 && <form action={createProject} className="card-padded rounded-[2rem] border border-[#5CB800]/30">
+      {projectList.length > 0 && importId && <ProjectListImportPreview importId={importId} initialRows={projectList} />}
+
+      {result && importMode === 'single' && projectList.length === 0 && <form action={createProject} className="card-padded rounded-[2rem] border border-[#5CB800]/30">
         <input type="hidden" name="import_id" value={importId ?? ''} />
         <div className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-[#5CB800]" /><div><h2 className="text-lg font-extrabold text-[#07142F]">Werte prüfen und korrigieren</h2><p className="text-sm text-slate-500">Nur diese bestätigten Werte werden ins Projekt und Exposé übernommen.</p></div></div>
         {warnings.length > 0 && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">{warnings.map((warning) => <p key={warning} className="flex gap-2 text-sm font-bold text-amber-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{warning}</p>)}</div>}
@@ -154,7 +187,7 @@ export function ProjectImportUploaderV2() {
         <button type="submit" disabled={isPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">{isPending ? 'Projekt wird erstellt ...' : 'Geprüftes Projekt anlegen'}</button>
       </form>}
 
-      {importedFiles.length > 0 && projectList.length === 0 && <section className="card-padded rounded-[2rem]"><h2 className="text-lg font-extrabold text-[#07142F]">Analysierte Dateien</h2><div className="mt-3 space-y-2">{importedFiles.map((file: any, index: number) => <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm"><FileText className="h-5 w-5 text-[#132060]" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span><span className="text-xs font-bold text-[#2F8A00]">{file.status === 'read' ? 'gelesen' : file.status}</span></div>)}</div></section>}
+      {importedFiles.length > 0 && importMode === 'single' && projectList.length === 0 && <section className="card-padded rounded-[2rem]"><h2 className="text-lg font-extrabold text-[#07142F]">Analysierte Dateien</h2><div className="mt-3 space-y-2">{importedFiles.map((file: any, index: number) => <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm"><FileText className="h-5 w-5 text-[#132060]" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span><span className="text-xs font-bold text-[#2F8A00]">{file.status === 'read' ? 'gelesen' : file.status}</span></div>)}</div></section>}
     </div>
   </div>
 }
