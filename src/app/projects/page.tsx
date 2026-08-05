@@ -3,6 +3,7 @@ import { Archive, ArrowRight, BatteryCharging, MapPin, Plus, Search, Sparkles, Z
 import { getProjects } from '@/lib/actions/project.actions'
 import { EmptyState } from '@/components/ui'
 import { CountryProjectFolders } from '@/components/projects/CountryProjectFolders'
+import { formatEnergyFromMwh, formatPowerFromKwp } from '@/lib/format/power'
 import { formatProjectLocationLabel } from '@/lib/projects/location'
 import { createClient } from '@/lib/supabase/server'
 import type { ProjectStatus, ProjectType } from '@/lib/types/database.types'
@@ -31,9 +32,9 @@ function projectLocation(project: any) { return formatProjectLocationLabel(proje
 function projectPower(project: any) {
   const pv = Number(project.pv_kwp ?? project.pv_mwp ?? project.capacity_kwp ?? 0)
   const bess = Number(project.bess_mwh ?? project.storage_capacity_mwh ?? 0)
-  if (project.project_type === 'bess') return bess ? `${bess.toLocaleString('de-DE')} MWh` : 'Leistung offen'
-  if (project.project_type === 'hybrid') { const parts = []; if (pv) parts.push(`${pv.toLocaleString('de-DE')} kWp`); if (bess) parts.push(`${bess.toLocaleString('de-DE')} MWh`); return parts.join(' / ') || 'Leistung offen' }
-  return pv ? `${pv.toLocaleString('de-DE')} kWp` : 'Leistung offen'
+  if (project.project_type === 'bess') return bess ? formatEnergyFromMwh(bess) : 'Leistung offen'
+  if (project.project_type === 'hybrid') { const parts = []; if (pv) parts.push(formatPowerFromKwp(pv)); if (bess) parts.push(formatEnergyFromMwh(bess)); return parts.join(' / ') || 'Leistung offen' }
+  return pv ? formatPowerFromKwp(pv) : 'Leistung offen'
 }
 function stageLabel(stage?: string | null) { return stage === 'rtb' ? 'RTB' : 'In Planung' }
 
