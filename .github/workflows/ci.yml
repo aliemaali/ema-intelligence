@@ -25,8 +25,10 @@ jobs:
         with:
           node-version: 20
 
-      - name: Enable pnpm
-        run: corepack enable
+      - name: Enable pnpm 10
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
 
       - name: Synchronize pnpm lock file
         run: pnpm install --lockfile-only --ignore-scripts
