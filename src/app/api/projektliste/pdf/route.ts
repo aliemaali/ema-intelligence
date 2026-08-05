@@ -61,6 +61,18 @@ function safeFilename(value: string) {
   return cleaned || 'EMA-Projektliste'
 }
 
+function chromiumEnvironment() {
+  const libraryPaths = ['/tmp/al2023/lib', '/tmp/al2/lib']
+  if (process.env.LD_LIBRARY_PATH) {
+    libraryPaths.push(process.env.LD_LIBRARY_PATH)
+  }
+
+  return {
+    ...process.env,
+    LD_LIBRARY_PATH: libraryPaths.join(':'),
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const {
@@ -144,10 +156,17 @@ export async function POST(request: Request) {
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
 
   try {
+    const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL)
+    const headlessMode = 'shell' as const
+
     browser = await puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
-      headless: true,
+      args: await puppeteer.defaultArgs({
+        args: chromium.args,
+        headless: headlessMode,
+      }),
+      executablePath,
+      headless: headlessMode,
+      env: chromiumEnvironment(),
     })
 
     const page = await browser.newPage()
