@@ -6,6 +6,7 @@ import { AuthProvider } from '@/lib/hooks/useAuth'
 import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
 import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
 import '@/styles/globals.css'
+import '@/styles/ema-9.css'
 
 const inter = Inter({
   subsets: ['latin'],
