@@ -63,15 +63,23 @@ export default async function DashboardPage() {
     for (const partner of partners ?? []) partnerNames.set(partner.id, partner.company || partner.full_name || partner.email || 'Vertriebspartner')
   }
 
-  const latestListByCountry = new Map<string, number>()
+  const latestListByCountry = new Map<string, { count: number; totalKwp: number }>()
   for (const list of projectListsResult.data ?? []) {
     const country = String((list as any).country || '').trim()
-    if (country && !latestListByCountry.has(country)) latestListByCountry.set(country, Number((list as any).project_count ?? 0))
+    if (country && !latestListByCountry.has(country)) {
+      latestListByCountry.set(country, {
+        count: Number((list as any).project_count ?? 0),
+        totalKwp: Number((list as any).total_kwp ?? 0),
+      })
+    }
   }
-  const projectsInLists = Array.from(latestListByCountry.values()).reduce((sum, count) => sum + count, 0)
+
+  const projectsInLists = Array.from(latestListByCountry.values()).reduce((sum, item) => sum + item.count, 0)
+  const listKwp = Array.from(latestListByCountry.values()).reduce((sum, item) => sum + item.totalKwp, 0)
   const activeProjects = projects.length
   const totalProjects = activeProjects + projectsInLists
-  const totalKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
+  const activeKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
+  const totalKwp = activeKwp + listKwp
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
 
@@ -90,7 +98,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
         <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Übersichten`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle="Aktive PV-Leistung" tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle={`${formatPowerFromKwp(activeKwp)} aktiv · ${formatPowerFromKwp(listKwp)} weitere`} tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
         <KpiCard title="BESS-Kapazität" value={formatEnergyFromMwh(totalBess)} subtitle="Aktive Speicherkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
       </div>
 
