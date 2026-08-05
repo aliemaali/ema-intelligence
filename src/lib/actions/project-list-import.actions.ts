@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { extractProjectListFromPdf } from '@/lib/ai/project-list-vision'
 
 type ProjectListRow = {
   externalNumber: string
@@ -154,20 +155,9 @@ function parseFlattenedPdf(text: string): ProjectListRow[] {
   return rows
 }
 
-function parseProjectList(text: string) {
+function uniqueRows(candidates: ProjectListRow[]) {
   const rows: ProjectListRow[] = []
   const seen = new Set<string>()
-  const candidates: ProjectListRow[] = []
-
-  for (const rawLine of text.replace(/\r/g, '\n').split('\n')) {
-    const line = cleanLine(rawLine)
-    if (!line) continue
-    const row = parseDelimitedLine(line) ?? parseWhitespaceLine(line)
-    if (row) candidates.push(row)
-  }
-
-  if (candidates.length < 2) candidates.push(...parseFlattenedPdf(text))
-
   for (const row of candidates) {
     const key = `${row.externalNumber}-${row.region}`
     if (seen.has(key)) continue
@@ -175,6 +165,18 @@ function parseProjectList(text: string) {
     rows.push(row)
   }
   return rows.slice(0, 500)
+}
+
+function parseProjectList(text: string) {
+  const candidates: ProjectListRow[] = []
+  for (const rawLine of text.replace(/\r/g, '\n').split('\n')) {
+    const line = cleanLine(rawLine)
+    if (!line) continue
+    const row = parseDelimitedLine(line) ?? parseWhitespaceLine(line)
+    if (row) candidates.push(row)
+  }
+  if (candidates.length < 2) candidates.push(...parseFlattenedPdf(text))
+  return uniqueRows(candidates)
 }
 
 async function requireUser() {
@@ -196,15 +198,18 @@ export async function prepareProjectListImport(importId: string) {
 
   const paths = ((projectImport as any).storage_paths as string[]) ?? []
   const names = ((projectImport as any).original_file_names as string[]) ?? []
+  const pdfFiles: Array<{ name: string; buffer: Buffer }> = []
   let combinedText = ''
 
   for (const [index, path] of paths.entries()) {
     const name = names[index] ?? ''
-    if (!name.toLowerCase().endsWith('.pdf') && !name.toLowerCase().endsWith('.txt') && !name.toLowerCase().endsWith('.csv')) continue
+    const lowerName = name.toLowerCase()
+    if (!lowerName.endsWith('.pdf') && !lowerName.endsWith('.txt') && !lowerName.endsWith('.csv')) continue
     const { data: blob } = await supabase.storage.from('project-imports').download(path)
     if (!blob) continue
     const buffer = Buffer.from(await blob.arrayBuffer())
-    if (name.toLowerCase().endsWith('.pdf')) {
+    if (lowerName.endsWith('.pdf')) {
+      pdfFiles.push({ name, buffer })
       const pdfParse = (await import('pdf-parse')).default
       const parsed = await pdfParse(buffer)
       combinedText += `\n${parsed.text || ''}`
@@ -213,12 +218,46 @@ export async function prepareProjectListImport(importId: string) {
     }
   }
 
-  const projects = parseProjectList(combinedText)
-  const looksLikeProjectList = /Power\s+asked|Planning\s+Permission|Commissionning|PVSYST|Secured\s+land/i.test(combinedText)
-  if (looksLikeProjectList && projects.length === 0) {
-    return { error: 'Die Datei ist eine Projektliste, aber die Tabellenzeilen konnten nicht sicher erkannt werden. Bitte als Excel oder CSV hochladen.' }
+  let projects = parseProjectList(combinedText)
+  const looksLikeProjectList = /Power\s+asked|Planning\s+Permission|Commissionning|PVSYST|Secured\s+land/i.test(combinedText) || pdfFiles.length > 0
+  let analysisMode: 'text' | 'visual' = 'text'
+  let visualError = ''
+
+  if (projects.length === 0 && pdfFiles.length > 0) {
+    const visualRows: ProjectListRow[] = []
+    for (const file of pdfFiles) {
+      const visual = await extractProjectListFromPdf(file.buffer, file.name)
+      if (visual.error) visualError = visual.error
+      for (const row of visual.projects) {
+        visualRows.push(makeRow({
+          externalNumber: String(row.externalNumber ?? ''),
+          region: String(row.region ?? ''),
+          permissionDate: String(row.permissionDate ?? ''),
+          mwp: parseNumber(row.mwp),
+          gridDistanceKm: parseNumber(row.gridDistanceKm),
+          structure: String(row.structure ?? ''),
+          studiesStart: String(row.studiesStart ?? ''),
+          commissioning: String(row.commissioning ?? ''),
+          securedLandHa: parseNumber(row.securedLandHa),
+          specificYield: parseNumber(row.specificYield),
+        }))
+      }
+    }
+    projects = uniqueRows(visualRows)
+    if (projects.length > 0) analysisMode = 'visual'
   }
-  return { success: true, projects, isProjectList: projects.length > 1, looksLikeProjectList }
+
+  if (looksLikeProjectList && projects.length === 0) {
+    return { error: visualError || 'Die Projektliste konnte auch mit der visuellen Tabellenanalyse nicht sicher gelesen werden.' }
+  }
+
+  return {
+    success: true,
+    projects,
+    isProjectList: projects.length > 0,
+    looksLikeProjectList,
+    analysisMode,
+  }
 }
 
 function getField(formData: FormData, index: number, name: string) {
