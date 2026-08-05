@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - 'fix/projektliste-pdf-pnpm-lock'
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
