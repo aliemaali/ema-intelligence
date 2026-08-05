@@ -1,67 +1,13 @@
 import Link from 'next/link'
-import { ArrowRight, BatteryCharging, FolderOpen, Inbox, Layers, MapPin, Zap } from 'lucide-react'
+import { ArrowRight, BatteryCharging, FolderOpen, Inbox, Layers, Zap } from 'lucide-react'
+import { CountryProjectsAccordion } from '@/components/dashboard/CountryProjectsAccordion'
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
 import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
-import { formatProjectLocationLabel } from '@/lib/projects/location'
-import { formatEnergyFromMwh, formatPowerFromKwp, formatPowerFromMw } from '@/lib/format/power'
+import { formatEnergyFromMwh, formatPowerFromKwp } from '@/lib/format/power'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
-
-const countryFlags: Record<string, string> = {
-  Deutschland: '🇩🇪',
-  Frankreich: '🇫🇷',
-  Italien: '🇮🇹',
-  Spanien: '🇪🇸',
-  Türkei: '🇹🇷',
-  Niederlande: '🇳🇱',
-}
-
-function formatKwp(value: number | null | undefined) {
-  if (!value) return '–'
-  return formatPowerFromKwp(value)
-}
-
-function formatMw(value: number | null | undefined) {
-  if (!value) return '–'
-  return formatPowerFromMw(value)
-}
-
-function formatMwh(value: number | null | undefined) {
-  if (!value) return '–'
-  return formatEnergyFromMwh(value)
-}
-
-function getProjectPower(project: any) {
-  if (project.project_type === 'rechenzentrum') {
-    const parts = []
-    if (project.data_center_grid_mw) parts.push(`${formatMw(project.data_center_grid_mw)} Netz`)
-    if (project.data_center_it_mw) parts.push(`${formatMw(project.data_center_it_mw)} IT`)
-    return parts.join(' / ') || 'Leistung offen'
-  }
-  if (project.project_type === 'sonstiges') return 'Individuell'
-  const parts = []
-  if (project.pv_mwp) parts.push(formatKwp(project.pv_mwp))
-  if (project.bess_mwh) parts.push(formatMwh(project.bess_mwh))
-  return parts.join(' / ') || 'Leistung offen'
-}
-
-function getLocation(project: any) {
-  return formatProjectLocationLabel(project.location_country, project.location_city, project.location_state)
-}
-
-type ProjectKind = 'dach' | 'freiflaeche' | 'bess' | 'hybrid' | 'wind' | 'rechenzentrum' | 'sonstiges'
-
-function getProjectKind(project: any): ProjectKind {
-  if (project.project_type === 'bess') return 'bess'
-  if (project.project_type === 'hybrid') return 'hybrid'
-  if (project.project_type === 'pv_dach') return 'dach'
-  if (project.project_type === 'wind') return 'wind'
-  if (project.project_type === 'rechenzentrum') return 'rechenzentrum'
-  if (project.project_type === 'sonstiges') return 'sonstiges'
-  return 'freiflaeche'
-}
 
 function KpiCard({ title, value, subtitle, icon, tone }: {
   title: string
@@ -87,28 +33,6 @@ function KpiCard({ title, value, subtitle, icon, tone }: {
   )
 }
 
-function ProjectImage({ kind, imageUrl, projectName }: { kind: ProjectKind; imageUrl?: string | null; projectName: string }) {
-  const fallbackImage = kind === 'dach'
-    ? '/project-dach.svg'
-    : kind === 'bess'
-      ? '/project-bess.svg'
-      : kind === 'rechenzentrum'
-        ? '/hero-datacenter.svg'
-        : kind === 'sonstiges'
-          ? '/hero-generic-project.svg'
-          : kind === 'wind'
-            ? '/hero-wind.svg'
-            : '/project-freiflaeche.svg'
-  const badge = kind === 'bess' ? 'BESS' : kind === 'hybrid' ? 'HYB' : kind === 'rechenzentrum' ? 'RZ' : kind === 'sonstiges' ? 'SON' : kind === 'wind' ? 'WIND' : 'PV'
-
-  return (
-    <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-2xl bg-slate-100 sm:h-24 sm:w-32">
-      <img src={imageUrl || fallbackImage} alt={`Projektbild ${projectName}`} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-      <div className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[9px] font-extrabold text-[#1F2A44] shadow-sm">{badge}</div>
-    </div>
-  )
-}
-
 const submissionStatusLabels: Record<string, string> = {
   eingereicht: 'Neu eingereicht',
   in_pruefung: 'In Prüfung',
@@ -127,7 +51,7 @@ export default async function DashboardPage() {
       .limit(5),
     supabase
       .from('country_project_lists')
-      .select('country, project_count, created_at')
+      .select('country, project_count, total_kwp, created_at')
       .order('created_at', { ascending: false }),
   ])
 
@@ -147,21 +71,9 @@ export default async function DashboardPage() {
   const projectsInLists = Array.from(latestListByCountry.values()).reduce((sum, count) => sum + count, 0)
   const activeProjects = projects.length
   const totalProjects = activeProjects + projectsInLists
-  const totalKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_mwp ?? 0), 0)
+  const totalKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
-
-  const projectsByCountry = new Map<string, any[]>()
-  for (const project of projects) {
-    const country = String(project.location_country || 'Ohne Länderzuordnung')
-    const grouped = projectsByCountry.get(country) ?? []
-    grouped.push(project)
-    projectsByCountry.set(country, grouped)
-  }
-  const countryProjectGroups = Array.from(projectsByCountry.entries()).sort(([a], [b]) => a.localeCompare(b, 'de'))
-  const listOnlyCountries = Array.from(latestListByCountry.entries())
-    .filter(([country]) => !projectsByCountry.has(country))
-    .sort(([a], [b]) => a.localeCompare(b, 'de'))
 
   return (
     <div className="w-full max-w-full space-y-6 overflow-x-hidden md:mx-auto md:max-w-[1480px] md:space-y-7">
@@ -177,7 +89,7 @@ export default async function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
-        <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Listen`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Übersichten`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
         <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle="Aktive PV-Leistung" tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
         <KpiCard title="BESS-Kapazität" value={formatEnergyFromMwh(totalBess)} subtitle="Aktive Speicherkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
       </div>
@@ -202,30 +114,8 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-5 px-3 md:px-0 xl:grid-cols-[0.92fr_1.45fr]">
         <div className="card-padded rounded-[2rem]">
-          <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-extrabold text-[#07142F]">Aktuelle Projekte</h2><p className="mt-1 text-sm text-muted-foreground">Nach Ländern sortiert.</p></div><Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00]">Alle <ArrowRight className="h-4 w-4" /></Link></div>
-          <div className="space-y-6">
-            {countryProjectGroups.length === 0 && listOnlyCountries.length === 0 && <p className="rounded-2xl bg-muted/50 px-4 py-6 text-sm text-muted-foreground">Noch keine Projekte vorhanden.</p>}
-            {countryProjectGroups.map(([country, countryProjects]) => (
-              <section key={country}>
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2"><span className="text-2xl">{countryFlags[country] ?? '🌍'}</span><div><h3 className="font-extrabold text-[#07142F]">{country}</h3><p className="text-xs text-muted-foreground">{countryProjects.length} aktive Projekte</p></div></div>
-                  <Link href={`/projects/country/${encodeURIComponent(country)}`} className="inline-flex items-center gap-1 text-xs font-extrabold text-[#2F8A00]">Alle <ArrowRight className="h-3.5 w-3.5" /></Link>
-                </div>
-                <div className="space-y-3">
-                  {countryProjects.slice(0, 3).map((project: any) => (
-                    <Link key={project.id} href={`/projects/${project.id}/overview`} className="premium-lift block rounded-[1.4rem] border border-border/80 bg-white p-3 shadow-sm">
-                      <div className="flex gap-3"><ProjectImage kind={getProjectKind(project)} imageUrl={project.project_image_url} projectName={project.project_name || project.project_number || 'Projekt'} /><div className="min-w-0 flex-1 py-0.5"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate font-extrabold text-[#07142F]">{project.project_name || project.project_number}</p><p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{project.project_number}</p></div><ArrowRight className="h-5 w-5 shrink-0 text-[#2F8A00]" /></div><p className="mt-2 flex items-center gap-1 truncate text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> {getLocation(project)}</p><p className="mt-1 truncate text-xs font-extrabold text-[#132060]">{getProjectPower(project)}</p></div></div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ))}
-            {listOnlyCountries.map(([country, count]) => (
-              <Link key={country} href={`/projects/country/${encodeURIComponent(country)}`} className="block rounded-[1.4rem] border border-[#5CB800]/25 bg-[#5CB800]/5 p-4">
-                <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="text-2xl">{countryFlags[country] ?? '🌍'}</span><div><h3 className="font-extrabold text-[#07142F]">{country}</h3><p className="mt-1 text-xs font-bold text-[#2F8A00]">{count} Projekte in gespeicherter Projektliste</p><p className="mt-1 text-xs text-muted-foreground">Noch keine einzelnen aktiven Projekte</p></div></div><ArrowRight className="h-5 w-5 text-[#2F8A00]" /></div>
-              </Link>
-            ))}
-          </div>
+          <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-2xl font-extrabold text-[#07142F]">Aktuelle Projekte</h2><p className="mt-1 text-sm text-muted-foreground">Land auswählen und Projekte aufklappen.</p></div><Link href="/projects" className="flex items-center gap-1 text-sm font-extrabold text-[#2F8A00]">Alle <ArrowRight className="h-4 w-4" /></Link></div>
+          <CountryProjectsAccordion projects={projects} projectLists={(projectListsResult.data ?? []) as any[]} />
         </div>
 
         <div className="card-padded rounded-[2rem]">
