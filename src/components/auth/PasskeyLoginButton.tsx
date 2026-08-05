@@ -2,11 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Fingerprint, Loader2 } from 'lucide-react'
+import { Fingerprint, Info, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const CANONICAL_HOSTNAME = 'app.ema-enterprise.de'
-const CANONICAL_LOGIN_URL = 'https://app.ema-enterprise.de/login'
 
 function getPasskeyErrorMessage(error: unknown) {
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
@@ -21,10 +20,10 @@ function getPasskeyErrorMessage(error: unknown) {
     }
 
     if (message.includes('rp id') || message.includes('invalid for this domain')) {
-      return 'Face ID konnte nicht gestartet werden, weil diese installierte EMA-Version noch eine alte Domain verwendet. Bitte öffne EMA einmal über app.ema-enterprise.de und installiere die App anschließend neu.'
+      return 'Face ID ist nur auf app.ema-enterprise.de verfügbar. Nutze im Preview bitte E-Mail und Passwort.'
     }
 
-    return 'Die Passkey-Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut oder nutze vorübergehend dein Passwort.'
+    return 'Die Passkey-Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut oder nutze dein Passwort.'
   }
 
   return 'Die Passkey-Anmeldung konnte nicht gestartet werden.'
@@ -34,15 +33,16 @@ export function PasskeyLoginButton() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const isCanonicalHost = typeof window !== 'undefined' && window.location.hostname === CANONICAL_HOSTNAME
 
   const handlePasskeyLogin = async () => {
-    if (!window.PublicKeyCredential) {
-      setErrorMessage('Dieses Gerät oder dieser Browser unterstützt keine Passkeys.')
+    if (!isCanonicalHost) {
+      setErrorMessage('Preview-Modus: Bitte melde dich unten mit E-Mail und Passwort an. Face ID bleibt nur auf der Produktionsdomain aktiv.')
       return
     }
 
-    if (window.location.hostname !== CANONICAL_HOSTNAME) {
-      window.location.replace(CANONICAL_LOGIN_URL)
+    if (!window.PublicKeyCredential) {
+      setErrorMessage('Dieses Gerät oder dieser Browser unterstützt keine Passkeys.')
       return
     }
 
@@ -75,10 +75,16 @@ export function PasskeyLoginButton() {
       >
         {isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-        ) : (
+        ) : isCanonicalHost ? (
           <Fingerprint className="h-5 w-5" aria-hidden="true" />
+        ) : (
+          <Info className="h-5 w-5" aria-hidden="true" />
         )}
-        {isLoading ? 'Passkey wird geprüft …' : 'Mit Face ID / Passkey anmelden'}
+        {isLoading
+          ? 'Passkey wird geprüft …'
+          : isCanonicalHost
+            ? 'Mit Face ID / Passkey anmelden'
+            : 'Preview: Anmeldung mit Passwort'}
       </button>
 
       {errorMessage && (
