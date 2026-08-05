@@ -16,10 +16,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
-const CHROMIUM_PACK_URL =
-  process.env.CHROMIUM_PACK_URL ??
-  'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar'
-
+const CHROMIUM_PACK_URL = process.env.CHROMIUM_PACK_URL ?? 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar'
 const optionalText = z.string().trim().max(500).nullish()
 const optionalNumber = z.union([z.number(), z.string().trim().max(100)]).nullish()
 
@@ -30,6 +27,7 @@ const projectRecordSchema = z.object({
   pvKwp: optionalNumber,
   gridDistanceKm: optionalNumber,
   structure: optionalText,
+  techType: optionalText,
   permissionDate: optionalText,
   commissioning: optionalText,
   securedLandHa: optionalNumber,
@@ -43,117 +41,55 @@ const requestSchema = z.object({
 })
 
 let fontFaceCssCache: string | null = null
-
 function getFontFaceCss() {
   fontFaceCssCache ??= buildInterFontFaceCss(path.join(process.cwd(), 'public/fonts/inter'))
   return fontFaceCssCache
 }
-
 function safeFilename(value: string) {
-  const cleaned = value
-    .normalize('NFKD')
-    .replace(/[^a-zA-Z0-9._-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 100)
-
+  const cleaned = value.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100)
   return cleaned || 'EMA-Projektliste'
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })
-  }
+  if (!user) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })
 
   let json: unknown
-  try {
-    json = await request.json()
-  } catch {
-    return NextResponse.json({ error: 'Ungültiger JSON-Request.' }, { status: 400 })
-  }
-
+  try { json = await request.json() } catch { return NextResponse.json({ error: 'Ungültiger JSON-Request.' }, { status: 400 }) }
   const parsed = requestSchema.safeParse(json)
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: 'Die übermittelten Projektdaten sind ungültig.', details: parsed.error.flatten() },
-      { status: 400 },
-    )
-  }
+  if (!parsed.success) return NextResponse.json({ error: 'Die übermittelten Projektdaten sind ungültig.', details: parsed.error.flatten() }, { status: 400 })
 
   const { rows, report } = mapEmaProjects(parsed.data.records)
-  if (rows.length === 0) {
-    return NextResponse.json({ error: 'Keine verwertbaren Projektzeilen.', report }, { status: 422 })
-  }
+  if (rows.length === 0) return NextResponse.json({ error: 'Keine verwertbaren Projektzeilen.', report }, { status: 422 })
 
-  const documentId = parsed.data.documentId ??
-    `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
+  const documentId = parsed.data.documentId ?? `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
   const subtitle = parsed.data.subtitle ?? 'Frankreich – Utility Scale PV'
   const root = process.cwd()
-
-  const html = renderProjektlisteHtml(
-    {
-      meta: {
-        title: 'Projektliste',
-        subtitle,
-        documentId,
-        createdAt: new Date().toISOString().slice(0, 10),
-        country: 'Frankreich',
-        countryCode: 'FR',
-        confidentialityNote:
-          'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot',
-      },
-      projects: rows,
-      heroImage: fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg'),
-    },
-    {
-      regions: regions as unknown as RegionCollection,
-      fontFaceCss: getFontFaceCss(),
-      logoDataUri: fileToDataUri(path.join(root, 'public/brand/ema-logo.png'), 'image/png'),
-      logoMarkDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark.png'), 'image/png'),
-      logoWhiteDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark-white.png'), 'image/png'),
-    },
-  )
+  const html = renderProjektlisteHtml({
+    meta: { title: 'Projektliste', subtitle, documentId, createdAt: new Date().toISOString().slice(0, 10), country: 'Frankreich', countryCode: 'FR', confidentialityNote: 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot' },
+    projects: rows,
+    heroImage: fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg'),
+  }, {
+    regions: regions as unknown as RegionCollection,
+    fontFaceCss: getFontFaceCss(),
+    logoDataUri: fileToDataUri(path.join(root, 'public/brand/ema-logo.png'), 'image/png'),
+    logoMarkDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark.png'), 'image/png'),
+    logoWhiteDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark-white.png'), 'image/png'),
+  })
 
   let browser: Awaited<ReturnType<typeof puppeteer.launch>> | null = null
-
   try {
     chromium.setGraphicsMode = false
     const executablePath = await chromium.executablePath(CHROMIUM_PACK_URL)
-
-    browser = await puppeteer.launch({
-      args: await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }),
-      executablePath,
-      headless: 'shell',
-    })
-
+    browser = await puppeteer.launch({ args: await puppeteer.defaultArgs({ args: chromium.args, headless: 'shell' }), executablePath, headless: 'shell' })
     const page = await browser.newPage()
     await page.emulateMediaType('print')
     await page.setContent(html, { waitUntil: 'load', timeout: 45_000 })
-
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      preferCSSPageSize: true,
-      tagged: true,
-    })
-
-    return new NextResponse(Buffer.from(pdf), {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${safeFilename(documentId)}.pdf"`,
-        'Cache-Control': 'private, no-store, max-age=0',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    })
+    const pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true, tagged: true })
+    return new NextResponse(Buffer.from(pdf), { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${safeFilename(documentId)}.pdf"`, 'Cache-Control': 'private, no-store, max-age=0', 'X-Content-Type-Options': 'nosniff' } })
   } catch (error) {
     console.error('Projektlisten-PDF konnte nicht erzeugt werden:', error)
-    return NextResponse.json(
-      { error: 'Die Projektliste konnte nicht als PDF erzeugt werden.' },
-      { status: 500 },
-    )
-  } finally {
-    await browser?.close().catch(() => undefined)
-  }
+    return NextResponse.json({ error: 'Die Projektliste konnte nicht als PDF erzeugt werden.' }, { status: 500 })
+  } finally { await browser?.close().catch(() => undefined) }
 }

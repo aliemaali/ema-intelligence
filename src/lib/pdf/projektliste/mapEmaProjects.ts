@@ -1,18 +1,13 @@
 import type { ProjectRow, DealStructure } from './types';
 
-/**
- * Rohsatz aus der EMA-Projektliste (Import-Vorschau / Datenbank).
- * Bewusst alles optional – die Quelle liefert nicht jedes Feld zuverlässig.
- */
 export interface EmaProjectRecord {
   externalNumber?: string | number | null;
   region?: string | null;
   projectName?: string | null;
-  /** Leistung in kWp */
   pvKwp?: number | string | null;
   gridDistanceKm?: number | string | null;
   structure?: string | null;
-  /** wird NICHT als Genehmigungsstatus interpretiert */
+  techType?: string | null;
   permissionDate?: string | null;
   commissioning?: string | null;
   securedLandHa?: number | string | null;
@@ -31,11 +26,6 @@ const text = (v: unknown): string | undefined => {
   return t === '' ? undefined : t;
 };
 
-/**
- * Nur exakte Treffer werden als DealStructure gewertet. Freitext wie
- * "Anteilsverkauf möglich" oder "n. n." bleibt leer – lieber keine Angabe
- * als eine geratene Struktur in einem Investorendokument.
- */
 function toStructure(v: unknown): DealStructure | undefined {
   const t = text(v)?.toLowerCase();
   if (!t) return undefined;
@@ -44,10 +34,6 @@ function toStructure(v: unknown): DealStructure | undefined {
   return undefined;
 }
 
-/**
- * Formatiert die Inbetriebnahme, ohne Inhalte zu erfinden.
- * "2027-09-01" -> "Q3 2027", "Q2 2028" bleibt, alles andere unverändert.
- */
 function toCod(v: unknown): string {
   const t = text(v);
   if (!t) return '–';
@@ -68,19 +54,6 @@ export interface MappingReport {
   withSpecificYield: number;
 }
 
-/**
- * Mappt EMA-Rohsätze auf ProjectRow.
- *
- * Bewusst NICHT abgeleitet:
- * - `permit`  – `permissionDate` sagt nichts über den Rechtsstand aus
- *               (erteilt? purgé? Frist läuft?), bleibt daher leer
- * - `lat`/`lon` – die Liste führt keine Koordinaten; ohne sie entfällt
- *               der Kartenmarker, die Regionseinfärbung bleibt bestehen
- * - `structure` – nur bei exaktem Treffer, sonst leer
- *
- * Sätze ohne Projektname, Region oder Leistung werden verworfen und im
- * Report gezählt – sie wären in der Tabelle wertlos.
- */
 export function mapEmaProjects(records: EmaProjectRecord[]): {
   rows: ProjectRow[];
   report: MappingReport;
@@ -105,6 +78,7 @@ export function mapEmaProjects(records: EmaProjectRecord[]): {
       gridDistanceKm: num(r.gridDistanceKm),
       areaHa: num(r.securedLandHa),
       structure: toStructure(r.structure),
+      techType: text(r.techType),
       permit: undefined,
       cod: toCod(r.commissioning),
       specificYield: num(r.specificYield),
