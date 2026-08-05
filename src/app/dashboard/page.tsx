@@ -4,23 +4,24 @@ import { ProjectMap } from '@/components/dashboard/ProjectMap'
 import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
 import { formatProjectLocationLabel } from '@/lib/projects/location'
+import { formatEnergyFromMwh, formatPowerFromKwp, formatPowerFromMw } from '@/lib/format/power'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
 
 function formatKwp(value: number | null | undefined) {
   if (!value) return '–'
-  return `${Number(value).toLocaleString('de-DE')} kWp`
+  return formatPowerFromKwp(value)
 }
 
 function formatMw(value: number | null | undefined) {
   if (!value) return '–'
-  return `${Number(value).toLocaleString('de-DE')} MW`
+  return formatPowerFromMw(value)
 }
 
 function formatMwh(value: number | null | undefined) {
   if (!value) return '–'
-  return `${Number(value).toLocaleString('de-DE')} MWh`
+  return formatEnergyFromMwh(value)
 }
 
 function getProjectPower(project: any) {
@@ -157,8 +158,8 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
         <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Listen`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="PV-Leistung" value={totalKwp.toLocaleString('de-DE')} subtitle="kWp aktive Projekte" tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="BESS-Kapazität" value={totalBess.toLocaleString('de-DE')} subtitle="MWh aktive Projekte" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle="Aktive PV-Leistung" tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="BESS-Kapazität" value={formatEnergyFromMwh(totalBess)} subtitle="Aktive Speicherkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
       </div>
 
       {partnerSubmissions.length > 0 && (
