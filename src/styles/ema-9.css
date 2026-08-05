@@ -1,0 +1,192 @@
+@layer base {
+  :root {
+    --ema-navy: #1f2a44;
+    --ema-navy-strong: #07142f;
+    --ema-green: #5cb800;
+    --ema-green-strong: #4e9f00;
+    --ema-surface: #ffffff;
+    --ema-surface-muted: #f7f9fc;
+    --ema-surface-soft: #f1f5f9;
+    --ema-text: #07142f;
+    --ema-text-muted: #64748b;
+    --ema-border: #dce2eb;
+    --ema-danger: #dc2626;
+    --ema-success: #2f8a00;
+    --ema-radius-sm: 0.875rem;
+    --ema-radius-md: 1.125rem;
+    --ema-radius-lg: 1.5rem;
+    --ema-radius-xl: 2rem;
+    --ema-shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
+    --ema-shadow-md: 0 18px 50px rgba(15, 23, 42, 0.08);
+    --ema-shadow-lg: 0 28px 80px rgba(15, 23, 42, 0.12);
+    --ema-content-width: 1480px;
+    --ema-touch-target: 44px;
+    --ema-transition-fast: 160ms;
+    --ema-transition-base: 220ms;
+  }
+
+  html,
+  body {
+    min-width: 320px;
+    overflow-x: hidden;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role='button'],
+  summary,
+  input[type='checkbox'],
+  input[type='radio'] {
+    touch-action: manipulation;
+  }
+
+  input,
+  textarea,
+  select {
+    background-color: #ffffff;
+    color: var(--ema-text);
+    -webkit-text-fill-color: var(--ema-text);
+  }
+
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .ema-page {
+    width: 100%;
+    max-width: var(--ema-content-width);
+    margin-inline: auto;
+  }
+
+  .ema-section-title {
+    color: var(--ema-text);
+    font-size: clamp(1.25rem, 1.1rem + 0.7vw, 1.75rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.12;
+  }
+
+  .ema-section-subtitle {
+    margin-top: 0.25rem;
+    color: var(--ema-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .ema-touch-target {
+    min-height: var(--ema-touch-target);
+    min-width: var(--ema-touch-target);
+  }
+
+  .ema-surface {
+    border: 1px solid rgba(220, 226, 235, 0.92);
+    border-radius: var(--ema-radius-lg);
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: var(--ema-shadow-md);
+  }
+
+  .ema-icon-button {
+    display: inline-flex;
+    min-height: var(--ema-touch-target);
+    min-width: var(--ema-touch-target);
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--ema-border);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--ema-navy-strong);
+    box-shadow: var(--ema-shadow-sm);
+    transition: transform var(--ema-transition-fast) ease, box-shadow var(--ema-transition-fast) ease;
+  }
+
+  .ema-icon-button:active {
+    transform: scale(0.96);
+  }
+
+  .ema-field {
+    width: 100%;
+    min-height: var(--ema-touch-target);
+    border: 1px solid var(--ema-border);
+    border-radius: var(--ema-radius-md);
+    background: #ffffff;
+    padding: 0.75rem 0.875rem;
+    color: var(--ema-text);
+    transition: border-color var(--ema-transition-fast) ease, box-shadow var(--ema-transition-fast) ease;
+  }
+
+  .ema-field:focus {
+    border-color: rgba(92, 184, 0, 0.65);
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(92, 184, 0, 0.12);
+  }
+
+  .ema-field:disabled {
+    cursor: not-allowed;
+    background: var(--ema-surface-soft);
+    color: #94a3b8;
+    opacity: 0.85;
+  }
+
+  .ema-status-success {
+    border-color: rgba(92, 184, 0, 0.24);
+    background: rgba(92, 184, 0, 0.1);
+    color: var(--ema-success);
+  }
+
+  .ema-status-error {
+    border-color: rgba(220, 38, 38, 0.22);
+    background: rgba(220, 38, 38, 0.08);
+    color: var(--ema-danger);
+  }
+
+  .ema-empty-state {
+    display: flex;
+    min-height: 12rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    border: 1px dashed var(--ema-border);
+    border-radius: var(--ema-radius-lg);
+    background: var(--ema-surface-muted);
+    padding: 2rem;
+    text-align: center;
+    color: var(--ema-text-muted);
+  }
+
+  .ema-dashboard-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .ema-dashboard-grid {
+      gap: 1.25rem;
+    }
+  }
+}
