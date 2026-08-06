@@ -54,4 +54,7 @@ export interface ProjektlisteInput {
   projects: ProjectRow[];
   /** optionale URL/Data-URI eines lizenzierten Hero-Fotos; ohne Angabe greift das EMA-Coverpanel */
   heroImage?: string;
+  /** optionales Hero-Foto der Seite „CRE Market Intelligence" (Agri-PV);
+   *  ohne Angabe wird heroImage verwendet */
+  creHeroImage?: string;
 }

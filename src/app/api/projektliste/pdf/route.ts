@@ -9,7 +9,7 @@ import regions from '@/data/geo/france-regions.json'
 import type { RegionCollection } from '@/lib/pdf/projektliste/franceMap'
 import { buildInterFontFaceCss, fileToDataUri } from '@/lib/pdf/projektliste/loadFonts'
 import { mapEmaProjects } from '@/lib/pdf/projektliste/mapEmaProjects'
-import { renderProjektlisteHtml } from '@/lib/pdf/projektliste/template'
+import { renderProjektlisteHtml } from '@/lib/pdf/projektliste/templateCre'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -66,10 +66,12 @@ export async function POST(request: Request) {
   const documentId = parsed.data.documentId ?? `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
   const subtitle = parsed.data.subtitle ?? 'Frankreich – Utility Scale PV'
   const root = process.cwd()
+  const heroImage = fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg')
   const html = renderProjektlisteHtml({
     meta: { title: 'Projektliste', subtitle, documentId, createdAt: new Date().toISOString().slice(0, 10), country: 'Frankreich', countryCode: 'FR', confidentialityNote: 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot' },
     projects: rows,
-    heroImage: fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg'),
+    heroImage,
+    creHeroImage: heroImage,
   }, {
     regions: regions as unknown as RegionCollection,
     fontFaceCss: getFontFaceCss(),
