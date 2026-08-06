@@ -72,7 +72,7 @@ const FILTERS: { value: MapFilter; label: string; active: string; idle: string }
   { value: 'sonstiges', label: 'Sonstiges', active: 'bg-slate-600 text-white', idle: 'bg-slate-100 text-slate-700' },
 ]
 
-export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
+export function ProjectMap({ projects }: { projects: ProjectMapItem[]; projectLists?: unknown[] }) {
   const [filter, setFilter] = useState<MapFilter>('all')
   const locatedProjects = projects.filter((project) => project.location_city || project.location_state)
 
