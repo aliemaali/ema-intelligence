@@ -57,6 +57,7 @@ export default async function DashboardPage() {
     currentProfile?.email ||
     user?.email ||
     'Nutzer'
+  const firstName = displayName.split(/\s+/)[0] || 'Nutzer'
 
   const [projects, submissionsResult, projectListsResult] = await Promise.all([
     getProjects({}),
@@ -117,7 +118,7 @@ export default async function DashboardPage() {
             </div>
             <h1 className="mt-5 text-4xl font-extrabold leading-[0.98] tracking-[-0.055em] text-white sm:text-5xl md:text-6xl">
               Willkommen zurück,<br />
-              <span className="text-[#76d22a]">{displayName}</span> 👋
+              <span className="text-[#76d22a]">{firstName}</span> 👋
             </h1>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/90 md:text-base">Dein Portfolio, deine Projekte und alle wichtigen Aktivitäten auf einen Blick.</p>
             <div className="mt-6 flex flex-wrap gap-3">
