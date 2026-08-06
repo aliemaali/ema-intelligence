@@ -5,12 +5,13 @@ import Link from 'next/link'
 import {
   CircleMarker,
   MapContainer,
+  Marker,
   Popup,
   TileLayer,
   useMap,
   useMapEvents,
 } from 'react-leaflet'
-import type { LatLngBoundsExpression } from 'leaflet'
+import { divIcon } from 'leaflet'
 
 export type ProjectMapItem = {
   id: string
@@ -104,7 +105,7 @@ function MapViewport({ projects }: { projects: LocatedProject[] }) {
       return
     }
 
-    const bounds = projects.map((project) => [project.latitude, project.longitude]) as LatLngBoundsExpression
+    const bounds: [number, number][] = projects.map((project) => [project.latitude, project.longitude])
     map.flyToBounds(bounds, {
       animate: true,
       duration: 0.65,
@@ -118,7 +119,8 @@ function MapViewport({ projects }: { projects: LocatedProject[] }) {
 
 function ClusterLayer({ projects }: { projects: LocatedProject[] }) {
   const [zoom, setZoom] = useState(5)
-  const map = useMapEvents({
+  const map = useMap()
+  useMapEvents({
     zoomend: () => setZoom(map.getZoom()),
   })
 
@@ -146,12 +148,17 @@ function ClusterLayer({ projects }: { projects: LocatedProject[] }) {
       {clusters.map((cluster) => {
         if (cluster.projects.length > 1) {
           const radius = Math.min(24, 13 + Math.log2(cluster.projects.length) * 3)
+          const icon = divIcon({
+            className: 'ema-project-cluster',
+            html: `<span style="width:${radius * 2}px;height:${radius * 2}px">${cluster.projects.length.toLocaleString('de-DE')}</span>`,
+            iconSize: [radius * 2, radius * 2],
+            iconAnchor: [radius, radius],
+          })
           return (
-            <CircleMarker
+            <Marker
               key={cluster.key}
-              center={[cluster.latitude, cluster.longitude]}
-              radius={radius}
-              pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#1F2A44', fillOpacity: 0.95 }}
+              position={[cluster.latitude, cluster.longitude]}
+              icon={icon}
               eventHandlers={{
                 click: () => map.flyTo([cluster.latitude, cluster.longitude], Math.min(13, zoom + 2), { animate: true, duration: 0.55 }),
               }}
@@ -161,7 +168,7 @@ function ClusterLayer({ projects }: { projects: LocatedProject[] }) {
                 <br />
                 Zum Auflösen hineinzoomen.
               </Popup>
-            </CircleMarker>
+            </Marker>
           )
         }
 
