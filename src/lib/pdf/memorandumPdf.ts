@@ -119,8 +119,8 @@ function resolveMapPoint(data: MemorandumPdfData): Point {
 
 async function createDashboardMapImage(data: MemorandumPdfData): Promise<LoadedImage | null> {
   try {
-    const module = await import('@svg-maps/germany')
-    const germany = module.default
+    const svgMaps = await import('@svg-maps/germany')
+    const germany = svgMaps.default
     const point = resolveMapPoint(data)
     const [minX, minY, vbW, vbH] = germany.viewBox.split(' ').map(Number)
     const markerX = minX + (point.x / 100) * vbW
@@ -316,3 +316,4 @@ export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Bl
   try { renderPage(doc,data,logo,hero,flag,map) } catch(error){throw new PdfGenerationError('Seite 1 erzeugen','Das einseitige A4-Hochformat konnte nicht erzeugt werden.',error)}
   try { return doc.output('blob') } catch(error){throw new PdfGenerationError('Blob erzeugen','Die PDF-Datei konnte nicht fertiggestellt werden.',error)}
 }
+
