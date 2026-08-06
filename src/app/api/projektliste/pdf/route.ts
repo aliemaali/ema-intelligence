@@ -38,6 +38,7 @@ const requestSchema = z.object({
   records: z.array(projectRecordSchema).min(1).max(2_000),
   documentId: z.string().trim().min(1).max(120).optional(),
   subtitle: z.string().trim().min(1).max(240).optional(),
+  language: z.enum(['de', 'en']).default('de'),
 })
 
 let fontFaceCssCache: string | null = null
@@ -64,11 +65,12 @@ export async function POST(request: Request) {
   if (rows.length === 0) return NextResponse.json({ error: 'Keine verwertbaren Projektzeilen.', report }, { status: 422 })
 
   const documentId = parsed.data.documentId ?? `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
-  const subtitle = parsed.data.subtitle ?? 'Frankreich – Utility Scale PV'
+  const language = parsed.data.language
+  const subtitle = parsed.data.subtitle ?? (language === 'de' ? 'Frankreich – Utility Scale PV' : 'France – Utility Scale PV')
   const root = process.cwd()
   const heroImage = fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg')
   const html = renderProjektlisteHtml({
-    meta: { title: 'Projektliste', subtitle, documentId, createdAt: new Date().toISOString().slice(0, 10), country: 'Frankreich', countryCode: 'FR', confidentialityNote: 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot' },
+    meta: { language, title: language === 'de' ? 'Projektliste' : 'Project List', subtitle, documentId, createdAt: new Date().toISOString().slice(0, 10), country: language === 'de' ? 'Frankreich' : 'France', countryCode: 'FR', confidentialityNote: language === 'de' ? 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot' : 'Confidential · solely for review by the named recipient · not a public offer' },
     projects: rows,
     heroImage,
     creHeroImage: heroImage,
@@ -95,3 +97,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Die Projektliste konnte nicht als PDF erzeugt werden.' }, { status: 500 })
   } finally { await browser?.close().catch(() => undefined) }
 }
+
