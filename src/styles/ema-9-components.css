@@ -269,3 +269,129 @@ main > * {
     animation: none !important;
   }
 }
+
+
+/* Sprint 11 — restrained premium motion */
+@keyframes ema-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ema-sheet-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes ema-marker-in {
+  from { opacity: 0; transform: scale(0.72); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.ema-kpi-card {
+  animation: ema-card-in 420ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.ema-kpi-card:nth-child(2) { animation-delay: 70ms; }
+.ema-kpi-card:nth-child(3) { animation-delay: 140ms; }
+.ema-map-card { animation: ema-card-in 460ms 100ms cubic-bezier(.2,.8,.2,1) both; }
+
+.ema-map-chip {
+  display: inline-flex;
+  min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: .4rem;
+  border: 1px solid #dfe4ea;
+  border-radius: 999px;
+  background: #fff;
+  padding: .55rem .9rem;
+  color: #475467;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(31,42,68,.05);
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, transform 160ms ease, box-shadow 180ms ease;
+}
+
+.ema-map-chip:hover {
+  border-color: rgba(92,184,0,.5);
+  color: #367e00;
+  transform: translateY(-1px);
+}
+
+.ema-map-chip:active { transform: scale(.975); }
+
+.ema-map-chip-active {
+  border-color: #1f2a44;
+  background: #1f2a44;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(31,42,68,.18);
+}
+
+.ema-international-map .leaflet-control-zoom a {
+  min-width: 44px;
+  min-height: 44px;
+  border-color: #dfe4ea;
+  color: #1f2a44;
+  line-height: 42px;
+}
+
+.ema-international-map .leaflet-interactive {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ema-marker-in 260ms cubic-bezier(.2,.8,.2,1) both;
+  transition: opacity 180ms ease, stroke-width 180ms ease;
+}
+
+.ema-international-map .leaflet-interactive:hover {
+  stroke-width: 5;
+}
+
+details > div {
+  transform-origin: top;
+}
+
+details[open] > div {
+  animation: ema-card-in 220ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+[role='dialog'] {
+  animation: ema-sheet-in 240ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+button,
+[role='button'],
+.nav-item,
+.app-bottom-nav a {
+  transition: transform 160ms ease, color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+button:active,
+[role='button']:active,
+.app-bottom-nav a:active {
+  transform: scale(.975);
+}
+
+@media (max-width: 767px) {
+  .ema-international-map .leaflet-control-zoom {
+    margin-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ema-kpi-card,
+  .ema-map-card,
+  .ema-international-map .leaflet-interactive,
+  details[open] > div,
+  [role='dialog'] {
+    animation: none !important;
+  }
+
+  .ema-map-chip,
+  button,
+  [role='button'],
+  .nav-item,
+  .app-bottom-nav a {
+    transition-duration: .01ms !important;
+  }
+}
