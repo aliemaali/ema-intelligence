@@ -321,11 +321,12 @@ main > * {
 
 .ema-map-chip:active { transform: scale(.975); }
 
-.ema-map-chip-active {
-  border-color: #1f2a44;
-  background: #1f2a44;
-  color: #fff;
-  box-shadow: 0 8px 20px rgba(31,42,68,.18);
+.ema-map-chip-active,
+.ema-map-chip-active:hover {
+  border-color: #5cb800;
+  background: #5cb800;
+  color: #102300;
+  box-shadow: 0 8px 20px rgba(92,184,0,.24);
 }
 
 .ema-international-map .leaflet-control-zoom a {
