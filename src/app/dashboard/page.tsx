@@ -85,15 +85,30 @@ export default async function DashboardPage() {
 
   return (
     <div className="w-full max-w-full space-y-6 overflow-x-hidden md:mx-auto md:max-w-[1480px] md:space-y-7">
-      <section className="relative mx-3 overflow-hidden rounded-[2rem] bg-white shadow-[0_16px_45px_rgba(15,23,42,0.06)] md:mx-0">
-        <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[48%] overflow-hidden md:block"><img src="/hero-dashboard.png" alt="" className="h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-r from-white via-white/35 to-transparent" /></div>
-        <div className="relative z-10 max-w-2xl px-6 py-7 md:max-w-[56%] md:px-8 md:py-10">
-          <TimeGreeting />
-          <h1 className="mt-1 text-4xl font-extrabold leading-[1] tracking-[-0.05em] text-[#07142F] sm:text-5xl md:text-5xl">Willkommen zurück,<br /><span className="text-[#2F8A00]">Ali Ünlüer</span> 👋</h1>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">Dein aktueller Überblick über Projekte, Einreichungen und Standorte.</p>
-          <div className="mt-6 flex flex-wrap items-center gap-3"><Link href="/projects/new" className="btn-primary px-5 py-3">+ Neues Projekt</Link><Link href="/projects" className="btn-secondary px-5 py-3">Alle Projekte</Link></div>
+      <section className="relative isolate min-h-[31rem] overflow-hidden bg-[#1F2A44] md:min-h-[25rem]">
+        <div className="absolute inset-0">
+          <img src="/hero-dashboard.png" alt="Erneuerbare Energieprojekte" className="h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1F2A44]/82 via-[#1F2A44]/38 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1F2A44]/20 via-transparent to-[#1F2A44]/20" />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
         </div>
-        <div className="relative h-44 md:hidden"><img src="/hero-dashboard.png" alt="Energieprojekte" className="h-full w-full object-cover" /><div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white to-transparent" /></div>
+        <div className="relative z-10 flex min-h-[31rem] items-end px-5 pb-12 pt-8 md:min-h-[25rem] md:items-center md:px-8 md:pb-10 md:pt-10">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-[#1F2A44]/48 px-3 py-1.5 text-white backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-[#5CB800] shadow-[0_0_14px_rgba(92,184,0,0.9)]" />
+              <TimeGreeting />
+            </div>
+            <h1 className="mt-5 text-4xl font-extrabold leading-[0.98] tracking-[-0.055em] text-white sm:text-5xl md:text-6xl">
+              Willkommen zurück,<br />
+              <span className="text-[#76d22a]">Ali Ünlüer</span> 👋
+            </h1>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/90 md:text-base">Dein Portfolio, deine Projekte und alle wichtigen Aktivitäten auf einen Blick.</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/projects/new" className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3 text-sm font-extrabold text-[#0f151a] shadow-[0_16px_35px_rgba(92,184,0,0.24)] transition hover:-translate-y-0.5 hover:bg-[#6bcf15]">+ Neues Projekt</Link>
+              <Link href="/projects" className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-white/45 bg-white px-5 py-3 text-sm font-extrabold text-[#07142F] shadow-[0_12px_28px_rgba(15,23,42,0.16)] transition hover:-translate-y-0.5 hover:bg-white/95">Alle Projekte <ArrowRight className="h-4 w-4" /></Link>
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
