@@ -2,6 +2,7 @@ import Link from 'next/link'
 import {
   ArrowRight,
   BatteryCharging,
+  Clock3,
   FilePlus2,
   FolderOpen,
   Inbox,
@@ -54,10 +55,22 @@ const quickActions = [
   { href: '/ai', label: 'EMA AI', icon: Zap },
 ]
 
+const aiActions = [
+  { href: '/ai', label: 'Investor finden' },
+  { href: '/project-analysis', label: 'Projekt analysieren' },
+  { href: '/expose', label: 'Exposé erstellen' },
+  { href: '/ai', label: 'Wirtschaftlichkeit prüfen' },
+]
+
 const submissionStatusLabels: Record<string, string> = {
   eingereicht: 'Neu eingereicht',
   in_pruefung: 'In Prüfung',
   rueckfrage: 'Rückfrage offen',
+}
+
+function formatActivityDate(value: string | null | undefined) {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(value))
 }
 
 export default async function DashboardPage() {
@@ -104,15 +117,35 @@ export default async function DashboardPage() {
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
 
+  const activities = [
+    ...partnerSubmissions.map((submission: any) => ({
+      id: `submission-${submission.id}`,
+      label: submission.project_name,
+      detail: `Einreichung · ${submissionStatusLabels[submission.status] ?? submission.status}`,
+      date: submission.submitted_at,
+      href: `/partner-submissions/${submission.id}`,
+    })),
+    ...(projectListsResult.data ?? []).slice(0, 5).map((list: any, index: number) => ({
+      id: `list-${list.country}-${index}`,
+      label: `${list.country || 'Projektübersicht'}`,
+      detail: `${Number(list.project_count ?? 0)} Projekte · ${formatPowerFromKwp(Number(list.total_kwp ?? 0))}`,
+      date: list.created_at,
+      href: '/projects',
+    })),
+  ]
+    .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
+    .slice(0, 5)
+
   return (
     <div className="min-h-full w-full max-w-full overflow-x-hidden bg-[#11161c] pb-8 text-white md:mx-auto md:max-w-[1480px]">
-      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#11161c]">
+      <section className="relative isolate min-h-[27rem] overflow-hidden bg-[#11161c] md:min-h-[32rem]">
         <div className="absolute inset-0">
-          <img src="/hero-dashboard.png" alt="Erneuerbare Energieprojekte" className="h-full w-full object-cover object-center opacity-75" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#11161c] via-[#11161c]/80 to-[#11161c]/15" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#11161c] via-transparent to-black/20" />
+          <img src="/hero-dashboard.png" alt="Erneuerbare Energieprojekte" className="h-full w-full object-cover object-center opacity-80" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0b1118] via-[#0b1118]/78 to-[#0b1118]/10" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#11161c] via-[#11161c]/12 to-black/25" />
+          <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-[#11161c] to-transparent" />
         </div>
-        <div className="relative z-10 px-5 pb-8 pt-8 md:px-8 md:pb-10 md:pt-12">
+        <div className="relative z-10 flex min-h-[27rem] items-end px-5 pb-10 pt-12 md:min-h-[32rem] md:px-8 md:pb-14">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1.5 text-xs font-bold text-slate-300 backdrop-blur-md">
               <span className="h-2 w-2 rounded-full bg-[#5CB800] shadow-[0_0_14px_rgba(92,184,0,0.9)]" />
@@ -135,7 +168,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="space-y-6 px-4 pt-5 md:px-8 md:pt-7">
+      <div className="-mt-4 space-y-6 px-4 pt-0 md:px-8">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 md:gap-5">
           <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Übersichten`} icon={<FolderOpen className="h-5 w-5" />} />
           <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle={`${formatPowerFromKwp(activeKwp)} aktiv · ${formatPowerFromKwp(listKwp)} weitere`} icon={<Zap className="h-5 w-5" />} />
@@ -158,6 +191,36 @@ export default async function DashboardPage() {
             ))}
           </div>
         </section>
+
+        <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <section className="relative overflow-hidden rounded-[1.6rem] border border-[#5CB800]/20 bg-gradient-to-br from-[#17231b] via-[#172028] to-[#111820] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:p-6">
+            <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-[#5CB800]/12 blur-3xl" />
+            <div className="relative">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/12 text-[#76d22a] shadow-[0_0_34px_rgba(92,184,0,0.12)]"><Sparkles className="h-6 w-6" /></span>
+                <div><p className="text-xs font-extrabold uppercase tracking-[0.17em] text-[#76d22a]">EMA AI</p><h2 className="mt-1 text-2xl font-extrabold tracking-[-0.04em] text-white">Frag EMA …</h2></div>
+              </div>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-300">Nutze die vorhandenen KI-Funktionen für Recherche, Analyse und nächste Schritte. Schreibende Aktionen bleiben bestätigungspflichtig.</p>
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
+                {aiActions.map((action) => <Link key={`${action.href}-${action.label}`} href={action.href} className="rounded-xl border border-white/8 bg-white/[0.045] px-3 py-3 text-sm font-bold text-slate-100 transition hover:border-[#5CB800]/30 hover:bg-[#5CB800]/8">{action.label}</Link>)}
+              </div>
+              <Link href="/ai" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#5CB800] px-4 py-2.5 text-sm font-extrabold text-[#0f151a]">EMA AI öffnen <ArrowRight className="h-4 w-4" /></Link>
+            </div>
+          </section>
+
+          <section className="rounded-[1.6rem] border border-white/8 bg-[#1a2028]/95 p-5 shadow-[0_22px_70px_rgba(0,0,0,0.2)]">
+            <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#76d22a]">Live aus EMA</p><h2 className="mt-1 text-xl font-extrabold text-white">Aktivitäten</h2></div><Clock3 className="h-5 w-5 text-slate-500" /></div>
+            <div className="mt-4 space-y-2.5">
+              {activities.length > 0 ? activities.map((activity) => (
+                <Link key={activity.id} href={activity.href} className="flex items-center gap-3 rounded-xl border border-white/7 bg-white/[0.03] p-3 transition hover:border-[#5CB800]/25 hover:bg-white/[0.05]">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#5CB800] shadow-[0_0_12px_rgba(92,184,0,0.7)]" />
+                  <div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold text-white">{activity.label}</p><p className="mt-0.5 truncate text-xs text-slate-400">{activity.detail}</p></div>
+                  <span className="shrink-0 text-[10px] font-bold text-slate-500">{formatActivityDate(activity.date)}</span>
+                </Link>
+              )) : <p className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-400">Noch keine aktuellen Aktivitäten vorhanden.</p>}
+            </div>
+          </section>
+        </div>
 
         {partnerSubmissions.length > 0 && (
           <section className="overflow-hidden rounded-[1.6rem] border border-[#5CB800]/18 bg-[#1a2028]/95 shadow-[0_22px_70px_rgba(0,0,0,0.2)]">
