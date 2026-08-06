@@ -7,6 +7,7 @@ import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalend
 import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
 import '@/styles/globals.css'
 import '@/styles/ema-9.css'
+import '@/styles/ema-9-components.css'
 
 const inter = Inter({
   subsets: ['latin'],
