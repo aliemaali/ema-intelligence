@@ -6,7 +6,6 @@ import {
   FilePlus2,
   FolderOpen,
   Inbox,
-  Layers,
   ListPlus,
   Plus,
   Sparkles,
@@ -115,8 +114,6 @@ export default async function DashboardPage() {
   const activeKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
   const totalKwp = activeKwp + listKwp
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
-  const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
-
   const activities = [
     ...partnerSubmissions.map((submission: any) => ({
       id: `submission-${submission.id}`,
@@ -246,9 +243,8 @@ export default async function DashboardPage() {
             <CountryProjectsAccordion projects={projects} projectLists={(projectListsResult.data ?? []) as any[]} />
           </section>
 
-          <section className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-[0_22px_70px_rgba(0,0,0,0.2)] md:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3"><div><h2 className="text-xl font-extrabold text-[#172033] md:text-2xl">Projektstandorte</h2><p className="mt-1 text-sm text-[#667085]">Standorte und Projektverteilung.</p></div><span className="inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold text-[#76d22a]"><Layers className="h-4 w-4" /> {mapProjects.length}</span></div>
-            <div className="overflow-hidden rounded-[1.3rem]"><ProjectMap projects={mapProjects} /></div>
+          <section className="ema-map-card overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-4 shadow-[0_14px_40px_rgba(31,42,68,0.10)] md:p-5">
+            <ProjectMap projects={projects as any[]} projectLists={(projectListsResult.data ?? []) as any[]} />
           </section>
         </div>
       </div>
