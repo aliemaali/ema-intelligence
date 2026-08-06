@@ -91,6 +91,32 @@ function countryLabel(project: ProjectMapItem) {
   return String(project.location_country || '').trim() || 'Ohne Länderzuordnung'
 }
 
+
+function MapSizeSync() {
+  const map = useMap()
+
+  useEffect(() => {
+    let frame = requestAnimationFrame(() => map.invalidateSize({ animate: false }))
+    const timer = window.setTimeout(() => map.invalidateSize({ animate: false }), 280)
+    const container = map.getContainer()
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => {
+          cancelAnimationFrame(frame)
+          frame = requestAnimationFrame(() => map.invalidateSize({ animate: false }))
+        })
+
+    observer?.observe(container)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+      observer?.disconnect()
+    }
+  }, [map])
+
+  return null
+}
+
 function MapViewport({ projects }: { projects: LocatedProject[] }) {
   const map = useMap()
 
@@ -266,8 +292,8 @@ export function InternationalProjectMap({
         )}
       </div>
 
-      <div className="no-scrollbar -mx-1 overflow-x-auto px-1 pb-1">
-        <div className="flex min-w-max gap-2">
+      <div className="px-1 pb-1">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setActiveCountry('all')}
@@ -300,9 +326,13 @@ export function InternationalProjectMap({
           className="h-full w-full"
         >
           <TileLayer
-            attribution="&copy; OpenStreetMap"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenStreetMap contributors"
+            url="/api/map-tiles/{z}/{x}/{y}"
+            detectRetina
+            keepBuffer={3}
+            updateWhenIdle
           />
+          <MapSizeSync />
           <MapViewport projects={visibleProjects} />
           <ClusterLayer projects={visibleProjects} />
         </MapContainer>
