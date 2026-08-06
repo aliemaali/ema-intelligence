@@ -44,7 +44,7 @@ export function ConfirmDeleteDialog({
           Investor löschen?
         </h3>
         <p className="text-[12.5px] text-slate-500 leading-relaxed mb-5">
-          „{investor.company_name}" wird dauerhaft entfernt, inklusive
+          „{investor.company_name}“ wird dauerhaft entfernt, inklusive
           Kontakthistorie, Notizen und Projektverknüpfungen. Diese Aktion kann
           nicht rückgängig gemacht werden.
         </p>
@@ -69,3 +69,4 @@ export function ConfirmDeleteDialog({
     </div>
   );
 }
+

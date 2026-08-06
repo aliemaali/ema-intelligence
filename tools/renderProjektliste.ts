@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { renderProjektlisteHtml } from '../src/lib/pdf/projektliste/template';
+import { renderProjektlisteHtml } from '../src/lib/pdf/projektliste/templateCre';
 import { sampleInput } from '../src/lib/pdf/projektliste/sampleData';
 import type { RegionCollection } from '../src/lib/pdf/projektliste/franceMap';
 import { buildInterFontFaceCss, fileToDataUri } from '../src/lib/pdf/projektliste/loadFonts';
@@ -60,3 +60,4 @@ execFileSync(CHROME, [
   `file://${htmlPath}`,
 ]);
 console.log(`PDF   ${(fs.statSync(pdfPath).size / 1024).toFixed(0)} kB  -> ${pdfPath}`);
+

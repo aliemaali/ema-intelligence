@@ -6,6 +6,8 @@ export type PermitStatus =
 
 export type DealStructure = 'Share Deal' | 'Asset Deal';
 
+export type ProjectListLanguage = 'de' | 'en';
+
 export interface ProjectRow {
   /** laufende Nummer, wird beim Rendern vergeben */
   no?: number;
@@ -39,13 +41,14 @@ export interface ProjectRow {
 }
 
 export interface DocumentMeta {
+  language?: ProjectListLanguage;
   title: string;
   subtitle: string;
   documentId: string;
   /** ISO-Datum */
   createdAt: string;
   country: string;
-  countryCode: 'FR';
+  countryCode: string;
   confidentialityNote: string;
 }
 
@@ -58,3 +61,4 @@ export interface ProjektlisteInput {
    *  ohne Angabe wird heroImage verwendet */
   creHeroImage?: string;
 }
+

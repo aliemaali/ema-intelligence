@@ -256,7 +256,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
         </button>
       </div>
       <div className="px-3.5 py-1.5 text-center text-[11px]" style={{ background: '#FFF8E1', color: '#7A5A00' }}>
-        Öffnet Druckansicht in neuem Tab → im Druckdialog „Als PDF speichern" wählen. (Bei
+        Öffnet Druckansicht in neuem Tab → im Druckdialog „Als PDF speichern“ wählen. (Bei
         Pop-up-Blockierung: Browser-Einstellung für diese Seite anpassen)
       </div>
 
@@ -316,7 +316,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
               1. Projektübersicht
             </h1>
             <p className="mb-2 text-[9.5px] leading-relaxed">
-              Das Projekt „{project.projektname}" umfasst die Errichtung einer
+              Das Projekt „{project.projektname}“ umfasst die Errichtung einer
               Photovoltaik-Großanlage mit einer installierten Leistung von{' '}
               {num(project.anlagenleistungKwp)} kWp. Bei einem spezifischen Jahresertrag von{' '}
               {num(project.spezErtragKwhKwp)} kWh/kWp und einer angenommenen jährlichen
@@ -487,3 +487,4 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
     </div>
   )
 }
+
