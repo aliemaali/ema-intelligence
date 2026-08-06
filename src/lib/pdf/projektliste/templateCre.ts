@@ -5,6 +5,7 @@ import {
   type RenderOptions,
 } from './template';
 import type { ProjektlisteInput } from './types';
+import { localizeProjectListHtml } from './localization';
 
 /**
  * Additive CRE-Erweiterung des bestehenden Projektlisten-Templates.
@@ -41,7 +42,7 @@ export function renderProjektlisteHtml(
 
   const inserted = `${withStyles.slice(0, coverEnd + 10)}\n${pageHtml}${withStyles.slice(coverEnd + 10)}`;
   let seenCover = false;
-  return inserted.replace(
+  const numbered = inserted.replace(
     /Seite\s*<span class="num">(\d+)<\/span>\s*\/\s*(\d+)/g,
     (_match, pageRaw: string) => {
       const page = Number(pageRaw);
@@ -57,4 +58,6 @@ export function renderProjektlisteHtml(
       return `Seite <span class="num">${page + 1}</span> / ${totalPages}`;
     },
   );
+  return localizeProjectListHtml(numbered, input.meta.language ?? 'de');
 }
+
