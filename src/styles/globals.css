@@ -32,7 +32,7 @@
     --sidebar-width:        272px;
     --sidebar-width-collapsed: 64px;
     --header-height:        92px;
-    --bottom-nav-height:    86px;
+    --bottom-nav-height:    70px;
     --ema-blue:             #132060;
     --ema-blue-dark:        #07142F;
     --ema-green:            #5CB800;
@@ -109,7 +109,7 @@
 
 @layer components {
   .app-shell {
-    @apply flex h-screen overflow-hidden bg-transparent;
+    @apply flex h-[100dvh] overflow-hidden bg-transparent;
   }
 
   .app-sidebar {
@@ -139,7 +139,7 @@
 
   .app-content {
     @apply flex-1 overflow-y-auto;
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
   }
 
   @media (min-width: 768px) {
@@ -148,11 +148,11 @@
 
   .app-bottom-nav {
     @apply fixed z-50 flex items-center justify-around bg-white/95 border border-border md:hidden;
-    left: 1rem;
-    right: 1rem;
-    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    left: 0.75rem;
+    right: 0.75rem;
+    bottom: env(safe-area-inset-bottom);
     height: var(--bottom-nav-height);
-    border-radius: 1.8rem;
+    border-radius: 1.35rem;
     backdrop-filter: blur(18px);
     box-shadow: 0 18px 55px rgba(15, 23, 42, 0.13);
   }
