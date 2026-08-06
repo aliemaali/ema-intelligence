@@ -45,7 +45,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} overflow-x-hidden font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
@@ -54,11 +54,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
+            <a
+              href="#ema-main-content"
+              className="fixed left-3 top-3 z-[9999] -translate-y-24 rounded-xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-xl transition-transform focus:translate-y-0"
+            >
+              Zum Hauptinhalt
+            </a>
+            <div id="ema-main-content" tabIndex={-1} className="min-h-dvh w-full max-w-full overflow-x-clip">
+              {children}
+            </div>
             <DashboardCalendarShortcut />
             <DashboardTemplateShortcut />
             <Toaster
               position="top-center"
+              mobileOffset={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}
               toastOptions={{
                 style: {
                   background: 'var(--toast-bg)',
