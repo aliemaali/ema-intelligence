@@ -11,54 +11,35 @@ type ProjectMapItem = {
   project_type?: string | null
   location_city?: string | null
   location_state?: string | null
-  location_country?: string | null
-  location_lat?: number | string | null
-  location_lng?: number | string | null
-  pv_kwp?: number | null
   pv_mwp?: number | null
   bess_mwh?: number | null
   status?: string | null
 }
 
-type LocatedProject = ProjectMapItem & {
-  latitude: number
-  longitude: number
-  country: string
-}
-
 type Point = { x: number; y: number }
+type MapFilter = 'all' | 'pv' | 'bess' | 'hybrid' | 'wind' | 'rechenzentrum' | 'sonstiges'
 
-const COUNTRY_FLAGS: Record<string, string> = {
-  Deutschland: '🇩🇪',
-  Frankreich: '🇫🇷',
-  Italien: '🇮🇹',
-  Spanien: '🇪🇸',
-  Portugal: '🇵🇹',
-  Niederlande: '🇳🇱',
-  Belgien: '🇧🇪',
-  Österreich: '🇦🇹',
-  Schweiz: '🇨🇭',
-  Polen: '🇵🇱',
-  Dänemark: '🇩🇰',
-  Türkei: '🇹🇷',
+const STATE_POINTS: Record<string, Point> = {
+  'Schleswig-Holstein': { x: 49, y: 10 }, Hamburg: { x: 48, y: 19 }, Bremen: { x: 36, y: 27 },
+  Niedersachsen: { x: 42, y: 31 }, 'Mecklenburg-Vorpommern': { x: 66, y: 23 }, Brandenburg: { x: 67, y: 41 },
+  Berlin: { x: 70, y: 40 }, Sachsen: { x: 68, y: 59 }, 'Sachsen-Anhalt': { x: 56, y: 45 },
+  Thüringen: { x: 54, y: 57 }, Hessen: { x: 43, y: 58 }, 'Nordrhein-Westfalen': { x: 28, y: 49 },
+  'Rheinland-Pfalz': { x: 31, y: 66 }, Saarland: { x: 24, y: 73 }, 'Baden-Württemberg': { x: 38, y: 82 },
+  Bayern: { x: 59, y: 79 },
 }
 
-const COUNTRY_BOUNDS: Record<string, { south: number; west: number; north: number; east: number }> = {
-  Deutschland: { south: 47.1, west: 5.5, north: 55.2, east: 15.5 },
-  Frankreich: { south: 41.0, west: -5.5, north: 51.5, east: 10.0 },
-  Italien: { south: 35.0, west: 6.0, north: 47.5, east: 19.0 },
+const CITY_POINTS: Record<string, Point> = {
+  Worms: { x: 34, y: 69 }, Berlin: { x: 70, y: 40 }, Hamburg: { x: 48, y: 19 },
+  München: { x: 59, y: 89 }, Stuttgart: { x: 39, y: 79 }, Frankfurt: { x: 41, y: 62 },
+  Leipzig: { x: 61, y: 53 }, Dresden: { x: 70, y: 57 }, Köln: { x: 28, y: 52 }, Hannover: { x: 43, y: 35 },
 }
 
-function validCoordinate(value: unknown, min: number, max: number) {
-  const coordinate = Number(value)
-  return Number.isFinite(coordinate) && coordinate >= min && coordinate <= max ? coordinate : null
+function formatKwp(value?: number | null) {
+  if (!value) return '–'
+  return `${Number(value).toLocaleString('de-DE')} kWp`
 }
 
-function countryLabel(project: ProjectMapItem) {
-  return String(project.location_country || '').trim() || 'Ohne Länderzuordnung'
-}
-
-function projectKind(project: ProjectMapItem) {
+function projectKind(project: ProjectMapItem): Exclude<MapFilter, 'all'> {
   if (project.project_type === 'bess') return 'bess'
   if (project.project_type === 'hybrid') return 'hybrid'
   if (project.project_type === 'wind') return 'wind'
@@ -67,8 +48,12 @@ function projectKind(project: ProjectMapItem) {
   return 'pv'
 }
 
-function markerColor(project: ProjectMapItem) {
-  const kind = projectKind(project)
+function getPoint(project: ProjectMapItem, index: number): Point {
+  const base = CITY_POINTS[project.location_city ?? ''] ?? STATE_POINTS[project.location_state ?? ''] ?? { x: 50, y: 50 }
+  return { x: base.x + ((index % 3) - 1) * 1.4, y: base.y + (Math.floor(index / 3) % 3) * 1.2 }
+}
+
+function markerColor(kind: Exclude<MapFilter, 'all'>) {
   if (kind === 'bess') return '#2563EB'
   if (kind === 'hybrid') return '#7C3AED'
   if (kind === 'wind') return '#0891B2'
@@ -77,194 +62,105 @@ function markerColor(project: ProjectMapItem) {
   return '#5CB800'
 }
 
-function formatPower(project: ProjectMapItem) {
-  const value = Number(project.pv_kwp ?? project.pv_mwp ?? 0)
-  return value > 0 ? `${value.toLocaleString('de-DE')} kWp` : 'Leistung offen'
-}
+const FILTERS: { value: MapFilter; label: string; active: string; idle: string }[] = [
+  { value: 'all', label: 'Alle', active: 'bg-[#07142F] text-white', idle: 'bg-white text-[#07142F]' },
+  { value: 'pv', label: 'PV', active: 'bg-[#5CB800] text-white', idle: 'bg-[#5CB800]/10 text-[#2F8A00]' },
+  { value: 'bess', label: 'BESS', active: 'bg-blue-600 text-white', idle: 'bg-blue-50 text-blue-700' },
+  { value: 'hybrid', label: 'Hybrid', active: 'bg-violet-600 text-white', idle: 'bg-violet-50 text-violet-700' },
+  { value: 'wind', label: 'Wind', active: 'bg-cyan-600 text-white', idle: 'bg-cyan-50 text-cyan-700' },
+  { value: 'rechenzentrum', label: 'Rechenzentrum', active: 'bg-orange-600 text-white', idle: 'bg-orange-50 text-orange-700' },
+  { value: 'sonstiges', label: 'Sonstiges', active: 'bg-slate-600 text-white', idle: 'bg-slate-100 text-slate-700' },
+]
 
-function mapBounds(projects: LocatedProject[], country: string) {
-  if (country !== 'all' && COUNTRY_BOUNDS[country]) return COUNTRY_BOUNDS[country]
-  if (projects.length === 0) return { south: 35, west: -12, north: 60, east: 30 }
+export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
+  const [filter, setFilter] = useState<MapFilter>('all')
+  const locatedProjects = projects.filter((project) => project.location_city || project.location_state)
 
-  const latitudes = projects.map((project) => project.latitude)
-  const longitudes = projects.map((project) => project.longitude)
-  const south = Math.min(...latitudes)
-  const north = Math.max(...latitudes)
-  const west = Math.min(...longitudes)
-  const east = Math.max(...longitudes)
-  const latPadding = Math.max(1.5, (north - south) * 0.16)
-  const lngPadding = Math.max(1.5, (east - west) * 0.16)
-
-  return {
-    south: south - latPadding,
-    west: west - lngPadding,
-    north: north + latPadding,
-    east: east + lngPadding,
-  }
-}
-
-function projectPoint(project: LocatedProject, bounds: ReturnType<typeof mapBounds>): Point {
-  const width = Math.max(0.01, bounds.east - bounds.west)
-  const height = Math.max(0.01, bounds.north - bounds.south)
-  return {
-    x: 8 + ((project.longitude - bounds.west) / width) * 84,
-    y: 8 + ((bounds.north - project.latitude) / height) * 84,
-  }
-}
-
-export function ProjectMap({ projects }: { projects: ProjectMapItem[]; projectLists?: unknown[] }) {
-  const [activeCountry, setActiveCountry] = useState('all')
-  const [openCluster, setOpenCluster] = useState<string | null>(null)
-
-  const locatedProjects = useMemo<LocatedProject[]>(() => projects.flatMap((project) => {
-    const latitude = validCoordinate(project.location_lat, -90, 90)
-    const longitude = validCoordinate(project.location_lng, -180, 180)
-    if (latitude === null || longitude === null) return []
-    return [{ ...project, latitude, longitude, country: countryLabel(project) }]
-  }), [projects])
-
-  const countries = useMemo(() => Array.from(new Set(
-    projects.map(countryLabel).filter((country) => country !== 'Ohne Länderzuordnung'),
-  )).sort((a, b) => a.localeCompare(b, 'de')), [projects])
+  const counts = locatedProjects.reduce<Record<Exclude<MapFilter, 'all'>, number>>((acc, project) => {
+    acc[projectKind(project)] += 1
+    return acc
+  }, { pv: 0, bess: 0, hybrid: 0, wind: 0, rechenzentrum: 0, sonstiges: 0 })
 
   const visibleProjects = useMemo(
-    () => activeCountry === 'all'
-      ? locatedProjects
-      : locatedProjects.filter((project) => project.country === activeCountry),
-    [activeCountry, locatedProjects],
+    () => filter === 'all' ? locatedProjects : locatedProjects.filter((project) => projectKind(project) === filter),
+    [filter, locatedProjects],
   )
 
-  const bounds = useMemo(() => mapBounds(visibleProjects, activeCountry), [activeCountry, visibleProjects])
-  const markers = useMemo(() => {
-    const groups = new Map<string, { point: Point; projects: LocatedProject[] }>()
-    for (const project of visibleProjects) {
-      const point = projectPoint(project, bounds)
-      const key = `${Math.round(point.x / 4)}:${Math.round(point.y / 4)}`
-      const current = groups.get(key)
-      if (current) {
-        current.projects.push(project)
-        current.point = {
-          x: (current.point.x * (current.projects.length - 1) + point.x) / current.projects.length,
-          y: (current.point.y * (current.projects.length - 1) + point.y) / current.projects.length,
-        }
-      } else {
-        groups.set(key, { point, projects: [project] })
-      }
-    }
-    return Array.from(groups.entries())
-  }, [bounds, visibleProjects])
-
-  const missingCoordinates = projects.filter((project) => (
-    activeCountry === 'all' || countryLabel(project) === activeCountry
-  )).length - visibleProjects.length
-
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-[#172033] md:text-2xl">
-            {activeCountry === 'all' ? 'Projektstandorte' : activeCountry}
-          </h2>
-          <p className="mt-1 text-sm text-[#667085]">
-            {visibleProjects.length.toLocaleString('de-DE')} kartierte {visibleProjects.length === 1 ? 'Projektposition' : 'Projektpositionen'}
-            {activeCountry === 'all' && ` in ${countries.length.toLocaleString('de-DE')} ${countries.length === 1 ? 'Land' : 'Ländern'}`}
-          </p>
+    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
+      <div className="absolute inset-x-4 top-4 z-20 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-max items-center gap-2">
+          {FILTERS.map((item) => {
+            const count = item.value === 'all' ? locatedProjects.length : counts[item.value]
+            const active = filter === item.value
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setFilter(item.value)}
+                aria-pressed={active}
+                className={`shrink-0 rounded-xl px-3 py-2 text-xs font-extrabold transition active:scale-95 ${active ? item.active : item.idle}`}
+              >
+                {item.label} {count}
+              </button>
+            )
+          })}
         </div>
-        {missingCoordinates > 0 && (
-          <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">
-            {missingCoordinates.toLocaleString('de-DE')} ohne Koordinaten
-          </span>
-        )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => { setActiveCountry('all'); setOpenCluster(null) }} aria-pressed={activeCountry === 'all'} className={`ema-map-chip ${activeCountry === 'all' ? 'ema-map-chip-active' : ''}`}>
-          Alle Länder
-        </button>
-        {countries.map((country) => (
-          <button key={country} type="button" onClick={() => { setActiveCountry(country); setOpenCluster(null) }} aria-pressed={activeCountry === country} className={`ema-map-chip ${activeCountry === country ? 'ema-map-chip-active' : ''}`}>
-            <span aria-hidden="true">{COUNTRY_FLAGS[country] ?? '🌍'}</span> {country}
-          </button>
-        ))}
-      </div>
+      <div className="absolute inset-x-8 bottom-5 top-20 flex items-center justify-center">
+        <div className="relative h-full w-full max-w-[360px]">
+          <svg
+            viewBox={GermanyMap.viewBox}
+            className="h-full w-full drop-shadow-[0_18px_30px_rgba(15,23,42,0.10)]"
+            role="img"
+            aria-label="Deutschlandkarte mit Bundesländern und Projektstandorten"
+          >
+            <defs>
+              <linearGradient id="germanyFill" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#FFFFFF" />
+                <stop offset="100%" stopColor="#EAF4E4" />
+              </linearGradient>
+            </defs>
+            {GermanyMap.locations.map((location) => (
+              <path
+                key={location.id}
+                d={location.path}
+                fill="url(#germanyFill)"
+                stroke="#CBD5E1"
+                strokeWidth="0.9"
+                vectorEffect="non-scaling-stroke"
+              >
+                <title>{location.name}</title>
+              </path>
+            ))}
+          </svg>
 
-      <div className="relative h-[380px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-gradient-to-br from-white via-[#F4F8FB] to-[#EAF4E4] shadow-[0_22px_70px_rgba(15,23,42,0.08)] md:h-[520px]">
-        <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'linear-gradient(rgba(31,42,68,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(31,42,68,.07) 1px, transparent 1px)', backgroundSize: '12.5% 12.5%' }} />
-
-        {activeCountry === 'Deutschland' && (
-          <div className="pointer-events-none absolute inset-8 flex items-center justify-center opacity-55">
-            <svg viewBox={GermanyMap.viewBox} className="h-full w-full max-w-[360px] drop-shadow-[0_18px_30px_rgba(15,23,42,0.10)]" role="img" aria-label="Deutschlandkarte mit Bundesländern">
-              <defs>
-                <linearGradient id="germanyFill" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#FFFFFF" />
-                  <stop offset="100%" stopColor="#DDEFD3" />
-                </linearGradient>
-              </defs>
-              {GermanyMap.locations.map((location) => (
-                <path key={location.id} d={location.path} fill="url(#germanyFill)" stroke="#94A3B8" strokeWidth="0.9" vectorEffect="non-scaling-stroke">
-                  <title>{location.name}</title>
-                </path>
-              ))}
-            </svg>
-          </div>
-        )}
-
-        <div className="pointer-events-none absolute left-4 top-4 rounded-xl border border-white/80 bg-white/90 px-3 py-2 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#667085] shadow-sm">
-          {activeCountry === 'all' ? 'Automatische Gesamtansicht' : `Automatischer Zoom · ${activeCountry}`}
-        </div>
-
-        {markers.map(([key, marker]) => {
-          const singleProject = marker.projects.length === 1 ? marker.projects[0] : null
-          if (singleProject) {
+          {visibleProjects.map((project, index) => {
+            const point = getPoint(project, index)
+            const kind = projectKind(project)
+            const color = markerColor(kind)
             return (
               <Link
-                key={key}
-                href={`/projects/${singleProject.id}/overview`}
-                title={`${singleProject.project_name} · ${[singleProject.location_city, singleProject.country].filter(Boolean).join(', ')} · ${formatPower(singleProject)}`}
-                aria-label={`${singleProject.project_name} öffnen`}
-                className="absolute z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white shadow-[0_8px_18px_rgba(15,23,42,0.24)] transition hover:scale-110"
-                style={{ left: `${marker.point.x}%`, top: `${marker.point.y}%`, backgroundColor: markerColor(singleProject) }}
+                key={project.id}
+                href={`/projects/${project.id}/overview`}
+                title={`${project.project_name} · ${project.location_city ?? project.location_state ?? ''} · ${formatKwp(project.pv_mwp)}`}
+                aria-label={`${project.project_name} öffnen`}
+                className="absolute z-10 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white shadow-[0_8px_18px_rgba(15,23,42,0.22)] transition hover:scale-110"
+                style={{ left: `${point.x}%`, top: `${point.y}%`, backgroundColor: color }}
               >
                 <span className="h-2.5 w-2.5 rounded-full bg-white/95" />
               </Link>
             )
-          }
-
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setOpenCluster(openCluster === key ? null : key)}
-              className="absolute z-20 flex h-11 min-h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white bg-[#1F2A44] text-xs font-black text-white shadow-[0_9px_22px_rgba(31,42,68,0.28)] transition hover:scale-105"
-              style={{ left: `${marker.point.x}%`, top: `${marker.point.y}%` }}
-              aria-expanded={openCluster === key}
-              aria-label={`${marker.projects.length} Projekte anzeigen`}
-            >
-              {marker.projects.length}
-            </button>
-          )
-        })}
-
-        {openCluster && markers.find(([key]) => key === openCluster) && (
-          <div className="absolute inset-x-4 bottom-4 z-30 max-h-44 overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-xl backdrop-blur">
-            <p className="mb-2 text-xs font-extrabold uppercase tracking-wider text-[#667085]">Projekte am Standort</p>
-            <div className="space-y-1.5">
-              {markers.find(([key]) => key === openCluster)?.[1].projects.map((project) => (
-                <Link key={project.id} href={`/projects/${project.id}/overview`} className="flex min-h-11 items-center justify-between rounded-xl bg-[#F4F6F8] px-3 py-2 text-sm font-bold text-[#172033]">
-                  <span className="truncate">{project.project_name || project.project_number}</span>
-                  <span className="ml-3 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: markerColor(project) }} />
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {visibleProjects.length === 0 && (
-          <div className="absolute inset-x-6 bottom-6 z-10 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-center text-sm font-bold text-[#667085] shadow-sm">
-            Für diese Auswahl sind keine echten Standortkoordinaten vorhanden.
-          </div>
-        )}
+          })}
+        </div>
       </div>
+
+      {visibleProjects.length === 0 && (
+        <div className="pointer-events-none absolute inset-x-6 bottom-6 z-10 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-center text-sm font-bold text-slate-500 shadow-sm">
+          Keine Projekte in dieser Kategorie.
+        </div>
+      )}
     </div>
   )
 }
