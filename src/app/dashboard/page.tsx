@@ -92,8 +92,8 @@ export default async function DashboardPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#1F2A44]/20 via-transparent to-[#1F2A44]/20" />
           <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-white/85 via-white/20 to-transparent" />
         </div>
-        <div className="relative z-10 flex min-h-[31rem] items-end px-5 pb-12 pt-8 md:min-h-[25rem] md:items-center md:px-8 md:pb-10 md:pt-10">
-          <div className="max-w-3xl">
+        <div className="relative z-10 flex min-h-[31rem] items-center px-5 pb-10 pt-6 md:min-h-[25rem] md:px-8 md:pb-10 md:pt-10">
+          <div className="max-w-3xl -translate-y-4 md:translate-y-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-[#1F2A44]/48 px-3 py-1.5 text-white backdrop-blur-md">
               <span className="h-2 w-2 rounded-full bg-[#5CB800] shadow-[0_0_14px_rgba(92,184,0,0.9)]" />
               <TimeGreeting />
