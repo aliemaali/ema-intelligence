@@ -1,9 +1,9 @@
 /* EMA 9.0 — Sprint 1 component layer */
 
 :root {
-  --ema-glass: rgba(18, 27, 37, 0.78);
-  --ema-glass-strong: rgba(15, 23, 32, 0.92);
-  --ema-line: rgba(148, 163, 184, 0.16);
+  --ema-glass: rgba(255, 255, 255, 0.82);
+  --ema-glass-strong: rgba(255, 255, 255, 0.96);
+  --ema-line: rgba(31, 42, 68, 0.13);
   --ema-line-strong: rgba(118, 213, 0, 0.32);
   --ema-focus: 0 0 0 4px rgba(118, 213, 0, 0.14);
 }
@@ -26,9 +26,9 @@ article {
 [class*='rounded-'][class*='bg-white'][class*='border'],
 [class*='rounded-'][class*='bg-background'][class*='border'] {
   border-color: var(--ema-line) !important;
-  background: linear-gradient(145deg, rgba(25, 35, 46, 0.96), rgba(15, 23, 32, 0.96)) !important;
+  background: #ffffff !important;
   color: var(--ema-text) !important;
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 12px 36px rgba(31, 42, 68, 0.09) !important;
 }
 
 /* Tables */
@@ -40,11 +40,11 @@ table {
 }
 
 thead {
-  background: rgba(255, 255, 255, 0.035);
+  background: #f5f7f9;
 }
 
 th {
-  color: #cbd5e1 !important;
+  color: #475467 !important;
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -61,7 +61,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-  background: rgba(118, 213, 0, 0.045) !important;
+  background: rgba(92, 184, 0, 0.06) !important;
 }
 
 /* Form controls */
@@ -139,8 +139,8 @@ button[class*='bg-primary']:active,
 button[class*='variant-outline'] {
   border-radius: 1rem !important;
   border-color: rgba(148, 163, 184, 0.2) !important;
-  background: rgba(255, 255, 255, 0.055) !important;
-  color: #f8fafc !important;
+  background: #ffffff !important;
+  color: #1f2a44 !important;
   backdrop-filter: blur(16px);
 }
 
@@ -150,9 +150,9 @@ button[class*='variant-outline'] {
 [data-radix-popper-content-wrapper] > div,
 [data-side][data-align] {
   border-color: var(--ema-line) !important;
-  background: linear-gradient(145deg, rgba(24, 34, 45, 0.985), rgba(12, 19, 27, 0.985)) !important;
+  background: #ffffff !important;
   color: var(--ema-text) !important;
-  box-shadow: 0 34px 110px rgba(0, 0, 0, 0.52) !important;
+  box-shadow: 0 24px 72px rgba(31, 42, 68, 0.2) !important;
   backdrop-filter: blur(28px) saturate(135%);
 }
 
@@ -160,19 +160,19 @@ button[class*='variant-outline'] {
 [role='tablist'] {
   border: 1px solid var(--ema-line);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.035);
+  background: #f5f7f9;
   padding: 0.25rem;
 }
 
 [role='tab'] {
   border-radius: 0.75rem;
-  color: #94a3b8;
+  color: #667085;
 }
 
 [role='tab'][data-state='active'],
 [role='tab'][aria-selected='true'] {
   background: rgba(118, 213, 0, 0.12) !important;
-  color: #b7f36f !important;
+  color: #367e00 !important;
   box-shadow: inset 0 0 0 1px rgba(118, 213, 0, 0.22);
 }
 
@@ -191,12 +191,12 @@ summary {
 /* Upload zones */
 [class*='border-dashed'] {
   border-color: rgba(148, 163, 184, 0.26) !important;
-  background: rgba(255, 255, 255, 0.025) !important;
+  background: #f8fafb !important;
 }
 
 [class*='border-dashed']:hover {
   border-color: rgba(118, 213, 0, 0.52) !important;
-  background: rgba(118, 213, 0, 0.045) !important;
+  background: rgba(92, 184, 0, 0.06) !important;
 }
 
 /* Loading states */
