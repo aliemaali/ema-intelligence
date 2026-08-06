@@ -39,6 +39,8 @@ const requestSchema = z.object({
   documentId: z.string().trim().min(1).max(120).optional(),
   subtitle: z.string().trim().min(1).max(240).optional(),
   language: z.enum(['de', 'en']).default('de'),
+  country: z.string().trim().min(1).max(100).default('Frankreich'),
+  countryCode: z.string().trim().min(2).max(3).default('FR'),
 })
 
 let fontFaceCssCache: string | null = null
@@ -66,11 +68,12 @@ export async function POST(request: Request) {
 
   const documentId = parsed.data.documentId ?? `EMA-PL-FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
   const language = parsed.data.language
-  const subtitle = parsed.data.subtitle ?? (language === 'de' ? 'Frankreich – Utility Scale PV' : 'France – Utility Scale PV')
+  const country = language === 'en' && parsed.data.country === 'Frankreich' ? 'France' : parsed.data.country
+  const subtitle = parsed.data.subtitle ?? `${country} – Utility Scale PV`
   const root = process.cwd()
   const heroImage = fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg')
   const html = renderProjektlisteHtml({
-    meta: { language, title: language === 'de' ? 'Projektliste' : 'Project List', subtitle, documentId, createdAt: new Date().toISOString().slice(0, 10), country: language === 'de' ? 'Frankreich' : 'France', countryCode: 'FR', confidentialityNote: language === 'de' ? 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot' : 'Confidential · solely for review by the named recipient · not a public offer' },
+    meta: { language, title: language === 'de' ? 'Projektliste' : 'Project List', subtitle, documentId, createdAt: new Date().toISOString().slice(0, 10), country, countryCode: parsed.data.countryCode.toUpperCase(), confidentialityNote: language === 'de' ? 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot' : 'Confidential · solely for review by the named recipient · not a public offer' },
     projects: rows,
     heroImage,
     creHeroImage: heroImage,
