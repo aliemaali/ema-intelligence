@@ -18,6 +18,9 @@ export function renderProjektlisteHtml(
   opts: RenderOptions,
 ): string {
   const base = renderBaseProjektlisteHtml(input, opts);
+  if (input.meta.countryCode.toUpperCase() !== 'FR') {
+    return localizeProjectListHtml(base, input.meta.language ?? 'de');
+  }
   const totalMatch = base.match(/Seite\s*<span class="num">\d+<\/span>\s*\/\s*(\d+)/);
   if (!totalMatch) throw new Error('Seitenzählung im Projektlisten-Template nicht gefunden.');
 
