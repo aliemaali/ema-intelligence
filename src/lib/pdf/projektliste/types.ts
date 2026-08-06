@@ -48,7 +48,7 @@ export interface DocumentMeta {
   /** ISO-Datum */
   createdAt: string;
   country: string;
-  countryCode: 'FR';
+  countryCode: string;
   confidentialityNote: string;
 }
 
