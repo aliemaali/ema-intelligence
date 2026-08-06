@@ -84,14 +84,14 @@ export function BottomNav() {
             type="button"
             aria-label="Menü schließen"
             onClick={() => setMoreOpen(false)}
-            className="absolute inset-0 bg-[#07142F]/48 backdrop-blur-[3px]"
+            className="absolute inset-0 bg-[#1F2A44]/32 backdrop-blur-[2px]"
           />
 
           <section
             role="dialog"
             aria-modal="true"
             aria-label="Mehr Menü"
-            className="absolute inset-x-2 bottom-2 max-h-[88dvh] overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_28px_90px_rgba(7,20,47,0.28)]"
+            className="absolute inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] max-h-[calc(100dvh-6rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-[0_24px_72px_rgba(31,42,68,0.24)]"
           >
             <div className="flex items-center justify-between border-b border-slate-100 px-5 pb-4 pt-5">
               <div>
@@ -108,7 +108,7 @@ export function BottomNav() {
               </button>
             </div>
 
-            <div className="max-h-[calc(88dvh-9.5rem)] overflow-y-auto overscroll-contain px-4 py-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="max-h-[calc(100dvh-15.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain px-4 py-2" style={{ WebkitOverflowScrolling: 'touch' }}>
               {MORE_ITEMS.map((item) => {
                 const Icon = item.icon
                 const active = isActive(item.href)
@@ -149,8 +149,6 @@ export function BottomNav() {
                 </button>
               </form>
             </div>
-
-            <div className="h-[env(safe-area-inset-bottom)] bg-white" />
           </section>
         </div>
       )}
@@ -166,11 +164,11 @@ export function BottomNav() {
               href={item.href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'group relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-bold transition-all',
+                'group relative flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 py-1.5 text-[11px] font-bold transition-all',
                 active ? 'text-[#5CB800]' : 'text-slate-500 active:text-[#07142F]'
               )}
             >
-              <Icon className={cn('h-[22px] w-[22px] transition-transform group-active:scale-90', active && 'stroke-[2.5]')} />
+              <Icon className={cn('h-5 w-5 transition-transform group-active:scale-90', active && 'stroke-[2.5]')} />
               <span className="max-w-full truncate">{item.label}</span>
               <span className={cn(
                 'absolute bottom-1 h-1 w-1 rounded-full bg-[#5CB800] transition-opacity',
@@ -190,7 +188,7 @@ export function BottomNav() {
           aria-label="Mehr öffnen"
           aria-expanded={moreOpen}
         >
-          <MoreHorizontal className={cn('h-[22px] w-[22px] transition-transform group-active:scale-90', (moreActive || moreOpen) && 'stroke-[2.5]')} />
+          <MoreHorizontal className={cn('h-5 w-5 transition-transform group-active:scale-90', (moreActive || moreOpen) && 'stroke-[2.5]')} />
           <span>Mehr</span>
           <span className={cn(
             'absolute bottom-1 h-1 w-1 rounded-full bg-[#5CB800] transition-opacity',
