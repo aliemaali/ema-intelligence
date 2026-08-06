@@ -79,18 +79,18 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   const projectLists = (listResult.data ?? []) as Array<{ country: string; project_count: number; created_at: string }>
 
   return (
-    <div className="w-full max-w-full space-y-6 overflow-x-hidden pb-28 text-white md:mx-auto md:max-w-[1480px] md:space-y-7">
-      <section className="relative isolate mx-3 min-h-[23rem] overflow-hidden rounded-[2rem] border border-white/8 bg-[#0b1118] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:mx-0 md:min-h-[28rem]">
+    <div className="w-full max-w-full space-y-6 overflow-x-hidden pb-28 text-[#172033] md:mx-auto md:max-w-[1480px] md:space-y-7">
+      <section className="relative isolate mx-3 min-h-[23rem] overflow-hidden rounded-[2rem] border border-slate-200 bg-[#F4F6F8] shadow-[0_14px_40px_rgba(31,42,68,0.10)] md:mx-0 md:min-h-[28rem]">
         <img src="/hero-dashboard.png" alt="Erneuerbare-Energien-Projekte" className="absolute inset-0 h-full w-full object-cover opacity-80" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0b1118] via-[#0b1118]/82 to-[#0b1118]/18" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b1118] via-transparent to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#F4F6F8] via-[#F4F6F8]/82 to-[#F4F6F8]/18" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#F4F6F8] via-transparent to-black/30" />
         <div className="relative flex min-h-[23rem] flex-col justify-between px-5 py-6 md:min-h-[28rem] md:px-9 md:py-8">
           <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-black/25 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] backdrop-blur-xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-black/25 px-4 py-2 text-xs font-extrabold uppercase tracking-[.18em] text-[#87D33B] backdrop-blur-xl">
               <Sparkles className="h-4 w-4" /> EMA Portfolio
             </span>
             <div className="flex items-center gap-2">
-              <Link href="/projects/archive" className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/12 bg-white/8 text-white backdrop-blur-xl transition hover:bg-white/12" aria-label="Projektarchiv">
+              <Link href="/projects/archive" className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white/8 text-[#172033] backdrop-blur-xl transition hover:bg-white/12" aria-label="Projektarchiv">
                 <Archive className="h-5 w-5" />
               </Link>
               <Link href="/projects/new" className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-[#081109] shadow-[0_16px_36px_rgba(92,184,0,0.24)] transition hover:-translate-y-0.5 hover:bg-[#6bcf15]">
@@ -101,8 +101,8 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
           <div className="max-w-3xl pb-3">
             <p className="text-xs font-extrabold uppercase tracking-[.24em] text-[#87D33B]">Projektportfolio</p>
             <h1 className="mt-3 text-4xl font-extrabold tracking-[-0.055em] md:text-6xl">Projekte</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">Alle PV-, BESS-, Wind- und Hybridprojekte zentral nach Ländern, Leistung und Status organisiert.</p>
-            <div className="mt-5 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm font-bold backdrop-blur-xl">
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-[#667085] md:text-base">Alle PV-, BESS-, Wind- und Hybridprojekte zentral nach Ländern, Leistung und Status organisiert.</p>
+            <div className="mt-5 inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/8 px-4 py-3 text-sm font-bold backdrop-blur-xl">
               <span className="h-2.5 w-2.5 rounded-full bg-[#5CB800] shadow-[0_0_16px_rgba(92,184,0,0.9)]" />
               {allProjects.length} aktive Projekte
             </div>
@@ -116,19 +116,19 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[.2em] text-[#76d22a]">{showAll ? 'Gesamtansicht' : 'Schnellsuche'}</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-white">{showAll ? 'Alle Projekte' : 'Projekt direkt finden'}</h2>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] text-[#172033]">{showAll ? 'Alle Projekte' : 'Projekt direkt finden'}</h2>
           </div>
           {!showAll && (
-            <Link href="/projects?view=all" className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-sm font-extrabold text-white transition hover:bg-white/10">
+            <Link href="/projects?view=all" className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white/6 px-4 py-3 text-sm font-extrabold text-[#172033] transition hover:bg-white/10">
               Alle Projekte anzeigen <ArrowRight className="h-4 w-4" />
             </Link>
           )}
         </div>
 
-        <form className="mt-5 flex items-center gap-2 rounded-2xl border border-white/10 bg-[#171f28]/92 p-2 shadow-[0_18px_52px_rgba(0,0,0,0.24)] backdrop-blur-xl" action="/projects">
+        <form className="mt-5 flex items-center gap-2 rounded-2xl border border-slate-200 bg-[#FFFFFF]/92 p-2 shadow-[0_14px_40px_rgba(31,42,68,0.10)] backdrop-blur-xl" action="/projects">
           <input type="hidden" name="view" value="all" />
-          <Search className="ml-2 h-5 w-5 shrink-0 text-slate-400" />
-          <input name="q" defaultValue={searchParams.q ?? ''} placeholder="Projektname, Nummer oder Standort suchen" className="min-h-11 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-white outline-none placeholder:text-slate-500" />
+          <Search className="ml-2 h-5 w-5 shrink-0 text-[#667085]" />
+          <input name="q" defaultValue={searchParams.q ?? ''} placeholder="Projektname, Nummer oder Standort suchen" className="min-h-11 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm text-[#172033] outline-none placeholder:text-[#667085]" />
           <button className="min-h-11 rounded-xl bg-[#5CB800] px-4 text-sm font-extrabold text-[#081109]">Suchen</button>
         </form>
 
@@ -141,7 +141,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
                 if (searchParams.q) params.set('q', searchParams.q)
                 const active = (searchParams.type ?? '') === type.value
                 return (
-                  <Link key={type.value} href={`/projects?${params.toString()}`} className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-extrabold transition ${active ? 'bg-[#5CB800] text-[#081109]' : 'border border-white/10 bg-white/6 text-slate-300 hover:bg-white/10'}`}>
+                  <Link key={type.value} href={`/projects?${params.toString()}`} className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-extrabold transition ${active ? 'bg-[#5CB800] text-[#081109]' : 'border border-slate-200 bg-white/6 text-[#667085] hover:bg-white/10'}`}>
                     {type.label}
                   </Link>
                 )
@@ -153,26 +153,26 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
             ) : (
               <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {projects.map((project: any) => (
-                  <article key={project.id} className="group overflow-hidden rounded-[1.8rem] border border-white/8 bg-[#171f28]/94 shadow-[0_18px_55px_rgba(0,0,0,0.24)] transition hover:-translate-y-1 hover:border-[#5CB800]/35 hover:shadow-[0_26px_75px_rgba(0,0,0,0.36)]">
+                  <article key={project.id} className="group overflow-hidden rounded-[1.8rem] border border-slate-200 bg-[#FFFFFF]/94 shadow-[0_14px_40px_rgba(31,42,68,0.10)] transition hover:-translate-y-1 hover:border-[#5CB800]/35 hover:shadow-[0_14px_40px_rgba(31,42,68,0.10)]">
                     <Link href={`/projects/${project.id}/overview`} className="block">
-                      <div className="relative h-40 overflow-hidden bg-[#0f151c] md:h-44">
+                      <div className="relative h-40 overflow-hidden bg-[#F4F6F8] md:h-44">
                         <img src={project.project_image_url || fallbackImage(project.project_type)} alt={project.project_name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#081018]/95 via-[#081018]/15 to-transparent" />
-                        <span className="absolute right-3 top-3 rounded-full border border-white/12 bg-black/35 px-3 py-1.5 text-[10px] font-extrabold uppercase text-white backdrop-blur-xl">{typeLabel(project.project_type)}</span>
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#F4F6F8]/95 via-[#F4F6F8]/15 to-transparent" />
+                        <span className="absolute right-3 top-3 rounded-full border border-slate-200 bg-black/35 px-3 py-1.5 text-[10px] font-extrabold uppercase text-[#172033] backdrop-blur-xl">{typeLabel(project.project_type)}</span>
                         <div className="absolute bottom-3 left-4 right-4">
-                          <p className="text-[11px] font-bold text-white/65">{project.project_number || 'Ohne Projektnummer'}</p>
-                          <h3 className="mt-1 truncate text-xl font-extrabold text-white">{project.project_name}</h3>
+                          <p className="text-[11px] font-bold text-[#172033]/65">{project.project_number || 'Ohne Projektnummer'}</p>
+                          <h3 className="mt-1 truncate text-xl font-extrabold text-[#172033]">{project.project_name}</h3>
                         </div>
                       </div>
                       <div className="p-4">
-                        <div className="space-y-2.5 text-sm text-slate-300">
+                        <div className="space-y-2.5 text-sm text-[#667085]">
                           <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0 text-[#76d22a]" /><span className="truncate">{projectLocation(project)}</span></div>
                           <div className="flex items-center gap-2">{project.project_type === 'bess' ? <BatteryCharging className="h-4 w-4 shrink-0 text-[#76d22a]" /> : <Zap className="h-4 w-4 shrink-0 text-[#76d22a]" />}<span className="truncate">{projectPower(project)}</span></div>
                         </div>
                       </div>
                     </Link>
-                    <div className="flex items-center justify-between gap-3 border-t border-white/8 px-4 py-3">
-                      <span className="rounded-full bg-white/7 px-3 py-1.5 text-xs font-extrabold text-slate-300">{stageLabel(project.project_stage)}</span>
+                    <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+                      <span className="rounded-full bg-white/7 px-3 py-1.5 text-xs font-extrabold text-[#667085]">{stageLabel(project.project_stage)}</span>
                       <Link href={`/projects/${project.id}/overview`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[#5CB800] px-4 py-2 text-xs font-extrabold text-[#081109]">Öffnen <ArrowRight className="h-4 w-4" /></Link>
                     </div>
                   </article>
