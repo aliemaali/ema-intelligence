@@ -3,6 +3,7 @@
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 import { TopHeader } from './TopHeader'
+import { AppIntro } from './AppIntro'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -17,6 +18,7 @@ interface AppShellProps {
 export function AppShell({ children, user }: AppShellProps) {
   return (
     <div className="app-shell">
+      <AppIntro />
 
       {/* ── Desktop Sidebar ──────────────────────────────────── */}
       <Sidebar user={user} />
