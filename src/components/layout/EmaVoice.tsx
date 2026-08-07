@@ -48,6 +48,8 @@ type Destination = {
   patterns: RegExp[]
 }
 
+const WAKE_SESSION_KEY = 'ema-intelligence:voice:wake-active:v1'
+
 const DESTINATIONS: Destination[] = [
   { label: 'Dashboard', href: '/dashboard', patterns: [/\bdashboard\b/, /\bstartseite\b/, /\bubersicht\b/] },
   { label: 'Projekt-Import', href: '/project-import', patterns: [/projekt.?import/, /projekte? importieren/] },
@@ -88,6 +90,23 @@ function normalizeText(value: string) {
 
 function wakeMatch(value: string) {
   return normalizeText(value).match(/\b(?:ema|emma)\b|(?:^|\s)e\s*m\s*a(?=\s|$)/)
+}
+
+function rememberWakeMode(active: boolean) {
+  try {
+    if (active) window.sessionStorage.setItem(WAKE_SESSION_KEY, '1')
+    else window.sessionStorage.removeItem(WAKE_SESSION_KEY)
+  } catch {
+    // Sprachsteuerung funktioniert auch, wenn Session Storage nicht verfügbar ist.
+  }
+}
+
+function hasRememberedWakeMode() {
+  try {
+    return window.sessionStorage.getItem(WAKE_SESSION_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
 function currentArea(pathname: string) {
@@ -284,6 +303,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     const Recognition = voiceWindow.SpeechRecognition ?? voiceWindow.webkitSpeechRecognition
     if (!Recognition) {
       wakeModeRef.current = false
+      rememberWakeMode(false)
       setVoiceState('unsupported')
       setAnswer('Die Spracherkennung ist in diesem Browser nicht verfügbar. Bitte teste EMA auf deinem iPhone in Safari oder der installierten App.')
       setStatus('Nicht unterstützt')
@@ -315,6 +335,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
       if (code === 'not-allowed' || code === 'service-not-allowed') {
         wakeModeRef.current = false
+        rememberWakeMode(false)
         setVoiceState('error')
         setAnswer('Bitte erlaube EMA Mikrofon und Spracherkennung in den iPhone-Einstellungen und aktiviere den EMA-Modus danach erneut.')
         setStatus(`Fehler: ${code}`)
@@ -356,6 +377,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
     if (wakeModeRef.current) {
       wakeModeRef.current = false
+      rememberWakeMode(false)
       setFollowUp(false)
       clearTimer(restartTimerRef)
       try {
@@ -371,6 +393,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     }
 
     wakeModeRef.current = true
+    rememberWakeMode(true)
     setVoiceState('idle')
     setAnswer('EMA-Modus aktiv. Du kannst jetzt einfach „EMA“ sagen.')
     setHeard('Ich warte auf mein Aktivierungswort …')
@@ -380,6 +403,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
   const closePanel = useCallback(() => {
     wakeModeRef.current = false
+    rememberWakeMode(false)
     followUpRef.current = false
     speakingRef.current = false
     clearTimer(restartTimerRef)
@@ -395,6 +419,18 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
   useEffect(() => {
     mountedRef.current = true
+
+    // AppShell wird zwischen einigen EMA-Hauptbereichen neu gemountet.
+    // Den einmal vom Nutzer aktivierten Wake-Modus innerhalb dieses Tabs fortsetzen.
+    if (hasRememberedWakeMode()) {
+      wakeModeRef.current = true
+      setPanelOpen(true)
+      setAnswer('EMA-Modus aktiv. Du kannst weiter einfach „EMA“ sagen.')
+      setHeard('')
+      updateListeningStatus()
+      scheduleListen(320)
+    }
+
     return () => {
       mountedRef.current = false
       wakeModeRef.current = false
@@ -404,7 +440,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
       clearTimer(followUpTimerRef)
       clearTimer(speechFallbackTimerRef)
     }
-  }, [clearTimer])
+  }, [clearTimer, scheduleListen, updateListeningStatus])
 
   const listening = wakeModeRef.current && voiceState === 'listening'
   const active = wakeModeRef.current
