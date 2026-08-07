@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Mic, MicOff, Volume2, X } from 'lucide-react'
+import { MessageCircle, Mic, MicOff, X } from 'lucide-react'
 
-type VoiceState = 'idle' | 'listening' | 'speaking' | 'unsupported' | 'error'
+type VoiceState = 'idle' | 'listening' | 'unsupported' | 'error'
 
 type SpeechRecognitionResultLike = {
   0?: { transcript?: string }
@@ -118,24 +118,14 @@ function ownerGreeting(email: string) {
   return normalized === 'unluer@ema-enterprise.de' || normalized === 'a.unluer@t-online.de'
 }
 
-function chooseGermanVoice() {
-  if (!('speechSynthesis' in window)) return undefined
-  const voices = window.speechSynthesis.getVoices()
-  const germanVoices = voices.filter((voice) => voice.lang.toLocaleLowerCase().startsWith('de'))
-  return germanVoices.find((voice) => /anna|petra|helena|marlene|vicki|samantha|siri/i.test(voice.name)) ?? germanVoices[0]
-}
-
 export function EmaVoice({ userName, userEmail }: { userName: string; userEmail: string }) {
   const router = useRouter()
   const pathname = usePathname()
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const wakeModeRef = useRef(false)
-  const speakingRef = useRef(false)
   const followUpRef = useRef(false)
   const restartTimerRef = useRef<number | null>(null)
   const followUpTimerRef = useRef<number | null>(null)
-  const speechFallbackTimerRef = useRef<number | null>(null)
-  const mountedRef = useRef(true)
 
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [panelOpen, setPanelOpen] = useState(false)
@@ -176,53 +166,19 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
   const scheduleListen = useCallback((delay = 280) => {
     clearTimer(restartTimerRef)
-    if (!wakeModeRef.current || speakingRef.current) return
+    if (!wakeModeRef.current) return
     restartTimerRef.current = window.setTimeout(() => startRecognitionRef.current(), delay)
   }, [clearTimer])
 
-  const speak = useCallback((message: string, followUp = false, onFinished?: () => void) => {
+  const respond = useCallback((message: string, followUp = false, onFinished?: () => void) => {
     setAnswer(message)
     setPanelOpen(true)
-    speakingRef.current = true
-    setVoiceState('speaking')
-    setStatus('EMA spricht …')
-
-    let finished = false
-    const finish = () => {
-      if (finished || !mountedRef.current) return
-      finished = true
-      clearTimer(speechFallbackTimerRef)
-      speakingRef.current = false
-      setVoiceState('listening')
-      if (followUp) setFollowUp(true)
-      if (!recognitionRef.current) scheduleListen(320)
-      else updateListeningStatus()
-      onFinished?.()
-    }
-
-    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
-      finish()
-      return
-    }
-
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(message)
-    utterance.lang = 'de-DE'
-    utterance.rate = 0.92
-    utterance.pitch = 0.92
-    utterance.volume = 1
-    const voice = chooseGermanVoice()
-    if (voice) utterance.voice = voice
-    utterance.onend = finish
-    utterance.onerror = finish
-
-    // iOS Safari liefert onend gelegentlich nicht. Der Fallback hält den Wake-Modus am Leben.
-    speechFallbackTimerRef.current = window.setTimeout(
-      finish,
-      Math.max(1800, Math.min(8000, message.length * 85 + 900)),
-    )
-    window.speechSynthesis.speak(utterance)
-  }, [clearTimer, scheduleListen, setFollowUp, updateListeningStatus])
+    setVoiceState('listening')
+    if (followUp) setFollowUp(true)
+    else updateListeningStatus()
+    if (!recognitionRef.current) scheduleListen(160)
+    onFinished?.()
+  }, [scheduleListen, setFollowUp, updateListeningStatus])
 
   const runCommand = useCallback((transcript: string, followUpCommand = false) => {
     let command = normalizeText(transcript)
@@ -237,66 +193,66 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     }
 
     if (!command) {
-      speak(`Ja, ${address}?`, true)
+      respond(`Ja, ${address}?`, true)
       return
     }
 
     if (/\b(guten morgen|morgen|hallo|hi|hey)\b/.test(command)) {
-      speak(`Hallo ${address}. EMA ist bereit. Was kann ich für dich tun?`, true)
+      respond(`Hallo ${address}. EMA ist bereit. Was kann ich für dich tun?`, true)
       return
     }
 
     if (/wer bin ich|kennst du mich/.test(command)) {
-      speak(isChief ? 'Du bist der Chef. Natürlich kenne ich dich.' : `Du bist ${firstName}.`)
+      respond(isChief ? 'Du bist der Chef. Natürlich kenne ich dich.' : `Du bist ${firstName}.`)
       return
     }
 
     if (/wer bist du|wie heisst du|wie heißt du/.test(command)) {
-      speak('Ich bin EMA. Ich kenne die Bereiche und Abläufe von EMA Intelligence und helfe dir direkt in der App.')
+      respond('Ich bin EMA. Ich kenne die Bereiche und Abläufe von EMA Intelligence und helfe dir direkt in der App.')
       return
     }
 
     if (/wo bin ich|welcher bereich|was sehe ich/.test(command)) {
-      speak(`Du bist gerade im Bereich ${currentArea(pathname)}.`)
+      respond(`Du bist gerade im Bereich ${currentArea(pathname)}.`)
       return
     }
 
     if (/was kannst du|was kannst du alles|hilfe|befehle/.test(command)) {
-      speak('Ich kann dich durch EMA führen und Projekte, Investoren, Partner, Dokumente, Kalender, CAPEX, Deals, Akquise und Einstellungen öffnen.')
+      respond('Ich kann dich durch EMA führen und Projekte, Investoren, Partner, Dokumente, Kalender, CAPEX, Deals, Akquise und Einstellungen öffnen.')
       return
     }
 
     if (/was ist (ein )?bess|erklar.*bess/.test(command)) {
-      speak('BESS steht für Battery Energy Storage System, also einen Batteriespeicher. EMA führt BESS als eigenen Projekttyp und auch in Hybridprojekten.')
+      respond('BESS steht für Battery Energy Storage System, also einen Batteriespeicher. EMA führt BESS als eigenen Projekttyp und auch in Hybridprojekten.')
       return
     }
 
     if (/projektstatus|statusstufen|welche status/.test(command)) {
-      speak('Die EMA Projektstufen sind Lead, Vorprüfung, Investorensuche, Due Diligence, LOI, SPA, Closing, verkauft oder abgelehnt.')
+      respond('Die EMA Projektstufen sind Lead, Vorprüfung, Investorensuche, Due Diligence, LOI, SPA, Closing, verkauft oder abgelehnt.')
       return
     }
 
     if (/zuruck|vorherige seite/.test(command)) {
-      speak(`Natürlich, ${address}. Ich gehe zurück.`, false, () => router.back())
+      respond(`Natürlich, ${address}. Ich gehe zurück.`, false, () => router.back())
       return
     }
 
     if (/losch|entfern|versend|schick.*mail|sende.*mail/.test(command)) {
-      speak(`Diese Aktion führe ich aus Sicherheitsgründen nicht direkt per Sprache aus, ${address}. Kritische Aktionen brauchen eine Bestätigung.`)
+      respond(`Diese Aktion führe ich aus Sicherheitsgründen nicht direkt per Sprache aus, ${address}. Kritische Aktionen brauchen eine Bestätigung.`)
       return
     }
 
     const destination = DESTINATIONS.find((item) => item.patterns.some((pattern) => pattern.test(command)))
     if (destination) {
-      speak(`Natürlich, ${address}. Ich öffne ${destination.label}.`, false, () => router.push(destination.href))
+      respond(`Natürlich, ${address}. Ich öffne ${destination.label}.`, false, () => router.push(destination.href))
       return
     }
 
-    speak(`Das habe ich noch nicht sicher verstanden, ${address}. Sag zum Beispiel: EMA, öffne Projekte.`)
-  }, [address, firstName, isChief, pathname, router, setFollowUp, speak])
+    respond(`Das habe ich noch nicht sicher verstanden, ${address}. Sag zum Beispiel: EMA, öffne Projekte.`)
+  }, [address, firstName, isChief, pathname, respond, router, setFollowUp])
 
   const startRecognition = useCallback(() => {
-    if (!wakeModeRef.current || speakingRef.current || recognitionRef.current) return
+    if (!wakeModeRef.current || recognitionRef.current) return
 
     const voiceWindow = window as VoiceWindow
     const Recognition = voiceWindow.SpeechRecognition ?? voiceWindow.webkitSpeechRecognition
@@ -317,7 +273,6 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     recognition.maxAlternatives = 1
 
     recognition.onresult = (event) => {
-      if (speakingRef.current) return
       const fallbackIndex = Math.max(0, (event.results?.length ?? 1) - 1)
       const index = typeof event.resultIndex === 'number' ? event.resultIndex : fallbackIndex
       const transcript = event.results?.[index]?.[0]?.transcript?.trim()
@@ -370,9 +325,6 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
   const toggleWakeMode = useCallback(() => {
     setPanelOpen(true)
-    window.speechSynthesis?.cancel()
-    clearTimer(speechFallbackTimerRef)
-    speakingRef.current = false
 
     if (wakeModeRef.current) {
       wakeModeRef.current = false
@@ -396,30 +348,23 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     setVoiceState('idle')
     setHeard('Ich warte auf mein Aktivierungswort …')
     updateListeningStatus()
-    // Direkt aus dem Nutzer-Tipp sprechen: so wird iOS-Audio zuverlässig hörbar aktiviert.
-    // Nach der Ansage startet speak() über scheduleListen automatisch die Erkennung.
-    speak(`EMA ist bereit, ${address}.`)
-  }, [address, clearTimer, setFollowUp, speak, updateListeningStatus])
+    respond(`EMA ist bereit, ${address}.`)
+  }, [address, clearTimer, respond, setFollowUp, updateListeningStatus])
 
   const closePanel = useCallback(() => {
     wakeModeRef.current = false
     rememberWakeMode(false)
     followUpRef.current = false
-    speakingRef.current = false
     clearTimer(restartTimerRef)
     clearTimer(followUpTimerRef)
-    clearTimer(speechFallbackTimerRef)
     recognitionRef.current?.abort()
     recognitionRef.current = null
-    window.speechSynthesis?.cancel()
     setVoiceState('idle')
     setPanelOpen(false)
     setStatus('EMA-Modus aus')
   }, [clearTimer])
 
   useEffect(() => {
-    mountedRef.current = true
-
     // AppShell wird zwischen einigen EMA-Hauptbereichen neu gemountet.
     // Den einmal vom Nutzer aktivierten Wake-Modus innerhalb dieses Tabs fortsetzen.
     if (hasRememberedWakeMode()) {
@@ -432,13 +377,10 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     }
 
     return () => {
-      mountedRef.current = false
       wakeModeRef.current = false
       recognitionRef.current?.abort()
-      window.speechSynthesis?.cancel()
       clearTimer(restartTimerRef)
       clearTimer(followUpTimerRef)
-      clearTimer(speechFallbackTimerRef)
     }
   }, [clearTimer, scheduleListen, updateListeningStatus])
 
@@ -466,7 +408,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
           <div className="space-y-3 px-4 py-4">
             {heard && <p className="text-xs font-semibold text-slate-400">Du: „{heard}“</p>}
             <div className="flex items-start gap-2.5">
-              <Volume2 className="mt-0.5 h-4 w-4 shrink-0 text-[#5CB800]" />
+              <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#5CB800]" />
               <p className="text-sm font-semibold leading-5 text-[#07142F]">{answer}</p>
             </div>
             <p className="text-xs font-semibold text-slate-400">{status}</p>
