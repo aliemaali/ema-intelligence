@@ -180,7 +180,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     restartTimerRef.current = window.setTimeout(() => startRecognitionRef.current(), delay)
   }, [clearTimer])
 
-  const speak = useCallback((message: string, followUp = false) => {
+  const speak = useCallback((message: string, followUp = false, onFinished?: () => void) => {
     setAnswer(message)
     setPanelOpen(true)
     speakingRef.current = true
@@ -197,6 +197,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
       if (followUp) setFollowUp(true)
       if (!recognitionRef.current) scheduleListen(320)
       else updateListeningStatus()
+      onFinished?.()
     }
 
     if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
@@ -276,8 +277,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     }
 
     if (/zuruck|vorherige seite/.test(command)) {
-      speak(`Natürlich, ${address}. Ich gehe zurück.`)
-      window.setTimeout(() => router.back(), 350)
+      speak(`Natürlich, ${address}. Ich gehe zurück.`, false, () => router.back())
       return
     }
 
@@ -288,8 +288,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
     const destination = DESTINATIONS.find((item) => item.patterns.some((pattern) => pattern.test(command)))
     if (destination) {
-      speak(`Natürlich, ${address}. Ich öffne ${destination.label}.`)
-      window.setTimeout(() => router.push(destination.href), 350)
+      speak(`Natürlich, ${address}. Ich öffne ${destination.label}.`, false, () => router.push(destination.href))
       return
     }
 
@@ -395,11 +394,12 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     wakeModeRef.current = true
     rememberWakeMode(true)
     setVoiceState('idle')
-    setAnswer('EMA-Modus aktiv. Du kannst jetzt einfach „EMA“ sagen.')
     setHeard('Ich warte auf mein Aktivierungswort …')
     updateListeningStatus()
-    startRecognitionRef.current()
-  }, [clearTimer, setFollowUp, updateListeningStatus])
+    // Direkt aus dem Nutzer-Tipp sprechen: so wird iOS-Audio zuverlässig hörbar aktiviert.
+    // Nach der Ansage startet speak() über scheduleListen automatisch die Erkennung.
+    speak(`EMA ist bereit, ${address}.`)
+  }, [address, clearTimer, setFollowUp, speak, updateListeningStatus])
 
   const closePanel = useCallback(() => {
     wakeModeRef.current = false
