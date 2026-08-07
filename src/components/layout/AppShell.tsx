@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 import { TopHeader } from './TopHeader'
 import { AppIntro } from './AppIntro'
+import { EmaVoice } from './EmaVoice'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -19,6 +20,7 @@ export function AppShell({ children, user }: AppShellProps) {
   return (
     <div className="app-shell">
       <AppIntro />
+      <EmaVoice userName={user.name} userEmail={user.email} />
 
       {/* ── Desktop Sidebar ──────────────────────────────────── */}
       <Sidebar user={user} />
