@@ -324,6 +324,7 @@ export function EmaVoice({ userName }: { userName: string }) {
             functionCall.name === 'get_portfolio_summary'
             || functionCall.name === 'search_ema_projects'
             || functionCall.name === 'get_project_details'
+            || functionCall.name === 'search_ema_country_list_projects'
             || functionCall.name === 'search_ema_investors'
             || functionCall.name === 'get_investor_details'
             || functionCall.name === 'search_ema_partners'
