@@ -47,6 +47,8 @@ Bei Fragen zu einzelnen Projekten innerhalb einer gespeicherten Länder-Projektl
 Bei Dokumenten darfst du Inhalte nur wiedergeben, wenn das Werkzeug content_indexed=true bzw. extracted_content liefert. Nicht indexierte PDFs nicht aus Dateiname oder Typ interpretieren.
 Kontakt-E-Mail oder Telefonnummer eines Investors oder Partners nur laden, wenn der Nutzer ausdrücklich nach Kontaktdaten fragt.
 Kritische Aktionen wie Löschen, Versenden oder verbindliche Änderungen dürfen nie ohne ausdrückliche Bestätigung ausgeführt werden.
+Wenn der Nutzer ein neues Projekt anlegen möchte, frage nacheinander nur nach fehlendem Projektname und Projekttyp. Weitere Angaben sind optional und werden nur übernommen, wenn der Nutzer sie selbst nennt. Sobald Name und Typ klar sind, nutze prepare_create_project. Rufe confirm_ema_action niemals in derselben Nutzerrunde wie prepare_create_project auf. Erst wenn der Nutzer in einer neuen Sprechrunde eindeutig mit Ja, Bestätigen, Mach das oder sinngleich zustimmt, nutze confirm_ema_action. Bei Ablehnung nutze cancel_ema_action.
+Wenn der Nutzer ein Exposé oder Investment Memorandum erstellen möchte, identifiziere das Projekt und nutze prepare_project_expose. Bestätige auch hier nie in derselben Nutzerrunde. Erst nach eindeutiger Zustimmung in einer neuen Sprechrunde nutze confirm_ema_action. Bei Ablehnung nutze cancel_ema_action.
 Du bist eine KI-Stimme und darfst dich nicht als Mensch ausgeben.`
 
 function safetyIdentifier(userId: string) {
@@ -103,6 +105,73 @@ export async function POST(request: NextRequest) {
             },
           },
           required: ['path'],
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'prepare_create_project',
+        description: 'Bereitet das Anlegen eines neuen EMA-Projekts vor, führt aber noch keine Änderung aus. Nur aufrufen, wenn Projektname und Projekttyp feststehen.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project_name: { type: 'string', description: 'Name des neuen Projekts.' },
+            project_type: {
+              type: 'string',
+              enum: ['pv_freiflaeche', 'pv_dach', 'bess', 'hybrid', 'wind', 'rechenzentrum', 'sonstiges'],
+              description: 'Projekttyp.',
+            },
+            location_country: { type: 'string', description: 'Optionales Land. Standard ist Deutschland.' },
+            location_state: { type: 'string', description: 'Optionales Bundesland oder Region.' },
+            location_city: { type: 'string', description: 'Optionaler Ort.' },
+            pv_kwp: { type: 'number', minimum: 0, description: 'Optionale PV-Leistung in kWp.' },
+            bess_mw: { type: 'number', minimum: 0, description: 'Optionale BESS-Leistung in MW.' },
+            bess_mwh: { type: 'number', minimum: 0, description: 'Optionale BESS-Energie in MWh.' },
+            bess_duration_h: { type: 'number', minimum: 0, description: 'Optionale Speicherdauer in Stunden.' },
+            data_center_grid_mw: { type: 'number', minimum: 0, description: 'Optionale Netzanschlussleistung eines Rechenzentrums in MW.' },
+            data_center_it_mw: { type: 'number', minimum: 0, description: 'Optionale IT-Leistung eines Rechenzentrums in MW.' },
+            land_area_sqm: { type: 'number', minimum: 0, description: 'Optionale Grundstücksfläche in Quadratmetern.' },
+            investment_volume_eur: { type: 'number', minimum: 0, description: 'Optionales Investitionsvolumen in Euro.' },
+            lease_term_years: { type: 'number', minimum: 0, description: 'Optionale Pachtdauer in Jahren.' },
+            contact_name: { type: 'string', description: 'Optionaler Ansprechpartner.' },
+            contact_email: { type: 'string', description: 'Optionale Kontakt-E-Mail.' },
+            contact_phone: { type: 'string', description: 'Optionale Telefonnummer.' },
+            notes: { type: 'string', description: 'Optionale Notiz.' },
+          },
+          required: ['project_name', 'project_type'],
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'prepare_project_expose',
+        description: 'Bereitet das Öffnen des vorhandenen EMA-Investment-Memorandums/Exposés für ein Projekt vor. Führt erst nach separater Bestätigung aus.',
+        parameters: {
+          type: 'object',
+          properties: {
+            project_query: { type: 'string', description: 'Projektname, Projektnummer oder Projekt-ID.' },
+          },
+          required: ['project_query'],
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'confirm_ema_action',
+        description: 'Bestätigt genau die zuvor vorbereitete EMA-Aktion. Nur nach einer eindeutigen Zustimmung des Nutzers in einer neuen Sprechrunde aufrufen.',
+        parameters: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'cancel_ema_action',
+        description: 'Verwirft die zuvor vorbereitete EMA-Aktion, wenn der Nutzer sie ablehnt oder abbricht.',
+        parameters: {
+          type: 'object',
+          properties: {},
           additionalProperties: false,
         },
       },
