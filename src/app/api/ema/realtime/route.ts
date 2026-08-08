@@ -38,7 +38,7 @@ Kritische Aktionen wie Löschen, Versenden oder verbindliche Änderungen dürfen
 Du bist eine KI-Stimme und darfst dich nicht als Mensch ausgeben.`
 
 function safetyIdentifier(userId: string) {
-  return `ema-${createHash('sha256').update(userId).digest('hex')}`
+  return createHash('sha256').update(userId).digest('hex')
 }
 
 export async function POST(request: NextRequest) {
