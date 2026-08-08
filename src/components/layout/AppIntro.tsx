@@ -52,19 +52,28 @@ export function AppIntro() {
       className={`fixed inset-0 z-[1000] flex items-center justify-center bg-[#1F2A44] transition-opacity duration-300 ${
         phase === 'leaving' ? 'pointer-events-none opacity-0' : 'opacity-100'
       }`}
-      aria-hidden="true"
     >
       {phase !== 'checking' ? (
-        <video
-          className="h-full w-full object-cover"
-          src={INTRO_VIDEO_URL}
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          onEnded={finishIntro}
-          onError={finishIntro}
-        />
+        <>
+          <video
+            className="h-full w-full object-cover"
+            src={INTRO_VIDEO_URL}
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            onEnded={finishIntro}
+            onError={finishIntro}
+          />
+          <button
+            type="button"
+            onClick={finishIntro}
+            className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-10 min-h-11 rounded-full border border-white/35 bg-[#1F2A44]/55 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:bg-[#1F2A44]/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5CB800] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F2A44]"
+            aria-label="Intro überspringen"
+          >
+            Überspringen
+          </button>
+        </>
       ) : null}
     </div>
   )
