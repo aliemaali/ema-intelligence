@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { MessageCircle, Mic, MicOff, X } from 'lucide-react'
+import { Mic, MicOff } from 'lucide-react'
 
 type VoiceState = 'idle' | 'listening' | 'unsupported' | 'error'
 
@@ -149,11 +149,11 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
   const realtimeIdleTimerRef = useRef<number | null>(null)
 
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
-  const [aiActive, setAiActive] = useState(false)
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [heard, setHeard] = useState('')
-  const [answer, setAnswer] = useState('Tippe einmal auf das Mikrofon. Danach wartet EMA auf „EMA“.')
-  const [status, setStatus] = useState('EMA-Modus aus')
+  const [, setAiActive] = useState(false)
+  const [, setPanelOpen] = useState(false)
+  const [, setHeard] = useState('')
+  const [, setAnswer] = useState('Tippe einmal auf das Mikrofon. Danach wartet EMA auf „EMA“.')
+  const [, setStatus] = useState('EMA-Modus aus')
 
   const isChief = useMemo(() => ownerGreeting(userEmail), [userEmail])
   const firstName = userName.trim().split(/\s+/)[0] || 'da'
@@ -588,20 +588,6 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     respond(`EMA ist bereit, ${address}.`)
   }, [address, clearTimer, respond, setFollowUp, stopRealtime, updateListeningStatus])
 
-  const closePanel = useCallback(() => {
-    wakeModeRef.current = false
-    rememberWakeMode(false)
-    followUpRef.current = false
-    clearTimer(restartTimerRef)
-    clearTimer(followUpTimerRef)
-    stopRealtime(false)
-    recognitionRef.current?.abort()
-    recognitionRef.current = null
-    setVoiceState('idle')
-    setPanelOpen(false)
-    setStatus('EMA-Modus aus')
-  }, [clearTimer, stopRealtime])
-
   useEffect(() => {
     // AppShell wird zwischen einigen EMA-Hauptbereichen neu gemountet.
     // Den einmal vom Nutzer aktivierten Wake-Modus innerhalb dieses Tabs fortsetzen.
@@ -627,35 +613,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
   const active = wakeModeRef.current
 
   return (
-    <div className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-[900] flex flex-col items-end gap-3 md:bottom-6 md:right-6">
-      {panelOpen && (
-        <section
-          role="status"
-          aria-live="polite"
-          className="w-[min(21rem,calc(100vw-2rem))] overflow-hidden rounded-[1.6rem] border border-white/70 bg-white/95 shadow-[0_22px_70px_rgba(7,20,47,0.24)] backdrop-blur-xl"
-        >
-          <div className="flex items-center justify-between bg-[#07142F] px-4 py-3 text-white">
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${active ? 'animate-pulse bg-[#8FDA45]' : 'bg-slate-400'}`} />
-              <span className="text-sm font-extrabold tracking-[0.12em]">{aiActive ? 'EMA AI' : 'EMA'}</span>
-            </div>
-            <button type="button" onClick={closePanel} aria-label="EMA schließen" className="rounded-full p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="space-y-3 px-4 py-4">
-            {heard && <p className="text-xs font-semibold text-slate-400">Du: „{heard}“</p>}
-            <div className="flex items-start gap-2.5">
-              <MessageCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#5CB800]" />
-              <p className="text-sm font-semibold leading-5 text-[#07142F]">{answer}</p>
-            </div>
-            <p className="text-xs font-semibold text-slate-400">{status}</p>
-            {aiActive && <p className="text-[10px] font-semibold text-slate-400">KI-Stimme · OpenAI Realtime</p>}
-          </div>
-        </section>
-      )}
-
+    <div className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-[900] md:bottom-6 md:right-6">
       <button
         type="button"
         onClick={toggleWakeMode}
