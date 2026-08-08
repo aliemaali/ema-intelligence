@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import { Mic, MicOff } from 'lucide-react'
 
 type VoiceState = 'idle' | 'listening' | 'unsupported' | 'error'
 
@@ -619,12 +619,33 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
         onClick={toggleWakeMode}
         aria-label={active ? 'EMA-Modus ausschalten' : 'EMA-Modus einschalten'}
         title={active ? 'EMA hört auf das Aktivierungswort' : 'Mit EMA sprechen'}
-        className={`relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-white text-white shadow-[0_14px_38px_rgba(7,20,47,0.32)] transition active:scale-95 ${
-          active ? 'bg-red-500' : 'bg-[#5CB800] hover:bg-[#4DA300]'
+        className={`relative flex h-16 w-16 items-center justify-center rounded-full border-2 bg-white shadow-[0_14px_38px_rgba(7,20,47,0.28)] transition duration-200 active:scale-95 ${
+          active ? 'border-[#63C800]' : 'border-[#07142F]/15 hover:border-[#63C800]/70'
         }`}
       >
-        {listening && <span className="absolute inset-0 animate-ping rounded-full bg-red-400/40" />}
-        {active ? <MicOff className="relative h-7 w-7" /> : <Mic className="relative h-7 w-7" />}
+        {active && <span className="pointer-events-none absolute -inset-1 rounded-full border-2 border-[#63C800]/35" />}
+        {listening && <span className="pointer-events-none absolute -inset-2 animate-ping rounded-full border-2 border-[#63C800]/50" />}
+
+        <span className="pointer-events-none absolute left-[5px] flex items-center gap-[2px]" aria-hidden="true">
+          <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${listening ? 'animate-pulse' : 'opacity-35'}`} />
+          <span className={`h-4 w-[2px] rounded-full bg-[#63C800] ${listening ? 'animate-pulse' : 'opacity-45'}`} />
+        </span>
+
+        <Image
+          src="/brand/ema-mark.png"
+          alt=""
+          width={506}
+          height={247}
+          className="relative h-auto w-[38px]"
+          priority
+        />
+
+        <span className="pointer-events-none absolute right-[5px] flex items-center gap-[2px]" aria-hidden="true">
+          <span className={`h-4 w-[2px] rounded-full bg-[#63C800] ${listening ? 'animate-pulse' : 'opacity-45'}`} />
+          <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${listening ? 'animate-pulse' : 'opacity-35'}`} />
+        </span>
+
+        {active && <span className="pointer-events-none absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#63C800]" />}
       </button>
     </div>
   )
