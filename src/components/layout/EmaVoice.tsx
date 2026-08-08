@@ -62,7 +62,7 @@ type Destination = {
   patterns: RegExp[]
 }
 
-const WAKE_SESSION_KEY = 'ema-intelligence:voice:wake-active:v1'
+const WAKE_PERSIST_KEY = 'ema-intelligence:voice:wake-active:v2'
 const REALTIME_IDLE_MS = 5 * 60 * 1000
 
 const DESTINATIONS: Destination[] = [
@@ -109,16 +109,16 @@ function wakeMatch(value: string) {
 
 function rememberWakeMode(active: boolean) {
   try {
-    if (active) window.sessionStorage.setItem(WAKE_SESSION_KEY, '1')
-    else window.sessionStorage.removeItem(WAKE_SESSION_KEY)
+    if (active) window.localStorage.setItem(WAKE_PERSIST_KEY, '1')
+    else window.localStorage.removeItem(WAKE_PERSIST_KEY)
   } catch {
-    // Sprachsteuerung funktioniert auch, wenn Session Storage nicht verfügbar ist.
+    // Sprachsteuerung funktioniert auch, wenn dauerhafter Browser-Speicher nicht verfügbar ist.
   }
 }
 
 function hasRememberedWakeMode() {
   try {
-    return window.sessionStorage.getItem(WAKE_SESSION_KEY) === '1'
+    return window.localStorage.getItem(WAKE_PERSIST_KEY) === '1'
   } catch {
     return false
   }
@@ -147,7 +147,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const [, setAiActive] = useState(false)
   const [, setPanelOpen] = useState(false)
   const [, setHeard] = useState('')
-  const [, setAnswer] = useState('Tippe einmal auf das Mikrofon. Danach wartet EMA auf „EMA“.')
+  const [, setAnswer] = useState('Tippe einmal auf EMA. Danach wartet EMA auf „EMA“.')
   const [, setStatus] = useState('EMA-Modus aus')
 
   const firstName = userName.trim().split(/\s+/)[0] || 'da'
@@ -300,7 +300,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       peer.ontrack = (event) => {
         audio.srcObject = event.streams[0] ?? null
         void audio.play().catch(() => {
-          setStatus('EMA AI verbunden · tippe kurz auf das Mikrofon, falls du nichts hörst')
+          setStatus('EMA AI verbunden · tippe kurz auf EMA, falls du nichts hörst')
         })
       }
 
@@ -569,7 +569,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       }
       recognitionRef.current = null
       setVoiceState('idle')
-      setAnswer('EMA-Modus pausiert. Tippe auf das Mikrofon, um mich wieder zu aktivieren.')
+      setAnswer('EMA-Modus pausiert. Tippe auf EMA, um mich wieder zu aktivieren.')
       setStatus('EMA-Modus aus')
       return
     }
@@ -584,7 +584,7 @@ export function EmaVoice({ userName }: { userName: string }) {
 
   useEffect(() => {
     // AppShell wird zwischen einigen EMA-Hauptbereichen neu gemountet.
-    // Den einmal vom Nutzer aktivierten Wake-Modus innerhalb dieses Tabs fortsetzen.
+    // Den einmal vom Nutzer aktivierten Wake-Modus auf diesem Gerät dauerhaft fortsetzen.
     if (hasRememberedWakeMode()) {
       wakeModeRef.current = true
       setPanelOpen(true)
