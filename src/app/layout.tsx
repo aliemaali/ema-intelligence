@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/useAuth'
 import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
 import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
+import { EmaVoiceGate } from '@/components/layout/EmaVoiceGate'
 import '@/styles/globals.css'
 
 const inter = Inter({
@@ -59,6 +60,7 @@ export default function RootLayout({
         >
           <AuthProvider>
             {children}
+            <EmaVoiceGate />
             <DashboardCalendarShortcut />
             <DashboardTemplateShortcut />
             <Toaster
