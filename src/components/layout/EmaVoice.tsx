@@ -492,7 +492,7 @@ export function EmaVoice({ userName }: { userName: string }) {
         aria-label={listening ? 'EMA hört zu. Loslassen zum Senden.' : `Gedrückt halten, um mit EMA zu sprechen, ${userName}`}
         aria-pressed={listening}
         title={listening ? 'Loslassen zum Senden' : 'Gedrückt halten zum Sprechen'}
-        className={`relative flex h-16 w-16 touch-none select-none items-center justify-center overflow-hidden rounded-full border-2 bg-white shadow-[0_14px_38px_rgba(7,20,47,0.28)] transition duration-150 ${listening ? 'scale-95 border-[#63C800]' : 'border-[#07142F]/15 hover:border-[#63C800]/70'}`}
+        className={`relative flex h-16 w-16 touch-none select-none [-webkit-touch-callout:none] [-webkit-user-select:none] items-center justify-center overflow-hidden rounded-full border-2 bg-white shadow-[0_14px_38px_rgba(7,20,47,0.28)] transition duration-150 ${listening ? 'scale-95 border-[#63C800]' : 'border-[#07142F]/15 hover:border-[#63C800]/70'}`}
       >
         <span
           className={`pointer-events-none absolute inset-[2px] rounded-full transition-opacity duration-200 ${
@@ -524,7 +524,7 @@ export function EmaVoice({ userName }: { userName: string }) {
           alt=""
           width={506}
           height={247}
-          className="relative z-10 h-auto w-[38px] drop-shadow-[0_1px_2px_rgba(7,20,47,0.12)]"
+          className="pointer-events-none relative z-10 h-auto w-[38px] select-none [-webkit-touch-callout:none] [-webkit-user-select:none] drop-shadow-[0_1px_2px_rgba(7,20,47,0.12)]"
           priority
           draggable={false}
         />
