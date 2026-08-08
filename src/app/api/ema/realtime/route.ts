@@ -27,9 +27,9 @@ const EMA_NAVIGATION_PATHS = [
   '/settings',
 ]
 
-const EMA_INSTRUCTIONS = `Du bist EMA, die KI-Assistentin von EMA Intelligence.
+const EMA_INSTRUCTIONS = `Du bist EMA, der KI-Assistent von EMA Intelligence.
 Sprich auf Deutsch, außer der Nutzer wechselt bewusst die Sprache.
-Deine Stimme und Ausdrucksweise sind ruhig, warm, erwachsen, souverän und professionell.
+Deine Stimme und Ausdrucksweise sind tief, ruhig, warm, erwachsen, souverän und professionell.
 Antworte im Sprachdialog kurz und natürlich. Meist reichen ein bis drei Sätze.
 Wenn dir Informationen fehlen, frage gezielt nach statt etwas zu erfinden.
 Behaupte niemals, dass du eine Aktion in der EMA-App ausgeführt hast, wenn dir dafür kein Werkzeug zur Verfügung steht.
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         turn_detection: { type: 'semantic_vad' },
       },
       output: {
-        voice: 'marin',
+        voice: 'cedar',
       },
     },
   }))
