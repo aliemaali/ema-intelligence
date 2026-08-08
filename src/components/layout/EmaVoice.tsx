@@ -613,12 +613,26 @@ export function EmaVoice({ userName }: { userName: string }) {
         onClick={toggleWakeMode}
         aria-label={active ? 'EMA-Modus ausschalten' : 'EMA-Modus einschalten'}
         title={active ? 'EMA hört auf das Aktivierungswort' : 'Mit EMA sprechen'}
-        className={`relative flex h-16 w-16 items-center justify-center rounded-full border-2 bg-white shadow-[0_14px_38px_rgba(7,20,47,0.28)] transition duration-200 active:scale-95 ${
+        className={`relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 bg-white shadow-[0_14px_38px_rgba(7,20,47,0.28)] transition duration-200 active:scale-95 ${
           active ? 'border-[#63C800]' : 'border-[#07142F]/15 hover:border-[#63C800]/70'
         }`}
       >
-        {active && <span className="pointer-events-none absolute -inset-1 rounded-full border-2 border-[#63C800]/35" />}
-        {listening && <span className="pointer-events-none absolute -inset-2 animate-ping rounded-full border-2 border-[#63C800]/50" />}
+        <span
+          className={`pointer-events-none absolute inset-[2px] rounded-full transition-opacity duration-500 ${
+            listening
+              ? 'animate-pulse opacity-100 shadow-[inset_0_0_26px_9px_rgba(99,200,0,0.42)]'
+              : active
+                ? 'animate-pulse opacity-80 shadow-[inset_0_0_20px_6px_rgba(99,200,0,0.28)]'
+                : 'opacity-45 shadow-[inset_0_0_14px_4px_rgba(99,200,0,0.16)]'
+          }`}
+          aria-hidden="true"
+        />
+        {listening && (
+          <span
+            className="pointer-events-none absolute inset-[10px] animate-pulse rounded-full bg-[radial-gradient(circle,rgba(99,200,0,0.20)_0%,rgba(99,200,0,0.07)_55%,rgba(255,255,255,0)_75%)]"
+            aria-hidden="true"
+          />
+        )}
 
         <span className="pointer-events-none absolute left-[5px] flex items-center gap-[2px]" aria-hidden="true">
           <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${listening ? 'animate-pulse' : 'opacity-35'}`} />
@@ -630,7 +644,7 @@ export function EmaVoice({ userName }: { userName: string }) {
           alt=""
           width={506}
           height={247}
-          className="relative h-auto w-[38px]"
+          className="relative z-10 h-auto w-[38px] drop-shadow-[0_1px_2px_rgba(7,20,47,0.12)]"
           priority
         />
 
