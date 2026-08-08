@@ -6,6 +6,20 @@ import { MessageCircle, Mic, MicOff, X } from 'lucide-react'
 
 type VoiceState = 'idle' | 'listening' | 'unsupported' | 'error'
 
+type RealtimeServerEvent = {
+  type?: string
+  transcript?: string
+  error?: { message?: string }
+  response?: {
+    output?: Array<{
+      type?: string
+      name?: string
+      call_id?: string
+      arguments?: string
+    }>
+  }
+}
+
 type SpeechRecognitionResultLike = {
   0?: { transcript?: string }
 }
@@ -49,6 +63,7 @@ type Destination = {
 }
 
 const WAKE_SESSION_KEY = 'ema-intelligence:voice:wake-active:v1'
+const REALTIME_IDLE_MS = 5 * 60 * 1000
 
 const DESTINATIONS: Destination[] = [
   { label: 'Dashboard', href: '/dashboard', patterns: [/\bdashboard\b/, /\bstartseite\b/, /\bubersicht\b/] },
@@ -124,10 +139,17 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const wakeModeRef = useRef(false)
   const followUpRef = useRef(false)
+  const realtimeActiveRef = useRef(false)
+  const realtimePeerRef = useRef<RTCPeerConnection | null>(null)
+  const realtimeChannelRef = useRef<RTCDataChannel | null>(null)
+  const realtimeStreamRef = useRef<MediaStream | null>(null)
+  const realtimeAudioRef = useRef<HTMLAudioElement | null>(null)
   const restartTimerRef = useRef<number | null>(null)
   const followUpTimerRef = useRef<number | null>(null)
+  const realtimeIdleTimerRef = useRef<number | null>(null)
 
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
+  const [aiActive, setAiActive] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [heard, setHeard] = useState('')
   const [answer, setAnswer] = useState('Tippe einmal auf das Mikrofon. Danach wartet EMA auf „EMA“.')
@@ -166,7 +188,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
   const scheduleListen = useCallback((delay = 280) => {
     clearTimer(restartTimerRef)
-    if (!wakeModeRef.current) return
+    if (!wakeModeRef.current || realtimeActiveRef.current) return
     restartTimerRef.current = window.setTimeout(() => startRecognitionRef.current(), delay)
   }, [clearTimer])
 
@@ -179,6 +201,218 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     if (!recognitionRef.current) scheduleListen(160)
     onFinished?.()
   }, [scheduleListen, setFollowUp, updateListeningStatus])
+
+  const stopRealtime = useCallback((resumeWake = true) => {
+    const wasActive = realtimeActiveRef.current
+    realtimeActiveRef.current = false
+    setAiActive(false)
+    clearTimer(realtimeIdleTimerRef)
+
+    const channel = realtimeChannelRef.current
+    realtimeChannelRef.current = null
+    try {
+      channel?.close()
+    } catch {
+      // Bereits geschlossene Data Channels brauchen keine weitere Behandlung.
+    }
+
+    const peer = realtimePeerRef.current
+    realtimePeerRef.current = null
+    try {
+      peer?.close()
+    } catch {
+      // Bereits geschlossene Peer Connections brauchen keine weitere Behandlung.
+    }
+
+    realtimeStreamRef.current?.getTracks().forEach((track) => track.stop())
+    realtimeStreamRef.current = null
+
+    if (realtimeAudioRef.current) {
+      realtimeAudioRef.current.pause()
+      realtimeAudioRef.current.srcObject = null
+      realtimeAudioRef.current = null
+    }
+
+    if (wasActive && resumeWake && wakeModeRef.current) {
+      setVoiceState('idle')
+      setAnswer('EMA AI beendet. Ich warte wieder auf „EMA“.')
+      updateListeningStatus()
+      scheduleListen(320)
+    }
+  }, [clearTimer, scheduleListen, updateListeningStatus])
+
+  const resetRealtimeIdleTimer = useCallback(() => {
+    clearTimer(realtimeIdleTimerRef)
+    realtimeIdleTimerRef.current = window.setTimeout(() => stopRealtime(true), REALTIME_IDLE_MS)
+  }, [clearTimer, stopRealtime])
+
+  const sendRealtimeText = useCallback((text: string) => {
+    const channel = realtimeChannelRef.current
+    if (!channel || channel.readyState !== 'open') return false
+
+    channel.send(JSON.stringify({
+      type: 'conversation.item.create',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text }],
+      },
+    }))
+    channel.send(JSON.stringify({
+      type: 'response.create',
+      response: { output_modalities: ['audio'] },
+    }))
+    resetRealtimeIdleTimer()
+    return true
+  }, [resetRealtimeIdleTimer])
+
+  const startRealtime = useCallback(async (initialText?: string) => {
+    if (realtimeActiveRef.current) {
+      if (initialText) sendRealtimeText(initialText)
+      return
+    }
+
+    if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) {
+      respond('EMA AI kann auf diesem Gerät keine direkte Sprachverbindung starten.')
+      return
+    }
+
+    realtimeActiveRef.current = true
+    setAiActive(true)
+    setFollowUp(false)
+    clearTimer(restartTimerRef)
+    clearTimer(followUpTimerRef)
+    setPanelOpen(true)
+    setVoiceState('listening')
+    setStatus('EMA AI verbindet …')
+    setAnswer('Einen Moment – ich verbinde die sichere Sprachsitzung.')
+
+    try {
+      recognitionRef.current?.abort()
+    } catch {
+      // Safari kann die lokale Erkennung bereits beendet haben.
+    }
+    recognitionRef.current = null
+
+    try {
+      const peer = new RTCPeerConnection()
+      realtimePeerRef.current = peer
+
+      const audio = document.createElement('audio')
+      audio.autoplay = true
+      audio.setAttribute('playsinline', 'true')
+      realtimeAudioRef.current = audio
+
+      peer.ontrack = (event) => {
+        audio.srcObject = event.streams[0] ?? null
+        void audio.play().catch(() => {
+          setStatus('EMA AI verbunden · tippe kurz auf das Mikrofon, falls du nichts hörst')
+        })
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      })
+      realtimeStreamRef.current = stream
+      stream.getAudioTracks().forEach((track) => peer.addTrack(track, stream))
+
+      const channel = peer.createDataChannel('oai-events')
+      realtimeChannelRef.current = channel
+
+      channel.addEventListener('open', () => {
+        setStatus('EMA AI aktiv · sprich einfach weiter')
+        setAnswer('EMA AI ist verbunden. Die Stimme ist KI-generiert.')
+        resetRealtimeIdleTimer()
+        if (initialText) sendRealtimeText(initialText)
+      })
+
+      channel.addEventListener('message', (message) => {
+        resetRealtimeIdleTimer()
+        try {
+          const event = JSON.parse(String(message.data)) as RealtimeServerEvent
+          if (event.type === 'response.output_audio_transcript.done' && event.transcript?.trim()) {
+            setAnswer(event.transcript.trim())
+          } else if (event.type === 'input_audio_buffer.speech_started') {
+            setStatus('EMA AI hört zu …')
+          } else if (event.type === 'response.created') {
+            setStatus('EMA AI antwortet …')
+          } else if (event.type === 'response.done') {
+            const functionCall = event.response?.output?.find((item) => item.type === 'function_call' && item.name === 'open_ema_area')
+            if (functionCall?.call_id) {
+              let requestedPath = ''
+              try {
+                const args = JSON.parse(functionCall.arguments ?? '{}') as { path?: unknown }
+                if (typeof args.path === 'string') requestedPath = args.path
+              } catch {
+                // Ungültige Tool-Argumente werden wie ein nicht freigegebener Pfad behandelt.
+              }
+
+              const destination = DESTINATIONS.find((item) => item.href === requestedPath)
+              channel.send(JSON.stringify({
+                type: 'conversation.item.create',
+                item: {
+                  type: 'function_call_output',
+                  call_id: functionCall.call_id,
+                  output: JSON.stringify(destination
+                    ? { success: true, opened: destination.label }
+                    : { success: false, error: 'Dieser Bereich ist nicht für Sprachnavigation freigegeben.' }),
+                },
+              }))
+              channel.send(JSON.stringify({ type: 'response.create' }))
+
+              if (destination) {
+                setAnswer(`Natürlich, ${address}. Ich öffne ${destination.label}.`)
+                setStatus('EMA AI navigiert …')
+                router.push(destination.href)
+                return
+              }
+            }
+            setStatus('EMA AI aktiv · sprich einfach weiter')
+          } else if (event.type === 'error') {
+            console.error('EMA Realtime event error:', event.error?.message ?? 'Unbekannter Fehler')
+            setStatus('EMA AI meldet einen Verbindungsfehler')
+          }
+        } catch {
+          // Unbekannte Realtime-Events werden ignoriert.
+        }
+      })
+
+      const offer = await peer.createOffer()
+      await peer.setLocalDescription(offer)
+      if (!offer.sdp) throw new Error('WebRTC-Angebot enthält keine SDP-Daten.')
+
+      const response = await fetch('/api/ema/realtime', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/sdp' },
+        body: offer.sdp,
+      })
+
+      if (!response.ok) {
+        const details = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(details?.error ?? 'EMA AI konnte die Sitzung nicht starten.')
+      }
+
+      const answerSdp = await response.text()
+      await peer.setRemoteDescription({ type: 'answer', sdp: answerSdp })
+
+      peer.addEventListener('connectionstatechange', () => {
+        if (peer.connectionState === 'failed' || peer.connectionState === 'closed') {
+          stopRealtime(true)
+        }
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'EMA AI konnte nicht gestartet werden.'
+      stopRealtime(false)
+      setVoiceState('error')
+      setAnswer(message)
+      setStatus('EMA AI nicht verbunden')
+      if (wakeModeRef.current) scheduleListen(650)
+    }
+  }, [address, clearTimer, resetRealtimeIdleTimer, respond, router, scheduleListen, sendRealtimeText, setFollowUp, stopRealtime])
 
   const runCommand = useCallback((transcript: string, followUpCommand = false) => {
     let command = normalizeText(transcript)
@@ -248,8 +482,10 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
       return
     }
 
-    respond(`Das habe ich noch nicht sicher verstanden, ${address}. Sag zum Beispiel: EMA, öffne Projekte.`)
-  }, [address, firstName, isChief, pathname, respond, router, setFollowUp])
+    setAnswer('Das ist eine Frage für EMA AI – ich verbinde die Sprachsitzung.')
+    setPanelOpen(true)
+    void startRealtime(command)
+  }, [address, firstName, isChief, pathname, respond, router, setFollowUp, startRealtime])
 
   const startRecognition = useCallback(() => {
     if (!wakeModeRef.current || recognitionRef.current) return
@@ -303,7 +539,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
 
     recognition.onend = () => {
       if (recognitionRef.current === recognition) recognitionRef.current = null
-      if (!wakeModeRef.current) return
+      if (!wakeModeRef.current || realtimeActiveRef.current) return
       setVoiceState('idle')
       updateListeningStatus()
       scheduleListen()
@@ -330,6 +566,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
       wakeModeRef.current = false
       rememberWakeMode(false)
       setFollowUp(false)
+      stopRealtime(false)
       clearTimer(restartTimerRef)
       try {
         recognitionRef.current?.abort()
@@ -349,7 +586,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     setHeard('Ich warte auf mein Aktivierungswort …')
     updateListeningStatus()
     respond(`EMA ist bereit, ${address}.`)
-  }, [address, clearTimer, respond, setFollowUp, updateListeningStatus])
+  }, [address, clearTimer, respond, setFollowUp, stopRealtime, updateListeningStatus])
 
   const closePanel = useCallback(() => {
     wakeModeRef.current = false
@@ -357,12 +594,13 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     followUpRef.current = false
     clearTimer(restartTimerRef)
     clearTimer(followUpTimerRef)
+    stopRealtime(false)
     recognitionRef.current?.abort()
     recognitionRef.current = null
     setVoiceState('idle')
     setPanelOpen(false)
     setStatus('EMA-Modus aus')
-  }, [clearTimer])
+  }, [clearTimer, stopRealtime])
 
   useEffect(() => {
     // AppShell wird zwischen einigen EMA-Hauptbereichen neu gemountet.
@@ -381,8 +619,9 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
       recognitionRef.current?.abort()
       clearTimer(restartTimerRef)
       clearTimer(followUpTimerRef)
+      stopRealtime(false)
     }
-  }, [clearTimer, scheduleListen, updateListeningStatus])
+  }, [clearTimer, scheduleListen, stopRealtime, updateListeningStatus])
 
   const listening = wakeModeRef.current && voiceState === 'listening'
   const active = wakeModeRef.current
@@ -398,7 +637,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
           <div className="flex items-center justify-between bg-[#07142F] px-4 py-3 text-white">
             <div className="flex items-center gap-2">
               <span className={`h-2.5 w-2.5 rounded-full ${active ? 'animate-pulse bg-[#8FDA45]' : 'bg-slate-400'}`} />
-              <span className="text-sm font-extrabold tracking-[0.12em]">EMA</span>
+              <span className="text-sm font-extrabold tracking-[0.12em]">{aiActive ? 'EMA AI' : 'EMA'}</span>
             </div>
             <button type="button" onClick={closePanel} aria-label="EMA schließen" className="rounded-full p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white">
               <X className="h-4 w-4" />
@@ -412,6 +651,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
               <p className="text-sm font-semibold leading-5 text-[#07142F]">{answer}</p>
             </div>
             <p className="text-xs font-semibold text-slate-400">{status}</p>
+            {aiActive && <p className="text-[10px] font-semibold text-slate-400">KI-Stimme · OpenAI Realtime</p>}
           </div>
         </section>
       )}
