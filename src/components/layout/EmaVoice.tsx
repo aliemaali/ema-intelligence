@@ -373,7 +373,13 @@ export function EmaVoice({ userName }: { userName: string }) {
                 } else if (
                   functionCall.name === 'get_portfolio_summary' ||
                   functionCall.name === 'search_ema_projects' ||
-                  functionCall.name === 'get_project_details'
+                  functionCall.name === 'get_project_details' ||
+                  functionCall.name === 'search_ema_investors' ||
+                  functionCall.name === 'get_investor_details' ||
+                  functionCall.name === 'search_ema_partners' ||
+                  functionCall.name === 'get_partner_details' ||
+                  functionCall.name === 'search_ema_documents' ||
+                  functionCall.name === 'get_document_details'
                 ) {
                   try {
                     const knowledgeResponse = await fetch('/api/ema/knowledge', {
@@ -388,9 +394,9 @@ export function EmaVoice({ userName }: { userName: string }) {
                     } | null
                     output = knowledgeResponse.ok && payload?.ok
                       ? { success: true, data: payload.result }
-                      : { success: false, error: payload?.error ?? 'EMA konnte die Projektdaten nicht lesen.' }
+                      : { success: false, error: payload?.error ?? 'EMA konnte die aktuellen EMA-Daten nicht lesen.' }
                   } catch {
-                    output = { success: false, error: 'EMA konnte die Projektdaten nicht lesen.' }
+                    output = { success: false, error: 'EMA konnte die aktuellen EMA-Daten nicht lesen.' }
                   }
                 } else {
                   output = { success: false, error: 'Unbekanntes EMA-Werkzeug.' }
