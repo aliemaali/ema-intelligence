@@ -570,33 +570,33 @@ async function searchCountryListProjects(
     }
   }
 
-  const paths = source.storage_paths ?? []
-  const names = source.original_file_names ?? []
-  let combinedText = ''
-
-  for (const [index, storagePath] of paths.entries()) {
-    const name = names[index] ?? ''
-    const lower = name.toLocaleLowerCase('de-DE')
-    if (!lower.endsWith('.pdf') && !lower.endsWith('.csv') && !lower.endsWith('.txt')) continue
-
-    const { data: blob, error: downloadError } = await supabase.storage
-      .from('project-imports')
-      .download(storagePath)
-    if (downloadError || !blob) continue
-    if (blob.size > 20 * 1024 * 1024) throw new Error('Projektlisten-Quelldatei ist zu groß.')
-
-    const buffer = Buffer.from(await blob.arrayBuffer())
-    if (lower.endsWith('.pdf')) {
-      const pdfParse = (await import('pdf-parse')).default
-      const parsed = await pdfParse(buffer)
-      combinedText += `\n${parsed.text || ''}`
-    } else {
-      combinedText += `\n${buffer.toString('utf-8')}`
-    }
-  }
-
   let projects = countryProjectCache.get(source.id)
   if (!projects) {
+    const paths = source.storage_paths ?? []
+    const names = source.original_file_names ?? []
+    let combinedText = ''
+
+    for (const [index, storagePath] of paths.entries()) {
+      const name = names[index] ?? ''
+      const lower = name.toLocaleLowerCase('de-DE')
+      if (!lower.endsWith('.pdf') && !lower.endsWith('.csv') && !lower.endsWith('.txt')) continue
+
+      const { data: blob, error: downloadError } = await supabase.storage
+        .from('project-imports')
+        .download(storagePath)
+      if (downloadError || !blob) continue
+      if (blob.size > 20 * 1024 * 1024) throw new Error('Projektlisten-Quelldatei ist zu groß.')
+
+      const buffer = Buffer.from(await blob.arrayBuffer())
+      if (lower.endsWith('.pdf')) {
+        const pdfParse = (await import('pdf-parse')).default
+        const parsed = await pdfParse(buffer)
+        combinedText += `\n${parsed.text || ''}`
+      } else {
+        combinedText += `\n${buffer.toString('utf-8')}`
+      }
+    }
+
     projects = parseCountryProjectListText(combinedText)
     if (projects.length > 0) {
       if (countryProjectCache.size >= COUNTRY_LIST_CACHE_LIMIT) {
