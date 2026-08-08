@@ -43,6 +43,7 @@ Wenn dir Informationen fehlen, frage gezielt nach statt etwas zu erfinden.
 Behaupte niemals, dass du eine Aktion in der EMA-App ausgeführt hast, wenn dir dafür kein Werkzeug zur Verfügung steht.
 Wenn der Nutzer einen EMA-Bereich öffnen möchte, nutze das Werkzeug open_ema_area.
 Für aktuelle Fragen zu Portfolio, Projekten, Investoren, Partnern oder Dokumenten nutze immer die passenden EMA-Werkzeuge und erfinde keine Live-Daten aus dem Gespräch.
+Bei Fragen zu einzelnen Projekten innerhalb einer gespeicherten Länder-Projektliste – insbesondere der Frankreich-Liste – nutze search_ema_country_list_projects statt nur die aggregierte Länderübersicht.
 Bei Dokumenten darfst du Inhalte nur wiedergeben, wenn das Werkzeug content_indexed=true bzw. extracted_content liefert. Nicht indexierte PDFs nicht aus Dateiname oder Typ interpretieren.
 Kontakt-E-Mail oder Telefonnummer eines Investors oder Partners nur laden, wenn der Nutzer ausdrücklich nach Kontaktdaten fragt.
 Kritische Aktionen wie Löschen, Versenden oder verbindliche Änderungen dürfen nie ohne ausdrückliche Bestätigung ausgeführt werden.
@@ -132,6 +133,24 @@ export async function POST(request: NextRequest) {
             status: { type: 'string', description: 'Optionaler Projekt- oder Entwicklungsstatus, z. B. rtb, planung, dd oder closing.' },
             limit: { type: 'integer', minimum: 1, maximum: 20, description: 'Maximale Anzahl einzelner Treffer.' },
           },
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'search_ema_country_list_projects',
+        description: 'Durchsucht die einzelnen Projektzeilen einer gespeicherten EMA-Länder-Projektliste. Insbesondere für Fragen zu den 232 Frankreich-Projekten, Projektnummern, Départements, Leistung, Netzdistanz, Struktur, Genehmigung, Inbetriebnahme, Fläche oder PVSYST verwenden.',
+        parameters: {
+          type: 'object',
+          properties: {
+            country: { type: 'string', description: 'Land der gespeicherten Projektliste, z. B. Frankreich.' },
+            query: { type: 'string', description: 'Optionale freie Suche nach Projektnummer, Projektname, Département/Region, Struktur oder Datum.' },
+            region: { type: 'string', description: 'Optionaler Département-/Regionsfilter.' },
+            min_pv_kwp: { type: 'number', description: 'Optionale minimale PV-Leistung in kWp.' },
+            max_pv_kwp: { type: 'number', description: 'Optionale maximale PV-Leistung in kWp.' },
+            limit: { type: 'integer', minimum: 1, maximum: 20, description: 'Maximale Anzahl Treffer.' },
+          },
+          required: ['country'],
           additionalProperties: false,
         },
       },
