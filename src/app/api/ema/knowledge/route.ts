@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEmaVoiceUserName } from '@/lib/ema/voiceAccess'
+import { parseCountryProjectListText } from '@/lib/ema/countryProjectList'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -12,6 +13,7 @@ type KnowledgeTool =
   | 'get_portfolio_summary'
   | 'search_ema_projects'
   | 'get_project_details'
+  | 'search_ema_country_list_projects'
   | 'search_ema_investors'
   | 'get_investor_details'
   | 'search_ema_partners'
@@ -509,6 +511,147 @@ async function projectDetails(
 }
 
 
+function countrySourceAliases(country: string) {
+  const value = normalized(country)
+  if (value === 'frankreich' || value === 'france') return ['frankreich', 'france']
+  return value ? [value] : []
+}
+
+async function searchCountryListProjects(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const requestedCountry = String(args.country ?? '').trim()
+  if (!requestedCountry) return { found: false, error: 'Land fehlt.' }
+
+  const countryLists = await loadCountryLists(supabase)
+  const list = countryLists.find((row) => {
+    const aliases = countrySourceAliases(requestedCountry)
+    const rowCountry = normalized(row.country)
+    return aliases.includes(rowCountry)
+      || (aliases.includes('france') && rowCountry === 'frankreich')
+      || (aliases.includes('frankreich') && rowCountry === 'france')
+  })
+  if (!list) return { found: false, country: requestedCountry, error: 'Keine gespeicherte Länder-Projektliste gefunden.' }
+
+  const aliases = countrySourceAliases(list.country)
+  const { data: imports, error: importError } = await supabase
+    .from('project_imports')
+    .select('id,storage_bucket,storage_paths,original_file_names,created_at')
+    .lte('created_at', list.created_at)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (importError) throw new Error(importError.message)
+
+  const source = (imports ?? []).find((item) => {
+    const names = Array.isArray((item as { original_file_names?: unknown }).original_file_names)
+      ? (item as { original_file_names: string[] }).original_file_names
+      : []
+    return names.some((name) => aliases.some((alias) => normalized(name).includes(alias)))
+  }) as {
+    id: string
+    storage_bucket: string | null
+    storage_paths: string[] | null
+    original_file_names: string[] | null
+    created_at: string
+  } | undefined
+
+  if (!source || source.storage_bucket !== 'project-imports') {
+    return {
+      found: true,
+      country: list.country,
+      source_available: false,
+      project_count: numberValue(list.project_count),
+      total_kwp: numberValue(list.total_kwp),
+      limitation: 'Die gespeicherte Übersicht ist vorhanden, aber die strukturierte Quelldatei wurde nicht gefunden.',
+    }
+  }
+
+  const paths = source.storage_paths ?? []
+  const names = source.original_file_names ?? []
+  let combinedText = ''
+
+  for (const [index, storagePath] of paths.entries()) {
+    const name = names[index] ?? ''
+    const lower = name.toLocaleLowerCase('de-DE')
+    if (!lower.endsWith('.pdf') && !lower.endsWith('.csv') && !lower.endsWith('.txt')) continue
+
+    const { data: blob, error: downloadError } = await supabase.storage
+      .from('project-imports')
+      .download(storagePath)
+    if (downloadError || !blob) continue
+    if (blob.size > 20 * 1024 * 1024) throw new Error('Projektlisten-Quelldatei ist zu groß.')
+
+    const buffer = Buffer.from(await blob.arrayBuffer())
+    if (lower.endsWith('.pdf')) {
+      const pdfParse = (await import('pdf-parse')).default
+      const parsed = await pdfParse(buffer)
+      combinedText += `\n${parsed.text || ''}`
+    } else {
+      combinedText += `\n${buffer.toString('utf-8')}`
+    }
+  }
+
+  const projects = parseCountryProjectListText(combinedText)
+  if (projects.length === 0) {
+    return {
+      found: true,
+      country: list.country,
+      source_available: true,
+      project_count: numberValue(list.project_count),
+      total_kwp: numberValue(list.total_kwp),
+      limitation: 'Die Quelldatei ist vorhanden, aber ihre Projektzeilen konnten nicht sicher gelesen werden.',
+    }
+  }
+
+  const query = normalized(args.query)
+  const region = normalized(args.region)
+  const minPvKwp = nullableNumber(args.min_pv_kwp)
+  const maxPvKwp = nullableNumber(args.max_pv_kwp)
+  const limit = boundedLimit(args.limit)
+
+  const filtered = projects.filter((project) => {
+    const pvKwp = nullableNumber(project.pvKwp)
+    if (region && !normalized(project.region).includes(region)) return false
+    if (minPvKwp !== null && (pvKwp === null || pvKwp < minPvKwp)) return false
+    if (maxPvKwp !== null && (pvKwp === null || pvKwp > maxPvKwp)) return false
+    if (!query) return true
+
+    return [
+      project.externalNumber,
+      project.region,
+      project.projectName,
+      project.structure,
+      project.permissionDate,
+      project.commissioning,
+    ].some((value) => normalized(value).includes(query))
+  })
+
+  return {
+    found: true,
+    country: list.country,
+    source_available: true,
+    source_project_count: projects.length,
+    saved_project_count: numberValue(list.project_count),
+    saved_total_kwp: numberValue(list.total_kwp),
+    match_count: filtered.length,
+    matches: filtered.slice(0, limit).map((project) => ({
+      external_number: project.externalNumber,
+      project_name: project.projectName,
+      region: project.region,
+      pv_kwp: project.pvKwp,
+      grid_distance_km: project.gridDistanceKm,
+      structure: project.structure,
+      permission_date: project.permissionDate || null,
+      studies_start: project.studiesStart || null,
+      commissioning: project.commissioning || null,
+      secured_land_ha: project.securedLandHa,
+      specific_yield_kwh_kwp: project.specificYield,
+    })),
+  }
+}
+
 function compactInvestor(investor: InvestorRow) {
   const company = investor.company_name || investor.company
   const contact = investor.contact_person || investor.full_name
@@ -880,6 +1023,7 @@ export async function POST(request: Request) {
     'get_portfolio_summary',
     'search_ema_projects',
     'get_project_details',
+    'search_ema_country_list_projects',
     'search_ema_investors',
     'get_investor_details',
     'search_ema_partners',
@@ -897,6 +1041,8 @@ export async function POST(request: Request) {
         ? await searchProjects(supabase, args)
         : tool === 'get_project_details'
           ? await projectDetails(supabase, args)
+          : tool === 'search_ema_country_list_projects'
+            ? await searchCountryListProjects(supabase, args)
           : tool === 'search_ema_investors'
             ? await searchInvestors(supabase, args)
             : tool === 'get_investor_details'
