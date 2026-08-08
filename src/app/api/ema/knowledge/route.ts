@@ -8,7 +8,16 @@ export const runtime = 'nodejs'
 const MAX_REQUEST_BYTES = 8 * 1024
 const MAX_SEARCH_RESULTS = 20
 
-type KnowledgeTool = 'get_portfolio_summary' | 'search_ema_projects' | 'get_project_details'
+type KnowledgeTool =
+  | 'get_portfolio_summary'
+  | 'search_ema_projects'
+  | 'get_project_details'
+  | 'search_ema_investors'
+  | 'get_investor_details'
+  | 'search_ema_partners'
+  | 'get_partner_details'
+  | 'search_ema_documents'
+  | 'get_document_details'
 
 type ProjectRow = {
   id: string
@@ -57,6 +66,75 @@ type CountryListRow = {
   created_at: string
 }
 
+type InvestorRow = {
+  id: string
+  full_name: string | null
+  company: string | null
+  company_name: string | null
+  contact_person: string | null
+  email: string | null
+  phone: string | null
+  website: string | null
+  location_city: string | null
+  location_country: string | null
+  country: string | null
+  interest_pv: boolean | null
+  interest_bess: boolean | null
+  interest_hybrid: boolean | null
+  interest_wind: boolean | null
+  size_preferences: unknown
+  investment_type: string | null
+  min_ticket_eur: number | string | null
+  max_ticket_eur: number | string | null
+  ticket_size_min_eur: number | string | null
+  ticket_size_max_eur: number | string | null
+  dd_ready: boolean | null
+  focus: string | null
+  status: string | null
+  search_profile: Record<string, unknown> | null
+  last_contact: string | null
+  last_contact_at: string | null
+  next_contact_at: string | null
+  notes: string | null
+  is_active: boolean | null
+  updated_at: string | null
+}
+
+type PartnerRow = {
+  id: string
+  full_name: string
+  company: string | null
+  email: string | null
+  phone: string | null
+  website: string | null
+  location_city: string | null
+  location_state: string | null
+  notes: string | null
+  project_count: number | string | null
+  deal_count: number | string | null
+  close_rate: number | string | null
+  total_volume: number | string | null
+  category: string | null
+  is_active: boolean | null
+  updated_at: string | null
+}
+
+type DocumentRow = {
+  id: string
+  project_id: string
+  document_type: string
+  display_name: string
+  file_name: string
+  file_size_bytes: number | string | null
+  mime_type: string | null
+  version: number | string | null
+  ai_analyzed: boolean | null
+  ai_extracted_data: Record<string, unknown> | null
+  ai_analyzed_at: string | null
+  notes: string | null
+  updated_at: string | null
+}
+
 const PROJECT_SEARCH_COLUMNS = [
   'id',
   'project_number',
@@ -73,6 +151,75 @@ const PROJECT_SEARCH_COLUMNS = [
   'bess_mwh',
   'project_stage',
   'dev_status',
+].join(',')
+
+const INVESTOR_COLUMNS = [
+  'id',
+  'full_name',
+  'company',
+  'company_name',
+  'contact_person',
+  'email',
+  'phone',
+  'website',
+  'location_city',
+  'location_country',
+  'country',
+  'interest_pv',
+  'interest_bess',
+  'interest_hybrid',
+  'interest_wind',
+  'size_preferences',
+  'investment_type',
+  'min_ticket_eur',
+  'max_ticket_eur',
+  'ticket_size_min_eur',
+  'ticket_size_max_eur',
+  'dd_ready',
+  'focus',
+  'status',
+  'search_profile',
+  'last_contact',
+  'last_contact_at',
+  'next_contact_at',
+  'notes',
+  'is_active',
+  'updated_at',
+].join(',')
+
+const PARTNER_COLUMNS = [
+  'id',
+  'full_name',
+  'company',
+  'email',
+  'phone',
+  'website',
+  'location_city',
+  'location_state',
+  'notes',
+  'project_count',
+  'deal_count',
+  'close_rate',
+  'total_volume',
+  'category',
+  'is_active',
+  'updated_at',
+].join(',')
+
+const DOCUMENT_COLUMNS = [
+  'id',
+  'project_id',
+  'document_type',
+  'display_name',
+  'file_name',
+  'file_size_bytes',
+  'mime_type',
+  'version',
+  'ai_analyzed',
+  'ai_extracted_data',
+  'ai_analyzed_at',
+  'notes',
+  'updated_at',
 ].join(',')
 
 const PROJECT_DETAIL_COLUMNS = [
@@ -116,6 +263,12 @@ const PROJECT_DETAIL_COLUMNS = [
 function numberValue(value: unknown) {
   const parsed = Number(value ?? 0)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function nullableNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 function normalized(value: unknown) {
@@ -355,6 +508,345 @@ async function projectDetails(
   }
 }
 
+
+function compactInvestor(investor: InvestorRow) {
+  const company = investor.company_name || investor.company
+  const contact = investor.contact_person || investor.full_name
+  return {
+    id: investor.id,
+    company,
+    contact_person: contact,
+    location: {
+      country: investor.country || investor.location_country,
+      city: investor.location_city,
+    },
+    interests: {
+      pv: investor.interest_pv ?? false,
+      bess: investor.interest_bess ?? false,
+      hybrid: investor.interest_hybrid ?? false,
+      wind: investor.interest_wind ?? false,
+    },
+    focus: investor.focus,
+    investment_type: investor.investment_type,
+    ticket_min_eur: nullableNumber(investor.ticket_size_min_eur ?? investor.min_ticket_eur),
+    ticket_max_eur: nullableNumber(investor.ticket_size_max_eur ?? investor.max_ticket_eur),
+    size_preferences: investor.size_preferences ?? null,
+    dd_ready: investor.dd_ready ?? false,
+    status: investor.status,
+    active: investor.is_active ?? true,
+    next_contact_at: investor.next_contact_at,
+  }
+}
+
+async function loadInvestors(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data, error } = await supabase
+    .from('investors')
+    .select(INVESTOR_COLUMNS)
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .limit(500)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as InvestorRow[]
+}
+
+async function searchInvestors(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const investors = await loadInvestors(supabase)
+  const query = normalized(args.query)
+  const focus = normalized(args.focus)
+  const activeOnly = args.active_only === true
+  const limit = boundedLimit(args.limit)
+
+  const filtered = investors.filter((investor) => {
+    if (activeOnly && investor.is_active === false) return false
+    const profileText = investor.search_profile ? normalized(JSON.stringify(investor.search_profile)) : ''
+    if (focus && ![
+      investor.focus,
+      investor.investment_type,
+      profileText,
+    ].some((value) => normalized(value).includes(focus))) return false
+    if (!query) return true
+
+    return [
+      investor.full_name,
+      investor.company,
+      investor.company_name,
+      investor.contact_person,
+      investor.location_city,
+      investor.location_country,
+      investor.country,
+      investor.focus,
+      investor.status,
+      investor.investment_type,
+      profileText,
+    ].some((value) => normalized(value).includes(query))
+  })
+
+  return {
+    match_count: filtered.length,
+    matches: filtered.slice(0, limit).map(compactInvestor),
+  }
+}
+
+async function investorDetails(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const query = normalized(args.query)
+  if (!query) return { found: false, error: 'Investor, Firma oder Kontaktperson fehlt.' }
+
+  const investors = await loadInvestors(supabase)
+  const exact = investors.find((investor) => [
+    investor.id,
+    investor.full_name,
+    investor.company,
+    investor.company_name,
+    investor.contact_person,
+  ].some((value) => normalized(value) === query))
+  const match = exact ?? investors.find((investor) => [
+    investor.full_name,
+    investor.company,
+    investor.company_name,
+    investor.contact_person,
+  ].some((value) => normalized(value).includes(query)))
+
+  if (!match) return { found: false, query: args.query }
+
+  const includeContact = args.include_contact_details === true
+  return {
+    found: true,
+    investor: {
+      ...compactInvestor(match),
+      website: match.website,
+      last_contact: match.last_contact_at || match.last_contact,
+      notes: match.notes,
+      search_profile: match.search_profile,
+      contact_details: includeContact ? {
+        email: match.email,
+        phone: match.phone,
+      } : null,
+    },
+  }
+}
+
+function compactPartner(partner: PartnerRow) {
+  return {
+    id: partner.id,
+    full_name: partner.full_name,
+    company: partner.company,
+    category: partner.category,
+    location: {
+      state: partner.location_state,
+      city: partner.location_city,
+    },
+    project_count: numberValue(partner.project_count),
+    deal_count: numberValue(partner.deal_count),
+    close_rate: nullableNumber(partner.close_rate),
+    total_volume: nullableNumber(partner.total_volume),
+    active: partner.is_active ?? true,
+  }
+}
+
+async function loadPartners(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data, error } = await supabase
+    .from('partners')
+    .select(PARTNER_COLUMNS)
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .limit(500)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as PartnerRow[]
+}
+
+async function searchPartners(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const partners = await loadPartners(supabase)
+  const query = normalized(args.query)
+  const category = normalized(args.category)
+  const activeOnly = args.active_only === true
+  const limit = boundedLimit(args.limit)
+
+  const filtered = partners.filter((partner) => {
+    if (activeOnly && partner.is_active === false) return false
+    if (category && normalized(partner.category) !== category) return false
+    if (!query) return true
+
+    return [
+      partner.full_name,
+      partner.company,
+      partner.category,
+      partner.location_city,
+      partner.location_state,
+      partner.notes,
+    ].some((value) => normalized(value).includes(query))
+  })
+
+  return {
+    match_count: filtered.length,
+    matches: filtered.slice(0, limit).map(compactPartner),
+  }
+}
+
+async function partnerDetails(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const query = normalized(args.query)
+  if (!query) return { found: false, error: 'Partnername oder Firma fehlt.' }
+
+  const partners = await loadPartners(supabase)
+  const exact = partners.find((partner) => [
+    partner.id,
+    partner.full_name,
+    partner.company,
+  ].some((value) => normalized(value) === query))
+  const match = exact ?? partners.find((partner) => [
+    partner.full_name,
+    partner.company,
+  ].some((value) => normalized(value).includes(query)))
+
+  if (!match) return { found: false, query: args.query }
+
+  const includeContact = args.include_contact_details === true
+  return {
+    found: true,
+    partner: {
+      ...compactPartner(match),
+      website: match.website,
+      notes: match.notes,
+      contact_details: includeContact ? {
+        email: match.email,
+        phone: match.phone,
+      } : null,
+    },
+  }
+}
+
+async function loadDocuments(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data, error } = await supabase
+    .from('documents')
+    .select(DOCUMENT_COLUMNS)
+    .eq('is_archived', false)
+    .order('updated_at', { ascending: false, nullsFirst: false })
+    .limit(500)
+
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as DocumentRow[]
+}
+
+function compactDocument(document: DocumentRow, project: ProjectRow | undefined) {
+  const contentIndexed = document.ai_analyzed === true &&
+    Boolean(document.ai_extracted_data && Object.keys(document.ai_extracted_data).length > 0)
+
+  return {
+    id: document.id,
+    project: project ? {
+      id: project.id,
+      project_number: project.project_number,
+      project_name: project.project_name,
+    } : { id: document.project_id },
+    document_type: document.document_type,
+    display_name: document.display_name,
+    file_name: document.file_name,
+    mime_type: document.mime_type,
+    file_size_bytes: nullableNumber(document.file_size_bytes),
+    version: nullableNumber(document.version),
+    notes: document.notes,
+    content_indexed: contentIndexed,
+    ai_analyzed_at: document.ai_analyzed_at,
+  }
+}
+
+async function searchDocuments(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const [documents, projects] = await Promise.all([
+    loadDocuments(supabase),
+    loadActiveProjects(supabase, 'id,project_number,project_name,project_type,status,priority,marketing_status,location_city,location_state,location_country,pv_mwp,bess_mw,bess_mwh'),
+  ])
+  const projectMap = new Map(projects.map((project) => [project.id, project]))
+  const query = normalized(args.query)
+  const projectQuery = normalized(args.project)
+  const documentType = normalized(args.document_type)
+  const limit = boundedLimit(args.limit)
+
+  const filtered = documents.filter((document) => {
+    const project = projectMap.get(document.project_id)
+    if (documentType && normalized(document.document_type) !== documentType) return false
+    if (projectQuery && ![
+      project?.id,
+      project?.project_number,
+      project?.project_name,
+    ].some((value) => normalized(value).includes(projectQuery))) return false
+    if (!query) return true
+
+    return [
+      document.display_name,
+      document.file_name,
+      document.document_type,
+      document.notes,
+      project?.project_number,
+      project?.project_name,
+    ].some((value) => normalized(value).includes(query))
+  })
+
+  return {
+    match_count: filtered.length,
+    matches: filtered.slice(0, limit).map((document) => compactDocument(document, projectMap.get(document.project_id))),
+    content_indexing: {
+      indexed_matches: filtered.filter((document) =>
+        document.ai_analyzed === true &&
+        Boolean(document.ai_extracted_data && Object.keys(document.ai_extracted_data).length > 0),
+      ).length,
+      note: 'Dateiinhalte können nur beantwortet werden, wenn content_indexed true ist. Nicht indexierte PDFs nicht erfinden.',
+    },
+  }
+}
+
+async function documentDetails(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  args: Record<string, unknown>,
+) {
+  const query = normalized(args.query)
+  if (!query) return { found: false, error: 'Dokumentname oder Dokument-ID fehlt.' }
+
+  const [documents, projects] = await Promise.all([
+    loadDocuments(supabase),
+    loadActiveProjects(supabase, 'id,project_number,project_name,project_type,status,priority,marketing_status,location_city,location_state,location_country,pv_mwp,bess_mw,bess_mwh'),
+  ])
+  const projectMap = new Map(projects.map((project) => [project.id, project]))
+  const exact = documents.find((document) => [
+    document.id,
+    document.display_name,
+    document.file_name,
+  ].some((value) => normalized(value) === query))
+  const match = exact ?? documents.find((document) => [
+    document.display_name,
+    document.file_name,
+    projectMap.get(document.project_id)?.project_name,
+    projectMap.get(document.project_id)?.project_number,
+  ].some((value) => normalized(value).includes(query)))
+
+  if (!match) return { found: false, query: args.query }
+
+  const compact = compactDocument(match, projectMap.get(match.project_id))
+  return {
+    found: true,
+    document: {
+      ...compact,
+      extracted_content: compact.content_indexed ? match.ai_extracted_data : null,
+    },
+    limitation: compact.content_indexed
+      ? null
+      : 'Der Dokumentinhalt ist noch nicht indexiert. EMA darf aus Dateiname oder Dokumenttyp keine Inhalte ableiten.',
+  }
+}
+
 export async function POST(request: Request) {
   const contentLength = Number(request.headers.get('content-length') ?? 0)
   if (contentLength > MAX_REQUEST_BYTES) {
@@ -384,7 +876,17 @@ export async function POST(request: Request) {
     ? body.args as Record<string, unknown>
     : {}
 
-  if (!tool || !['get_portfolio_summary', 'search_ema_projects', 'get_project_details'].includes(tool)) {
+  if (!tool || ![
+    'get_portfolio_summary',
+    'search_ema_projects',
+    'get_project_details',
+    'search_ema_investors',
+    'get_investor_details',
+    'search_ema_partners',
+    'get_partner_details',
+    'search_ema_documents',
+    'get_document_details',
+  ].includes(tool)) {
     return NextResponse.json({ error: 'Unbekanntes EMA-Werkzeug.' }, { status: 400 })
   }
 
@@ -393,13 +895,25 @@ export async function POST(request: Request) {
       ? await portfolioSummary(supabase)
       : tool === 'search_ema_projects'
         ? await searchProjects(supabase, args)
-        : await projectDetails(supabase, args)
+        : tool === 'get_project_details'
+          ? await projectDetails(supabase, args)
+          : tool === 'search_ema_investors'
+            ? await searchInvestors(supabase, args)
+            : tool === 'get_investor_details'
+              ? await investorDetails(supabase, args)
+              : tool === 'search_ema_partners'
+                ? await searchPartners(supabase, args)
+                : tool === 'get_partner_details'
+                  ? await partnerDetails(supabase, args)
+                  : tool === 'search_ema_documents'
+                    ? await searchDocuments(supabase, args)
+                    : await documentDetails(supabase, args)
 
     return NextResponse.json({ ok: true, result }, {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (error) {
     console.error('EMA knowledge tool failed:', tool, error)
-    return NextResponse.json({ error: 'EMA konnte die Projektdaten gerade nicht lesen.' }, { status: 500 })
+    return NextResponse.json({ error: 'EMA konnte die aktuellen EMA-Daten gerade nicht lesen.' }, { status: 500 })
   }
 }
