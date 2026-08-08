@@ -26,6 +26,30 @@ type Destination = {
   href: string
 }
 
+type PendingEmaAction =
+  | {
+      kind: 'create_project'
+      data: Record<string, unknown>
+      preparedTurn: number
+      label: string
+    }
+  | {
+      kind: 'open_expose'
+      projectId: string
+      preparedTurn: number
+      label: string
+    }
+
+const PROJECT_TYPE_LABELS: Record<string, string> = {
+  pv_freiflaeche: 'PV-Freifläche',
+  pv_dach: 'PV-Dach',
+  bess: 'BESS',
+  hybrid: 'Hybrid',
+  wind: 'Wind',
+  rechenzentrum: 'Rechenzentrum',
+  sonstiges: 'Sonstiges',
+}
+
 const REALTIME_IDLE_MS = 5 * 60 * 1000
 const MIC_RELEASE_GRACE_MS = 100
 const RESPONSE_DELAY_MS = 1000
@@ -74,6 +98,8 @@ export function EmaVoice({ userName }: { userName: string }) {
   const responseActiveRef = useRef(false)
   const phaseRef = useRef<RealtimePhase>('idle')
   const beginCaptureRef = useRef<() => void>(() => undefined)
+  const voiceTurnRef = useRef(0)
+  const pendingActionRef = useRef<PendingEmaAction | null>(null)
 
   const [realtimePhase, setRealtimePhaseState] = useState<RealtimePhase>('idle')
   const [pressed, setPressed] = useState(false)
@@ -114,6 +140,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     holdingRef.current = false
     micStartingRef.current = false
     micRequestRef.current += 1
+    pendingActionRef.current = null
     setPressed(false)
     setRealtimePhase('idle')
     clearIdleTimer()
@@ -242,6 +269,7 @@ export function EmaVoice({ userName }: { userName: string }) {
 
     const channel = realtimeChannelRef.current
     if (hadCapture && channel?.readyState === 'open') {
+      voiceTurnRef.current += 1
       channel.send(JSON.stringify({ type: 'input_audio_buffer.commit' }))
       clearResponseDelayTimer()
       setRealtimePhase('thinking')
@@ -320,6 +348,117 @@ export function EmaVoice({ userName }: { userName: string }) {
             output = destination
               ? { success: true, opened: destination.label }
               : { success: false, error: 'Dieser Bereich ist nicht für Sprachnavigation freigegeben.' }
+          } else if (functionCall.name === 'prepare_create_project') {
+            const projectName = typeof args.project_name === 'string' ? args.project_name.trim() : ''
+            const projectType = typeof args.project_type === 'string' ? args.project_type : ''
+            if (!projectName || !PROJECT_TYPE_LABELS[projectType]) {
+              output = { success: false, error: 'Projektname und ein gültiger Projekttyp werden benötigt.' }
+            } else {
+              const typeLabel = PROJECT_TYPE_LABELS[projectType]
+              pendingActionRef.current = {
+                kind: 'create_project',
+                data: args,
+                preparedTurn: voiceTurnRef.current,
+                label: `${projectName} als ${typeLabel}`,
+              }
+              output = {
+                success: true,
+                requires_confirmation: true,
+                confirmation_prompt: `Soll ich das Projekt „${projectName}“ als ${typeLabel} jetzt anlegen?`,
+              }
+            }
+          } else if (functionCall.name === 'prepare_project_expose') {
+            const projectQuery = typeof args.project_query === 'string' ? args.project_query.trim() : ''
+            if (!projectQuery) {
+              output = { success: false, error: 'Projektname oder Projektnummer fehlt.' }
+            } else {
+              try {
+                const knowledgeResponse = await fetch('/api/ema/knowledge', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tool: 'get_project_details', args: { query: projectQuery } }),
+                })
+                const payload = await knowledgeResponse.json().catch(() => null) as {
+                  ok?: boolean
+                  result?: {
+                    found?: boolean
+                    project?: { id?: string; project_name?: string; project_number?: string }
+                  }
+                  error?: string
+                } | null
+                const project = payload?.result?.project
+                if (!knowledgeResponse.ok || !payload?.ok || !payload.result?.found || !project?.id) {
+                  output = { success: false, error: payload?.error ?? 'Das Projekt wurde nicht eindeutig gefunden.' }
+                } else {
+                  const label = [project.project_number, project.project_name].filter(Boolean).join(' – ')
+                  pendingActionRef.current = {
+                    kind: 'open_expose',
+                    projectId: project.id,
+                    preparedTurn: voiceTurnRef.current,
+                    label,
+                  }
+                  output = {
+                    success: true,
+                    requires_confirmation: true,
+                    project: label,
+                    confirmation_prompt: `Soll ich das Exposé für ${label} jetzt öffnen?`,
+                  }
+                }
+              } catch {
+                output = { success: false, error: 'EMA konnte das Projekt gerade nicht prüfen.' }
+              }
+            }
+          } else if (functionCall.name === 'confirm_ema_action') {
+            const pending = pendingActionRef.current
+            if (!pending) {
+              output = { success: false, error: 'Es ist keine EMA-Aktion zur Bestätigung vorbereitet.' }
+            } else if (voiceTurnRef.current <= pending.preparedTurn) {
+              output = {
+                success: false,
+                error: 'Die Bestätigung muss in einer neuen Sprechrunde vom Nutzer kommen.',
+              }
+            } else if (pending.kind === 'open_expose') {
+              navigationTarget = { label: 'Exposé', href: `/expose/${pending.projectId}` }
+              pendingActionRef.current = null
+              output = { success: true, opened: pending.label }
+            } else {
+              try {
+                const actionResponse = await fetch('/api/ema/actions', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'create_project', data: pending.data }),
+                })
+                const payload = await actionResponse.json().catch(() => null) as {
+                  ok?: boolean
+                  result?: {
+                    id?: string
+                    project_number?: string
+                    project_name?: string
+                    href?: string
+                  }
+                  error?: string
+                } | null
+                if (!actionResponse.ok || !payload?.ok || !payload.result?.id || !payload.result.href) {
+                  output = { success: false, error: payload?.error ?? 'Das Projekt konnte nicht erstellt werden.' }
+                } else {
+                  pendingActionRef.current = null
+                  navigationTarget = { label: 'Projekt', href: payload.result.href }
+                  output = {
+                    success: true,
+                    created: [payload.result.project_number, payload.result.project_name].filter(Boolean).join(' – '),
+                  }
+                }
+              } catch {
+                output = { success: false, error: 'Das Projekt konnte gerade nicht erstellt werden.' }
+              }
+            }
+          } else if (functionCall.name === 'cancel_ema_action') {
+            const pending = pendingActionRef.current
+            pendingActionRef.current = null
+            output = {
+              success: true,
+              cancelled: pending?.label ?? 'vorbereitete EMA-Aktion',
+            }
           } else if (
             functionCall.name === 'get_portfolio_summary'
             || functionCall.name === 'search_ema_projects'
