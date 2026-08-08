@@ -4,8 +4,6 @@ import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 import { TopHeader } from './TopHeader'
 import { AppIntro } from './AppIntro'
-import { EmaVoice } from './EmaVoice'
-import { getEmaVoiceUserName } from '@/lib/ema/voiceAccess'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -18,13 +16,9 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, user }: AppShellProps) {
-  const emaVoiceUserName = getEmaVoiceUserName(user.email)
-
   return (
     <div className="app-shell">
       <AppIntro />
-      {emaVoiceUserName && <EmaVoice userName={emaVoiceUserName} />}
-
       {/* ── Desktop Sidebar ──────────────────────────────────── */}
       <Sidebar user={user} />
 
