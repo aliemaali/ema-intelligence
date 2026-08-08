@@ -35,6 +35,9 @@ Antworte im Sprachdialog kurz und natürlich. Meist reichen ein bis drei Sätze.
 Wenn dir Informationen fehlen, frage gezielt nach statt etwas zu erfinden.
 Behaupte niemals, dass du eine Aktion in der EMA-App ausgeführt hast, wenn dir dafür kein Werkzeug zur Verfügung steht.
 Wenn der Nutzer einen EMA-Bereich öffnen möchte, nutze das Werkzeug open_ema_area.
+Für aktuelle Fragen zu Portfolio, Projekten, Investoren, Partnern oder Dokumenten nutze immer die passenden EMA-Werkzeuge und erfinde keine Live-Daten aus dem Gespräch.
+Bei Dokumenten darfst du Inhalte nur wiedergeben, wenn das Werkzeug content_indexed=true bzw. extracted_content liefert. Nicht indexierte PDFs nicht aus Dateiname oder Typ interpretieren.
+Kontakt-E-Mail oder Telefonnummer eines Investors oder Partners nur laden, wenn der Nutzer ausdrücklich nach Kontaktdaten fragt.
 Kritische Aktionen wie Löschen, Versenden oder verbindliche Änderungen dürfen nie ohne ausdrückliche Bestätigung ausgeführt werden.
 Du bist eine KI-Stimme und darfst dich nicht als Mensch ausgeben.`
 
@@ -133,6 +136,92 @@ export async function POST(request: NextRequest) {
           type: 'object',
           properties: {
             query: { type: 'string', description: 'Projektname, Projektnummer oder zuvor gefundene Projekt-ID.' },
+          },
+          required: ['query'],
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'search_ema_investors',
+        description: 'Durchsucht die aktuell sichtbaren Investoren nach Firma, Kontaktperson, Land, Fokus, Status oder Suchprofil. Liefert bewusst keine E-Mail oder Telefonnummer.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Freie Suche nach Investor, Firma, Kontaktperson, Land, Fokus oder Status.' },
+            focus: { type: 'string', description: 'Optionaler Fokusfilter, z. B. PV, BESS oder Rechenzentren.' },
+            active_only: { type: 'boolean', description: 'Nur aktive Investoren zurückgeben.' },
+            limit: { type: 'integer', minimum: 1, maximum: 20 },
+          },
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'get_investor_details',
+        description: 'Liest Details zu einem konkreten Investor. Kontaktdaten nur anfordern, wenn der Nutzer ausdrücklich nach E-Mail oder Telefonnummer fragt.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Investor-ID, Firma oder Kontaktperson.' },
+            include_contact_details: { type: 'boolean', description: 'Nur true, wenn ausdrücklich E-Mail oder Telefonnummer verlangt wurde.' },
+          },
+          required: ['query'],
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'search_ema_partners',
+        description: 'Durchsucht die aktuell sichtbaren EMA-Partner nach Name, Firma, Kategorie oder Ort. Liefert bewusst keine E-Mail oder Telefonnummer.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Freie Suche nach Partner, Firma, Kategorie oder Ort.' },
+            category: { type: 'string', description: 'Optionale Partnerkategorie.' },
+            active_only: { type: 'boolean', description: 'Nur aktive Partner zurückgeben.' },
+            limit: { type: 'integer', minimum: 1, maximum: 20 },
+          },
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'get_partner_details',
+        description: 'Liest Details zu einem konkreten Partner. Kontaktdaten nur anfordern, wenn der Nutzer ausdrücklich nach E-Mail oder Telefonnummer fragt.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Partner-ID, Name oder Firma.' },
+            include_contact_details: { type: 'boolean', description: 'Nur true, wenn ausdrücklich E-Mail oder Telefonnummer verlangt wurde.' },
+          },
+          required: ['query'],
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'search_ema_documents',
+        description: 'Durchsucht die für den Nutzer sichtbaren Projektdokumente nach Projekt, Dokumentname oder Typ und zeigt, ob der Dateiinhalt bereits indexiert ist.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Freie Suche nach Dokumentname, Dateiname, Typ oder Projekt.' },
+            project: { type: 'string', description: 'Optionaler Projektname, Projektnummer oder Projekt-ID.' },
+            document_type: { type: 'string', description: 'Optionaler Dokumenttyp, z. B. expose, netzanschluss oder gutachten.' },
+            limit: { type: 'integer', minimum: 1, maximum: 20 },
+          },
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'get_document_details',
+        description: 'Liest Metadaten und – nur falls bereits sicher indexiert – extrahierte Inhalte eines konkreten Projektdokuments.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Dokument-ID, Dokumentname oder Dateiname.' },
           },
           required: ['query'],
           additionalProperties: false,
