@@ -99,7 +99,12 @@ export async function POST(request: NextRequest) {
     tool_choice: 'auto',
     audio: {
       input: {
-        turn_detection: { type: 'semantic_vad' },
+        turn_detection: {
+          type: 'semantic_vad',
+          eagerness: 'high',
+          create_response: true,
+          interrupt_response: true,
+        },
       },
       output: {
         voice: 'cedar',
