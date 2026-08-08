@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 
 type VoiceState = 'idle' | 'listening' | 'unsupported' | 'error'
+type RealtimePhase = 'idle' | 'listening' | 'thinking' | 'speaking'
 
 type RealtimeServerEvent = {
   type?: string
@@ -143,8 +144,8 @@ export function EmaVoice({ userName }: { userName: string }) {
   const followUpTimerRef = useRef<number | null>(null)
   const realtimeIdleTimerRef = useRef<number | null>(null)
 
-  const [voiceState, setVoiceState] = useState<VoiceState>('idle')
-  const [, setAiActive] = useState(false)
+  const [, setVoiceState] = useState<VoiceState>('idle')
+  const [realtimePhase, setRealtimePhase] = useState<RealtimePhase>('idle')
   const [, setPanelOpen] = useState(false)
   const [, setHeard] = useState('')
   const [, setAnswer] = useState('Tippe einmal auf EMA. Danach wartet EMA auf „EMA“.')
@@ -199,7 +200,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const stopRealtime = useCallback((resumeWake = true) => {
     const wasActive = realtimeActiveRef.current
     realtimeActiveRef.current = false
-    setAiActive(false)
+    setRealtimePhase('idle')
     clearTimer(realtimeIdleTimerRef)
 
     const channel = realtimeChannelRef.current
@@ -272,7 +273,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     }
 
     realtimeActiveRef.current = true
-    setAiActive(true)
+    setRealtimePhase('thinking')
     setFollowUp(false)
     clearTimer(restartTimerRef)
     clearTimer(followUpTimerRef)
@@ -318,6 +319,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       realtimeChannelRef.current = channel
 
       channel.addEventListener('open', () => {
+        setRealtimePhase('listening')
         setStatus('EMA AI aktiv · sprich einfach weiter')
         setAnswer('EMA AI ist verbunden. Die Stimme ist KI-generiert.')
         resetRealtimeIdleTimer()
@@ -331,9 +333,20 @@ export function EmaVoice({ userName }: { userName: string }) {
           if (event.type === 'response.output_audio_transcript.done' && event.transcript?.trim()) {
             setAnswer(event.transcript.trim())
           } else if (event.type === 'input_audio_buffer.speech_started') {
+            setRealtimePhase('listening')
             setStatus('EMA AI hört zu …')
+          } else if (event.type === 'input_audio_buffer.speech_stopped') {
+            setRealtimePhase('thinking')
+            setStatus('EMA AI denkt …')
           } else if (event.type === 'response.created') {
+            setRealtimePhase('thinking')
             setStatus('EMA AI antwortet …')
+          } else if (event.type === 'response.output_audio.delta') {
+            setRealtimePhase('speaking')
+            setStatus('EMA AI spricht …')
+          } else if (event.type === 'response.output_audio.done') {
+            setRealtimePhase('listening')
+            setStatus('EMA AI aktiv · sprich einfach weiter')
           } else if (event.type === 'response.done') {
             const functionCall = event.response?.output?.find((item) => item.type === 'function_call' && item.name === 'open_ema_area')
             if (functionCall?.call_id) {
@@ -361,13 +374,16 @@ export function EmaVoice({ userName }: { userName: string }) {
               if (destination) {
                 setAnswer(`Natürlich, ${address}. Ich öffne ${destination.label}.`)
                 setStatus('EMA AI navigiert …')
+                setRealtimePhase('listening')
                 router.push(destination.href)
                 return
               }
             }
+            setRealtimePhase('listening')
             setStatus('EMA AI aktiv · sprich einfach weiter')
           } else if (event.type === 'error') {
             console.error('EMA Realtime event error:', event.error?.message ?? 'Unbekannter Fehler')
+            setRealtimePhase('idle')
             setStatus('EMA AI meldet einen Verbindungsfehler')
           }
         } catch {
@@ -603,8 +619,8 @@ export function EmaVoice({ userName }: { userName: string }) {
     }
   }, [clearTimer, scheduleListen, stopRealtime, updateListeningStatus])
 
-  const listening = wakeModeRef.current && voiceState === 'listening'
   const active = wakeModeRef.current
+  const speaking = realtimePhase === 'speaking'
 
   return (
     <div className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-[900] md:bottom-6 md:right-6">
@@ -619,24 +635,24 @@ export function EmaVoice({ userName }: { userName: string }) {
       >
         <span
           className={`pointer-events-none absolute inset-[2px] rounded-full transition-opacity duration-500 ${
-            listening
-              ? 'animate-pulse opacity-100 shadow-[inset_0_0_26px_9px_rgba(99,200,0,0.42)]'
+            speaking
+              ? 'animate-[pulse_650ms_cubic-bezier(0.4,0,0.6,1)_infinite] opacity-100 shadow-[inset_0_0_30px_11px_rgba(99,200,0,0.58)]'
               : active
                 ? 'animate-pulse opacity-80 shadow-[inset_0_0_20px_6px_rgba(99,200,0,0.28)]'
                 : 'opacity-45 shadow-[inset_0_0_14px_4px_rgba(99,200,0,0.16)]'
           }`}
           aria-hidden="true"
         />
-        {listening && (
+        {speaking && (
           <span
-            className="pointer-events-none absolute inset-[10px] animate-pulse rounded-full bg-[radial-gradient(circle,rgba(99,200,0,0.20)_0%,rgba(99,200,0,0.07)_55%,rgba(255,255,255,0)_75%)]"
+            className="pointer-events-none absolute inset-[8px] animate-[pulse_500ms_ease-in-out_infinite] rounded-full bg-[radial-gradient(circle,rgba(99,200,0,0.30)_0%,rgba(99,200,0,0.11)_55%,rgba(255,255,255,0)_76%)]"
             aria-hidden="true"
           />
         )}
 
         <span className="pointer-events-none absolute left-[5px] flex items-center gap-[2px]" aria-hidden="true">
-          <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${listening ? 'animate-pulse' : 'opacity-35'}`} />
-          <span className={`h-4 w-[2px] rounded-full bg-[#63C800] ${listening ? 'animate-pulse' : 'opacity-45'}`} />
+          <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${speaking ? 'animate-[pulse_500ms_ease-in-out_infinite]' : 'opacity-35'}`} />
+          <span className={`h-4 w-[2px] rounded-full bg-[#63C800] ${speaking ? 'animate-[pulse_650ms_ease-in-out_infinite]' : 'opacity-45'}`} />
         </span>
 
         <Image
@@ -649,8 +665,8 @@ export function EmaVoice({ userName }: { userName: string }) {
         />
 
         <span className="pointer-events-none absolute right-[5px] flex items-center gap-[2px]" aria-hidden="true">
-          <span className={`h-4 w-[2px] rounded-full bg-[#63C800] ${listening ? 'animate-pulse' : 'opacity-45'}`} />
-          <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${listening ? 'animate-pulse' : 'opacity-35'}`} />
+          <span className={`h-4 w-[2px] rounded-full bg-[#63C800] ${speaking ? 'animate-[pulse_650ms_ease-in-out_infinite]' : 'opacity-45'}`} />
+          <span className={`h-2 w-[2px] rounded-full bg-[#07142F] ${speaking ? 'animate-[pulse_500ms_ease-in-out_infinite]' : 'opacity-35'}`} />
         </span>
 
         {active && <span className="pointer-events-none absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#63C800]" />}
