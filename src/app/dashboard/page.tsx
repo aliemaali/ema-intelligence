@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import { ArrowRight, BatteryCharging, FolderOpen, Inbox, Layers, Zap } from 'lucide-react'
+import { ArrowRight, BatteryCharging, Building2, FolderOpen, Inbox, Layers, Zap } from 'lucide-react'
 import { CountryProjectsAccordion } from '@/components/dashboard/CountryProjectsAccordion'
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
 import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
-import { formatEnergyFromMwh, formatPowerFromKwp } from '@/lib/format/power'
+import { formatEnergyFromMwh, formatPowerFromKwp, formatPowerFromMw } from '@/lib/format/power'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
@@ -14,12 +14,13 @@ function KpiCard({ title, value, subtitle, icon, tone }: {
   value: string | number
   subtitle: string
   icon: React.ReactNode
-  tone: 'blue' | 'green' | 'violet'
+  tone: 'blue' | 'green' | 'violet' | 'orange'
 }) {
   const toneClass = {
     blue: 'from-blue-600/12 via-white to-blue-50/70 text-blue-700 border-blue-600/10',
     green: 'from-[#5CB800]/18 via-white to-green-50 text-[#2F8A00] border-[#5CB800]/10',
     violet: 'from-violet-600/12 via-white to-violet-50 text-violet-700 border-violet-600/10',
+    orange: 'from-orange-500/12 via-white to-orange-50/70 text-orange-700 border-orange-500/10',
   }[tone]
 
   return (
@@ -99,6 +100,9 @@ export default async function DashboardPage() {
   const activeKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
   const totalKwp = activeKwp + listKwp
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
+  const dataCenterProjects = projects.filter((project: any) => project.project_type === 'rechenzentrum')
+  const confirmedDataCenterMw = dataCenterProjects.reduce((sum: number, project: any) => sum + (project.data_center_grid_confirmed ? Number(project.data_center_grid_mw ?? 0) : 0), 0)
+  const unconfirmedDataCenterMw = dataCenterProjects.reduce((sum: number, project: any) => sum + (!project.data_center_grid_confirmed ? Number(project.data_center_grid_mw ?? 0) : 0), 0)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
 
   return (
@@ -129,10 +133,11 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
+      <div className="grid grid-cols-2 gap-2 px-3 sm:grid-cols-4 sm:gap-4 md:gap-5 md:px-0">
         <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Übersichten`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
         <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle={`${formatPowerFromKwp(activeKwp)} aktiv · ${formatPowerFromKwp(listKwp)} weitere`} tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
         <KpiCard title="BESS-Kapazität" value={formatEnergyFromMwh(totalBess)} subtitle="Aktive Speicherkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard title="Rechenzentren" value={`${dataCenterProjects.length} ${dataCenterProjects.length === 1 ? 'Standort' : 'Standorte'}`} subtitle={`${formatPowerFromMw(confirmedDataCenterMw)} bestätigt${unconfirmedDataCenterMw > 0 ? ` · ${formatPowerFromMw(unconfirmedDataCenterMw)} in Prüfung` : ''}`} tone="orange" icon={<Building2 className="h-5 w-5 md:h-6 md:w-6" />} />
       </div>
 
       {partnerSubmissions.length > 0 && (

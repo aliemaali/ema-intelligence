@@ -36,6 +36,10 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
 
   if (!project) notFound()
 
+  const tabs = project.project_type === 'rechenzentrum'
+    ? [TABS[0], { key: 'site-check', label: 'Standortprüfung' }, ...TABS.slice(1)]
+    : TABS
+
   return (
     <div className="flex min-h-full flex-col">
       <div className="border-b border-border bg-card">
@@ -76,7 +80,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
           </div>
 
           <div className="no-scrollbar -mb-px flex gap-0 overflow-x-auto">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <TabLinkClient
                 key={tab.key}
                 href={`/projects/${params.id}/${tab.key}`}
