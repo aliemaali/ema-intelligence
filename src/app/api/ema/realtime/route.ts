@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   formData.set('sdp', sdp)
   formData.set('session', JSON.stringify({
     type: 'realtime',
-    model: 'gpt-realtime-2.1-mini',
+    model: 'gpt-realtime-2',
     output_modalities: ['audio'],
     instructions: `${EMA_INSTRUCTIONS}\nDer aktuell eingeloggte Nutzer heißt ${emaVoiceUserName}. Sprich die Person bei passenden Gelegenheiten natürlich mit „${emaVoiceUserName}“ an.`,
     tools: [
