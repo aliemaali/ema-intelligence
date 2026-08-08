@@ -35,7 +35,7 @@ export interface Project {
   id: string; user_id: string; partner_id: string | null; project_number: string; project_name: string; project_type: ProjectType; status: ProjectStatus; priority: ProjectPriority; marketing_status: MarketingStatus;
   contact_name: string | null; contact_email: string | null; contact_phone: string | null; location_address: string | null; location_city: string | null; location_state: string | null; location_country: string; location_lat: number | null; location_lng: number | null;
   pv_mwp: number | null; pv_ac_mw: number | null; bess_mw: number | null; bess_mwh: number | null; bess_duration_h: number | null; hybrid_config: HybridConfig | null;
-  data_center_grid_mw?: number | null; data_center_it_mw?: number | null; land_area_sqm?: number | null; transformer_status?: string | null; data_center_status?: DataCenterStatus | null;
+  data_center_grid_mw?: number | null; data_center_it_mw?: number | null; land_area_sqm?: number | null; transformer_status?: string | null; data_center_status?: DataCenterStatus | null; data_center_grid_confirmed?: boolean; data_center_site_check?: Record<string, unknown> | null;
   dev_status: DevStatus; ai_score: number | null; ai_score_details: Record<string, unknown> | null; ai_last_analyzed: string | null; notes: string | null; tags: string[]; last_activity_at: string | null; is_archived: boolean; created_at: string; updated_at: string;
 }
 

@@ -1,6 +1,7 @@
 export type ProjectSource =
   | 'manual'
   | 'customer_intake'
+  | 'data_center_site_check'
   | 'project_intake_pdf'
   | 'legacy_html'
   | 'capex'
@@ -27,6 +28,39 @@ export interface ProjectCustomerIntake {
   roofAreaSqm?: number
   annualConsumptionKwh?: number
   notes?: string
+}
+
+export type DataCenterZoningDesignation =
+  | 'agricultural'
+  | 'industrial'
+  | 'commercial'
+  | 'mixed'
+  | 'special'
+  | 'unknown'
+
+export type DataCenterCheckState = 'yes' | 'no' | 'in_preparation' | 'verify' | 'planned' | 'unknown'
+
+export interface DataCenterSiteCheck {
+  district?: string
+  streetPlot?: string
+  gpsCoordinates?: string
+  siteAreaHectares?: number
+  landCost?: string
+  pricePerSqmEur?: number
+  zoningDesignation?: DataCenterZoningDesignation
+  otherDesignation?: string
+  zoningPlanStatus?: DataCenterCheckState
+  dataCenterPermitted?: DataCenterCheckState
+  planningNotes?: string
+  hvDistanceMeters?: number
+  hvStationName?: string
+  gridOperator?: string
+  fiberDistanceMeters?: number
+  fiberProvider?: string
+  fiberStatus?: DataCenterCheckState
+  assessmentDate?: string
+  additionalNotes?: string
+  savedAt?: string
 }
 
 export interface ProjectMasterData {

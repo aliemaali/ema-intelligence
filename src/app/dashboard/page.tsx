@@ -1,35 +1,37 @@
 import Link from 'next/link'
-import { ArrowRight, BatteryCharging, FolderOpen, Inbox, Layers, Zap } from 'lucide-react'
+import { ArrowRight, BatteryCharging, Building2, FolderOpen, Inbox, Layers, Zap } from 'lucide-react'
 import { CountryProjectsAccordion } from '@/components/dashboard/CountryProjectsAccordion'
 import { ProjectMap } from '@/components/dashboard/ProjectMap'
 import { TimeGreeting } from '@/components/dashboard/TimeGreeting'
 import { getProjects } from '@/lib/actions/project.actions'
-import { formatEnergyFromMwh, formatPowerFromKwp } from '@/lib/format/power'
+import { formatEnergyFromMwh, formatPowerFromKwp, formatPowerFromMw } from '@/lib/format/power'
 import { createClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Dashboard' }
 
-function KpiCard({ title, value, subtitle, icon, tone }: {
+function KpiCard({ title, value, subtitle, icon, tone, href }: {
   title: string
   value: string | number
   subtitle: string
   icon: React.ReactNode
-  tone: 'blue' | 'green' | 'violet'
+  tone: 'blue' | 'green' | 'violet' | 'orange'
+  href: string
 }) {
   const toneClass = {
     blue: 'from-blue-600/12 via-white to-blue-50/70 text-blue-700 border-blue-600/10',
     green: 'from-[#5CB800]/18 via-white to-green-50 text-[#2F8A00] border-[#5CB800]/10',
     violet: 'from-violet-600/12 via-white to-violet-50 text-violet-700 border-violet-600/10',
+    orange: 'from-orange-500/12 via-white to-orange-50/70 text-orange-700 border-orange-500/10',
   }[tone]
 
   return (
-    <div className={`premium-lift relative min-w-0 overflow-hidden rounded-[1.15rem] border bg-gradient-to-br ${toneClass} p-2.5 shadow-[0_12px_30px_rgba(15,23,42,0.06)] md:rounded-[1.45rem] md:p-5`}>
+    <Link href={href} aria-label={`${title} öffnen`} className={`premium-lift relative min-w-0 overflow-hidden rounded-[1.15rem] border bg-gradient-to-br ${toneClass} p-2.5 shadow-[0_12px_30px_rgba(15,23,42,0.06)] outline-none focus-visible:ring-2 focus-visible:ring-[#5CB800] focus-visible:ring-offset-2 md:rounded-[1.45rem] md:p-5`}>
       <div className="absolute right-0 top-0 h-16 w-16 translate-x-5 -translate-y-5 rounded-full bg-current opacity-[0.07] md:h-24 md:w-24" />
       <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/85 shadow-sm ring-1 ring-black/5 md:h-12 md:w-12">{icon}</div>
       <p className="mt-3 min-h-[26px] text-[9px] font-extrabold uppercase leading-tight tracking-[0.12em] text-slate-500 md:mt-4 md:text-xs">{title}</p>
       <p className="mt-1 min-w-0 overflow-hidden whitespace-nowrap text-[clamp(1.05rem,5.3vw,1.65rem)] font-extrabold leading-none tracking-[-0.05em] text-[#07142F] md:mt-2 md:text-3xl">{value}</p>
       <p className="mt-1 text-[10px] leading-tight text-muted-foreground md:text-sm">{subtitle}</p>
-    </div>
+    </Link>
   )
 }
 
@@ -94,11 +96,14 @@ export default async function DashboardPage() {
 
   const projectsInLists = Array.from(latestListByCountry.values()).reduce((sum, item) => sum + item.count, 0)
   const listKwp = Array.from(latestListByCountry.values()).reduce((sum, item) => sum + item.totalKwp, 0)
-  const activeProjects = projects.length
-  const totalProjects = activeProjects + projectsInLists
-  const activeKwp = projects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
+  const activePvProjects = projects.filter((project: any) => ['pv_freiflaeche', 'pv_dach', 'hybrid'].includes(project.project_type))
+  const totalPvProjects = activePvProjects.length + projectsInLists
+  const activeKwp = activePvProjects.reduce((sum: number, project: any) => sum + Number(project.pv_kwp ?? project.pv_mwp ?? 0), 0)
   const totalKwp = activeKwp + listKwp
   const totalBess = projects.reduce((sum: number, project: any) => sum + Number(project.bess_mwh ?? 0), 0)
+  const dataCenterProjects = projects.filter((project: any) => project.project_type === 'rechenzentrum')
+  const confirmedDataCenterMw = dataCenterProjects.reduce((sum: number, project: any) => sum + (project.data_center_grid_confirmed ? Number(project.data_center_grid_mw ?? 0) : 0), 0)
+  const unconfirmedDataCenterMw = dataCenterProjects.reduce((sum: number, project: any) => sum + (!project.data_center_grid_confirmed ? Number(project.data_center_grid_mw ?? 0) : 0), 0)
   const mapProjects = projects.filter((project: any) => project.location_city || project.location_state).slice(0, 50)
 
   return (
@@ -129,10 +134,11 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-3 gap-2 px-3 sm:gap-4 md:gap-5 md:px-0">
-        <KpiCard title="Projekte gesamt" value={totalProjects} subtitle={`${activeProjects} aktiv · ${projectsInLists} in Übersichten`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle={`${formatPowerFromKwp(activeKwp)} aktiv · ${formatPowerFromKwp(listKwp)} weitere`} tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
-        <KpiCard title="BESS-Kapazität" value={formatEnergyFromMwh(totalBess)} subtitle="Aktive Speicherkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
+      <div className="grid grid-cols-2 gap-2 px-3 sm:grid-cols-4 sm:gap-4 md:gap-5 md:px-0">
+        <KpiCard href="/projects?view=all&group=pv" title="PV-Projekte" value={totalPvProjects} subtitle={`${activePvProjects.length} aktiv · ${projectsInLists} in Übersichten`} tone="blue" icon={<FolderOpen className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard href="/projects?view=all&group=pv" title="PV-Leistung" value={formatPowerFromKwp(totalKwp)} subtitle={`${formatPowerFromKwp(activeKwp)} aktiv · ${formatPowerFromKwp(listKwp)} weitere`} tone="green" icon={<Zap className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard href="/projects?view=all&group=bess" title="BESS-Kapazität" value={formatEnergyFromMwh(totalBess)} subtitle="Aktive Speicherkapazität" tone="violet" icon={<BatteryCharging className="h-5 w-5 md:h-6 md:w-6" />} />
+        <KpiCard href="/projects?view=all&type=rechenzentrum" title="Rechenzentren" value={`${dataCenterProjects.length} ${dataCenterProjects.length === 1 ? 'Standort' : 'Standorte'}`} subtitle={`${formatPowerFromMw(confirmedDataCenterMw)} bestätigt${unconfirmedDataCenterMw > 0 ? ` · ${formatPowerFromMw(unconfirmedDataCenterMw)} in Prüfung` : ''}`} tone="orange" icon={<Building2 className="h-5 w-5 md:h-6 md:w-6" />} />
       </div>
 
       {partnerSubmissions.length > 0 && (

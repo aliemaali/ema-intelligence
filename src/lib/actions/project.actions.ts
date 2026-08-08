@@ -203,7 +203,26 @@ export async function updateProject(id: string, formData: FormData) {
     imageUrl = uploaded.url
   }
 
-  const { error } = await supabase.from('projects').update({ ...payload, project_image_url: imageUrl } as never).eq('id', id).eq('user_id', userId)
+  let gridConfirmedUpdate: boolean | undefined
+  if (payload.project_type === 'rechenzentrum') {
+    const { data: existingProject } = await supabase
+      .from('projects')
+      .select('data_center_grid_mw, data_center_grid_confirmed')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (existingProject?.data_center_grid_confirmed) {
+      const previousGridMw = Number(existingProject.data_center_grid_mw ?? 0)
+      const nextGridMw = Number(payload.data_center_grid_mw ?? 0)
+      gridConfirmedUpdate = previousGridMw === nextGridMw
+    }
+  }
+
+  const { error } = await supabase.from('projects').update({
+    ...payload,
+    project_image_url: imageUrl,
+    ...(gridConfirmedUpdate !== undefined ? { data_center_grid_confirmed: gridConfirmedUpdate } : {}),
+  } as never).eq('id', id).eq('user_id', userId)
   if (error) return { error: error.message }
   await logActivity(supabase, { userId, projectId: id, type: 'manual', title: 'Projekt aktualisiert', description: 'Projektdaten wurden bearbeitet' })
   revalidatePath(`/projects/${id}`)
