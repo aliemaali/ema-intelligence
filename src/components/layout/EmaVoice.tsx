@@ -326,7 +326,7 @@ export function EmaVoice({ userName }: { userName: string }) {
         if (initialText) sendRealtimeText(initialText)
       })
 
-      channel.addEventListener('message', (message) => {
+      channel.addEventListener('message', async (message) => {
         resetRealtimeIdleTimer()
         try {
           const event = JSON.parse(String(message.data)) as RealtimeServerEvent
@@ -348,36 +348,75 @@ export function EmaVoice({ userName }: { userName: string }) {
             setRealtimePhase('listening')
             setStatus('EMA AI aktiv · sprich einfach weiter')
           } else if (event.type === 'response.done') {
-            const functionCall = event.response?.output?.find((item) => item.type === 'function_call' && item.name === 'open_ema_area')
-            if (functionCall?.call_id) {
-              let requestedPath = ''
-              try {
-                const args = JSON.parse(functionCall.arguments ?? '{}') as { path?: unknown }
-                if (typeof args.path === 'string') requestedPath = args.path
-              } catch {
-                // Ungültige Tool-Argumente werden wie ein nicht freigegebener Pfad behandelt.
-              }
+            const functionCalls = event.response?.output?.filter((item) => item.type === 'function_call' && item.call_id) ?? []
+            if (functionCalls.length > 0) {
+              setRealtimePhase('thinking')
+              setStatus('EMA AI liest aktuelle Daten …')
+              let navigationTarget: Destination | null = null
 
-              const destination = DESTINATIONS.find((item) => item.href === requestedPath)
-              channel.send(JSON.stringify({
-                type: 'conversation.item.create',
-                item: {
-                  type: 'function_call_output',
-                  call_id: functionCall.call_id,
-                  output: JSON.stringify(destination
+              for (const functionCall of functionCalls) {
+                let args: Record<string, unknown> = {}
+                try {
+                  args = JSON.parse(functionCall.arguments ?? '{}') as Record<string, unknown>
+                } catch {
+                  args = {}
+                }
+
+                let output: Record<string, unknown>
+                if (functionCall.name === 'open_ema_area') {
+                  const requestedPath = typeof args.path === 'string' ? args.path : ''
+                  const destination = DESTINATIONS.find((item) => item.href === requestedPath)
+                  navigationTarget = destination ?? null
+                  output = destination
                     ? { success: true, opened: destination.label }
-                    : { success: false, error: 'Dieser Bereich ist nicht für Sprachnavigation freigegeben.' }),
-                },
-              }))
-              channel.send(JSON.stringify({ type: 'response.create' }))
+                    : { success: false, error: 'Dieser Bereich ist nicht für Sprachnavigation freigegeben.' }
+                } else if (
+                  functionCall.name === 'get_portfolio_summary' ||
+                  functionCall.name === 'search_ema_projects' ||
+                  functionCall.name === 'get_project_details'
+                ) {
+                  try {
+                    const knowledgeResponse = await fetch('/api/ema/knowledge', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ tool: functionCall.name, args }),
+                    })
+                    const payload = await knowledgeResponse.json().catch(() => null) as {
+                      ok?: boolean
+                      result?: unknown
+                      error?: string
+                    } | null
+                    output = knowledgeResponse.ok && payload?.ok
+                      ? { success: true, data: payload.result }
+                      : { success: false, error: payload?.error ?? 'EMA konnte die Projektdaten nicht lesen.' }
+                  } catch {
+                    output = { success: false, error: 'EMA konnte die Projektdaten nicht lesen.' }
+                  }
+                } else {
+                  output = { success: false, error: 'Unbekanntes EMA-Werkzeug.' }
+                }
 
-              if (destination) {
-                setAnswer(`Natürlich, ${address}. Ich öffne ${destination.label}.`)
-                setStatus('EMA AI navigiert …')
-                setRealtimePhase('listening')
-                router.push(destination.href)
-                return
+                channel.send(JSON.stringify({
+                  type: 'conversation.item.create',
+                  item: {
+                    type: 'function_call_output',
+                    call_id: functionCall.call_id,
+                    output: JSON.stringify(output),
+                  },
+                }))
               }
+
+              channel.send(JSON.stringify({
+                type: 'response.create',
+                response: { output_modalities: ['audio'] },
+              }))
+
+              if (navigationTarget) {
+                setAnswer(`Natürlich, ${address}. Ich öffne ${navigationTarget.label}.`)
+                setStatus('EMA AI navigiert …')
+                router.push(navigationTarget.href)
+              }
+              return
             }
             setRealtimePhase('listening')
             setStatus('EMA AI aktiv · sprich einfach weiter')
