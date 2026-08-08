@@ -28,6 +28,13 @@ type Destination = {
 
 const REALTIME_IDLE_MS = 5 * 60 * 1000
 const MIC_RELEASE_GRACE_MS = 100
+const RESPONSE_DELAY_MS = 1000
+
+function triggerHaptic(duration = 8) {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(duration)
+  }
+}
 
 const DESTINATIONS: Destination[] = [
   { label: 'Dashboard', href: '/dashboard' },
@@ -59,6 +66,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const realtimeStreamRef = useRef<MediaStream | null>(null)
   const realtimeAudioRef = useRef<HTMLAudioElement | null>(null)
   const realtimeIdleTimerRef = useRef<number | null>(null)
+  const responseDelayTimerRef = useRef<number | null>(null)
   const holdingRef = useRef(false)
   const captureActiveRef = useRef(false)
   const micStartingRef = useRef(false)
@@ -82,6 +90,13 @@ export function EmaVoice({ userName }: { userName: string }) {
     }
   }, [])
 
+  const clearResponseDelayTimer = useCallback(() => {
+    if (responseDelayTimerRef.current !== null) {
+      window.clearTimeout(responseDelayTimerRef.current)
+      responseDelayTimerRef.current = null
+    }
+  }, [])
+
   const stopMicrophone = useCallback((stream = realtimeStreamRef.current) => {
     if (!stream) return
     stream.getAudioTracks().forEach((track) => {
@@ -102,6 +117,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     setPressed(false)
     setRealtimePhase('idle')
     clearIdleTimer()
+    clearResponseDelayTimer()
 
     stopMicrophone()
 
@@ -128,7 +144,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       realtimeAudioRef.current.srcObject = null
       realtimeAudioRef.current = null
     }
-  }, [clearIdleTimer, setRealtimePhase, stopMicrophone])
+  }, [clearIdleTimer, clearResponseDelayTimer, setRealtimePhase, stopMicrophone])
 
   const resetRealtimeIdleTimer = useCallback(() => {
     clearIdleTimer()
@@ -149,6 +165,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       || !sender
     ) return
 
+    clearResponseDelayTimer()
     micStartingRef.current = true
     const requestId = ++micRequestRef.current
 
@@ -201,7 +218,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     } finally {
       if (requestId === micRequestRef.current) micStartingRef.current = false
     }
-  }, [resetRealtimeIdleTimer, setRealtimePhase, stopMicrophone])
+  }, [clearResponseDelayTimer, resetRealtimeIdleTimer, setRealtimePhase, stopMicrophone])
 
   beginCaptureRef.current = () => {
     void beginCapture()
@@ -226,13 +243,25 @@ export function EmaVoice({ userName }: { userName: string }) {
     const channel = realtimeChannelRef.current
     if (hadCapture && channel?.readyState === 'open') {
       channel.send(JSON.stringify({ type: 'input_audio_buffer.commit' }))
-      channel.send(JSON.stringify({
-        type: 'response.create',
-        response: { output_modalities: ['audio'] },
-      }))
-      responseActiveRef.current = true
+      clearResponseDelayTimer()
       setRealtimePhase('thinking')
       resetRealtimeIdleTimer()
+
+      responseDelayTimerRef.current = window.setTimeout(() => {
+        responseDelayTimerRef.current = null
+        if (
+          holdingRef.current
+          || realtimeChannelRef.current !== channel
+          || channel.readyState !== 'open'
+        ) return
+
+        channel.send(JSON.stringify({
+          type: 'response.create',
+          response: { output_modalities: ['audio'] },
+        }))
+        responseActiveRef.current = true
+        resetRealtimeIdleTimer()
+      }, RESPONSE_DELAY_MS)
     } else if (realtimeActiveRef.current) {
       setRealtimePhase('ready')
     }
@@ -246,7 +275,7 @@ export function EmaVoice({ userName }: { userName: string }) {
         stopMicrophone(stream)
       }, MIC_RELEASE_GRACE_MS)
     }
-  }, [resetRealtimeIdleTimer, setRealtimePhase, stopMicrophone])
+  }, [clearResponseDelayTimer, resetRealtimeIdleTimer, setRealtimePhase, stopMicrophone])
 
   const handleRealtimeEvent = useCallback(async (channel: RTCDataChannel, event: RealtimeServerEvent) => {
     resetRealtimeIdleTimer()
@@ -445,6 +474,8 @@ export function EmaVoice({ userName }: { userName: string }) {
 
     holdingRef.current = true
     setPressed(true)
+    clearResponseDelayTimer()
+    triggerHaptic()
     void realtimeAudioRef.current?.play().catch(() => undefined)
 
     if (realtimeActiveRef.current && realtimeChannelRef.current?.readyState === 'open') {
@@ -452,7 +483,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     } else {
       void startRealtime()
     }
-  }, [startRealtime])
+  }, [clearResponseDelayTimer, startRealtime])
 
   const handlePressEnd = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault()
@@ -464,6 +495,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       // Pointer Capture ist auf älteren Safari-Versionen nicht immer verfügbar.
     }
     finishCapture()
+    triggerHaptic(6)
   }, [finishCapture])
 
   useEffect(() => {
