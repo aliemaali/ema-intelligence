@@ -95,6 +95,49 @@ export async function POST(request: NextRequest) {
           additionalProperties: false,
         },
       },
+      {
+        type: 'function',
+        name: 'get_portfolio_summary',
+        description: 'Liest die aktuellen EMA-Portfoliozahlen live aus der Datenbank. Für Fragen nach Anzahl, Gesamtleistung, Ländern, PV, BESS oder Rechenzentren verwenden.',
+        parameters: {
+          type: 'object',
+          properties: {},
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'search_ema_projects',
+        description: 'Durchsucht die für den angemeldeten Nutzer sichtbaren EMA-Projekte und Länderübersichten. Für Fragen nach Projekten in einem Land, Status, Typ, Ort, Nummer oder Namen verwenden.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Freie Suche nach Projektname, Nummer, Ort, Land, Typ oder Status.' },
+            country: { type: 'string', description: 'Optionaler Länderfilter, z. B. Deutschland oder Frankreich.' },
+            project_type: {
+              type: 'string',
+              enum: ['pv_freiflaeche', 'pv_dach', 'bess', 'hybrid', 'wind', 'rechenzentrum', 'sonstiges'],
+              description: 'Optionaler Projekttyp.',
+            },
+            status: { type: 'string', description: 'Optionaler Projekt- oder Entwicklungsstatus, z. B. rtb, planung, dd oder closing.' },
+            limit: { type: 'integer', minimum: 1, maximum: 20, description: 'Maximale Anzahl einzelner Treffer.' },
+          },
+          additionalProperties: false,
+        },
+      },
+      {
+        type: 'function',
+        name: 'get_project_details',
+        description: 'Liest die aktuellen Stammdaten eines konkreten EMA-Projekts, einschließlich Standort, Technik, Entwicklungsstatus und erfasster Wirtschaftlichkeits-/Projektdaten.',
+        parameters: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'Projektname, Projektnummer oder zuvor gefundene Projekt-ID.' },
+          },
+          required: ['query'],
+          additionalProperties: false,
+        },
+      },
     ],
     tool_choice: 'auto',
     audio: {
