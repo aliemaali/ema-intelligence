@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getEmaVoiceUserName } from '@/lib/ema/voiceAccess'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -49,6 +50,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })
   }
 
+  const emaVoiceUserName = getEmaVoiceUserName(user.email)
+  if (!emaVoiceUserName) {
+    return NextResponse.json({ error: 'EMA AI ist für dieses Benutzerkonto nicht freigeschaltet.' }, { status: 403 })
+  }
+
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
     return NextResponse.json({ error: 'EMA AI ist noch nicht mit OpenAI verbunden.' }, { status: 503 })
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
     type: 'realtime',
     model: 'gpt-realtime-2.1-mini',
     output_modalities: ['audio'],
-    instructions: EMA_INSTRUCTIONS,
+    instructions: `${EMA_INSTRUCTIONS}\nDer aktuell eingeloggte Nutzer heißt ${emaVoiceUserName}. Sprich die Person bei passenden Gelegenheiten natürlich mit „${emaVoiceUserName}“ an.`,
     tools: [
       {
         type: 'function',
