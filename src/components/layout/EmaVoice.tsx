@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -128,12 +128,7 @@ function currentArea(pathname: string) {
   return PATH_LABELS.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'EMA Intelligence'
 }
 
-function ownerGreeting(email: string) {
-  const normalized = email.trim().toLocaleLowerCase('de-DE')
-  return normalized === 'unluer@ema-enterprise.de' || normalized === 'a.unluer@t-online.de'
-}
-
-export function EmaVoice({ userName, userEmail }: { userName: string; userEmail: string }) {
+export function EmaVoice({ userName }: { userName: string }) {
   const router = useRouter()
   const pathname = usePathname()
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
@@ -155,9 +150,8 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
   const [, setAnswer] = useState('Tippe einmal auf das Mikrofon. Danach wartet EMA auf „EMA“.')
   const [, setStatus] = useState('EMA-Modus aus')
 
-  const isChief = useMemo(() => ownerGreeting(userEmail), [userEmail])
   const firstName = userName.trim().split(/\s+/)[0] || 'da'
-  const address = isChief ? 'Chef' : firstName
+  const address = firstName
 
   const clearTimer = useCallback((timerRef: React.MutableRefObject<number | null>) => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current)
@@ -437,7 +431,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     }
 
     if (/wer bin ich|kennst du mich/.test(command)) {
-      respond(isChief ? 'Du bist der Chef. Natürlich kenne ich dich.' : `Du bist ${firstName}.`)
+      respond(`Du bist ${firstName}. Natürlich kenne ich dich.`)
       return
     }
 
@@ -485,7 +479,7 @@ export function EmaVoice({ userName, userEmail }: { userName: string; userEmail:
     setAnswer('Das ist eine Frage für EMA AI – ich verbinde die Sprachsitzung.')
     setPanelOpen(true)
     void startRealtime(command)
-  }, [address, firstName, isChief, pathname, respond, router, setFollowUp, startRealtime])
+  }, [address, firstName, pathname, respond, router, setFollowUp, startRealtime])
 
   const startRecognition = useCallback(() => {
     if (!wakeModeRef.current || recognitionRef.current) return
