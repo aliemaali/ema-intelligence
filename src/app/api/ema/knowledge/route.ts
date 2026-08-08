@@ -8,6 +8,8 @@ export const runtime = 'nodejs'
 
 const MAX_REQUEST_BYTES = 8 * 1024
 const MAX_SEARCH_RESULTS = 20
+const COUNTRY_LIST_CACHE_LIMIT = 6
+const countryProjectCache = new Map<string, ReturnType<typeof parseCountryProjectListText>>()
 
 type KnowledgeTool =
   | 'get_portfolio_summary'
@@ -593,7 +595,17 @@ async function searchCountryListProjects(
     }
   }
 
-  const projects = parseCountryProjectListText(combinedText)
+  let projects = countryProjectCache.get(source.id)
+  if (!projects) {
+    projects = parseCountryProjectListText(combinedText)
+    if (projects.length > 0) {
+      if (countryProjectCache.size >= COUNTRY_LIST_CACHE_LIMIT) {
+        const oldestKey = countryProjectCache.keys().next().value as string | undefined
+        if (oldestKey) countryProjectCache.delete(oldestKey)
+      }
+      countryProjectCache.set(source.id, projects)
+    }
+  }
   if (projects.length === 0) {
     return {
       found: true,
