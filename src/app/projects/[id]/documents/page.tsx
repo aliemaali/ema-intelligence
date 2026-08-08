@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getDocuments } from '@/lib/actions/document.actions'
+import { getEmaVoiceUserName } from '@/lib/ema/voiceAccess'
 import { DocumentUploader } from '@/components/projects/DocumentUploader'
 import { DocumentList } from '@/components/projects/DocumentList'
 import { ProjectDocumentChecklist } from '@/components/projects/ProjectDocumentChecklist'
@@ -63,6 +64,7 @@ export default async function DocumentsTab({ params }: DocumentsTabProps) {
     autoDetected: autoDetected(item.type, documents as any),
   }))
   const outputMetadata = (project.output_metadata ?? {}) as Record<string, ProjectGeneratedOutput>
+  const emaKnowledgeEnabled = Boolean(getEmaVoiceUserName(user.email))
 
   return (
     <div className="max-w-2xl space-y-4 py-4">
@@ -86,7 +88,15 @@ export default async function DocumentsTab({ params }: DocumentsTabProps) {
           <h3 className="text-sm font-extrabold text-[#1F2A44]">Gespeicherte Dokumente</h3>
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">{documents.length}</span>
         </div>
-        {documents.length > 0 ? <DocumentList documents={documents} projectId={params.id} /> : <p className="px-4 py-8 text-center text-sm text-muted-foreground">Noch keine Dokumente gespeichert.</p>}
+        {documents.length > 0 ? (
+          <DocumentList
+            documents={documents}
+            projectId={params.id}
+            emaKnowledgeEnabled={emaKnowledgeEnabled}
+          />
+        ) : (
+          <p className="px-4 py-8 text-center text-sm text-muted-foreground">Noch keine Dokumente gespeichert.</p>
+        )}
       </section>
     </div>
   )
