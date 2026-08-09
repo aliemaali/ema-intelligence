@@ -1,11 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Mic, Sparkles, X } from 'lucide-react'
+import { Mic, PhoneOff, Sparkles, X } from 'lucide-react'
 import { EmaVoiceOrb } from './EmaVoiceOrb'
 
 type RealtimePhase = 'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking' | 'error'
@@ -83,13 +82,11 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
 }
 
 const REALTIME_IDLE_MS = 5 * 60 * 1000
-const MIC_RELEASE_GRACE_MS = 100
-const RESPONSE_DELAY_MS = 1000
 
 const REALTIME_STATUS: Record<RealtimePhase, string> = {
   idle: 'Bereit, wenn du es bist',
   connecting: 'EMA verbindet sich …',
-  ready: 'Zum Sprechen gedrückt halten',
+  ready: 'Sprich einfach los',
   listening: 'Ich höre zu …',
   thinking: 'EMA denkt nach …',
   speaking: 'EMA antwortet …',
@@ -165,8 +162,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const realtimeStreamRef = useRef<MediaStream | null>(null)
   const realtimeAudioRef = useRef<HTMLAudioElement | null>(null)
   const realtimeIdleTimerRef = useRef<number | null>(null)
-  const responseDelayTimerRef = useRef<number | null>(null)
-  const holdingRef = useRef(false)
+  const conversationActiveRef = useRef(false)
   const captureActiveRef = useRef(false)
   const micStartingRef = useRef(false)
   const micRequestRef = useRef(0)
@@ -181,7 +177,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const outputLevelRef = useRef(0)
 
   const [realtimePhase, setRealtimePhaseState] = useState<RealtimePhase>('idle')
-  const [pressed, setPressed] = useState(false)
+  const [conversationActive, setConversationActive] = useState(false)
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [visualResult, setVisualResult] = useState<ProjectVisualResult | null>(null)
 
@@ -194,13 +190,6 @@ export function EmaVoice({ userName }: { userName: string }) {
     if (realtimeIdleTimerRef.current !== null) {
       window.clearTimeout(realtimeIdleTimerRef.current)
       realtimeIdleTimerRef.current = null
-    }
-  }, [])
-
-  const clearResponseDelayTimer = useCallback(() => {
-    if (responseDelayTimerRef.current !== null) {
-      window.clearTimeout(responseDelayTimerRef.current)
-      responseDelayTimerRef.current = null
     }
   }, [])
 
@@ -266,14 +255,13 @@ export function EmaVoice({ userName }: { userName: string }) {
     realtimeConnectingRef.current = false
     responseActiveRef.current = false
     captureActiveRef.current = false
-    holdingRef.current = false
+    conversationActiveRef.current = false
     micStartingRef.current = false
     micRequestRef.current += 1
     pendingActionRef.current = null
-    setPressed(false)
+    setConversationActive(false)
     setRealtimePhase('idle')
     clearIdleTimer()
-    clearResponseDelayTimer()
 
     stopMicrophone()
     stopAudioMeter(outputMeterRef, () => { outputLevelRef.current = 0 })
@@ -301,12 +289,12 @@ export function EmaVoice({ userName }: { userName: string }) {
       realtimeAudioRef.current.srcObject = null
       realtimeAudioRef.current = null
     }
-  }, [clearIdleTimer, clearResponseDelayTimer, setRealtimePhase, stopAudioMeter, stopMicrophone])
+  }, [clearIdleTimer, setRealtimePhase, stopAudioMeter, stopMicrophone])
 
   const resetRealtimeIdleTimer = useCallback(() => {
     clearIdleTimer()
     realtimeIdleTimerRef.current = window.setTimeout(() => {
-      if (!holdingRef.current && !responseActiveRef.current) stopRealtime()
+      if (!conversationActiveRef.current && !responseActiveRef.current) stopRealtime()
     }, REALTIME_IDLE_MS)
   }, [clearIdleTimer, stopRealtime])
 
@@ -314,7 +302,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     const channel = realtimeChannelRef.current
     const sender = realtimeSenderRef.current
     if (
-      !holdingRef.current
+      !conversationActiveRef.current
       || captureActiveRef.current
       || micStartingRef.current
       || !channel
@@ -322,17 +310,10 @@ export function EmaVoice({ userName }: { userName: string }) {
       || !sender
     ) return
 
-    clearResponseDelayTimer()
     micStartingRef.current = true
     const requestId = ++micRequestRef.current
 
     try {
-      if (responseActiveRef.current) {
-        channel.send(JSON.stringify({ type: 'response.cancel' }))
-      }
-      if (phaseRef.current === 'speaking') {
-        channel.send(JSON.stringify({ type: 'output_audio_buffer.clear' }))
-      }
       channel.send(JSON.stringify({ type: 'input_audio_buffer.clear' }))
 
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -343,7 +324,7 @@ export function EmaVoice({ userName }: { userName: string }) {
         },
       })
 
-      if (requestId !== micRequestRef.current || !holdingRef.current) {
+      if (requestId !== micRequestRef.current || !conversationActiveRef.current) {
         stopMicrophone(stream)
         return
       }
@@ -357,7 +338,7 @@ export function EmaVoice({ userName }: { userName: string }) {
 
       await sender.replaceTrack(track)
 
-      if (requestId !== micRequestRef.current || !holdingRef.current) {
+      if (requestId !== micRequestRef.current || !conversationActiveRef.current) {
         await sender.replaceTrack(null).catch(() => undefined)
         stopMicrophone(stream)
         return
@@ -367,77 +348,36 @@ export function EmaVoice({ userName }: { userName: string }) {
       startAudioMeter(stream, inputMeterRef, (level) => { inputLevelRef.current = level })
       captureActiveRef.current = true
       responseActiveRef.current = false
-      setRealtimePhase('listening')
+      setRealtimePhase('ready')
       resetRealtimeIdleTimer()
     } catch (error) {
-      console.error('EMA Push-to-Talk microphone failed:', error instanceof Error ? error.message : 'unknown error')
+      console.error('EMA conversation microphone failed:', error instanceof Error ? error.message : 'unknown error')
       captureActiveRef.current = false
+      conversationActiveRef.current = false
+      setConversationActive(false)
       setRealtimePhase('error')
     } finally {
       if (requestId === micRequestRef.current) micStartingRef.current = false
     }
-  }, [clearResponseDelayTimer, resetRealtimeIdleTimer, setRealtimePhase, startAudioMeter, stopMicrophone])
+  }, [resetRealtimeIdleTimer, setRealtimePhase, startAudioMeter, stopMicrophone])
 
   beginCaptureRef.current = () => {
     void beginCapture()
   }
 
-  const finishCapture = useCallback(() => {
-    holdingRef.current = false
-    setPressed(false)
-    micRequestRef.current += 1
-    micStartingRef.current = false
-
-    const stream = realtimeStreamRef.current
-    const hadCapture = captureActiveRef.current && Boolean(stream)
-    captureActiveRef.current = false
-
-    if (stream) {
-      stream.getAudioTracks().forEach((track) => {
-        track.enabled = false
-      })
-    }
-
-    const channel = realtimeChannelRef.current
-    if (hadCapture && channel?.readyState === 'open') {
-      voiceTurnRef.current += 1
-      channel.send(JSON.stringify({ type: 'input_audio_buffer.commit' }))
-      clearResponseDelayTimer()
-      setRealtimePhase('thinking')
-      resetRealtimeIdleTimer()
-
-      responseDelayTimerRef.current = window.setTimeout(() => {
-        responseDelayTimerRef.current = null
-        if (
-          holdingRef.current
-          || realtimeChannelRef.current !== channel
-          || channel.readyState !== 'open'
-        ) return
-
-        channel.send(JSON.stringify({
-          type: 'response.create',
-          response: { output_modalities: ['audio'] },
-        }))
-        responseActiveRef.current = true
-        resetRealtimeIdleTimer()
-      }, RESPONSE_DELAY_MS)
-    } else if (realtimeActiveRef.current) {
-      setRealtimePhase('ready')
-    }
-
-    if (stream) {
-      window.setTimeout(() => {
-        if (realtimeStreamRef.current === stream) {
-          void realtimeSenderRef.current?.replaceTrack(null).catch(() => undefined)
-          realtimeStreamRef.current = null
-        }
-        stopMicrophone(stream)
-      }, MIC_RELEASE_GRACE_MS)
-    }
-  }, [clearResponseDelayTimer, resetRealtimeIdleTimer, setRealtimePhase, stopMicrophone])
-
   const handleRealtimeEvent = useCallback(async (channel: RTCDataChannel, event: RealtimeServerEvent) => {
     resetRealtimeIdleTimer()
+
+    if (event.type === 'input_audio_buffer.speech_started') {
+      voiceTurnRef.current += 1
+      setRealtimePhase('listening')
+      return
+    }
+
+    if (event.type === 'input_audio_buffer.speech_stopped') {
+      setRealtimePhase('thinking')
+      return
+    }
 
     if (event.type === 'response.created') {
       responseActiveRef.current = true
@@ -451,7 +391,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     }
 
     if (event.type === 'response.output_audio.done') {
-      if (!holdingRef.current) setRealtimePhase('ready')
+      if (conversationActiveRef.current && phaseRef.current !== 'listening') setRealtimePhase('ready')
       return
     }
 
@@ -654,14 +594,14 @@ export function EmaVoice({ userName }: { userName: string }) {
       }
 
       responseActiveRef.current = false
-      if (!holdingRef.current) setRealtimePhase('ready')
+      if (conversationActiveRef.current && phaseRef.current !== 'listening') setRealtimePhase('ready')
       return
     }
 
     if (event.type === 'error') {
       console.error('EMA Realtime event error:', event.error?.message ?? 'Unbekannter Fehler')
       responseActiveRef.current = false
-      if (!holdingRef.current) setRealtimePhase('ready')
+      setRealtimePhase(conversationActiveRef.current ? 'ready' : 'error')
     }
   }, [resetRealtimeIdleTimer, router, setRealtimePhase])
 
@@ -691,7 +631,7 @@ export function EmaVoice({ userName }: { userName: string }) {
         const stream = event.streams[0] ?? null
         audio.srcObject = stream
         if (stream) startAudioMeter(stream, outputMeterRef, (level) => { outputLevelRef.current = level })
-        if (holdingRef.current) void audio.play().catch(() => undefined)
+        if (conversationActiveRef.current) void audio.play().catch(() => undefined)
       }
 
       const channel = peer.createDataChannel('oai-events')
@@ -702,7 +642,7 @@ export function EmaVoice({ userName }: { userName: string }) {
         realtimeActiveRef.current = true
         setRealtimePhase('ready')
         resetRealtimeIdleTimer()
-        if (holdingRef.current) beginCaptureRef.current()
+        if (conversationActiveRef.current) beginCaptureRef.current()
       })
 
       channel.addEventListener('message', (message) => {
@@ -744,18 +684,16 @@ export function EmaVoice({ userName }: { userName: string }) {
     }
   }, [handleRealtimeEvent, resetRealtimeIdleTimer, setRealtimePhase, startAudioMeter, stopRealtime])
 
-  const handlePressStart = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId)
-    } catch {
-      // Pointer Capture ist auf älteren Safari-Versionen nicht immer verfügbar.
+  const handleConversationToggle = useCallback(() => {
+    triggerHaptic()
+
+    if (conversationActiveRef.current) {
+      stopRealtime()
+      return
     }
 
-    holdingRef.current = true
-    setPressed(true)
-    clearResponseDelayTimer()
-    triggerHaptic()
+    conversationActiveRef.current = true
+    setConversationActive(true)
     void realtimeAudioRef.current?.play().catch(() => undefined)
 
     if (realtimeActiveRef.current && realtimeChannelRef.current?.readyState === 'open') {
@@ -763,20 +701,12 @@ export function EmaVoice({ userName }: { userName: string }) {
     } else {
       void startRealtime()
     }
-  }, [clearResponseDelayTimer, startRealtime])
+  }, [startRealtime, stopRealtime])
 
-  const handlePressEnd = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    try {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId)
-      }
-    } catch {
-      // Pointer Capture ist auf älteren Safari-Versionen nicht immer verfügbar.
-    }
-    finishCapture()
-    triggerHaptic(6)
-  }, [finishCapture])
+  const closeWorkspace = useCallback(() => {
+    if (conversationActiveRef.current) stopRealtime()
+    setWorkspaceOpen(false)
+  }, [stopRealtime])
 
   useEffect(() => {
     const warmupTimer = window.setTimeout(() => {
@@ -793,7 +723,7 @@ export function EmaVoice({ userName }: { userName: string }) {
     if (!workspaceOpen) return
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setWorkspaceOpen(false)
+      if (event.key === 'Escape') closeWorkspace()
     }
     document.body.style.overflow = 'hidden'
     document.addEventListener('keydown', handleKeyDown)
@@ -801,11 +731,11 @@ export function EmaVoice({ userName }: { userName: string }) {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [workspaceOpen])
+  }, [closeWorkspace, workspaceOpen])
 
   const speaking = realtimePhase === 'speaking'
-  const listening = realtimePhase === 'listening' || pressed
   const ready = realtimePhase === 'ready'
+  const statusLabel = ready && !conversationActive ? 'Bereit, wenn du es bist' : REALTIME_STATUS[realtimePhase]
 
   return (
     <>
@@ -850,7 +780,7 @@ export function EmaVoice({ userName }: { userName: string }) {
             </div>
             <button
               type="button"
-              onClick={() => setWorkspaceOpen(false)}
+              onClick={closeWorkspace}
               aria-label="EMA AI schließen"
               className="flex h-11 w-11 items-center justify-center rounded-full border border-[#07142F]/10 bg-white text-[#07142F] shadow-sm transition hover:border-[#63C800]/60 hover:bg-[#f4f8ef]"
             >
@@ -874,26 +804,25 @@ export function EmaVoice({ userName }: { userName: string }) {
               </div>
 
               <div className="-mt-3 min-h-[76px]">
-                <p className="text-2xl font-extrabold tracking-tight sm:text-3xl">{REALTIME_STATUS[realtimePhase]}</p>
+                <p className="text-2xl font-extrabold tracking-tight sm:text-3xl">{statusLabel}</p>
                 <p className="mt-2 text-sm text-[#647089]">
-                  {listening ? 'Sprich jetzt – beim Loslassen wird deine Frage gesendet.' : 'Frage EMA nach Projekten, Zahlen, Dokumenten oder nächsten Schritten.'}
+                  {conversationActive
+                    ? 'Sprich frei mit EMA. Sie erkennt automatisch, wann du fertig bist.'
+                    : 'Starte den Sprachmodus und frage EMA nach Projekten, Zahlen oder Dokumenten.'}
                 </p>
               </div>
 
               <button
                 type="button"
-                onPointerDown={handlePressStart}
-                onPointerUp={handlePressEnd}
-                onPointerCancel={handlePressEnd}
-                onContextMenu={(event) => event.preventDefault()}
-                aria-label={listening ? 'EMA hört zu. Loslassen zum Senden.' : 'Gedrückt halten, um mit EMA zu sprechen.'}
-                aria-pressed={listening}
-                className={`mt-5 flex min-h-16 touch-none select-none items-center gap-3 rounded-full px-8 text-base font-extrabold text-white shadow-[0_16px_34px_rgba(7,20,47,0.24)] transition [-webkit-touch-callout:none] [-webkit-user-select:none] ${listening ? 'scale-[0.97] bg-[#397c00]' : 'bg-[#07142F] hover:bg-[#10264f]'}`}
+                onClick={handleConversationToggle}
+                aria-label={conversationActive ? 'Gespräch mit EMA beenden' : 'Gespräch mit EMA starten'}
+                aria-pressed={conversationActive}
+                className={`mt-5 flex min-h-16 items-center gap-3 rounded-full px-8 text-base font-extrabold text-white shadow-[0_16px_34px_rgba(7,20,47,0.24)] transition active:scale-[0.97] ${conversationActive ? 'bg-[#b4232f] hover:bg-[#941d27]' : 'bg-[#07142F] hover:bg-[#10264f]'}`}
               >
-                <span className={`flex h-10 w-10 items-center justify-center rounded-full ${listening ? 'bg-[#63C800]' : 'bg-white/[0.12]'}`}>
-                  <Mic className="h-5 w-5" />
+                <span className={`flex h-10 w-10 items-center justify-center rounded-full ${conversationActive ? 'bg-white/[0.16]' : 'bg-[#63C800]'}`}>
+                  {conversationActive ? <PhoneOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                 </span>
-                {listening ? 'Loslassen zum Senden' : 'Gedrückt halten zum Sprechen'}
+                {conversationActive ? 'Gespräch beenden' : 'Gespräch starten'}
               </button>
             </div>
 
