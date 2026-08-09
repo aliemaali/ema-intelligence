@@ -8,7 +8,6 @@ export const runtime = 'nodejs'
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const OPENAI_DOCUMENT_MODEL = 'gpt-5.6-luna'
-const DOCUMENT_BUCKET = 'project-documents'
 const MAX_PDF_BYTES = 10 * 1024 * 1024
 
 type DocumentRow = {
@@ -18,6 +17,7 @@ type DocumentRow = {
   display_name: string
   file_name: string
   file_path: string
+  external_provider: string | null
   file_size_bytes: number | null
   mime_type: string | null
   ai_analyzed: boolean | null
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('documents')
-    .select('id, project_id, user_id, display_name, file_name, file_path, file_size_bytes, mime_type, ai_analyzed, ai_extracted_data, is_archived')
+    .select('id, project_id, user_id, display_name, file_name, file_path, external_provider, file_size_bytes, mime_type, ai_analyzed, ai_extracted_data, is_archived')
     .eq('id', documentId)
     .eq('user_id', user.id)
     .eq('is_archived', false)
@@ -194,8 +194,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Dieses PDF ist für die EMA-Indexierung zu groß.' }, { status: 413 })
   }
 
+  const documentBucket = document.external_provider === 'project-imports'
+    ? 'project-imports'
+    : 'project-documents'
   const { data: fileBlob, error: downloadError } = await supabase.storage
-    .from(DOCUMENT_BUCKET)
+    .from(documentBucket)
     .download(document.file_path)
 
   if (downloadError || !fileBlob) {
