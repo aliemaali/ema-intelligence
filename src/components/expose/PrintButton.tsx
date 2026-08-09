@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Download, Languages } from 'lucide-react'
 import { generateMemorandumPdf, PdfGenerationError, type MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
 import { markProjectOutputGenerated } from '@/lib/actions/project-output.actions'
+import { markDocumentViewerOpen } from '@/lib/ema/appIntroNavigation'
 
 type MemorandumLanguage = 'de' | 'en'
 
@@ -77,7 +78,10 @@ function currentProjectId() {
 
 function openOrDownloadPdf(blob: Blob, filename: string) {
   const blobUrl = URL.createObjectURL(blob)
-  if (isIosDevice()) window.location.href = blobUrl
+  if (isIosDevice()) {
+    markDocumentViewerOpen()
+    window.location.href = blobUrl
+  }
   else {
     const anchor = document.createElement('a')
     anchor.href = blobUrl
