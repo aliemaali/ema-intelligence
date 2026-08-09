@@ -117,15 +117,15 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
           </div>
           <Field label="Notizen" full><textarea value={form.notes ?? ""} onChange={(e) => update("notes", e.target.value)} rows={5} className="input resize-none" /></Field>
         </div> : <section>
-          <div className="mb-4 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1F2A44] text-white"><FileDown size={19} /></span><div><h3 className="font-extrabold text-[#1F2A44]">Projekte & Investment Memoranden</h3><p className="text-xs text-slate-500">Projekt auswählen und das zugehörige Investment Memorandum öffnen.</p></div></div>
+          <div className="mb-4 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1F2A44] text-white"><FileDown size={19} /></span><div><h3 className="font-extrabold text-[#1F2A44]">Projekte & Exposés</h3><p className="text-xs text-slate-500">Projekt auswählen und das zugehörige Exposé öffnen.</p></div></div>
           <div className="space-y-2 pb-4">
             {projects.map((project) => {
               const assignment = assignmentMap.get(project.id);
               const checked = selectedProjects.has(project.id);
               return <div key={project.id} className={`rounded-xl border bg-white p-3 ${checked ? "border-[#5CB800] shadow-sm" : "border-slate-200"}`}>
                 <label className="flex cursor-pointer items-center gap-3"><input type="checkbox" checked={checked} onChange={() => toggleProject(project.id)} className="h-5 w-5 accent-[#5CB800]" /><span className="min-w-0 flex-1 break-words font-bold text-slate-800">{project.name}</span>{checked && <span className="shrink-0 rounded-full bg-[#5CB800]/10 px-2 py-1 text-[10px] font-extrabold text-[#3D9200]">Zugeordnet</span>}</label>
-                {checked && <button type="button" onClick={() => openMemorandum(project.id)} className="mt-3 flex w-full items-center gap-2 rounded-xl bg-[#07142F] px-3 py-3 text-left text-xs font-extrabold text-white"><FileDown size={15} /><span className="min-w-0 flex-1">Investment Memorandum</span><ExternalLink size={14} /></button>}
-                {checked && !assignment && <p className="mt-2 text-[11px] text-slate-400">Das Memorandum wird direkt aus den aktuellen Projektdaten erzeugt.</p>}
+                {checked && <button type="button" onClick={() => openMemorandum(project.id)} className="mt-3 flex w-full items-center gap-2 rounded-xl bg-[#07142F] px-3 py-3 text-left text-xs font-extrabold text-white"><FileDown size={15} /><span className="min-w-0 flex-1">Exposé</span><ExternalLink size={14} /></button>}
+                {checked && !assignment && <p className="mt-2 text-[11px] text-slate-400">Das Exposé wird direkt aus den aktuellen Projektdaten erzeugt.</p>}
               </div>;
             })}
             {!projects.length && <p className="py-8 text-center text-xs text-slate-500">Keine Projekte vorhanden.</p>}
