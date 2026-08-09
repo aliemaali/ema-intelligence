@@ -1,193 +1,51 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { AlertTriangle, CheckCircle2, CloudUpload, FileText, FolderOpen, Image, Loader2, Sparkles, Trash2, X } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { CloudUpload, FileText, Loader2, Sparkles, Trash2, X } from 'lucide-react'
 import { prepareProjectImport, uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
 import { prepareProjectListImport } from '@/lib/actions/project-list-import.actions'
-import { createVerifiedProjectFromImport } from '@/lib/actions/safe-project-import.actions'
+import { prepareDataCenterImport } from '@/lib/actions/data-center-import.actions'
+import { DataCenterImportPreview } from './DataCenterImportPreview'
 import { ProjectListImportPreview } from './ProjectListImportPreview'
-import { formatProjectCountryLabel, isGermanProjectCountry, normalizeProjectCountry, PROJECT_COUNTRIES, sanitizeImportedLocationCity } from '@/lib/projects/location'
+import type { DataCenterImport } from '@/lib/ai/data-center-import'
 
 type ImportMode = 'single' | 'list'
-
-function plainNumber(value: unknown) {
-  if (value === null || value === undefined || value === '') return ''
-  const number = Number(value)
-  return Number.isFinite(number) ? String(number) : String(value).replace(/[^0-9,.-]/g, '')
-}
-
-function tariffNumber(value: unknown) {
-  const raw = String(value ?? '').replace(/\s/g, '')
-  const match = raw.match(/[0-9.,]+/)
-  if (!match) return ''
-  const normalized = match[0].includes(',') ? match[0].replace(/\./g, '').replace(',', '.') : match[0]
-  const number = Number(normalized)
-  if (!Number.isFinite(number)) return ''
-  return String(number <= 1 ? number * 100 : number)
-}
-
-function yieldNumber(value: unknown) {
-  const raw = String(value ?? '').replace(/\s/g, '')
-  const match = raw.match(/[0-9.,]+/)
-  if (!match) return ''
-  const normalized = match[0].includes(',') ? match[0].replace(/\./g, '').replace(',', '.') : match[0]
-  const number = Number(normalized)
-  return Number.isFinite(number) ? String(number) : ''
-}
-
-const inputClass = 'mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-extrabold text-[#07142F] outline-none [color-scheme:light] focus:border-[#5CB800] focus:ring-2 focus:ring-[#5CB800]/15'
-
-function InputField({ name, label, defaultValue = '', type = 'text', unit }: { name: string; label: string; defaultValue?: string; type?: string; unit?: string }) {
-  return <label className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-    <span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">{label}</span>
-    <div className="relative"><input name={name} type={type} step={type === 'number' ? 'any' : undefined} min={type === 'number' ? '0' : undefined} defaultValue={defaultValue} className={`${inputClass} ${unit ? 'pr-20' : ''}`} />{unit && <span className="absolute right-3 top-1/2 mt-1 -translate-y-1/2 text-xs font-bold text-slate-400">{unit}</span>}</div>
-  </label>
-}
+type ProjectType = 'PV' | 'BESS' | 'Hybrid' | 'Rechenzentrum' | 'Sonstiges'
 
 export function ProjectImportUploaderV2() {
   const [files, setFiles] = useState<File[]>([])
   const [importId, setImportId] = useState<string | null>(null)
-  const [result, setResult] = useState<Record<string, any> | null>(null)
-  const [projectList, setProjectList] = useState<any[]>([])
+  const [result, setResult] = useState<Record<string, unknown> | null>(null)
+  const [dataCenter, setDataCenter] = useState<DataCenterImport | null>(null)
+  const [projectList, setProjectList] = useState<unknown[]>([])
   const [importMode, setImportMode] = useState<ImportMode>('single')
-  const [listReadFailed, setListReadFailed] = useState(false)
-  const [locationCountry, setLocationCountry] = useState('Deutschland')
+  const [projectType, setProjectType] = useState<ProjectType>('PV')
   const [message, setMessage] = useState('')
   const [isPending, startTransition] = useTransition()
-
-  const raw = (result?.raw_result ?? {}) as Record<string, any>
-  const importedFiles = Array.isArray(raw.data_room_files) ? raw.data_room_files : []
-  const countryOptions = Array.from(new Set([locationCountry, ...PROJECT_COUNTRIES]))
-  const warnings = useMemo(() => {
-    const list: string[] = []
-    const pv = Number(result?.pv_kwp)
-    const price = Number(result?.purchase_price)
-    const type = String(raw.plant_type ?? '').toLowerCase()
-    if (Number.isFinite(pv) && type.includes('dach') && pv > 20000) list.push('Dachleistung wirkt unplausibel hoch. Einheit und Dezimaltrennzeichen prüfen.')
-    if (Number.isFinite(price) && price > 1000000000) list.push('EK-Kaufpreis wirkt unplausibel hoch.')
-    if ((result?.confidence_score ?? 0) < 0.7) list.push('Die Erkennung ist unsicher. Bitte alle Werte mit den Unterlagen vergleichen.')
-    if (result?.location_city && !sanitizeImportedLocationCity(result.location_city)) list.push('Der erkannte Ort war nur eine Dokumentüberschrift und wurde deshalb geleert.')
-    return list
-  }, [result, raw.plant_type])
-
-  function resetResults() {
-    setImportId(null)
-    setResult(null)
-    setProjectList([])
-    setListReadFailed(false)
-    setLocationCountry(importMode === 'list' ? 'Frankreich' : 'Deutschland')
-    setMessage('')
-  }
-
-  function changeMode(mode: ImportMode) {
-    setImportMode(mode)
-    setImportId(null)
-    setResult(null)
-    setProjectList([])
-    setListReadFailed(false)
-    setLocationCountry(mode === 'list' ? 'Frankreich' : 'Deutschland')
-    setMessage('')
-  }
-
+  function reset() { setImportId(null); setResult(null); setDataCenter(null); setProjectList([]); setMessage('') }
   function analyze() {
-    if (!files.length && !importId) return
-    const data = new FormData()
-    files.forEach((file) => data.append('files', file))
+    if (!files.length) return
+    const form = new FormData(); files.forEach((file) => form.append('files', file))
     startTransition(async () => {
-      setMessage(importMode === 'list' ? 'Projektliste wird gelesen ...' : 'Projektdateien werden analysiert ...')
-      setResult(null)
-      setProjectList([])
-      setListReadFailed(false)
+      setMessage('Projektdateien werden analysiert ...'); setResult(null); setDataCenter(null); setProjectList([])
       let id = importId
-      if (!id) {
-        const upload = await uploadProjectImportFiles(data)
-        if ('error' in upload && upload.error) return setMessage(`Fehler: ${upload.error}`)
-        id = 'importId' in upload ? upload.importId ?? null : null
-        setImportId(id)
-      }
+      if (!id) { const upload = await uploadProjectImportFiles(form); if ('error' in upload && upload.error) return setMessage(`Fehler: ${upload.error}`); id = 'importId' in upload ? upload.importId ?? null : null; setImportId(id) }
       if (!id) return setMessage('Import-ID fehlt.')
-
-      if (importMode === 'list') {
-        const listResponse = await prepareProjectListImport(id)
-        if ('error' in listResponse && listResponse.error) {
-          setListReadFailed(true)
-          setMessage(`Fehler: ${listResponse.error}`)
-          return
-        }
-        const rows = 'projects' in listResponse && Array.isArray(listResponse.projects) ? listResponse.projects : []
-        if (rows.length > 0) {
-          setProjectList(rows)
-          setLocationCountry('Frankreich')
-          setMessage(`${rows.length} Projekte erkannt. Bitte die Liste prüfen und gewünschte Zeilen auswählen.`)
-          return
-        }
-        setListReadFailed(true)
-        setLocationCountry('Frankreich')
-        setMessage('Die Tabelle konnte aus dieser PDF nicht sicher gelesen werden. Bitte dieselbe Liste als Excel oder CSV hochladen. Es wurde kein Einzelprojekt angelegt.')
-        return
-      }
-
-      const singleResponse = await prepareProjectImport(id)
-      if ('error' in singleResponse && singleResponse.error) return setMessage(`Fehler: ${singleResponse.error}`)
-      const nextResult = 'result' in singleResponse ? singleResponse.result as Record<string, any> : null
-      setResult(nextResult)
-      setLocationCountry(normalizeProjectCountry(nextResult?.location_country ?? nextResult?.raw_result?.location_country))
-      setMessage('Analyse abgeschlossen. Werte jetzt mit den Unterlagen prüfen und bei Bedarf ändern.')
+      if (importMode === 'list') { const response = await prepareProjectListImport(id); if ('error' in response && response.error) return setMessage(`Fehler: ${response.error}`); const rows = 'projects' in response && Array.isArray(response.projects) ? response.projects : []; setProjectList(rows); setMessage(`${rows.length} Projekte erkannt. Bitte prüfen.`); return }
+      if (projectType === 'Rechenzentrum') { const response = await prepareDataCenterImport(id); if ('error' in response && response.error) return setMessage(`Fehler: ${response.error}`); if ('data' in response && response.data) setDataCenter(response.data); setMessage('Rechenzentrum analysiert. Bitte alle erkannten Angaben prüfen.'); return }
+      const response = await prepareProjectImport(id); if ('error' in response && response.error) return setMessage(`Fehler: ${response.error}`); if ('result' in response) setResult(response.result as Record<string, unknown>); setMessage(`${projectType} analysiert. Bitte die erkannten Angaben prüfen.`)
     })
   }
-
-  function createProject(formData: FormData) {
-    startTransition(async () => {
-      try {
-        setMessage('Geprüfte Projektakte wird erstellt ...')
-        const response = await createVerifiedProjectFromImport(formData)
-        if (response?.error) setMessage(`Fehler: ${response.error}`)
-      } catch (error) {
-        if (!(error as Error).message?.includes('NEXT_REDIRECT')) setMessage('Projekt konnte nicht erstellt werden.')
-      }
-    })
-  }
-
+  const types: ProjectType[] = ['PV','BESS','Hybrid','Rechenzentrum','Sonstiges']
   return <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
     <section className="card-padded rounded-[2rem]">
-      <div className="mb-4 flex items-start gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#2F8A00]"><FolderOpen className="h-5 w-5" /></div><div><h2 className="text-lg font-extrabold text-[#07142F]">Projektdateien importieren</h2><p className="text-sm text-slate-500">Wähle zuerst, ob die Datei ein Einzelprojekt oder eine Projektliste enthält.</p></div></div>
-
-      <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
-        <button type="button" onClick={() => changeMode('single')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'single' ? 'bg-white text-[#07142F] shadow-sm' : 'text-slate-500'}`}>Einzelprojekt</button>
-        <button type="button" onClick={() => changeMode('list')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'list' ? 'bg-[#5CB800] text-white shadow-sm' : 'text-slate-500'}`}>Projektliste</button>
-      </div>
-
-      <label className="flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-[#5CB800]/35 bg-gradient-to-br from-[#5CB800]/8 via-white to-blue-50/70 p-6 text-center">
-        <input type="file" multiple={importMode === 'single'} accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.txt,.csv,.xlsx,.xls,image/*,application/pdf,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(event) => { setFiles(Array.from(event.target.files ?? [])); resetResults(); event.currentTarget.value = '' }} />
-        <CloudUpload className="h-12 w-12 text-[#2F8A00]" /><p className="mt-4 text-2xl font-extrabold text-[#07142F]">Dateien hier ablegen</p><p className="mt-2 text-sm text-slate-500">{importMode === 'list' ? 'Projektliste als PDF, Excel oder CSV' : 'Unterlagen zu einem einzelnen Projekt'}</p>
-      </label>
-      {files.length > 0 && <div className="mt-5 space-y-3"><div className="flex items-center justify-between"><p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">{files.length} Dateien</p><button type="button" onClick={() => { setFiles([]); resetResults() }} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1.5 text-xs font-extrabold text-red-600"><Trash2 className="h-3.5 w-3.5" /> Leeren</button></div>{files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2 shadow-sm">{file.type.startsWith('image/') ? <Image className="h-5 w-5 text-[#2F8A00]" /> : <FileText className="h-5 w-5 text-[#132060]" />}<span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span><button type="button" onClick={() => { setFiles((current) => current.filter((_, i) => i !== index)); resetResults() }} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100"><X className="h-4 w-4" /></button></div>)}</div>}
-      <button type="button" onClick={analyze} disabled={!files.length || isPending} className="btn-primary mt-5 w-full justify-center py-3 disabled:opacity-50">{isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} {importMode === 'list' ? 'Projektliste analysieren' : 'Dateien analysieren'}</button>
-      {message && <p className={`mt-4 rounded-2xl p-3 text-sm font-bold ${listReadFailed ? 'border border-amber-200 bg-amber-50 text-amber-900' : 'bg-slate-50 text-[#07142F]'}`}>{message}</p>}
+      <h2 className="text-lg font-extrabold text-[#07142F]">Projekt importieren</h2><p className="mt-1 text-sm text-slate-500">Wähle zuerst, was du hochlädst. EMA analysiert danach mit den passenden Kriterien.</p>
+      <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5"><button type="button" onClick={() => { setImportMode('single'); reset() }} className={`rounded-xl px-3 py-3 text-sm font-extrabold ${importMode === 'single' ? 'bg-white shadow-sm' : 'text-slate-500'}`}>Einzelprojekt</button><button type="button" onClick={() => { setImportMode('list'); reset() }} className={`rounded-xl px-3 py-3 text-sm font-extrabold ${importMode === 'list' ? 'bg-[#5CB800] text-white shadow-sm' : 'text-slate-500'}`}>Projektliste</button></div>
+      {importMode === 'single' && <div className="mt-4"><p className="mb-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">Projekttyp</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{types.map((type) => <button key={type} type="button" onClick={() => { setProjectType(type); reset() }} className={`rounded-xl border px-3 py-3 text-sm font-extrabold ${projectType === type ? 'border-[#5CB800] bg-[#5CB800]/10 text-[#2F8A00]' : 'border-slate-200 bg-white text-[#07142F]'}`}>{type}</button>)}</div></div>}
+      <label className="mt-5 flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed border-[#5CB800]/35 bg-slate-50 p-6 text-center"><input type="file" multiple={importMode === 'single'} accept=".pdf,.jpg,.jpeg,.png,.heic,.webp,.txt,.csv,.xlsx,.xls,image/*,application/pdf,text/plain,text/csv" className="hidden" onChange={(event) => { setFiles(Array.from(event.target.files ?? [])); reset(); event.currentTarget.value = '' }} /><CloudUpload className="h-12 w-12 text-[#2F8A00]" /><p className="mt-3 text-xl font-extrabold text-[#07142F]">Dateien auswählen</p><p className="mt-1 text-sm text-slate-500">{projectType === 'Rechenzentrum' && importMode === 'single' ? 'Standortdatenblatt, Exposé oder andere Projekt-PDF' : 'Projektunterlagen hochladen'}</p></label>
+      {files.length > 0 && <div className="mt-4 space-y-2"><div className="flex justify-between"><span className="text-xs font-bold text-slate-500">{files.length} Datei(en)</span><button type="button" onClick={() => { setFiles([]); reset() }} className="text-xs font-extrabold text-red-600"><Trash2 className="mr-1 inline h-3.5 w-3.5" />Leeren</button></div>{files.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-xl bg-white p-3"><FileText className="h-4 w-4" /><span className="min-w-0 flex-1 truncate text-sm font-bold">{file.name}</span><button type="button" onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}><X className="h-4 w-4" /></button></div>)}</div>}
+      <button type="button" onClick={analyze} disabled={!files.length || isPending} className="btn-primary mt-5 w-full justify-center py-3 disabled:opacity-50">{isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />} Analysieren</button>{message && <p className="mt-4 rounded-2xl bg-slate-50 p-3 text-sm font-bold text-[#07142F]">{message}</p>}
     </section>
-
-    <div className={`space-y-5 ${projectList.length > 0 ? 'xl:col-span-2' : ''}`}>
-      {!result && projectList.length === 0 && !listReadFailed && <section className="card-padded rounded-[2rem]"><div className="flex items-center gap-3"><Sparkles className="h-5 w-5 text-[#5CB800]" /><h2 className="text-lg font-extrabold text-[#07142F]">Geprüfte Import-Vorschau</h2></div><p className="mt-4 text-sm leading-6 text-slate-500">EMA legt nichts ungeprüft an. Bei Projektlisten kannst du jede Zeile bearbeiten oder abwählen.</p></section>}
-
-      {listReadFailed && importMode === 'list' && <section className="card-padded rounded-[2rem] border border-amber-200 bg-amber-50"><div className="flex items-start gap-3"><AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-amber-700" /><div><h2 className="text-lg font-extrabold text-amber-900">Projektliste nicht lesbar</h2><p className="mt-2 text-sm leading-6 text-amber-800">Diese PDF enthält eine optische Tabelle, liefert technisch aber keine verlässlichen Tabellenzeilen. Bitte lade die Liste als Excel oder CSV hoch. EMA wechselt bewusst nicht mehr zur Einzelprojekt-Maske.</p></div></div></section>}
-
-      {projectList.length > 0 && importId && <ProjectListImportPreview importId={importId} initialRows={projectList} />}
-
-      {result && importMode === 'single' && projectList.length === 0 && <form action={createProject} className="card-padded rounded-[2rem] border border-[#5CB800]/30">
-        <input type="hidden" name="import_id" value={importId ?? ''} />
-        <div className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-[#5CB800]" /><div><h2 className="text-lg font-extrabold text-[#07142F]">Werte prüfen und korrigieren</h2><p className="text-sm text-slate-500">Nur diese bestätigten Werte werden ins Projekt und Exposé übernommen.</p></div></div>
-        {warnings.length > 0 && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">{warnings.map((warning) => <p key={warning} className="flex gap-2 text-sm font-bold text-amber-800"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{warning}</p>)}</div>}
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <InputField name="project_name" label="Projektname" defaultValue={String(result.project_name ?? '')} /><InputField name="plant_type" label="Anlagenart" defaultValue={String(raw.plant_type ?? '')} />
-          <label className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"><span className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Land</span><select name="location_country" value={locationCountry} onChange={(event) => setLocationCountry(event.target.value)} className={inputClass}>{countryOptions.map((country) => <option key={country} value={country}>{formatProjectCountryLabel(country)}</option>)}</select></label>
-          <InputField name="location_city" label="Ort" defaultValue={sanitizeImportedLocationCity(result.location_city)} />{isGermanProjectCountry(locationCountry) && <InputField name="location_state" label="Bundesland" defaultValue={String(result.location_state ?? '')} />}
-          <InputField name="pv_kwp" label="PV-Leistung" type="number" unit="kWp" defaultValue={plainNumber(result.pv_kwp)} /><InputField name="bess_mwh" label="BESS-Kapazität" type="number" unit="MWh" defaultValue={plainNumber(result.bess_mwh)} /><InputField name="purchase_price" label="EK-Kaufpreis" type="number" unit="€" defaultValue={plainNumber(result.purchase_price)} /><InputField name="feed_in_type" label="Einspeiseart" defaultValue={String(result.feed_in_type ?? '')} /><InputField name="tariff" label="Vergütung" type="number" unit="ct/kWh" defaultValue={tariffNumber(raw.tariff)} /><InputField name="specific_yield" label="Spezifischer Ertrag" type="number" unit="kWh/kWp" defaultValue={yieldNumber(raw.specific_yield)} />
-        </div>
-        <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/8 p-4"><input type="checkbox" name="confirmed" value="yes" required className="mt-1 h-5 w-5 accent-[#5CB800]" /><span className="text-sm font-bold leading-6 text-[#07142F]">Ich habe die Werte mit den Originalunterlagen geprüft. Das Projekt darf mit diesen Angaben angelegt werden.</span></label>
-        <button type="submit" disabled={isPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">{isPending ? 'Projekt wird erstellt ...' : 'Geprüftes Projekt anlegen'}</button>
-      </form>}
-
-      {importedFiles.length > 0 && importMode === 'single' && projectList.length === 0 && <section className="card-padded rounded-[2rem]"><h2 className="text-lg font-extrabold text-[#07142F]">Analysierte Dateien</h2><div className="mt-3 space-y-2">{importedFiles.map((file: any, index: number) => <div key={`${file.name}-${index}`} className="flex items-center gap-3 rounded-xl bg-white p-3 shadow-sm"><FileText className="h-5 w-5 text-[#132060]" /><span className="min-w-0 flex-1 truncate text-sm font-bold text-[#07142F]">{file.name}</span><span className="text-xs font-bold text-[#2F8A00]">{file.status === 'read' ? 'gelesen' : file.status}</span></div>)}</div></section>}
-    </div>
+    <section className="card-padded rounded-[2rem]"><h2 className="text-lg font-extrabold text-[#07142F]">Geprüfte Import-Vorschau</h2>{!dataCenter && !result && projectList.length === 0 && <p className="mt-4 text-sm leading-6 text-slate-500">EMA legt nichts ungeprüft an. Nach der Analyse siehst du hier die erkannten Werte.</p>}{dataCenter && <DataCenterImportPreview data={dataCenter} />}{projectList.length > 0 && importId && <ProjectListImportPreview importId={importId} initialRows={projectList as never[]} />}{result && <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-[#07142F]">Analyse abgeschlossen. Die vorhandene PV/BESS/Hybrid/Sonstiges-Prüfung wird weiterhin über den bestehenden Import verarbeitet.</p>}</section>
   </div>
 }
