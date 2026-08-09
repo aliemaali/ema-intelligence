@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { createPortal } from 'react-dom'
 import { Mic, PhoneOff, Sparkles, X } from 'lucide-react'
 import { EmaVoiceOrb } from './EmaVoiceOrb'
 
@@ -179,6 +180,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const [realtimePhase, setRealtimePhaseState] = useState<RealtimePhase>('idle')
   const [conversationActive, setConversationActive] = useState(false)
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [headerActionTarget, setHeaderActionTarget] = useState<HTMLElement | null>(null)
   const [visualResult, setVisualResult] = useState<ProjectVisualResult | null>(null)
 
   const setRealtimePhase = useCallback((phase: RealtimePhase) => {
@@ -723,6 +725,10 @@ export function EmaVoice({ userName }: { userName: string }) {
   }, [stopRealtime])
 
   useEffect(() => {
+    setHeaderActionTarget(document.getElementById('ema-voice-header-action'))
+  }, [])
+
+  useEffect(() => {
     const warmupTimer = window.setTimeout(() => {
       void startRealtime()
     }, 300)
@@ -753,27 +759,27 @@ export function EmaVoice({ userName }: { userName: string }) {
 
   return (
     <>
-      <div className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-30 md:bottom-6 md:right-6">
+      {headerActionTarget ? createPortal(
         <button
           type="button"
           onClick={() => setWorkspaceOpen(true)}
           aria-label={`EMA AI öffnen, ${userName}`}
           title="EMA AI öffnen"
-          className="group relative flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-[#07142F]/15 bg-white shadow-[0_14px_38px_rgba(7,20,47,0.28)] transition hover:scale-105 hover:border-[#63C800]/70"
+          className="group relative inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-border bg-white text-[#07142F] shadow-sm transition-all active:scale-95"
         >
-          <span className={`pointer-events-none absolute inset-[2px] rounded-full ${speaking ? 'animate-pulse shadow-[inset_0_0_30px_11px_rgba(99,200,0,0.58)]' : ready ? 'shadow-[inset_0_0_15px_4px_rgba(99,200,0,0.18)]' : ''}`} />
+          <span className={`pointer-events-none absolute inset-[2px] rounded-full ${speaking ? 'animate-pulse shadow-[inset_0_0_18px_6px_rgba(99,200,0,0.52)]' : ready ? 'shadow-[inset_0_0_12px_3px_rgba(99,200,0,0.17)]' : ''}`} />
           <Image
             src="/brand/ema-mark.png"
             alt=""
             width={506}
             height={247}
-            className="pointer-events-none relative z-10 h-auto w-[38px] drop-shadow-[0_1px_2px_rgba(7,20,47,0.12)]"
+            className="pointer-events-none relative z-10 h-auto w-7 drop-shadow-[0_1px_2px_rgba(7,20,47,0.12)]"
             priority
             draggable={false}
           />
-          {ready ? <span className="pointer-events-none absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#63C800]" /> : null}
+          {ready ? <span className="pointer-events-none absolute right-1 top-1 h-2 w-2 rounded-full border border-white bg-[#63C800]" /> : null}
         </button>
-      </div>
+      , headerActionTarget) : null}
 
       {workspaceOpen ? (
         <section
