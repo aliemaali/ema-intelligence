@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, FileText, FolderOpen, MapPin, Zap } from 'lucide-react'
 import { DeleteCountryProjectListButton } from '@/components/projects/DeleteCountryProjectListButton'
+import { ProjectActions } from '@/components/projects/ProjectActions'
 import { getProjects } from '@/lib/actions/project.actions'
 import { createClient } from '@/lib/supabase/server'
 
@@ -26,7 +27,7 @@ export default async function CountryProjectsPage({ params }: { params: { countr
     </section>
 
     <section><h2 className="text-2xl font-extrabold text-[#07142F]">Alle Projekte</h2>
-      {projects.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm font-bold text-slate-500">In diesem Land sind noch keine einzelnen Projekte angelegt.</div> : <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{projects.map((project: any) => <Link key={project.id} href={`/projects/${project.id}/overview`} className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#5CB800]/50"><p className="text-xs font-extrabold uppercase tracking-wider text-[#5CB800]">{project.project_number || 'Ohne Projektnummer'}</p><h3 className="mt-2 text-xl font-extrabold text-[#07142F]">{project.project_name}</h3><div className="mt-4 space-y-2 text-sm font-bold text-slate-500"><p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#5CB800]" />{project.location_city || project.location_state || country}</p><p className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#5CB800]" />{Number(project.pv_kwp || 0).toLocaleString('de-DE')} kWp</p></div></Link>)}</div>}
+      {projects.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm font-bold text-slate-500">In diesem Land sind noch keine einzelnen Projekte angelegt.</div> : <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{projects.map((project: any) => <article key={project.id} className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm transition hover:border-[#5CB800]/50"><Link href={`/projects/${project.id}/overview`} className="block p-5"><p className="text-xs font-extrabold uppercase tracking-wider text-[#5CB800]">{project.project_number || 'Ohne Projektnummer'}</p><h3 className="mt-2 text-xl font-extrabold text-[#07142F]">{project.project_name}</h3><div className="mt-4 space-y-2 text-sm font-bold text-slate-500"><p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#5CB800]" />{project.location_city || project.location_state || country}</p><p className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#5CB800]" />{Number(project.pv_kwp ?? project.pv_mwp ?? 0).toLocaleString('de-DE')} kWp</p></div></Link><div className="flex justify-end border-t border-slate-100 px-4 py-3"><ProjectActions projectId={project.id} projectName={project.project_name} /></div></article>)}</div>}
     </section>
   </div>
 }

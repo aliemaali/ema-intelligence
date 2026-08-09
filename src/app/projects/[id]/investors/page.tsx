@@ -5,6 +5,7 @@ import { linkInvestorToProject } from '@/lib/actions/project-investor.actions'
 import { InvestorLinkCard } from '@/components/projects/InvestorLinkCard'
 import { getExposePresentation } from '@/lib/expose/projectPresentation'
 import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
+import { mergeProjectEconomicSources, resolvePvEconomics } from '@/lib/projects/pv-units'
 
 interface InvestorsTabProps {
   params: { id: string }
@@ -77,27 +78,30 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const availableInvestors = (allInvestors ?? []).filter((investor: any) => !linkedInvestorIds.has(investor.id))
   const linkAction = linkInvestorToProject.bind(null, params.id)
 
-  const projectData = {
-    ...(project as Record<string, unknown>),
-    purchase_price: activeDeal?.purchase_price ?? null,
-    sales_price: activeDeal?.sales_price ?? null,
-  }
+  const projectData = mergeProjectEconomicSources(
+    project as unknown as Record<string, unknown>,
+    activeDeal as unknown as Record<string, unknown> | null,
+  )
   const country = String((project as any).location_country || 'Deutschland')
   const countryFlag = flagUrl(country)
   const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || country
-  const pvKwp = Number((project as any).pv_mwp ?? 0)
-  const specificYield = Number((project as any).specific_yield_kwh_kwp ?? 0)
-  const tariffRaw = Number((project as any).feed_in_tariff_ct_kwh ?? 0)
-  const tariffEurKwh = tariffRaw > 1 ? tariffRaw / 100 : tariffRaw
-  const storedAnnualYield = Number((project as any).annual_yield_kwh ?? 0)
-  const calculatedAnnualYield = pvKwp > 0 && specificYield > 0 ? pvKwp * specificYield : 0
-  const annualYield = storedAnnualYield > 0 ? storedAnnualYield : calculatedAnnualYield
-  const displaySpecificYield = annualYield > 0 && pvKwp > 0 ? annualYield / pvKwp : specificYield
-  const purchasePrice = Number(activeDeal?.purchase_price ?? 0)
-  const annualRevenue = annualYield > 0 && tariffEurKwh > 0 ? annualYield * tariffEurKwh : 0
-  const amortisation = purchasePrice > 0 && annualRevenue > 0 ? purchasePrice / annualRevenue : 0
-  const roi = purchasePrice > 0 && annualRevenue > 0 ? (annualRevenue / purchasePrice) * 100 : 0
-  const presentation = getExposePresentation({ ...projectData, specific_yield: displaySpecificYield }, location, {
+  const economics = resolvePvEconomics(projectData)
+  const tariffRaw = economics.tariffEurKwh
+  const annualYield = economics.annualYieldKwh ?? 0
+  const displaySpecificYield = economics.specificYieldKwhPerKwp
+  const purchasePrice = economics.purchasePrice ?? 0
+  const tariffEurKwh = economics.tariffEurKwh ?? 0
+  const annualRevenue = economics.annualRevenue ?? 0
+  const amortisation = economics.amortisationYears ?? 0
+  const roi = economics.roiPercent ?? 0
+  const presentation = getExposePresentation({
+    ...projectData,
+    purchase_price: purchasePrice,
+    pv_kwp: economics.pvKwp,
+    specific_yield: displaySpecificYield,
+    feed_in_tariff: tariffRaw,
+    amortisation_years: amortisation,
+  }, location, {
     number: formatNumber,
     money: formatMoney,
     tariff: formatTariff,

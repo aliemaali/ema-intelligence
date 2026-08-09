@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getExposePresentation } from '@/lib/expose/projectPresentation'
 import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
-import { calculatedAnnualYieldKwh, firstProjectValue, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp, resolvedPurchasePrice } from '@/lib/projects/pv-units'
+import { mergeProjectEconomicSources, resolvePvEconomics } from '@/lib/projects/pv-units'
 
 const COUNTRY_CODES: Record<string, string> = {
   Deutschland: 'de', Germany: 'de', Italien: 'it', Italy: 'it', Türkei: 'tr', Turkey: 'tr',
@@ -34,12 +34,6 @@ function tariffDisplay(raw: unknown) {
   return parsed <= 1 ? `${formatNumber(parsed, 3)} €/kWh` : `${formatNumber(parsed, 2)} ct/kWh`
 }
 
-function tariffEuroPerKwh(raw: unknown) {
-  const parsed = Number(raw)
-  if (!Number.isFinite(parsed) || parsed <= 0) return null
-  return parsed <= 1 ? parsed : parsed / 100
-}
-
 function stageLabel(raw: unknown) {
   if (raw === 'rtb') return 'RTB'
   return 'In Planung'
@@ -57,9 +51,6 @@ async function loadProjectData(projectId: string, userId: string, supabase: any)
   if (!project) return null
 
   const { data: deal } = await supabase.from('deals').select('*').eq('project_id', projectId).eq('user_id', userId).eq('is_active', true).maybeSingle()
-  const emaAi = project.ai_score_details && typeof project.ai_score_details === 'object'
-    ? (project.ai_score_details as Record<string, unknown>).ema_ai ?? {}
-    : {}
   const optionalData: Record<string, unknown>[] = []
 
   for (const table of ['project_financials', 'project_economics', 'capex_calculations']) {
@@ -67,7 +58,7 @@ async function loadProjectData(projectId: string, userId: string, supabase: any)
     if (data) optionalData.push(data)
   }
 
-  return Object.assign({}, project, deal ?? {}, emaAi, ...optionalData) as Record<string, unknown>
+  return mergeProjectEconomicSources(project, deal, optionalData)
 }
 
 function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
@@ -75,24 +66,17 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
   const code = COUNTRY_CODES[country]
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || country
   const dateLabel = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
-  const purchasePrice = resolvedPurchasePrice(project)
-  const pvKwp = projectPvCapacityKwp(project)
-  const specificYield = projectSpecificYieldKwhPerKwp(project)
-  const tariff = firstProjectValue(project, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh'])
-  const storedAnnualYield = firstProjectValue(project, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh'])
-  const storedNetCashFlow = firstProjectValue(project, ['annual_net_cash_flow', 'annual_net_income', 'annual_profit', 'net_cashflow_year', 'cashflow_annual'])
-  const storedAnnualOpex = firstProjectValue(project, ['annual_opex', 'opex_annual', 'operating_costs_annual'])
-  const opexPerKwp = positiveNumber(firstProjectValue(project, ['opex_per_kwp', 'opex_eur_kwp'])) ?? 7
-  const price = Number(purchasePrice)
-  const tariffEur = tariffEuroPerKwh(tariff)
-  const calculatedAnnualYield = calculatedAnnualYieldKwh(project)
-  const annualYield = positiveNumber(storedAnnualYield) ?? calculatedAnnualYield
-  const displaySpecificYield = annualYield !== null && pvKwp !== null && pvKwp > 0 ? annualYield / pvKwp : specificYield
-  const annualRevenue = annualYield !== null && tariffEur !== null ? annualYield * tariffEur : 0
-  const annualOpex = positiveNumber(storedAnnualOpex) ?? (pvKwp !== null ? pvKwp * opexPerKwp : 0)
-  const annualNetCashFlow = positiveNumber(storedNetCashFlow) ?? Math.max(0, annualRevenue - annualOpex)
-  const amortisation = price > 0 && annualNetCashFlow > 0 ? price / annualNetCashFlow : null
-  const roi = price > 0 && annualNetCashFlow > 0 ? (annualNetCashFlow / price) * 100 : null
+  const economics = resolvePvEconomics(project)
+  const purchasePrice = economics.purchasePrice
+  const pvKwp = economics.pvKwp
+  const tariff = economics.tariffEurKwh
+  const price = economics.purchasePrice ?? 0
+  const tariffEur = economics.tariffEurKwh
+  const annualYield = economics.annualYieldKwh
+  const displaySpecificYield = economics.specificYieldKwhPerKwp
+  const annualRevenue = economics.annualRevenue
+  const amortisation = economics.amortisationYears
+  const roi = economics.roiPercent
   const presentation = getExposePresentation(
     { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: displaySpecificYield, feed_in_tariff: tariff, amortisation_years: amortisation },
     location,

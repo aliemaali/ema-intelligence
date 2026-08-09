@@ -21,6 +21,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { PrintButton } from '@/components/expose/PrintButton'
 import { getExposePresentation } from '@/lib/expose/projectPresentation'
+import { mergeProjectEconomicSources, resolvePvEconomics } from '@/lib/projects/pv-units'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,20 +57,6 @@ function tariffDisplay(raw: unknown) {
   return number <= 1 ? `${formatNumber(number, 3)} €/kWh` : `${formatNumber(number, 2)} ct/kWh`
 }
 
-function tariffEuroPerKwh(raw: unknown) {
-  const number = Number(raw)
-  if (!Number.isFinite(number) || number <= 0) return null
-  return number <= 1 ? number : number / 100
-}
-
-function firstValue(source: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const current = source[key]
-    if (current !== null && current !== undefined && current !== '') return current
-  }
-  return null
-}
-
 function stageLabel(raw: unknown) {
   if (raw === 'rtb') return 'RTB'
   if (raw === 'betrieb') return 'Im Betrieb'
@@ -97,9 +84,6 @@ async function loadProjectData(projectId: string) {
   if (!project) return null
 
   const { data: deal } = await supabase.from('deals').select('*').eq('project_id', projectId).eq('user_id', user.id).eq('is_active', true).maybeSingle()
-  const emaAi = project.ai_score_details && typeof project.ai_score_details === 'object'
-    ? (project.ai_score_details as Record<string, unknown>).ema_ai ?? {}
-    : {}
   const optionalData: Record<string, unknown>[] = []
 
   for (const table of ['project_financials', 'project_economics', 'capex_calculations']) {
@@ -107,7 +91,11 @@ async function loadProjectData(projectId: string) {
     if (data) optionalData.push(data)
   }
 
-  return Object.assign({}, project, deal ?? {}, emaAi, ...optionalData) as Record<string, unknown>
+  return mergeProjectEconomicSources(
+    project as unknown as Record<string, unknown>,
+    deal as unknown as Record<string, unknown> | null,
+    optionalData,
+  )
 }
 
 export default async function InvestmentMemorandumPage({ params }: { params: { id: string } }) {
@@ -118,22 +106,18 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
   const countryFlag = flagUrl(country)
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || country
   const dateLabel = new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date())
-  const purchasePrice = firstValue(project, ['purchase_price', 'deal_purchase_price', 'total_purchase_price'])
-  const pvKwp = firstValue(project, ['pv_kwp', 'pv_mwp', 'capacity_kwp', 'plant_capacity_kwp'])
-  const specificYield = firstValue(project, ['specific_yield', 'specific_yield_kwh_kwp', 'yield_kwh_kwp'])
-  const tariff = firstValue(project, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh'])
-  const storedAnnualYield = firstValue(project, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh'])
-  const storedAmortisation = firstValue(project, ['amortisation_years', 'amortization_years', 'payback_years'])
-  const pv = Number(pvKwp)
-  const yieldPerKwp = Number(specificYield)
-  const price = Number(purchasePrice)
-  const tariffEur = tariffEuroPerKwh(tariff)
-  const calculatedAnnualYield = Number.isFinite(pv) && pv > 0 && Number.isFinite(yieldPerKwp) && yieldPerKwp > 0 ? pv * yieldPerKwp : null
-  const annualYield = storedAnnualYield ?? calculatedAnnualYield
-  const displaySpecificYield = Number(annualYield) > 0 && pv > 0 ? Number(annualYield) / pv : specificYield
-  const annualRevenue = Number(annualYield) > 0 && tariffEur ? Number(annualYield) * tariffEur : null
-  const amortisation = storedAmortisation ?? (price > 0 && annualRevenue ? price / annualRevenue : null)
-  const roi = price > 0 && annualRevenue ? (annualRevenue / price) * 100 : null
+  const economics = resolvePvEconomics(project)
+  const purchasePrice = economics.purchasePrice
+  const pvKwp = economics.pvKwp
+  const specificYield = economics.specificYieldKwhPerKwp
+  const tariff = economics.tariffEurKwh
+  const price = economics.purchasePrice ?? 0
+  const tariffEur = economics.tariffEurKwh
+  const annualYield = economics.annualYieldKwh
+  const displaySpecificYield = economics.specificYieldKwhPerKwp
+  const annualRevenue = economics.annualRevenue
+  const amortisation = economics.amortisationYears
+  const roi = economics.roiPercent
 
   const presentation = getExposePresentation({
     ...project,
