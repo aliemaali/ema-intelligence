@@ -6,6 +6,7 @@ import { archiveDocument, getDocumentUrl } from '@/lib/actions/document.actions'
 import { ConfirmDialog } from '@/components/ui'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/types/constants'
 import { formatDate, formatFileSize } from '@/lib/utils'
+import { clearDocumentViewerMarker, markDocumentViewerOpen } from '@/lib/ema/appIntroNavigation'
 import { toast } from 'sonner'
 import type { Document, DocumentType } from '@/lib/types/database.types'
 
@@ -18,6 +19,12 @@ interface DocumentListProps {
 function isPdfDocument(document: Document) {
   return document.mime_type === 'application/pdf'
     || document.file_name.toLocaleLowerCase('de-DE').endsWith('.pdf')
+}
+
+function openDocumentUrl(url: string) {
+  markDocumentViewerOpen()
+  const openedWindow = window.open(url, '_blank')
+  if (!openedWindow) clearDocumentViewerMarker()
 }
 
 function isDocumentIndexed(document: Document) {
@@ -174,12 +181,12 @@ function DocumentRow({
 
   const handleDownload = async () => {
     if (doc.external_url) {
-      window.open(doc.external_url, '_blank')
+      openDocumentUrl(doc.external_url)
       return
     }
     const result = await getDocumentUrl(doc.file_path, doc.external_provider)
     if (result.url) {
-      window.open(result.url, '_blank')
+      openDocumentUrl(result.url)
     } else {
       toast.error('Download-Link konnte nicht erstellt werden')
     }

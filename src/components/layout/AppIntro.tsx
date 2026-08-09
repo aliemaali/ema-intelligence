@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { consumeDocumentViewerReturn } from '@/lib/ema/appIntroNavigation'
 
 const INTRO_VERSION = 'v6'
 const EXIT_DURATION_MS = 350
@@ -66,6 +67,11 @@ export function AppIntro() {
     isStandaloneRef.current = isStandalone
     storageKeyRef.current = storageKey
 
+    if (isStandalone && consumeDocumentViewerReturn()) {
+      setPhase('done')
+      return
+    }
+
     if (!isStandalone) {
       try {
         if (window.localStorage.getItem(storageKey) === '1') {
@@ -79,6 +85,10 @@ export function AppIntro() {
     }
 
     const syncIntroVisibility = () => {
+      if (isStandalone && document.visibilityState === 'visible') {
+        consumeDocumentViewerReturn()
+      }
+
       setPhase((currentPhase) => {
         if (currentPhase === 'leaving' || currentPhase === 'done') return currentPhase
         return document.visibilityState === 'visible' ? 'playing' : 'checking'
