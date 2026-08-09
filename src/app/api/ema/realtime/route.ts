@@ -327,9 +327,14 @@ export async function POST(request: NextRequest) {
     tool_choice: 'auto',
     audio: {
       input: {
+        noise_reduction: {
+          type: 'near_field',
+        },
         turn_detection: {
-          type: 'semantic_vad',
-          eagerness: 'auto',
+          type: 'server_vad',
+          threshold: 0.7,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 1000,
           create_response: true,
           interrupt_response: true,
         },
