@@ -12,6 +12,7 @@ export function TopHeader() {
       </Link>
 
       <div className="flex items-center gap-2">
+        <div id="ema-voice-header-action" className="contents" />
         <Link href="/microsoft" className="mobile-header-action" title="Microsoft 365" aria-label="Outlook-Kontakte, Kalender und Teams öffnen">
           <MicrosoftTeamsIcon className="h-6 w-6" />
         </Link>
