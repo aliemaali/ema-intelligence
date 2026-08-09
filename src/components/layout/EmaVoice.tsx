@@ -654,7 +654,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   const ready = realtimePhase === 'ready'
 
   return (
-    <div className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-[900] md:bottom-6 md:right-6">
+    <div className="fixed bottom-[calc(5.8rem+env(safe-area-inset-bottom))] right-4 z-40 md:bottom-6 md:right-6">
       <button
         type="button"
         onPointerDown={handlePressStart}
