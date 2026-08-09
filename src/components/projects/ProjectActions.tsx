@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Archive } from 'lucide-react'
-import { archiveProject } from '@/lib/actions/project.actions'
+import { useRouter } from 'next/navigation'
+import { Trash2 } from 'lucide-react'
+import { permanentlyDeleteProject } from '@/lib/actions/project-archive.actions'
 import { ConfirmDialog } from '@/components/ui'
 import { toast } from 'sonner'
 
@@ -12,19 +13,19 @@ interface ProjectActionsProps {
 }
 
 export function ProjectActions({ projectId, projectName }: ProjectActionsProps) {
+  const router = useRouter()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  const handleArchive = () => {
+  const handleDelete = () => {
     startTransition(async () => {
-      try {
-        await archiveProject(projectId)
-        toast.success('Projekt archiviert')
-      } catch (err) {
-        const error = err as Error
-        if (!error.message?.includes('NEXT_REDIRECT')) {
-          toast.error('Fehler beim Archivieren')
-        }
+      const result = await permanentlyDeleteProject(projectId)
+      if (result?.error) {
+        toast.error(result.error)
+      } else {
+        setConfirmOpen(false)
+        toast.success('Projekt endgültig gelöscht')
+        router.refresh()
       }
     })
   }
@@ -34,20 +35,20 @@ export function ProjectActions({ projectId, projectName }: ProjectActionsProps) 
       <button
         type="button"
         onClick={() => setConfirmOpen(true)}
-        className="btn-secondary btn-sm gap-1.5"
-        aria-label="Projekt archivieren"
+        className="btn-secondary btn-sm gap-1.5 text-red-700 hover:border-red-200 hover:bg-red-50"
+        aria-label="Projekt löschen"
       >
-        <Archive className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Archivieren</span>
+        <Trash2 className="h-3.5 w-3.5" />
+        <span className="hidden sm:inline">Löschen</span>
       </button>
 
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        onConfirm={handleArchive}
-        title="Projekt archivieren?"
-        description={`„${projectName}" wird archiviert und nicht mehr in der Liste angezeigt. Die Daten bleiben erhalten.`}
-        confirmLabel="Archivieren"
+        onConfirm={handleDelete}
+        title="Projekt endgültig löschen?"
+        description={`„${projectName}" und alle zugehörigen Projektdaten werden sofort und unwiderruflich gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.`}
+        confirmLabel="Endgültig löschen"
         danger
         loading={pending}
       />

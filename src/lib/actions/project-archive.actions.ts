@@ -55,14 +55,12 @@ export async function permanentlyDeleteProject(id: string) {
 
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('id, is_archived')
+    .select('id')
     .eq('id', id)
     .eq('user_id', userId)
     .single()
 
   if (projectError || !project) return { error: 'Projekt wurde nicht gefunden.' }
-  if (!project.is_archived) return { error: 'Nur archivierte Projekte können endgültig gelöscht werden.' }
-
   const { data: documents } = await supabase
     .from('project_documents')
     .select('file_path')
@@ -77,14 +75,16 @@ export async function permanentlyDeleteProject(id: string) {
     await supabase.storage.from('project-images').remove(imageFiles.map((file) => `${userId}/${id}/${file.name}`))
   }
 
-  const { error } = await supabase
+  const { data: deletedProject, error } = await supabase
     .from('projects')
     .delete()
     .eq('id', id)
     .eq('user_id', userId)
-    .eq('is_archived', true)
+    .select('id')
+    .maybeSingle()
 
   if (error) return { error: `Projekt konnte nicht endgültig gelöscht werden: ${error.message}` }
+  if (!deletedProject) return { error: 'Projekt konnte nicht endgültig gelöscht werden. Bitte lade das Archiv neu und versuche es erneut.' }
 
   revalidatePath('/projects')
   revalidatePath('/projects/archive')

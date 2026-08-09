@@ -2,7 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { calculatedAnnualYieldKwh, firstProjectValue, normalizedPricePerKwp, positiveNumber, projectPvCapacityKwp, projectSpecificYieldKwhPerKwp, resolvedPurchasePrice } from '@/lib/projects/pv-units'
+import { firstProjectValue, mergeProjectEconomicSources, normalizedPricePerKwp, positiveNumber, resolvePvEconomics } from '@/lib/projects/pv-units'
 
 export interface ProjectAuditRecord {
   id: string
@@ -29,22 +29,6 @@ export interface ProjectAuditRecord {
   landAreaSqm: number | null
   investmentVolume: number | null
   gridConnection: boolean | null
-}
-
-function numberOrNull(value: unknown) {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function positiveOrNull(value: unknown) {
-  const parsed = numberOrNull(value)
-  return parsed !== null && parsed > 0 ? parsed : null
-}
-
-function tariffEuroPerKwh(value: unknown) {
-  const parsed = positiveOrNull(value)
-  if (parsed === null) return null
-  return parsed <= 1 ? parsed : parsed / 100
 }
 
 function firstRowByProject(rows: unknown[] | null | undefined) {
@@ -100,23 +84,20 @@ export async function getProjectAuditData(projectIds: string[]) {
       capexByProject.get(projectId),
     ].filter(Boolean) as Record<string, unknown>[]
 
-    const merged = Object.assign({}, project, ...optionalData) as Record<string, unknown>
-    const pvKwp = projectPvCapacityKwp(merged)
-    const purchasePrice = resolvedPurchasePrice(merged)
-    const specificYield = projectSpecificYieldKwhPerKwp(merged)
+    const merged = mergeProjectEconomicSources(project, dealByProject.get(projectId), optionalData)
+    const economics = resolvePvEconomics(merged)
+    const pvKwp = economics.pvKwp
+    const purchasePrice = economics.purchasePrice
+    const specificYield = economics.specificYieldKwhPerKwp
     const feedInTariff = positiveNumber(firstProjectValue(merged, ['feed_in_tariff', 'feed_in_tariff_ct_kwh', 'tariff_ct_kwh']))
-    const storedAnnualYield = positiveNumber(firstProjectValue(merged, ['annual_yield_kwh', 'annual_energy_kwh', 'annual_production_kwh']))
-    const calculatedYield = calculatedAnnualYieldKwh(merged)
-    const annualYield = storedAnnualYield ?? calculatedYield
-    const tariffEur = tariffEuroPerKwh(feedInTariff)
-    const storedRevenue = positiveNumber(firstProjectValue(merged, ['annual_revenue', 'revenue_annual', 'annual_sales']))
-    const annualRevenue = storedRevenue ?? (annualYield && tariffEur ? annualYield * tariffEur : null)
+    const annualYield = economics.annualYieldKwh
+    const annualRevenue = economics.annualRevenue
     const opexPerKwp = positiveNumber(firstProjectValue(merged, ['opex_per_kwp', 'opex_eur_kwp'])) ?? (pvKwp ? 7 : null)
     const storedOpex = positiveNumber(firstProjectValue(merged, ['annual_opex', 'opex_annual', 'operating_costs_annual']))
     const annualOpex = storedOpex ?? (pvKwp && opexPerKwp ? pvKwp * opexPerKwp : null)
     const storedNet = positiveNumber(firstProjectValue(merged, ['annual_net_cash_flow', 'annual_net_income', 'annual_profit', 'net_cashflow_year', 'cashflow_annual']))
     const annualNetCashFlow = storedNet ?? (annualRevenue !== null && annualOpex !== null ? Math.max(0, annualRevenue - annualOpex) : null)
-    const amortisationYears = purchasePrice && annualNetCashFlow ? purchasePrice / annualNetCashFlow : null
+    const amortisationYears = economics.amortisationYears
 
     const devStatus = merged.dev_status && typeof merged.dev_status === 'object' ? merged.dev_status as Record<string, unknown> : {}
     const gridRaw = firstProjectValue(merged, ['grid_connection', 'netzanschluss', 'grid_connection_secured']) ?? devStatus.netzanschluss
