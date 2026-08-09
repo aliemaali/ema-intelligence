@@ -13,9 +13,21 @@ const stringFields = ['projectName','state','district','city','address','coordin
 const numberFields = ['landAreaHa','landPricePerSqm','hvDistanceM','availablePowerMw','fiberDistanceM'] as const
 const required = [...stringFields, ...numberFields]
 
-function responseText(payload: any) {
-  if (typeof payload?.output_text === 'string') return payload.output_text
-  for (const item of payload?.output ?? []) for (const content of item?.content ?? []) if (content?.type === 'output_text') return content.text || ''
+function responseText(payload: unknown) {
+  if (!payload || typeof payload !== 'object') return ''
+  const root = payload as { output_text?: unknown; output?: unknown }
+  if (typeof root.output_text === 'string') return root.output_text
+  if (!Array.isArray(root.output)) return ''
+  for (const item of root.output) {
+    if (!item || typeof item !== 'object') continue
+    const content = (item as { content?: unknown }).content
+    if (!Array.isArray(content)) continue
+    for (const part of content) {
+      if (!part || typeof part !== 'object') continue
+      const value = part as { type?: unknown; text?: unknown }
+      if (value.type === 'output_text' && typeof value.text === 'string') return value.text
+    }
+  }
   return ''
 }
 
