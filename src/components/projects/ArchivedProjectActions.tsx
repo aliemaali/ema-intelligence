@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { RotateCcw, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui'
@@ -12,13 +13,17 @@ interface ArchivedProjectActionsProps {
 }
 
 export function ArchivedProjectActions({ projectId, projectName }: ArchivedProjectActionsProps) {
+  const router = useRouter()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
   const restore = () => startTransition(async () => {
     const result = await restoreProject(projectId)
     if (result?.error) toast.error(result.error)
-    else toast.success('Projekt wiederhergestellt')
+    else {
+      toast.success('Projekt wiederhergestellt')
+      router.refresh()
+    }
   })
 
   const remove = () => startTransition(async () => {
@@ -27,12 +32,13 @@ export function ArchivedProjectActions({ projectId, projectName }: ArchivedProje
     else {
       setDeleteOpen(false)
       toast.success('Projekt endgültig gelöscht')
+      router.refresh()
     }
   })
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         <button type="button" onClick={restore} disabled={pending} className="btn-secondary justify-center gap-2">
           <RotateCcw className="h-4 w-4" /> Wiederherstellen
         </button>
