@@ -145,12 +145,12 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
     setBusy(true)
     try {
       const result = await getBulkMemorandumData(selectedProjects)
-      if (!result.success || !result.data.length) throw new Error('Keine Memoranden konnten erstellt werden.')
+      if (!result.success || !result.data.length) throw new Error('Keine Exposés konnten erstellt werden.')
 
       const generated: Array<{ projectId: string; name: string; file: File; contentBytes?: string }> = []
       for (const item of result.data) {
         const blob = await generateMemorandumPdf(item.data)
-        const name = `EMA_Investment_Memorandum_${safeFileName(item.data.projectName)}.pdf`
+        const name = `EMA_Expose_${safeFileName(item.data.projectName)}.pdf`
         generated.push({
           projectId: item.projectId,
           name,
@@ -170,15 +170,15 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: deliveryRecipients.map((item) => 'email' in item ? item.email : '').filter(Boolean).join(','),
-            subject: `Investment Memoranden – ${generated.length} Projekt${generated.length === 1 ? '' : 'e'}`,
-            body: 'Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ausgewählten Investment Memoranden zur Prüfung.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH',
+            subject: `Exposés – ${generated.length} Projekt${generated.length === 1 ? '' : 'e'}`,
+            body: 'Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ausgewählten Exposés zur Prüfung.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH',
             attachments: generated.map((item) => ({ fileName: item.name, contentBytes: item.contentBytes, contentType: 'application/pdf' })),
           }),
         })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'E-Mail-Versand fehlgeschlagen.')
         await recordMemorandumDeliveries({ projectIds: selectedProjects, recipients: deliveryRecipients, channel: 'email', status: 'sent' })
-        toast.success(`${generated.length} Memorandum${generated.length === 1 ? '' : 'en'} versendet.`)
+        toast.success(`${generated.length} Exposé${generated.length === 1 ? '' : 's'} versendet.`)
         resetCenter()
         return
       }
@@ -187,7 +187,7 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       if (!navigator.share || !navigator.canShare?.({ files })) throw new Error('Das Teilen mehrerer PDFs wird auf diesem Gerät nicht unterstützt.')
 
       setPreparedShare({ files, projectIds: [...selectedProjects], recipients: deliveryRecipients })
-      toast.success('Memoranden sind bereit. Tippe jetzt auf „Jetzt WhatsApp öffnen“.')
+      toast.success('Exposés sind bereit. Tippe jetzt auf „Jetzt WhatsApp öffnen“.')
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (isBlockedShareError(error)) {
@@ -201,13 +201,13 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
   }
 
   return <>
-    <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white shadow-sm"><Send className="h-4 w-4" /> Mehrere Memoranden versenden</button>
+    <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#07142F] px-4 py-3 text-sm font-extrabold text-white shadow-sm"><Send className="h-4 w-4" /> Mehrere Exposés versenden</button>
 
     {open && <div className="fixed inset-0 z-[320] flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center">
       <button aria-label="Schließen" className="absolute inset-0" onClick={() => !busy && resetCenter()} />
       <section className="relative z-10 flex h-[calc(100dvh-env(safe-area-inset-top)-1rem)] w-full flex-col overflow-hidden rounded-t-[2rem] bg-[#F7F9FC] shadow-2xl sm:h-auto sm:max-h-[90dvh] sm:max-w-3xl sm:rounded-[2rem]">
         <header className="sticky top-0 z-20 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] sm:p-6">
-          <div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#5CB800]">Versandcenter</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Memoranden auswählen</h2><p className="mt-1 text-sm text-slate-500">Projekte markieren und gesammelt versenden.</p></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[.18em] text-[#5CB800]">Versandcenter</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Exposés auswählen</h2><p className="mt-1 text-sm text-slate-500">Projekte markieren und gesammelt versenden.</p></div>
           <button type="button" disabled={busy} onClick={resetCenter} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"><X className="h-5 w-5" /></button>
         </header>
 
@@ -230,7 +230,7 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
           </div>
         </div>
 
-        <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:p-6"><button type="button" onClick={preparedShare && channel === 'whatsapp' ? sharePreparedFiles : dispatch} disabled={busy || !selectedProjects.length} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-4 font-extrabold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50">{busy ? <><FileText className="h-5 w-5 animate-pulse" /> {preparedShare ? 'WhatsApp wird geöffnet…' : 'Memoranden werden erstellt…'}</> : <><Send className="h-5 w-5" /> {channel === 'email' ? 'Auswahl per E-Mail senden' : preparedShare ? 'Jetzt WhatsApp öffnen' : 'Memoranden vorbereiten'}</>}</button></footer>
+        <footer className="sticky bottom-0 z-20 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:p-6"><button type="button" onClick={preparedShare && channel === 'whatsapp' ? sharePreparedFiles : dispatch} disabled={busy || !selectedProjects.length} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-4 font-extrabold text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50">{busy ? <><FileText className="h-5 w-5 animate-pulse" /> {preparedShare ? 'WhatsApp wird geöffnet…' : 'Exposés werden erstellt…'}</> : <><Send className="h-5 w-5" /> {channel === 'email' ? 'Auswahl per E-Mail senden' : preparedShare ? 'Jetzt WhatsApp öffnen' : 'Exposés vorbereiten'}</>}</button></footer>
       </section>
     </div>}
   </>
