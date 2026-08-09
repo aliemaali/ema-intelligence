@@ -177,7 +177,7 @@ function DocumentRow({
       window.open(doc.external_url, '_blank')
       return
     }
-    const result = await getDocumentUrl(doc.file_path)
+    const result = await getDocumentUrl(doc.file_path, doc.external_provider)
     if (result.url) {
       window.open(result.url, '_blank')
     } else {

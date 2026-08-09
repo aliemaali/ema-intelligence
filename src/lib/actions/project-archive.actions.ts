@@ -98,13 +98,16 @@ export async function permanentlyDeleteProject(id: string) {
 
   const { data: documents, error: documentsError } = await deleteClient
     .from('documents')
-    .select('file_path')
+    .select('file_path, external_provider')
     .eq('project_id', id)
     .eq('user_id', projectOwnerId)
 
   if (documentsError) return { error: `Projektunterlagen konnten nicht geprüft werden: ${documentsError.message}` }
 
-  const documentPaths = (documents ?? []).map((item: { file_path: string | null }) => item.file_path).filter((path): path is string => Boolean(path))
+  const documentPaths = (documents ?? [])
+    .filter((item: { external_provider: string | null }) => item.external_provider !== 'project-imports')
+    .map((item: { file_path: string | null }) => item.file_path)
+    .filter((path): path is string => Boolean(path))
   if (documentPaths.length) {
     const { error: documentStorageError } = await deleteClient.storage.from('project-documents').remove(documentPaths)
     if (documentStorageError) return { error: `Projektunterlagen konnten nicht gelöscht werden: ${documentStorageError.message}` }
