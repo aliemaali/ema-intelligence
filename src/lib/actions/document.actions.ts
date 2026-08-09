@@ -74,12 +74,15 @@ export async function createDocumentRecord(params: {
 // GET SIGNED URL for download
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function getDocumentUrl(filePath: string) {
+export async function getDocumentUrl(filePath: string, externalProvider?: string | null) {
   const { supabase } = await requireUser()
+  const bucketName = externalProvider === 'project-imports'
+    ? 'project-imports'
+    : 'project-documents'
 
   const { data, error } = await supabase
     .storage
-    .from('project-documents')
+    .from(bucketName)
     .createSignedUrl(filePath, 3600) // 1 hour
 
   if (error) return { error: error.message }
