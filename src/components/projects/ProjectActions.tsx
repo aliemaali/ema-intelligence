@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2 } from 'lucide-react'
-import { permanentlyDeleteProject } from '@/lib/actions/project-archive.actions'
+import { archiveProject } from '@/lib/actions/project-archive.actions'
 import { ConfirmDialog } from '@/components/ui'
 import { toast } from 'sonner'
 
@@ -19,13 +19,13 @@ export function ProjectActions({ projectId, projectName }: ProjectActionsProps) 
 
   const handleDelete = () => {
     startTransition(async () => {
-      const result = await permanentlyDeleteProject(projectId)
+      const result = await archiveProject(projectId)
       if (result?.error) {
         toast.error(result.error)
       } else {
         setConfirmOpen(false)
-        toast.success('Projekt endgültig gelöscht')
-        router.refresh()
+        toast.success('Projekt ins Archiv verschoben')
+        router.push('/projects')
       }
     })
   }
@@ -46,9 +46,9 @@ export function ProjectActions({ projectId, projectName }: ProjectActionsProps) 
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleDelete}
-        title="Projekt endgültig löschen?"
-        description={`„${projectName}" und alle zugehörigen Projektdaten werden sofort und unwiderruflich gelöscht. Dieser Vorgang kann nicht rückgängig gemacht werden.`}
-        confirmLabel="Endgültig löschen"
+        title="Projekt ins Archiv verschieben?"
+        description={`„${projectName}" wird aus den aktiven Projekten entfernt. Alle Projektdaten und Dokumente bleiben erhalten und können im Archiv wiederhergestellt werden.`}
+        confirmLabel="Ins Archiv"
         danger
         loading={pending}
       />
