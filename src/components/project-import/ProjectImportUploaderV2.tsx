@@ -73,7 +73,7 @@ export function ProjectImportUploaderV2() {
       {!dataCenter && !result && projectList.length === 0 && <p className="mt-4 text-sm leading-6 text-slate-500">EMA legt nichts ungeprüft an. Nach der Analyse siehst du hier die erkannten Werte.</p>}
       {dataCenter && <DataCenterImportPreview data={dataCenter} />}
       {projectList.length > 0 && importId && <ProjectListImportPreview importId={importId} initialRows={projectList as never[]} />}
-      {result && <pre className="mt-4 max-h-[600px] overflow-auto rounded-2xl bg-slate-50 p-4 text-xs">{JSON.stringify(result, null, 2)}</pre>}
+      {result && <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">Die bestehende Vorschau für {projectType} bleibt unverändert. Rechenzentrum nutzt ab jetzt die neue spezialisierte Standortanalyse.</div>}
     </section>
   </div>
 }
