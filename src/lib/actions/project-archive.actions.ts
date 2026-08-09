@@ -1,14 +1,28 @@
 'use server'
 
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+
+const ADMIN_ROLES = new Set(['admin', 'owner'])
 
 async function requireUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
   return { supabase, userId: user.id }
+}
+
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!url || !serviceRoleKey) return null
+
+  return createAdminClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 }
 
 export async function getArchivedProjects() {
@@ -55,33 +69,64 @@ export async function permanentlyDeleteProject(id: string) {
 
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, user_id, location_country')
     .eq('id', id)
-    .eq('user_id', userId)
-    .single()
+    .maybeSingle()
 
-  if (projectError || !project) return { error: 'Projekt wurde nicht gefunden.' }
-  const { data: documents } = await supabase
-    .from('project_documents')
-    .select('file_path')
-    .eq('project_id', id)
-    .eq('user_id', userId)
+  if (projectError) return { error: `Projekt konnte nicht geprüft werden: ${projectError.message}` }
+  if (!project) return { error: 'Projekt wurde nicht gefunden.' }
 
-  const documentPaths = (documents ?? []).map((item: { file_path: string | null }) => item.file_path).filter((path): path is string => Boolean(path))
-  if (documentPaths.length) await supabase.storage.from('project-documents').remove(documentPaths)
+  const projectOwnerId = String(project.user_id)
+  const ownsProject = projectOwnerId === userId
+  let deleteClient = supabase
 
-  const { data: imageFiles } = await supabase.storage.from('project-images').list(`${userId}/${id}`)
-  if (imageFiles?.length) {
-    await supabase.storage.from('project-images').remove(imageFiles.map((file) => `${userId}/${id}/${file.name}`))
+  if (!ownsProject) {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (profileError || !profile || !ADMIN_ROLES.has(String(profile.role).toLowerCase())) {
+      return { error: 'Keine Berechtigung, dieses Projekt zu löschen.' }
+    }
+
+    const adminClient = getAdminClient()
+    if (!adminClient) return { error: 'Die administrative Löschfunktion ist nicht konfiguriert.' }
+    deleteClient = adminClient
   }
 
-  const { data: deletedProject, error } = await supabase
+  const { data: documents, error: documentsError } = await deleteClient
+    .from('documents')
+    .select('file_path')
+    .eq('project_id', id)
+    .eq('user_id', projectOwnerId)
+
+  if (documentsError) return { error: `Projektunterlagen konnten nicht geprüft werden: ${documentsError.message}` }
+
+  const documentPaths = (documents ?? []).map((item: { file_path: string | null }) => item.file_path).filter((path): path is string => Boolean(path))
+  if (documentPaths.length) {
+    const { error: documentStorageError } = await deleteClient.storage.from('project-documents').remove(documentPaths)
+    if (documentStorageError) return { error: `Projektunterlagen konnten nicht gelöscht werden: ${documentStorageError.message}` }
+  }
+
+  const imageFolder = `${projectOwnerId}/${id}`
+  const { data: imageFiles, error: imageListError } = await deleteClient.storage.from('project-images').list(imageFolder, { limit: 1000 })
+  if (imageListError) return { error: `Projektbilder konnten nicht geprüft werden: ${imageListError.message}` }
+  if (imageFiles?.length) {
+    const { error: imageStorageError } = await deleteClient.storage.from('project-images').remove(imageFiles.map((file) => `${imageFolder}/${file.name}`))
+    if (imageStorageError) return { error: `Projektbilder konnten nicht gelöscht werden: ${imageStorageError.message}` }
+  }
+
+  let deleteQuery = deleteClient
     .from('projects')
     .delete()
     .eq('id', id)
-    .eq('user_id', userId)
     .select('id')
-    .maybeSingle()
+
+  if (ownsProject) deleteQuery = deleteQuery.eq('user_id', userId)
+
+  const { data: deletedProject, error } = await deleteQuery.maybeSingle()
 
   if (error) return { error: `Projekt konnte nicht endgültig gelöscht werden: ${error.message}` }
   if (!deletedProject) return { error: 'Projekt konnte nicht endgültig gelöscht werden. Bitte lade das Archiv neu und versuche es erneut.' }
@@ -89,5 +134,6 @@ export async function permanentlyDeleteProject(id: string) {
   revalidatePath('/projects')
   revalidatePath('/projects/archive')
   revalidatePath('/dashboard')
+  if (project.location_country) revalidatePath(`/projects/country/${encodeURIComponent(String(project.location_country))}`)
   return { success: true }
 }
