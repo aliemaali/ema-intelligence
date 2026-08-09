@@ -64,7 +64,7 @@ function dataForLanguage(data: MemorandumPdfData, language: MemorandumLanguage):
 function buildFilename(projectName: string, projectNumber: string, language: MemorandumLanguage) {
   const namePart = projectName.replace(/[^\p{L}\p{N}\s-]/gu, '').trim().replace(/\s+/g, '_').slice(0, 60)
   const numberPart = projectNumber && projectNumber !== '—' ? `_${projectNumber}` : ''
-  return `Investment_Memorandum_${namePart || 'Projekt'}${numberPart}_${language.toUpperCase()}.pdf`
+  return `Expose_${namePart || 'Projekt'}${numberPart}_${language.toUpperCase()}.pdf`
 }
 
 function isIosDevice() {
