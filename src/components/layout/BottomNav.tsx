@@ -34,6 +34,7 @@ const MAIN_ITEMS = [
 
 const MORE_ITEMS = [
   { label: 'Projektarchiv', href: '/projects/archive', icon: Archive },
+  { label: 'Exposé', href: '/expose', icon: FileText },
   { label: 'Dokumente', href: '/dokumente', icon: FileText },
   { label: 'Partner', href: '/partners', icon: Handshake },
   { label: 'Kalender', href: '/calendar', icon: CalendarDays },

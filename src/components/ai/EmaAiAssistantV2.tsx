@@ -77,9 +77,10 @@ function moneyValue(value: unknown) {
 }
 
 function formatGermanIntegerInput(value: unknown) {
-  const digits = String(value ?? '').replace(/\D/g, '')
-  if (!digits) return ''
-  return Number(digits).toLocaleString('de-DE', { maximumFractionDigits: 0 })
+  if (value === null || value === undefined || value === '') return ''
+  const parsed = typeof value === 'number' ? value : moneyValue(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return ''
+  return Math.round(parsed).toLocaleString('de-DE', { maximumFractionDigits: 0 })
 }
 
 function formatProject(project: EmaAiProject) {
