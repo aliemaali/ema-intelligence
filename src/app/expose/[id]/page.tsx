@@ -130,6 +130,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
   const tariffEur = tariffEuroPerKwh(tariff)
   const calculatedAnnualYield = Number.isFinite(pv) && pv > 0 && Number.isFinite(yieldPerKwp) && yieldPerKwp > 0 ? pv * yieldPerKwp : null
   const annualYield = storedAnnualYield ?? calculatedAnnualYield
+  const displaySpecificYield = Number(annualYield) > 0 && pv > 0 ? Number(annualYield) / pv : specificYield
   const annualRevenue = Number(annualYield) > 0 && tariffEur ? Number(annualYield) * tariffEur : null
   const amortisation = storedAmortisation ?? (price > 0 && annualRevenue ? price / annualRevenue : null)
   const roi = price > 0 && annualRevenue ? (annualRevenue / price) * 100 : null
@@ -138,7 +139,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     ...project,
     purchase_price: purchasePrice,
     pv_kwp: pvKwp,
-    specific_yield: specificYield,
+    specific_yield: displaySpecificYield,
     feed_in_tariff: tariff,
     amortisation_years: amortisation,
   }, location, { number: formatNumber, money: formatMoney, tariff: tariffDisplay })
@@ -168,7 +169,9 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     metrics: presentation.metrics,
     profile: presentation.profile,
     highlights: presentation.highlights,
-    heroImage: presentation.heroImage,
+    heroImage: '/pdf/hero-solarpark.jpg',
+    projectImage: presentation.heroImage,
+    language: 'de' as const,
     showPvEconomics: presentation.showPvEconomics && Boolean(economicCards.length),
     pvEconomics: presentation.showPvEconomics && economicCards.length ? {
       annualYield: Number(annualYield) || 0,

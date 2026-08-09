@@ -87,13 +87,14 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
   const tariffEur = tariffEuroPerKwh(tariff)
   const calculatedAnnualYield = calculatedAnnualYieldKwh(project)
   const annualYield = positiveNumber(storedAnnualYield) ?? calculatedAnnualYield
+  const displaySpecificYield = annualYield !== null && pvKwp !== null && pvKwp > 0 ? annualYield / pvKwp : specificYield
   const annualRevenue = annualYield !== null && tariffEur !== null ? annualYield * tariffEur : 0
   const annualOpex = positiveNumber(storedAnnualOpex) ?? (pvKwp !== null ? pvKwp * opexPerKwp : 0)
   const annualNetCashFlow = positiveNumber(storedNetCashFlow) ?? Math.max(0, annualRevenue - annualOpex)
   const amortisation = price > 0 && annualNetCashFlow > 0 ? price / annualNetCashFlow : null
   const roi = price > 0 && annualNetCashFlow > 0 ? (annualNetCashFlow / price) * 100 : null
   const presentation = getExposePresentation(
-    { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: specificYield, feed_in_tariff: tariff, amortisation_years: amortisation },
+    { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: displaySpecificYield, feed_in_tariff: tariff, amortisation_years: amortisation },
     location,
     { number: formatNumber, money: formatMoney, tariff: tariffDisplay },
   )
@@ -112,7 +113,9 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
     metrics: presentation.metrics,
     profile: presentation.profile,
     highlights: presentation.highlights,
-    heroImage: presentation.heroImage,
+    heroImage: '/pdf/hero-solarpark.jpg',
+    projectImage: presentation.heroImage,
+    language: 'de',
     showPvEconomics: presentation.showPvEconomics,
     pvEconomics: presentation.showPvEconomics ? {
       annualYield: Number(annualYield) || 0,
