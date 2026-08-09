@@ -20,6 +20,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Projekt fehlt' }, { status: 400 })
   }
 
+  if (purchasePrice && pvKwp && purchasePrice / pvKwp > 5_000) {
+    return NextResponse.json({ error: 'Der Kaufpreis pro kWp ist unplausibel hoch. Bitte Punkt und Komma prüfen.' }, { status: 400 })
+  }
+
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .select('ai_score_details')
@@ -68,7 +72,10 @@ export async function POST(request: Request) {
   if (activeDeal?.id && purchasePrice) {
     await supabase
       .from('deals')
-      .update({ purchase_price: purchasePrice } as never)
+      .update({
+        purchase_price: purchasePrice,
+        purchase_per_kwp: pvKwp ? purchasePrice / pvKwp : null,
+      } as never)
       .eq('id', activeDeal.id)
       .eq('user_id', user.id)
   }
