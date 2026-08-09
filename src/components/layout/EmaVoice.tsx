@@ -81,7 +81,7 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   sonstiges: 'Sonstiges',
 }
 
-const REALTIME_IDLE_MS = 5 * 60 * 1000
+const REALTIME_IDLE_MS = 60 * 1000
 
 const REALTIME_STATUS: Record<RealtimePhase, string> = {
   idle: 'Bereit, wenn du es bist',
@@ -294,7 +294,12 @@ export function EmaVoice({ userName }: { userName: string }) {
   const resetRealtimeIdleTimer = useCallback(() => {
     clearIdleTimer()
     realtimeIdleTimerRef.current = window.setTimeout(() => {
-      if (!conversationActiveRef.current && !responseActiveRef.current) stopRealtime()
+      const conversationBusy = responseActiveRef.current
+        || phaseRef.current === 'listening'
+        || phaseRef.current === 'thinking'
+        || phaseRef.current === 'speaking'
+
+      if (!conversationActiveRef.current || !conversationBusy) stopRealtime()
     }, REALTIME_IDLE_MS)
   }, [clearIdleTimer, stopRealtime])
 
@@ -366,7 +371,16 @@ export function EmaVoice({ userName }: { userName: string }) {
   }
 
   const handleRealtimeEvent = useCallback(async (channel: RTCDataChannel, event: RealtimeServerEvent) => {
-    resetRealtimeIdleTimer()
+    if (
+      event.type === 'input_audio_buffer.speech_started'
+      || event.type === 'input_audio_buffer.speech_stopped'
+      || event.type === 'response.created'
+      || event.type === 'response.output_audio.delta'
+      || event.type === 'response.output_audio.done'
+      || event.type === 'response.done'
+    ) {
+      resetRealtimeIdleTimer()
+    }
 
     if (event.type === 'input_audio_buffer.speech_started') {
       voiceTurnRef.current += 1
@@ -807,7 +821,7 @@ export function EmaVoice({ userName }: { userName: string }) {
                 <p className="text-2xl font-extrabold tracking-tight sm:text-3xl">{statusLabel}</p>
                 <p className="mt-2 text-sm text-[#647089]">
                   {conversationActive
-                    ? 'Sprich frei mit EMA. Sie erkennt automatisch, wann du fertig bist.'
+                    ? 'Sprich frei mit EMA. Nach einer Minute ohne Gespräch beendet sie die Sitzung automatisch.'
                     : 'Starte den Sprachmodus und frage EMA nach Projekten, Zahlen oder Dokumenten.'}
                 </p>
               </div>
