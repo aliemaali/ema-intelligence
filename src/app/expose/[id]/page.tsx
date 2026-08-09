@@ -189,7 +189,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
         <header className="flex items-start justify-between gap-6 pb-5">
           <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain" />
           <div className="text-right">
-            <h1 className="text-lg font-black tracking-[-.02em] sm:text-2xl">INVESTMENT MEMORANDUM</h1>
+            <h1 className="text-lg font-black tracking-[-.02em] sm:text-2xl">EXPOSÉ</h1>
             <p className="mt-2 text-[10px] font-extrabold uppercase tracking-[.06em] text-[#5CB800]">{String(project.project_number || '')}{project.project_number ? ' · ' : ''}{presentation.typeLabel}</p>
           </div>
         </header>
