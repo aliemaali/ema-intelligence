@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Mic, PhoneOff, Sparkles, X } from 'lucide-react'
 import { EmaVoiceOrb } from './EmaVoiceOrb'
@@ -155,6 +155,7 @@ const DESTINATIONS: Destination[] = [
 
 export function EmaVoice({ userName }: { userName: string }) {
   const router = useRouter()
+  const pathname = usePathname()
   const realtimeActiveRef = useRef(false)
   const realtimeConnectingRef = useRef(false)
   const realtimePeerRef = useRef<RTCPeerConnection | null>(null)
@@ -725,8 +726,26 @@ export function EmaVoice({ userName }: { userName: string }) {
   }, [stopRealtime])
 
   useEffect(() => {
-    setHeaderActionTarget(document.getElementById('ema-voice-header-action'))
-  }, [])
+    let animationFrame = 0
+
+    const syncHeaderActionTarget = () => {
+      const nextTarget = document.getElementById('ema-voice-header-action')
+      setHeaderActionTarget((currentTarget) => (
+        currentTarget === nextTarget ? currentTarget : nextTarget
+      ))
+    }
+
+    syncHeaderActionTarget()
+    animationFrame = window.requestAnimationFrame(syncHeaderActionTarget)
+
+    const observer = new MutationObserver(syncHeaderActionTarget)
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame)
+      observer.disconnect()
+    }
+  }, [pathname])
 
   useEffect(() => {
     const warmupTimer = window.setTimeout(() => {
