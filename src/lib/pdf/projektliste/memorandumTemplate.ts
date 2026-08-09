@@ -38,7 +38,7 @@ function copy(language: MemorandumPdfData['language']) {
   const en = language === 'en';
   return {
     confidential: en ? 'Confidential' : 'Vertraulich',
-    eyebrow: en ? 'Investment Memorandum' : 'Investment Memorandum',
+    eyebrow: 'Exposé',
     executive: en ? 'Executive Summary' : 'Executive Summary',
     profile: en ? 'Project Profile' : 'Projektprofil',
     highlights: en ? 'Investment Highlights' : 'Investment Highlights',
@@ -143,7 +143,7 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
 
   return `<!doctype html>
 <html lang="${data.language === 'en' ? 'en' : 'de'}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(data.projectName)} – Investment Memorandum</title><style>${options.fontFaceCss}${styles}${memorandumStyles}</style></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(data.projectName)} – Exposé</title><style>${options.fontFaceCss}${styles}${memorandumStyles}</style></head>
 <body>
 <section class="sheet memo-sheet ${options.projectImage ? 'has-photo' : 'no-photo'}">
   <div class="cover-hero memo-hero">
