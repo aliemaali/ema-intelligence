@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  Archive,
   Bot,
   BriefcaseBusiness,
   Building2,
@@ -32,6 +33,7 @@ const MAIN_ITEMS = [
 ] as const
 
 const MORE_ITEMS = [
+  { label: 'Projektarchiv', href: '/projects/archive', icon: Archive },
   { label: 'Dokumente', href: '/dokumente', icon: FileText },
   { label: 'Partner', href: '/partners', icon: Handshake },
   { label: 'Kalender', href: '/calendar', icon: CalendarDays },
