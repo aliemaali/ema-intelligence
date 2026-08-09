@@ -18,7 +18,10 @@ function getIntroStorageKey() {
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as StandaloneNavigator).standalone === true
 
-  return `ema-intelligence:intro:played:${INTRO_VERSION}:${isStandalone ? 'app' : 'browser'}`
+  return {
+    isStandalone,
+    storageKey: `ema-intelligence:intro:played:${INTRO_VERSION}:browser`,
+  }
 }
 
 export function AppIntro() {
@@ -29,9 +32,15 @@ export function AppIntro() {
   const introTimerRef = useRef<number | null>(null)
   const playbackProbeRef = useRef<number | null>(null)
   const storageKeyRef = useRef<string | null>(null)
+  const isStandaloneRef = useRef(false)
 
   const finishIntro = useCallback((remember: boolean) => {
-    if (remember && document.visibilityState === 'visible' && storageKeyRef.current) {
+    if (
+      remember &&
+      !isStandaloneRef.current &&
+      document.visibilityState === 'visible' &&
+      storageKeyRef.current
+    ) {
       try {
         window.localStorage.setItem(storageKeyRef.current, '1')
       } catch {
@@ -45,25 +54,45 @@ export function AppIntro() {
     })
 
     if (exitTimerRef.current === null) {
-      exitTimerRef.current = window.setTimeout(() => setPhase('done'), EXIT_DURATION_MS)
+      exitTimerRef.current = window.setTimeout(() => {
+        exitTimerRef.current = null
+        setPhase('done')
+      }, EXIT_DURATION_MS)
     }
   }, [])
 
   useEffect(() => {
-    const storageKey = getIntroStorageKey()
+    const { isStandalone, storageKey } = getIntroStorageKey()
+    isStandaloneRef.current = isStandalone
     storageKeyRef.current = storageKey
 
-    try {
-      if (window.localStorage.getItem(storageKey) === '1') {
-        setPhase('done')
-        return
+    if (!isStandalone) {
+      try {
+        if (window.localStorage.getItem(storageKey) === '1') {
+          setPhase('done')
+          return
+        }
+      } catch {
+        // Storage can be unavailable in hardened/private browser modes.
+        // In that case, the intro simply plays for this mount.
       }
-    } catch {
-      // Storage can be unavailable in hardened/private browser modes.
-      // In that case, the intro simply plays for this mount.
     }
 
     const syncIntroVisibility = () => {
+      if (isStandalone) {
+        if (document.visibilityState === 'hidden') {
+          if (exitTimerRef.current !== null) {
+            window.clearTimeout(exitTimerRef.current)
+            exitTimerRef.current = null
+          }
+          setPhase('checking')
+          return
+        }
+
+        setPhase('playing')
+        return
+      }
+
       setPhase((currentPhase) => {
         if (currentPhase === 'leaving' || currentPhase === 'done') return currentPhase
         return document.visibilityState === 'visible' ? 'playing' : 'checking'
