@@ -85,12 +85,6 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const country = String((project as any).location_country || 'Deutschland')
   const countryFlag = flagUrl(country)
   const location = [(project as any).location_city, (project as any).location_state].filter(Boolean).join(', ') || country
-  const presentation = getExposePresentation(projectData, location, {
-    number: formatNumber,
-    money: formatMoney,
-    tariff: formatTariff,
-  })
-
   const pvKwp = Number((project as any).pv_mwp ?? 0)
   const specificYield = Number((project as any).specific_yield_kwh_kwp ?? 0)
   const tariffRaw = Number((project as any).feed_in_tariff_ct_kwh ?? 0)
@@ -98,10 +92,16 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
   const storedAnnualYield = Number((project as any).annual_yield_kwh ?? 0)
   const calculatedAnnualYield = pvKwp > 0 && specificYield > 0 ? pvKwp * specificYield : 0
   const annualYield = storedAnnualYield > 0 ? storedAnnualYield : calculatedAnnualYield
+  const displaySpecificYield = annualYield > 0 && pvKwp > 0 ? annualYield / pvKwp : specificYield
   const purchasePrice = Number(activeDeal?.purchase_price ?? 0)
   const annualRevenue = annualYield > 0 && tariffEurKwh > 0 ? annualYield * tariffEurKwh : 0
   const amortisation = purchasePrice > 0 && annualRevenue > 0 ? purchasePrice / annualRevenue : 0
   const roi = purchasePrice > 0 && annualRevenue > 0 ? (annualRevenue / purchasePrice) * 100 : 0
+  const presentation = getExposePresentation({ ...projectData, specific_yield: displaySpecificYield }, location, {
+    number: formatNumber,
+    money: formatMoney,
+    tariff: formatTariff,
+  })
 
   const pdfData: MemorandumPdfData = {
     projectName: project.project_name || 'Projekt',
@@ -112,12 +112,14 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
     country,
     countryFlag,
     dateLabel: new Intl.DateTimeFormat('de-DE', { month: 'long', year: 'numeric' }).format(new Date()),
-    status: String((project as any).project_stage || 'planung'),
+    status: (project as any).project_stage === 'rtb' ? 'RTB' : (project as any).project_stage === 'betrieb' ? 'Im Betrieb' : 'In Planung',
     summary: presentation.summary,
     metrics: presentation.metrics,
     profile: presentation.profile,
     highlights: presentation.highlights,
-    heroImage: presentation.heroImage,
+    heroImage: '/pdf/hero-solarpark.jpg',
+    projectImage: presentation.heroImage,
+    language: 'de',
     showPvEconomics: presentation.showPvEconomics,
     pvEconomics: presentation.showPvEconomics
       ? {

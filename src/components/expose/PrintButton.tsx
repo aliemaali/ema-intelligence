@@ -15,6 +15,10 @@ const translations: Record<string, string> = {
   'Transformator / Umspannwerk': 'Transformer / substation', Jahresproduktion: 'Annual production', Jahreserlös: 'Annual revenue',
   'Rendite p.a.': 'Annual return', Vorhanden: 'Available', 'Nicht vorhanden': 'Not available', 'Noch offen': 'Pending',
   'In Planung': 'In planning', 'Im Betrieb': 'Operational',
+  'PV-Dachanlage': 'Rooftop PV project', 'PV-Freiflächenanlage': 'Ground-mounted PV project',
+  Batteriespeicherprojekt: 'Battery storage project', 'PV- & BESS-Hybridprojekt': 'PV & BESS hybrid project',
+  Windenergieprojekt: 'Wind energy project', Rechenzentrum: 'Data center project',
+  Energieinfrastrukturprojekt: 'Energy infrastructure project',
 }
 
 function translateText(value: string): string {
@@ -33,12 +37,20 @@ function translateText(value: string): string {
 }
 
 function dataForLanguage(data: MemorandumPdfData, language: MemorandumLanguage): MemorandumPdfData {
-  if (language === 'de') return data
+  if (language === 'de') return { ...data, language }
   return {
     ...data,
+    language,
     typeLabel: translateText(data.typeLabel),
     status: translateText(data.status),
     summary: data.summary
+      .replace(/^PV-Dachanlage in /, 'Rooftop PV project in ')
+      .replace(/^PV-Freiflächenanlage in /, 'Ground-mounted PV project in ')
+      .replace(/^Batteriespeicherprojekt in /, 'Battery storage project in ')
+      .replace(/^Rechenzentrumsprojekt in /, 'Data center project in ')
+      .replace(/mit den vorhandenen technischen und wirtschaftlichen Projektdaten\./, 'with the available technical and economic project data.')
+      .replace(/mit den vorhandenen Leistungs-, Kapazitäts- und Entwicklungsdaten\./, 'with the available power, capacity and development data.')
+      .replace(/mit den vorhandenen Anschluss-, Grundstücks- und Investitionsdaten\./, 'with the available grid, land and investment data.')
       .replace(/mit den hinterlegten technischen und wirtschaftlichen Kennzahlen\./, 'with the available technical and economic data.')
       .replace(/mit den verfügbaren Leistungs-, Kapazitäts- und Entwicklungsdaten\./, 'with the available power, capacity and development data.')
       .replace(/mit den hinterlegten Anschluss-, Grundstücks- und Investitionsdaten\./, 'with the available grid, land and investment data.'),
@@ -78,19 +90,6 @@ function openOrDownloadPdf(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
 }
 
-async function generatePdfWithoutHeroStatusBadge(data: MemorandumPdfData) {
-  const { default: jsPDF } = await import('jspdf')
-  const api = (jsPDF as unknown as { API: Record<string, unknown> }).API
-  const originalRoundedRect = api.roundedRect as ((...args: unknown[]) => unknown) | undefined
-  if (!originalRoundedRect) return generateMemorandumPdf(data)
-  api.roundedRect = function patchedRoundedRect(this: unknown, ...args: unknown[]) {
-    const [x, y, width, height] = args as number[]
-    if (x === 22 && y === 88 && width === 40 && height === 6) return this
-    return originalRoundedRect.apply(this, args)
-  }
-  try { return await generateMemorandumPdf(data) } finally { api.roundedRect = originalRoundedRect }
-}
-
 interface PrintButtonProps { data: MemorandumPdfData }
 
 export function PrintButton({ data }: PrintButtonProps) {
@@ -103,7 +102,7 @@ export function PrintButton({ data }: PrintButtonProps) {
     let step = 'Daten prüfen'
     try {
       step = 'PDF erzeugen'
-      const blob = await generatePdfWithoutHeroStatusBadge(dataForLanguage(data, language))
+      const blob = await generateMemorandumPdf(dataForLanguage(data, language))
       const projectId = currentProjectId()
       if (projectId) {
         step = 'Dokumentversion speichern'

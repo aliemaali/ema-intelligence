@@ -43,6 +43,16 @@ export function franceFlagSvg(): string {
   </svg>`;
 }
 
+export function germanFlagSvg(): string {
+  return `<svg viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg" aria-label="Deutschland">
+    <defs><clipPath id="de-clip"><rect x="0" y="0" width="36" height="24" rx="3"/></clipPath></defs>
+    <g clip-path="url(#de-clip)">
+      <rect width="36" height="8" fill="#000000"/><rect y="8" width="36" height="8" fill="#DD0000"/><rect y="16" width="36" height="8" fill="#FFCE00"/>
+    </g>
+    <rect x=".4" y=".4" width="35.2" height="23.2" rx="2.8" fill="none" stroke="rgba(255,255,255,.55)" stroke-width=".9"/>
+  </svg>`;
+}
+
 /**
  * Cover-Bildfläche: abstrahierte Luftaufnahme eines Freiflächen-Solarparks
  * (Modultische in Blöcken, getrennt durch Wartungswege).
