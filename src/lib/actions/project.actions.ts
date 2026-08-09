@@ -232,17 +232,6 @@ export async function updateProject(id: string, formData: FormData) {
   redirect(`/projects/${id}/overview`)
 }
 
-export async function archiveProject(id: string) {
-  const { supabase, userId } = await requireUser()
-  const { data: project } = await supabase.from('projects').select('project_name, project_number').eq('id', id).eq('user_id', userId).single()
-  const { error } = await supabase.from('projects').update({ is_archived: true } as never).eq('id', id).eq('user_id', userId)
-  if (error) return { error: error.message }
-  await logActivity(supabase, { userId, projectId: id, type: 'manual', title: 'Projekt archiviert', description: project ? `${project.project_number} – ${project.project_name}` : undefined })
-  revalidatePath('/projects')
-  revalidatePath('/dashboard')
-  redirect('/projects')
-}
-
 export async function addActivityNote(projectId: string, formData: FormData) {
   const { supabase, userId } = await requireUser()
   const note = getString(formData, 'note')
