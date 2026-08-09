@@ -9,7 +9,7 @@ interface ProjectOutputCenterProps {
 }
 
 const outputs = [
-  { type: 'investment_memorandum', label: 'Investment Memorandum / Exposé', href: (id: string) => `/expose/${id}` },
+  { type: 'investment_memorandum', label: 'Exposé', href: (id: string) => `/expose/${id}` },
   { type: 'project_intake_pdf', label: 'Projektaufnahmebogen', href: (id: string) => `/projects/${id}/documents/project-intake` },
   { type: 'customer_intake_pdf', label: 'Kundenaufnahmebogen', href: (id: string) => `/projects/${id}/documents/customer-intake` },
 ] as const
