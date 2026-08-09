@@ -28,6 +28,10 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
 
     let frame = 0
     let smoothedLevel = 0
+    let orbImageReady = false
+    const orbImage = new window.Image()
+    orbImage.onload = () => { orbImageReady = true }
+    orbImage.src = '/brand/ema-realtime-orb.png'
 
     const resize = () => {
       const bounds = canvas.getBoundingClientRect()
@@ -42,7 +46,7 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
       const height = canvas.clientHeight
       const centerX = width / 2
       const centerY = height / 2
-      const baseRadius = Math.min(width, height) * 0.29
+      const baseRadius = Math.min(width, height) * 0.32
       const currentPhase = phaseRef.current
       const active = currentPhase === 'listening' || currentPhase === 'speaking'
       const liveLevel = currentPhase === 'listening' ? inputLevelRef.current : outputLevelRef.current
@@ -69,63 +73,39 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
       context.arc(centerX, centerY, radius, 0, TAU)
       context.clip()
 
-      const sphere = context.createRadialGradient(
-        centerX - radius * 0.38,
-        centerY - radius * 0.42,
-        radius * 0.05,
-        centerX + radius * 0.16,
-        centerY + radius * 0.2,
-        radius * 1.25,
-      )
-      sphere.addColorStop(0, '#d7ffd0')
-      sphere.addColorStop(0.16, '#8bea59')
-      sphere.addColorStop(0.42, '#2b9b70')
-      sphere.addColorStop(0.72, '#123f5a')
-      sphere.addColorStop(1, '#07142f')
-      context.fillStyle = sphere
-      context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
-
-      const bandCount = 11
-      for (let index = 0; index < bandCount; index += 1) {
-        const offset = index / bandCount
-        const y = centerY - radius + offset * radius * 2
-        const wave = Math.sin(now * 0.0013 + index * 0.9) * radius * (0.04 + activity * 0.09)
-        context.strokeStyle = index % 3 === 0
-          ? `rgba(179, 255, 117, ${0.2 + activity * 0.18})`
-          : `rgba(126, 211, 255, ${0.08 + activity * 0.12})`
-        context.lineWidth = 1 + activity * 1.5
-        context.beginPath()
-        context.ellipse(centerX + wave, y, radius * 1.08, radius * 0.18, 0, 0, TAU)
-        context.stroke()
+      if (orbImageReady) {
+        context.filter = `saturate(${1.02 + activity * 0.32}) brightness(${1 + activity * 0.12})`
+        context.drawImage(orbImage, centerX - radius, centerY - radius, radius * 2, radius * 2)
+        context.filter = 'none'
+      } else {
+        const fallback = context.createRadialGradient(
+          centerX - radius * 0.35,
+          centerY - radius * 0.38,
+          radius * 0.06,
+          centerX,
+          centerY,
+          radius * 1.12,
+        )
+        fallback.addColorStop(0, '#d7ffd0')
+        fallback.addColorStop(0.3, '#4fc982')
+        fallback.addColorStop(0.72, '#123f5a')
+        fallback.addColorStop(1, '#07142f')
+        context.fillStyle = fallback
+        context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
       }
 
-      for (let index = 0; index < 34; index += 1) {
-        const angle = index * 2.399 + now * 0.00012 * (index % 2 === 0 ? 1 : -1)
-        const orbit = radius * (0.2 + ((index * 37) % 80) / 100)
-        const x = centerX + Math.cos(angle) * orbit
-        const y = centerY + Math.sin(angle * 1.17) * orbit * 0.72
-        const particleRadius = 0.7 + (index % 4) * 0.35 + activity * 1.3
-        context.fillStyle = index % 4 === 0
-          ? `rgba(207, 255, 167, ${0.36 + activity * 0.35})`
-          : `rgba(190, 231, 255, ${0.18 + activity * 0.24})`
-        context.beginPath()
-        context.arc(x, y, particleRadius, 0, TAU)
-        context.fill()
-      }
-
-      const shade = context.createRadialGradient(
-        centerX - radius * 0.35,
-        centerY - radius * 0.45,
-        radius * 0.1,
-        centerX,
-        centerY,
-        radius * 1.15,
+      const movingLight = context.createRadialGradient(
+        centerX - radius * (0.48 - Math.sin(now * 0.0008) * 0.08),
+        centerY - radius * 0.34,
+        0,
+        centerX - radius * 0.2,
+        centerY - radius * 0.14,
+        radius * 0.9,
       )
-      shade.addColorStop(0, 'rgba(255,255,255,0.34)')
-      shade.addColorStop(0.42, 'rgba(255,255,255,0)')
-      shade.addColorStop(0.78, 'rgba(7,20,47,0.14)')
-      shade.addColorStop(1, 'rgba(1,7,19,0.72)')
-      context.fillStyle = shade
+      movingLight.addColorStop(0, `rgba(220,255,190,${0.08 + activity * 0.16})`)
+      movingLight.addColorStop(0.45, 'rgba(126,255,174,0.025)')
+      movingLight.addColorStop(1, 'rgba(7,20,47,0)')
+      context.fillStyle = movingLight
       context.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
       context.restore()
 
@@ -146,6 +126,15 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
         context.stroke()
       }
 
+      if (active) {
+        const pulse = (now * 0.00115) % 1
+        context.strokeStyle = `rgba(99,200,0,${(1 - pulse) * (0.1 + activity * 0.24)})`
+        context.lineWidth = 1.5
+        context.beginPath()
+        context.arc(centerX, centerY, radius * (1.04 + pulse * 0.34), 0, TAU)
+        context.stroke()
+      }
+
       frame = window.requestAnimationFrame(draw)
     }
 
@@ -154,6 +143,7 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
     frame = window.requestAnimationFrame(draw)
 
     return () => {
+      orbImage.onload = null
       window.removeEventListener('resize', resize)
       window.cancelAnimationFrame(frame)
     }
