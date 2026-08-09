@@ -56,7 +56,7 @@ function fontFaceCss() {
 
 function safeFilename(value: string) {
   const cleaned = value.normalize('NFKD').replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 100)
-  return cleaned || 'EMA-Investment-Memorandum'
+  return cleaned || 'EMA-Expose'
 }
 
 function allowedImageHost(hostname: string) {
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   let json: unknown
   try { json = await request.json() } catch { return NextResponse.json({ error: 'Ungültiger JSON-Request.' }, { status: 400 }) }
   const parsed = requestSchema.safeParse(json)
-  if (!parsed.success) return NextResponse.json({ error: 'Die Memorandum-Daten sind ungültig.', details: parsed.error.flatten() }, { status: 400 })
+  if (!parsed.success) return NextResponse.json({ error: 'Die Exposé-Daten sind ungültig.', details: parsed.error.flatten() }, { status: 400 })
 
   const root = process.cwd()
   const heroImage = fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg')
@@ -131,8 +131,8 @@ export async function POST(request: Request) {
       },
     })
   } catch (error) {
-    console.error('Investment-Memorandum-PDF konnte nicht erzeugt werden:', error)
-    return NextResponse.json({ error: 'Das Investment Memorandum konnte nicht als PDF erzeugt werden.' }, { status: 500 })
+    console.error('Exposé-PDF konnte nicht erzeugt werden:', error)
+    return NextResponse.json({ error: 'Das Exposé konnte nicht als PDF erzeugt werden.' }, { status: 500 })
   } finally {
     await browser?.close().catch(() => undefined)
   }
