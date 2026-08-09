@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowRight, Bell, CalendarDays, FileText, MapPin, Search, Sparkles } from 'lucide-react'
 import { getProjects } from '@/lib/actions/project.actions'
 
-export const metadata = { title: 'Investment Memorandum' }
+export const metadata = { title: 'Exposé' }
 
 function typeLabel(type?: string | null) {
   if (type === 'pv_freiflaeche') return 'PV-Freifläche'
@@ -44,7 +44,7 @@ export default async function ExposePage() {
               </div>
 
               <div className="max-w-3xl pb-2">
-                <p className="text-sm font-extrabold uppercase tracking-[.24em] text-[#87D33B]">Investment Memorandum</p>
+                <p className="text-sm font-extrabold uppercase tracking-[.24em] text-[#87D33B]">Exposé</p>
                 <h1 className="mt-4 text-5xl font-extrabold leading-[.95] tracking-[-.045em] md:text-7xl">Institutionelle Projektunterlagen</h1>
                 <p className="mt-5 max-w-2xl text-base leading-7 text-white/80 md:text-lg">Direkt aus den zentral gespeicherten Projektdaten von EMA Intelligence erstellt.</p>
                 <div className="mt-6 flex items-center gap-3 text-sm font-bold text-white"><Sparkles className="h-5 w-5 text-[#87D33B]" /> Ohne eigene Fotos wird automatisch ein passendes Premium-Motiv verwendet.</div>
@@ -57,7 +57,7 @@ export default async function ExposePage() {
           <div className="flex items-end justify-between gap-4 px-1">
             <div>
               <p className="text-sm font-extrabold uppercase tracking-[.18em] text-[#5CB800]">Projekt auswählen</p>
-              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-[#0B1633] md:text-4xl">Memorandum erstellen</h2>
+              <h2 className="mt-1 text-3xl font-extrabold tracking-tight text-[#0B1633] md:text-4xl">Exposé erstellen</h2>
             </div>
             <span className="rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">{projects.length} Projekte</span>
           </div>
@@ -66,7 +66,7 @@ export default async function ExposePage() {
             <div className="mt-6 rounded-[2rem] border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
               <FileText className="mx-auto h-10 w-10 text-[#5CB800]" />
               <h3 className="mt-4 text-xl font-extrabold text-[#0B1633]">Noch kein Projekt vorhanden</h3>
-              <p className="mt-2 text-slate-500">Lege zuerst ein Projekt an. Danach kann das Investment Memorandum automatisch erzeugt werden.</p>
+              <p className="mt-2 text-slate-500">Lege zuerst ein Projekt an. Danach kann das Exposé automatisch erzeugt werden.</p>
               <Link href="/projects/new" className="mt-6 inline-flex rounded-2xl bg-[#5CB800] px-5 py-3 font-extrabold text-white">Neues Projekt</Link>
             </div>
           ) : (
@@ -80,7 +80,7 @@ export default async function ExposePage() {
                   <h3 className="mt-5 text-xl font-extrabold text-[#0B1633]">{project.project_name}</h3>
                   <p className="mt-1 text-sm font-bold text-slate-400">{project.project_number || 'Ohne Projektnummer'}</p>
                   <div className="mt-5 flex items-center gap-2 text-sm text-slate-500"><MapPin className="h-4 w-4 text-[#5CB800]" />{[project.location_city, project.location_state].filter(Boolean).join(', ') || 'Standort nicht hinterlegt'}</div>
-                  <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-sm font-extrabold text-[#0B1633]"><span>Investment Memorandum öffnen</span><ArrowRight className="h-5 w-5 text-[#5CB800] transition group-hover:translate-x-1" /></div>
+                  <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4 text-sm font-extrabold text-[#0B1633]"><span>Exposé öffnen</span><ArrowRight className="h-5 w-5 text-[#5CB800] transition group-hover:translate-x-1" /></div>
                 </Link>
               ))}
             </div>

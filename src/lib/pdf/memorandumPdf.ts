@@ -59,7 +59,7 @@ export async function generateMemorandumPdf(data: MemorandumPdfData): Promise<Bl
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: string } | null
-    throw new PdfGenerationError('PDF erzeugen', payload?.error || 'Das Investment Memorandum konnte nicht erzeugt werden.')
+    throw new PdfGenerationError('PDF erzeugen', payload?.error || 'Das Exposé konnte nicht erzeugt werden.')
   }
 
   try {

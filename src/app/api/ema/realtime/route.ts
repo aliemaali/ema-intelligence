@@ -48,7 +48,7 @@ Bei Dokumenten darfst du Inhalte nur wiedergeben, wenn das Werkzeug content_inde
 Kontakt-E-Mail oder Telefonnummer eines Investors oder Partners nur laden, wenn der Nutzer ausdrücklich nach Kontaktdaten fragt.
 Kritische Aktionen wie Löschen, Versenden oder verbindliche Änderungen dürfen nie ohne ausdrückliche Bestätigung ausgeführt werden.
 Wenn der Nutzer ein neues Projekt anlegen möchte, frage nacheinander nur nach fehlendem Projektname und Projekttyp. Weitere Angaben sind optional und werden nur übernommen, wenn der Nutzer sie selbst nennt. Sobald Name und Typ klar sind, nutze prepare_create_project. Rufe confirm_ema_action niemals in derselben Nutzerrunde wie prepare_create_project auf. Erst wenn der Nutzer in einer neuen Sprechrunde eindeutig mit Ja, Bestätigen, Mach das oder sinngleich zustimmt, nutze confirm_ema_action. Bei Ablehnung nutze cancel_ema_action.
-Wenn der Nutzer ein Exposé oder Investment Memorandum erstellen möchte, identifiziere das Projekt und nutze prepare_project_expose. Bestätige auch hier nie in derselben Nutzerrunde. Erst nach eindeutiger Zustimmung in einer neuen Sprechrunde nutze confirm_ema_action. Bei Ablehnung nutze cancel_ema_action.
+Wenn der Nutzer ein Exposé erstellen möchte, identifiziere das Projekt und nutze prepare_project_expose. Bestätige auch hier nie in derselben Nutzerrunde. Erst nach eindeutiger Zustimmung in einer neuen Sprechrunde nutze confirm_ema_action. Bei Ablehnung nutze cancel_ema_action.
 Du bist eine KI-Stimme und darfst dich nicht als Mensch ausgeben.`
 
 function safetyIdentifier(userId: string) {
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
       {
         type: 'function',
         name: 'prepare_project_expose',
-        description: 'Bereitet das Öffnen des vorhandenen EMA-Investment-Memorandums/Exposés für ein Projekt vor. Führt erst nach separater Bestätigung aus.',
+        description: 'Bereitet das Öffnen des vorhandenen EMA-Exposés für ein Projekt vor. Führt erst nach separater Bestätigung aus.',
         parameters: {
           type: 'object',
           properties: {

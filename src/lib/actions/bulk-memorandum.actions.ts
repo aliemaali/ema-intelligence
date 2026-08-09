@@ -158,7 +158,7 @@ export async function recordMemorandumDeliveries(input: DeliveryLogInput) {
       user_id: userId,
       project_id: projectId,
       activity_type: 'manual' as never,
-      title: 'Investment Memorandum versendet',
+      title: 'Exposé versendet',
       description: `${recipients.length} Empfänger · ${input.channel === 'email' ? 'E-Mail' : 'WhatsApp'}`,
       metadata: { channel: input.channel, recipient_count: recipients.length },
     })

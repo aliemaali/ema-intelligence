@@ -85,7 +85,7 @@ export function DeliveryHistoryCard({ item }: DeliveryHistoryCardProps) {
           )}
 
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-bold text-slate-500">
-            <span className="inline-flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Investment Memorandum</span>
+            <span className="inline-flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> Exposé</span>
             <span className="inline-flex items-center gap-1.5">{isWhatsapp ? <MessageCircle className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}{isWhatsapp ? 'WhatsApp' : 'E-Mail'}</span>
             <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5" />{new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.sentAt))}</span>
           </div>
