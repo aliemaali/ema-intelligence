@@ -2,21 +2,38 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const INTRO_STORAGE_KEY = 'ema-intelligence:intro:played:v4'
+const INTRO_VERSION = 'v5'
 const EXIT_DURATION_MS = 350
-const SAFETY_TIMEOUT_MS = 3600
-const INTRO_VIDEO_URL = '/intro/ema-intro.mp4'
+const SAFETY_TIMEOUT_MS = 6500
+const INTRO_VIDEO_URL = '/intro/ema-intro.mp4?v=5'
 const INTRO_POSTER_URL = '/intro/ema-intro-poster.webp'
 
 type IntroPhase = 'checking' | 'playing' | 'leaving' | 'done'
+type StandaloneNavigator = Navigator & { standalone?: boolean }
+
+function getIntroStorageKey() {
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as StandaloneNavigator).standalone === true
+
+  return `ema-intelligence:intro:played:${INTRO_VERSION}:${isStandalone ? 'app' : 'browser'}`
+}
 
 export function AppIntro() {
   const [phase, setPhase] = useState<IntroPhase>('checking')
   const exitTimerRef = useRef<number | null>(null)
   const safetyTimerRef = useRef<number | null>(null)
-  const paintFrameRef = useRef<number | null>(null)
+  const storageKeyRef = useRef<string | null>(null)
 
-  const finishIntro = useCallback(() => {
+  const finishIntro = useCallback((remember: boolean) => {
+    if (remember && document.visibilityState === 'visible' && storageKeyRef.current) {
+      try {
+        window.localStorage.setItem(storageKeyRef.current, '1')
+      } catch {
+        // Storage can be unavailable in hardened/private browser modes.
+      }
+    }
+
     setPhase((currentPhase) => {
       if (currentPhase === 'leaving' || currentPhase === 'done') return currentPhase
       return 'leaving'
@@ -28,8 +45,11 @@ export function AppIntro() {
   }, [])
 
   useEffect(() => {
+    const storageKey = getIntroStorageKey()
+    storageKeyRef.current = storageKey
+
     try {
-      if (window.localStorage.getItem(INTRO_STORAGE_KEY) === '1') {
+      if (window.localStorage.getItem(storageKey) === '1') {
         setPhase('done')
         return
       }
@@ -38,15 +58,20 @@ export function AppIntro() {
       // In that case, the intro simply plays for this mount.
     }
 
-    const showIntroWhenVisible = () => {
-      if (document.visibilityState === 'visible') setPhase('playing')
+    const syncIntroVisibility = () => {
+      setPhase((currentPhase) => {
+        if (currentPhase === 'leaving' || currentPhase === 'done') return currentPhase
+        return document.visibilityState === 'visible' ? 'playing' : 'checking'
+      })
     }
 
-    showIntroWhenVisible()
-    document.addEventListener('visibilitychange', showIntroWhenVisible)
+    syncIntroVisibility()
+    document.addEventListener('visibilitychange', syncIntroVisibility)
+    window.addEventListener('pageshow', syncIntroVisibility)
 
     return () => {
-      document.removeEventListener('visibilitychange', showIntroWhenVisible)
+      document.removeEventListener('visibilitychange', syncIntroVisibility)
+      window.removeEventListener('pageshow', syncIntroVisibility)
       if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current)
     }
   }, [])
@@ -54,20 +79,10 @@ export function AppIntro() {
   useEffect(() => {
     if (phase !== 'playing') return
 
-    safetyTimerRef.current = window.setTimeout(finishIntro, SAFETY_TIMEOUT_MS)
-    paintFrameRef.current = window.requestAnimationFrame(() => {
-      paintFrameRef.current = window.requestAnimationFrame(() => {
-        try {
-          window.localStorage.setItem(INTRO_STORAGE_KEY, '1')
-        } catch {
-          // Storage can be unavailable in hardened/private browser modes.
-        }
-      })
-    })
+    safetyTimerRef.current = window.setTimeout(() => finishIntro(false), SAFETY_TIMEOUT_MS)
 
     return () => {
       if (safetyTimerRef.current !== null) window.clearTimeout(safetyTimerRef.current)
-      if (paintFrameRef.current !== null) window.cancelAnimationFrame(paintFrameRef.current)
     }
   }, [finishIntro, phase])
 
@@ -94,12 +109,11 @@ export function AppIntro() {
             muted
             playsInline
             preload="auto"
-            onEnded={finishIntro}
-            onError={finishIntro}
+            onEnded={() => finishIntro(true)}
           />
           <button
             type="button"
-            onClick={finishIntro}
+            onClick={() => finishIntro(true)}
             className="absolute bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-10 min-h-11 rounded-full border border-white/35 bg-[#1F2A44]/55 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:bg-[#1F2A44]/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5CB800] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1F2A44]"
             aria-label="Intro überspringen"
           >
