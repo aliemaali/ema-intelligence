@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const INTRO_STORAGE_KEY = 'ema-intelligence:intro:played:v3'
+const INTRO_STORAGE_KEY = 'ema-intelligence:intro:played:v4'
 const EXIT_DURATION_MS = 350
 const SAFETY_TIMEOUT_MS = 3600
 const INTRO_VIDEO_URL = '/intro/ema-intro.mp4'
