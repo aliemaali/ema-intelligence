@@ -40,7 +40,7 @@ export default async function DispatchHistoryPage({ searchParams }: { searchPara
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[.22em] text-[#87D33B]">Versandcenter</p>
             <h1 className="mt-2 text-4xl font-extrabold md:text-5xl">Versandhistorie</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75">Alle versendeten Investment Memoranden mit Projekt, Empfänger, Versandweg und Zeitpunkt.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75">Alle versendeten Exposés mit Projekt, Empfänger, Versandweg und Zeitpunkt.</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {[['Gesamt', deliveries.length], ['E-Mail', emailCount], ['WhatsApp', whatsappCount]].map(([label, value]) => (
@@ -63,7 +63,7 @@ export default async function DispatchHistoryPage({ searchParams }: { searchPara
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Die Versandhistorie konnte nicht geladen werden.</div>
       ) : rows.length === 0 ? (
-        <div className="rounded-[1.8rem] border border-dashed border-slate-300 bg-white p-10 text-center"><Send className="mx-auto h-10 w-10 text-slate-300" /><h2 className="mt-3 text-xl font-extrabold text-[#07142F]">Noch keine Einträge</h2><p className="mt-2 text-sm text-slate-500">Sobald ein Memorandum versendet oder geteilt wurde, erscheint es hier.</p></div>
+        <div className="rounded-[1.8rem] border border-dashed border-slate-300 bg-white p-10 text-center"><Send className="mx-auto h-10 w-10 text-slate-300" /><h2 className="mt-3 text-xl font-extrabold text-[#07142F]">Noch keine Einträge</h2><p className="mt-2 text-sm text-slate-500">Sobald ein Exposé versendet oder geteilt wurde, erscheint es hier.</p></div>
       ) : (
         <div className="space-y-3">{rows.map((item: any) => {
           const project = Array.isArray(item.projects) ? item.projects[0] : item.projects
