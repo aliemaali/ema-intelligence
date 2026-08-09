@@ -79,20 +79,6 @@ export function AppIntro() {
     }
 
     const syncIntroVisibility = () => {
-      if (isStandalone) {
-        if (document.visibilityState === 'hidden') {
-          if (exitTimerRef.current !== null) {
-            window.clearTimeout(exitTimerRef.current)
-            exitTimerRef.current = null
-          }
-          setPhase('checking')
-          return
-        }
-
-        setPhase('playing')
-        return
-      }
-
       setPhase((currentPhase) => {
         if (currentPhase === 'leaving' || currentPhase === 'done') return currentPhase
         return document.visibilityState === 'visible' ? 'playing' : 'checking'
