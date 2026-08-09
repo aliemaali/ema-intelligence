@@ -769,11 +769,12 @@ export function EmaVoice({ userName }: { userName: string }) {
         >
           <span className={`pointer-events-none absolute inset-[2px] rounded-full ${speaking ? 'animate-pulse shadow-[inset_0_0_18px_6px_rgba(99,200,0,0.52)]' : ready ? 'shadow-[inset_0_0_12px_3px_rgba(99,200,0,0.17)]' : ''}`} />
           <Image
-            src="/brand/ema-mark.png"
+            src="/brand/ema-realtime-orb.png"
             alt=""
-            width={506}
-            height={247}
-            className="pointer-events-none relative z-10 h-auto w-7 drop-shadow-[0_1px_2px_rgba(7,20,47,0.12)]"
+            width={768}
+            height={768}
+            sizes="44px"
+            className="pointer-events-none relative z-10 h-[52px] w-[52px] max-w-none object-contain drop-shadow-[0_1px_3px_rgba(7,20,47,0.18)]"
             priority
             draggable={false}
           />
