@@ -27,7 +27,7 @@ export default function ExposeButton({ project, className }: ExposeButtonProps) 
       }
     >
       <FileDown className="h-4 w-4" aria-hidden="true" />
-      Investment Memorandum
+      Exposé
     </button>
   );
 }
