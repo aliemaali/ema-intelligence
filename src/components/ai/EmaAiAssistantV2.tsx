@@ -83,6 +83,16 @@ function formatGermanIntegerInput(value: unknown) {
   return Math.round(parsed).toLocaleString('de-DE', { maximumFractionDigits: 0 })
 }
 
+function formatGermanDecimalInput(value: unknown, fractionDigits: number) {
+  if (value === null || value === undefined || value === '') return ''
+  const parsed = decimalValue(value)
+  if (!Number.isFinite(parsed) || parsed <= 0) return ''
+  return parsed.toLocaleString('de-DE', {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })
+}
+
 function formatProject(project: EmaAiProject) {
   return project.projectNumber ? `${project.projectNumber} – ${project.projectName}` : project.projectName
 }
@@ -102,8 +112,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
   useEffect(() => {
     setPvKwp(selectedProject?.pvKwp ? String(selectedProject.pvKwp).replace('.', ',') : '')
     setPurchasePrice(selectedProject?.purchasePrice ? formatGermanIntegerInput(selectedProject.purchasePrice) : '')
-    setSpecificYield(selectedProject?.specificYield ? String(selectedProject.specificYield).replace('.', ',') : '')
-    setTariff(selectedProject?.tariff ? String(selectedProject.tariff).replace('.', ',') : '')
+    setSpecificYield(selectedProject?.specificYield ? formatGermanDecimalInput(selectedProject.specificYield, 2) : '')
+    setTariff(selectedProject?.tariff ? formatGermanDecimalInput(selectedProject.tariff, 4) : '')
     setYieldMessage('')
     setSaveMessage('')
   }, [selectedProjectId, selectedProject])
@@ -122,8 +132,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
       const response = await fetch(`/api/solar-yield?${params.toString()}`)
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || 'Ermittlung fehlgeschlagen')
-      setSpecificYield(String(data.specificYield).replace('.', ','))
-      setYieldMessage(`${Number(data.specificYield).toLocaleString('de-DE')} kWh/kWp automatisch ermittelt. ${data.assumptions}`)
+      setSpecificYield(formatGermanDecimalInput(data.specificYield, 2))
+      setYieldMessage(`${formatGermanDecimalInput(data.specificYield, 2)} kWh/kWp automatisch ermittelt. ${data.assumptions}`)
     } catch (error) {
       setYieldMessage(error instanceof Error ? error.message : 'Der Wert konnte nicht automatisch ermittelt werden. Bitte manuell eintragen.')
     } finally {
@@ -149,6 +159,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || 'Speichern fehlgeschlagen')
+      setSpecificYield(formatGermanDecimalInput(specificYield, 2))
+      setTariff(formatGermanDecimalInput(tariff, 4))
       setSaveMessage('Gespeichert. CAPEX übernimmt diese Werte beim nächsten Öffnen.')
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'Die Werte konnten nicht gespeichert werden.')
@@ -237,8 +249,8 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                   <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <label className="block"><span className="text-xs font-bold text-slate-500">Anlagenleistung kWp</span><input value={pvKwp} onChange={(event) => { setPvKwp(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                     <label className="block"><span className="text-xs font-bold text-slate-500">Kaufpreis in €</span><input value={purchasePrice} onChange={(event) => { setPurchasePrice(formatGermanIntegerInput(event.target.value)); setSaveMessage('') }} inputMode="numeric" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span><input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage(''); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /><button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">{isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Aus Standort berechnen</button></label>
-                    <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh oder €/kWh</span><input value={tariff} onChange={(event) => { setTariff(event.target.value); setSaveMessage('') }} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Ertrag kWh/kWp</span><input value={specificYield} onChange={(event) => { setSpecificYield(event.target.value); setYieldMessage(''); setSaveMessage('') }} onBlur={() => setSpecificYield(formatGermanDecimalInput(specificYield, 2))} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /><button type="button" onClick={estimateSpecificYield} disabled={isEstimatingYield || (!selectedProject.locationCity && !selectedProject.locationState)} className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#5CB800]/30 bg-[#5CB800]/10 px-3 py-2 text-xs font-extrabold text-[#2F8A00] disabled:cursor-not-allowed disabled:opacity-50">{isEstimatingYield ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}Aus Standort berechnen</button></label>
+                    <label className="block"><span className="text-xs font-bold text-slate-500">Vergütung ct/kWh oder €/kWh</span><input value={tariff} onChange={(event) => { setTariff(event.target.value); setSaveMessage('') }} onBlur={() => setTariff(formatGermanDecimalInput(tariff, 4))} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-[#07142F] outline-none focus:border-[#5CB800]" /></label>
                   </div>
                   <button type="button" onClick={saveValues} disabled={isSaving} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#5CB800] px-4 py-3 text-sm font-extrabold text-white shadow-sm transition active:scale-[0.99] disabled:opacity-60">{isSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}Werte speichern</button>
                   {yieldMessage && <div className="mt-3 rounded-xl bg-white p-3 text-xs font-bold leading-5 text-slate-600 shadow-sm">{yieldMessage}</div>}
