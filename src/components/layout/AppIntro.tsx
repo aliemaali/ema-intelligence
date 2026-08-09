@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const INTRO_STORAGE_KEY = 'ema-intelligence:intro:played:v2'
+const INTRO_STORAGE_KEY = 'ema-intelligence:intro:played:v3'
 const EXIT_DURATION_MS = 350
 const SAFETY_TIMEOUT_MS = 3600
 const INTRO_VIDEO_URL = '/intro/ema-intro.mp4'
@@ -12,7 +12,9 @@ type IntroPhase = 'checking' | 'playing' | 'leaving' | 'done'
 
 export function AppIntro() {
   const [phase, setPhase] = useState<IntroPhase>('checking')
-  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const exitTimerRef = useRef<number | null>(null)
+  const safetyTimerRef = useRef<number | null>(null)
+  const paintFrameRef = useRef<number | null>(null)
 
   const finishIntro = useCallback(() => {
     setPhase((currentPhase) => {
@@ -21,7 +23,7 @@ export function AppIntro() {
     })
 
     if (exitTimerRef.current === null) {
-      exitTimerRef.current = setTimeout(() => setPhase('done'), EXIT_DURATION_MS)
+      exitTimerRef.current = window.setTimeout(() => setPhase('done'), EXIT_DURATION_MS)
     }
   }, [])
 
@@ -31,20 +33,43 @@ export function AppIntro() {
         setPhase('done')
         return
       }
-      window.localStorage.setItem(INTRO_STORAGE_KEY, '1')
     } catch {
       // Storage can be unavailable in hardened/private browser modes.
       // In that case, the intro simply plays for this mount.
     }
 
-    setPhase('playing')
-    const safetyTimer = window.setTimeout(finishIntro, SAFETY_TIMEOUT_MS)
+    const showIntroWhenVisible = () => {
+      if (document.visibilityState === 'visible') setPhase('playing')
+    }
+
+    showIntroWhenVisible()
+    document.addEventListener('visibilitychange', showIntroWhenVisible)
 
     return () => {
-      window.clearTimeout(safetyTimer)
-      if (exitTimerRef.current !== null) clearTimeout(exitTimerRef.current)
+      document.removeEventListener('visibilitychange', showIntroWhenVisible)
+      if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current)
     }
-  }, [finishIntro])
+  }, [])
+
+  useEffect(() => {
+    if (phase !== 'playing') return
+
+    safetyTimerRef.current = window.setTimeout(finishIntro, SAFETY_TIMEOUT_MS)
+    paintFrameRef.current = window.requestAnimationFrame(() => {
+      paintFrameRef.current = window.requestAnimationFrame(() => {
+        try {
+          window.localStorage.setItem(INTRO_STORAGE_KEY, '1')
+        } catch {
+          // Storage can be unavailable in hardened/private browser modes.
+        }
+      })
+    })
+
+    return () => {
+      if (safetyTimerRef.current !== null) window.clearTimeout(safetyTimerRef.current)
+      if (paintFrameRef.current !== null) window.cancelAnimationFrame(paintFrameRef.current)
+    }
+  }, [finishIntro, phase])
 
   if (phase === 'done') return null
 
