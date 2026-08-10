@@ -29,11 +29,11 @@ export function AdditionalDocumentGenerators({ userId, folders }: Props) {
   return (
     <>
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <GeneratorCard title="Projekt-Checkliste" description="Ausfüllbare Angebots-Checkliste für PV- oder BESS-Projekte zum Versenden an Partner und Vertriebler." onClick={() => setKind('project-checklist')} />
+        <GeneratorCard title="Projekt-Checkliste" description="Leere, ausfüllbare PV- oder BESS-Checkliste als PDF zum Versenden." onClick={() => setKind('project-checklist')} />
         <GeneratorCard title="Provisionsvereinbarung" description="Pauschal, €/kWp, €/MWh oder prozentual – mit automatischer Berechnung." onClick={() => setKind('commission')} />
         <GeneratorCard title="Investoren-Suchprofil" description="Zweisprachiges Suchprofil für neue Investoren, direkt als PDF speicherbar." onClick={() => setKind('investor-profile')} />
       </div>
-      {kind === 'project-checklist' && <ProjectChecklistGenerator userId={userId} folders={folders} onClose={() => setKind(null)} />}
+      {kind === 'project-checklist' && <ProjectChecklistGenerator onClose={() => setKind(null)} />}
       {kind === 'commission' && <CommissionGenerator userId={userId} folders={folders} onClose={() => setKind(null)} />}
       {kind === 'investor-profile' && <InvestorProfileGenerator userId={userId} folders={folders} onClose={() => setKind(null)} />}
     </>
