@@ -13,6 +13,10 @@ export default async function EmaAiPage() {
   const aiProjects = projects.map((project: any) => {
     const merged = mergeProjectEconomicSources(project as Record<string, unknown>)
     const economics = resolvePvEconomics(merged)
+    const dataCenterSiteCheck =
+      project.data_center_site_check && typeof project.data_center_site_check === 'object'
+        ? project.data_center_site_check
+        : {}
 
     return {
       id: String(project.id),
@@ -25,6 +29,12 @@ export default async function EmaAiPage() {
       pvKwp: economics.pvKwp,
       bessMw: project.bess_mw ?? null,
       bessMwh: project.bess_mwh ?? null,
+      bessDurationHours: project.bess_duration_h ?? null,
+      dataCenterGridMw: project.data_center_grid_mw ?? null,
+      dataCenterItMw: project.data_center_it_mw ?? null,
+      landAreaSqm: project.land_area_sqm ?? null,
+      hvDistanceMeters: dataCenterSiteCheck.hvDistanceMeters ?? null,
+      fiberDistanceMeters: dataCenterSiteCheck.fiberDistanceMeters ?? null,
       purchasePrice: economics.purchasePrice,
       feedInType:
         project.feed_in_type ??
