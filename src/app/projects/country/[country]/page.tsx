@@ -1,11 +1,36 @@
 import Link from 'next/link'
-import { ArrowLeft, FileText, FolderOpen, MapPin, Zap } from 'lucide-react'
+import { ArrowLeft, BatteryCharging, FileText, FolderOpen, MapPin, Server, Zap } from 'lucide-react'
 import { DeleteCountryProjectListButton } from '@/components/projects/DeleteCountryProjectListButton'
 import { ProjectActions } from '@/components/projects/ProjectActions'
+import { ProjectTypeBadge } from '@/components/projects/ProjectTypeBadge'
 import { getProjects } from '@/lib/actions/project.actions'
+import { formatEnergyFromMwh, formatPowerFromKwp, formatPowerFromMw } from '@/lib/format/power'
 import { createClient } from '@/lib/supabase/server'
 
 const flags: Record<string, string> = { Deutschland: '🇩🇪', Frankreich: '🇫🇷', Türkei: '🇹🇷', Spanien: '🇪🇸', Italien: '🇮🇹', Niederlande: '🇳🇱' }
+
+function projectPower(project: any) {
+  if (project.project_type === 'rechenzentrum') {
+    const parts: string[] = []
+    if (project.data_center_grid_mw) parts.push(`${formatPowerFromMw(Number(project.data_center_grid_mw))} Netz`)
+    if (project.data_center_it_mw) parts.push(`${formatPowerFromMw(Number(project.data_center_it_mw))} IT`)
+    return parts.join(' / ') || 'Leistung offen'
+  }
+  if (project.project_type === 'sonstiges') return 'Individuell'
+
+  const parts: string[] = []
+  const pvKwp = Number(project.pv_kwp ?? project.pv_mwp ?? project.capacity_kwp ?? 0)
+  const bessMwh = Number(project.bess_mwh ?? project.storage_capacity_mwh ?? 0)
+  if (pvKwp) parts.push(formatPowerFromKwp(pvKwp))
+  if (bessMwh) parts.push(formatEnergyFromMwh(bessMwh))
+  return parts.join(' / ') || 'Leistung offen'
+}
+
+function ProjectPowerIcon({ type }: { type?: string | null }) {
+  if (type === 'bess') return <BatteryCharging className="h-4 w-4 shrink-0 text-[#5CB800]" />
+  if (type === 'rechenzentrum') return <Server className="h-4 w-4 shrink-0 text-[#5CB800]" />
+  return <Zap className="h-4 w-4 shrink-0 text-[#5CB800]" />
+}
 
 export default async function CountryProjectsPage({ params }: { params: { country: string } }) {
   const country = decodeURIComponent(params.country)
@@ -27,7 +52,7 @@ export default async function CountryProjectsPage({ params }: { params: { countr
     </section>
 
     <section><h2 className="text-2xl font-extrabold text-[#07142F]">Alle Projekte</h2>
-      {projects.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm font-bold text-slate-500">In diesem Land sind noch keine einzelnen Projekte angelegt.</div> : <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{projects.map((project: any) => <article key={project.id} className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm transition hover:border-[#5CB800]/50"><Link href={`/projects/${project.id}/overview`} className="block p-5"><p className="text-xs font-extrabold uppercase tracking-wider text-[#5CB800]">{project.project_number || 'Ohne Projektnummer'}</p><h3 className="mt-2 text-xl font-extrabold text-[#07142F]">{project.project_name}</h3><div className="mt-4 space-y-2 text-sm font-bold text-slate-500"><p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#5CB800]" />{project.location_city || project.location_state || country}</p><p className="flex items-center gap-2"><Zap className="h-4 w-4 text-[#5CB800]" />{Number(project.pv_kwp ?? project.pv_mwp ?? 0).toLocaleString('de-DE')} kWp</p></div></Link><div className="flex justify-end border-t border-slate-100 px-4 py-3"><ProjectActions projectId={project.id} projectName={project.project_name} /></div></article>)}</div>}
+      {projects.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm font-bold text-slate-500">In diesem Land sind noch keine einzelnen Projekte angelegt.</div> : <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{projects.map((project: any) => <article key={project.id} className="overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-sm transition hover:border-[#5CB800]/50"><Link href={`/projects/${project.id}/overview`} className="block p-5"><div className="flex items-start justify-between gap-3"><p className="min-w-0 truncate pt-1 text-xs font-extrabold uppercase tracking-wider text-[#5CB800]">{project.project_number || 'Ohne Projektnummer'}</p><ProjectTypeBadge type={project.project_type} /></div><h3 className="mt-2 text-xl font-extrabold text-[#07142F]">{project.project_name}</h3><div className="mt-4 space-y-2 text-sm font-bold text-slate-500"><p className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0 text-[#5CB800]" />{project.location_city || project.location_state || country}</p><p className="flex items-center gap-2"><ProjectPowerIcon type={project.project_type} />{projectPower(project)}</p></div></Link><div className="flex justify-end border-t border-slate-100 px-4 py-3"><ProjectActions projectId={project.id} projectName={project.project_name} /></div></article>)}</div>}
     </section>
   </div>
 }
