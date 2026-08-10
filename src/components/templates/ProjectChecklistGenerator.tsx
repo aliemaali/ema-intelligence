@@ -460,7 +460,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
       (sum, row) => sum + getRowHeight(row),
       0,
     )
-    if (y > 240 || y + Math.min(estimatedHeight, 46) > 278) {
+    if (y > 220 || y + Math.min(estimatedHeight, 46) >= 278) {
       doc.addPage()
       addHeader()
     }
