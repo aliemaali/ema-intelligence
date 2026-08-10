@@ -638,7 +638,7 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
   const preparePdf = () => {
     if (!assets) throw new Error(assetError ?? 'PDF wird noch vorbereitet. Bitte kurz warten.')
     const doc = createChecklistPdf(type, assets.logoDataUrl, assets.heroDataUrl)
-    const filename = 'EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf'
+    const filename = 'Checkliste ' + type.toUpperCase() + '.pdf'
     return { blob: doc.output('blob'), filename }
   }
 
