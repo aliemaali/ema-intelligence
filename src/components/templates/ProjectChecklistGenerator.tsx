@@ -2,15 +2,11 @@
 
 import { useState } from 'react'
 import { AcroFormCheckBox, AcroFormTextField, jsPDF } from 'jspdf'
-import { BatteryCharging, PanelsTopLeft, Save, X } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { BatteryCharging, Download, PanelsTopLeft, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
-import { createClient } from '@/lib/supabase/client'
 
 type ChecklistType = 'pv' | 'bess'
-type FolderItem = { id: string; name: string }
-type Props = { userId: string; folders: FolderItem[]; onClose: () => void }
+type Props = { onClose: () => void }
 type TextRow = { label: string; name: string; value?: string; multiline?: boolean; kind?: 'text' }
 type StatusRow = { label: string; name: string; kind: 'status' }
 type Row = TextRow | StatusRow
@@ -168,11 +164,8 @@ const documentRows: Record<ChecklistType, StatusRow[]> = {
   ].map((label, index) => ({ label, name: `bess_dokument_${index + 1}`, kind: 'status' as const })),
 }
 
-function safeFilePart(value: string) {
-  return value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_').replace(/^_+|_+$/g, '') || 'Blanko'
-}
 
-export function createChecklistPdf(type: ChecklistType, prefill: { recipient: string; contact: string; project: string; deadline: string }) {
+export function createChecklistPdf(type: ChecklistType) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const sections = [...commonSections, ...(type === 'pv' ? pvSections : bessSections), {
     title: '7 · Beizufügende Unterlagen',
@@ -187,12 +180,7 @@ export function createChecklistPdf(type: ChecklistType, prefill: { recipient: st
     ],
   }] satisfies Section[]
 
-  const prefilledValues: Record<string, string> = {
-    anbieter_unternehmen: prefill.recipient,
-    anbieter_ansprechpartner: prefill.contact,
-    projekt_name: prefill.project,
-    projekt_inbetriebnahme: '',
-  }
+  const prefilledValues: Record<string, string> = {}
   let y = 0
 
   const addHeader = () => {
@@ -203,7 +191,7 @@ export function createChecklistPdf(type: ChecklistType, prefill: { recipient: st
     doc.setFontSize(8.5); doc.setFont('helvetica', 'normal')
     doc.text('EMA Enterprise GmbH · vom Anbieter vollständig auszufüllen', 18, 21)
     doc.setTextColor(textColor); doc.setFont('helvetica', 'bold'); doc.setFontSize(8)
-    doc.text(`Rückgabe bis: ${prefill.deadline || '________________'}`, 192, 21, { align: 'right' })
+    doc.text('Blanko-Vorlage', 192, 21, { align: 'right' })
     y = 40
   }
 
@@ -280,77 +268,72 @@ export function createChecklistPdf(type: ChecklistType, prefill: { recipient: st
   return doc
 }
 
-export function ProjectChecklistGenerator({ userId, folders, onClose }: Props) {
-  const router = useRouter()
-  const [supabase] = useState(() => createClient())
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ type: 'pv' as ChecklistType, recipient: '', contact: '', project: '', deadline: '', folderId: '' })
-  const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }))
+export function ProjectChecklistGenerator({ onClose }: Props) {
+  const [type, setType] = useState<ChecklistType>('pv')
 
-  const save = async () => {
-    setSaving(true)
-    const uploadedPaths: string[] = []
-    try {
-      const doc = createChecklistPdf(form.type, form)
-      const blob = doc.output('blob')
-      const date = new Date().toISOString().slice(0, 10)
-      const subject = safeFilePart(form.project || form.recipient)
-      const fileName = `Projekt-Angebotscheckliste_${form.type.toUpperCase()}_${subject}_${date}_v1.0.pdf`
-      const path = `${userId}/${Date.now()}_${fileName}`
-      const { error: uploadError } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false })
-      if (uploadError) throw uploadError
-      uploadedPaths.push(path)
-      const result = await createTemplateDocumentRecord({
-        displayName: `Projekt-Angebotscheckliste ${form.type.toUpperCase()}${form.project ? ` – ${form.project}` : ''} – v1.0`,
-        category: 'checkliste',
-        fileName,
-        filePath: path,
-        fileSizeBytes: blob.size,
-        mimeType: 'application/pdf',
-        folderId: form.folderId || null,
-      })
-      if (result.error) throw new Error(result.error)
-      toast.success('Die ausfüllbare Checkliste wurde unter „Gespeicherte Dokumente“ abgelegt.')
-      onClose()
-      router.refresh()
-    } catch (error) {
-      if (uploadedPaths.length > 0) await supabase.storage.from('template-documents').remove(uploadedPaths)
-      toast.error(error instanceof Error ? error.message : 'Checkliste konnte nicht erstellt werden.')
-    } finally {
-      setSaving(false)
-    }
+  const download = () => {
+    const doc = createChecklistPdf(type)
+    doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
+    toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde heruntergeladen.')
   }
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-3 md:items-center">
-      <div className="max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl md:p-7">
+      <div className="w-full max-w-2xl rounded-[2rem] bg-white p-5 shadow-2xl md:p-7">
         <div className="flex items-start justify-between gap-4">
-          <div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Meine Dokumente</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Projekt-Angebotscheckliste</h2><p className="mt-2 text-sm leading-6 text-slate-500">Erstellt eine ausfüllbare PDF für Partner oder Vertriebler. Wähle oben die passende Projektart.</p></div>
-          <button type="button" onClick={onClose} className="btn-icon" aria-label="Schließen"><X className="h-5 w-5" /></button>
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Meine Dokumente</p>
+            <h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Blanko-Projektcheckliste</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              Projektart auswählen und die leere, ausfüllbare PDF zum Versenden herunterladen.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="btn-icon" aria-label="Schließen">
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <button type="button" aria-pressed={form.type === 'pv'} onClick={() => set('type', 'pv')} className={`flex min-h-28 flex-col items-center justify-center rounded-2xl border px-4 py-4 font-extrabold transition ${form.type === 'pv' ? 'border-[#5CB800] bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20' : 'border-slate-200 text-[#1F2A44]'}`}><PanelsTopLeft className="h-7 w-7" /><span className="mt-2">PV-Projekt</span></button>
-          <button type="button" aria-pressed={form.type === 'bess'} onClick={() => set('type', 'bess')} className={`flex min-h-28 flex-col items-center justify-center rounded-2xl border px-4 py-4 font-extrabold transition ${form.type === 'bess' ? 'border-[#5CB800] bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20' : 'border-slate-200 text-[#1F2A44]'}`}><BatteryCharging className="h-7 w-7" /><span className="mt-2">BESS-Projekt</span></button>
+          <button
+            type="button"
+            aria-pressed={type === 'pv'}
+            onClick={() => setType('pv')}
+            className={'flex min-h-28 flex-col items-center justify-center rounded-2xl border px-4 py-4 font-extrabold transition ' + (
+              type === 'pv'
+                ? 'border-[#5CB800] bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20'
+                : 'border-slate-200 text-[#1F2A44]'
+            )}
+          >
+            <PanelsTopLeft className="h-7 w-7" />
+            <span className="mt-2">PV-Projekt</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={type === 'bess'}
+            onClick={() => setType('bess')}
+            className={'flex min-h-28 flex-col items-center justify-center rounded-2xl border px-4 py-4 font-extrabold transition ' + (
+              type === 'bess'
+                ? 'border-[#5CB800] bg-[#5CB800] text-white shadow-lg shadow-[#5CB800]/20'
+                : 'border-slate-200 text-[#1F2A44]'
+            )}
+          >
+            <BatteryCharging className="h-7 w-7" />
+            <span className="mt-2">BESS-Projekt</span>
+          </button>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm font-extrabold text-[#1F2A44]">Optionale Vorbelegung</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">Leer lassen, wenn du eine neutrale Blanko-Checkliste erstellen möchtest.</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <input className="form-input" value={form.recipient} onChange={(event) => set('recipient', event.target.value)} placeholder="Unternehmen / Empfänger" />
-            <input className="form-input" value={form.contact} onChange={(event) => set('contact', event.target.value)} placeholder="Ansprechpartner" />
-            <input className="form-input" value={form.project} onChange={(event) => set('project', event.target.value)} placeholder="Projektname / Referenz" />
-            <label className="text-xs font-bold text-slate-500"><span className="mb-1.5 block">Rückgabe bis</span><input type="date" className="form-input w-full" value={form.deadline} onChange={(event) => set('deadline', event.target.value)} /></label>
-          </div>
-        </div>
+        <p className="mt-5 rounded-2xl border border-[#5CB800]/20 bg-[#5CB800]/5 p-4 text-sm leading-6 text-[#1F2A44]">
+          Die PDF enthält leere Eingabefelder und Auswahlkästchen. Sie wird nur heruntergeladen und nicht in EMA gespeichert.
+        </p>
 
-        <select className="form-input mt-4 w-full" value={form.folderId} onChange={(event) => set('folderId', event.target.value)}>
-          <option value="">Kein Ordner</option>
-          {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
-        </select>
-        <p className="mt-4 rounded-2xl border border-[#5CB800]/20 bg-[#5CB800]/5 p-4 text-sm leading-6 text-[#1F2A44]">Die PDF enthält echte Eingabefelder sowie Auswahlkästchen für „Vorhanden“, „Folgt“ und „Nicht vorhanden“. Nach dem Speichern findest du sie direkt in deiner Dokumentenliste.</p>
-        <button type="button" onClick={save} disabled={saving} className="btn-primary mt-5 inline-flex w-full items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Checkliste wird erstellt…' : `${form.type.toUpperCase()}-Checkliste erstellen und speichern`}</button>
+        <button
+          type="button"
+          onClick={download}
+          className="btn-primary mt-5 inline-flex w-full items-center justify-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          {type.toUpperCase()}-Blanko-PDF herunterladen
+        </button>
       </div>
     </div>
   )
