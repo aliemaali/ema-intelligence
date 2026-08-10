@@ -231,7 +231,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
     doc.setFillColor(green)
     doc.rect(0, 28, 210, 2.4, 'F')
     if (logoDataUrl) {
-      doc.setFillColor(255)
+      doc.setFillColor(255, 255, 255)
       doc.roundedRect(157, 3.5, 37, 21, 2, 2, 'F')
       doc.addImage(logoDataUrl, 'JPEG', 160, 5, 31, 18, undefined, 'FAST')
     }
