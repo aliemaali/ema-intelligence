@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AcroFormCheckBox, AcroFormComboBox, AcroFormRadioButton, AcroFormTextField, jsPDF } from 'jspdf'
-import { BatteryCharging, Download, PanelsTopLeft, X } from 'lucide-react'
+import { BatteryCharging, Download, PanelsTopLeft, Share2, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { clearDocumentViewerMarker, markDocumentViewerOpen } from '@/lib/ema/appIntroNavigation'
 
 type ChecklistType = 'pv' | 'bess'
 type Props = { onClose: () => void }
@@ -611,22 +612,86 @@ async function loadHeroDataUrl() {
 
 export function ProjectChecklistGenerator({ onClose }: Props) {
   const [type, setType] = useState<ChecklistType>('pv')
-  const [downloading, setDownloading] = useState(false)
+  const [assets, setAssets] = useState<{ logoDataUrl: string; heroDataUrl: string } | null>(null)
+  const [assetError, setAssetError] = useState<string | null>(null)
+  const [workingAction, setWorkingAction] = useState<'download' | 'share' | null>(null)
 
-  const download = async () => {
-    setDownloading(true)
+  useEffect(() => {
+    let active = true
+
+    Promise.all([loadEmaLogoDataUrl(), loadHeroDataUrl()])
+      .then(([logoDataUrl, heroDataUrl]) => {
+        if (active) setAssets({ logoDataUrl, heroDataUrl })
+      })
+      .catch((error) => {
+        if (!active) return
+        const message = error instanceof Error ? error.message : 'PDF-Dateien konnten nicht vorbereitet werden.'
+        setAssetError(message)
+        toast.error(message)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const preparePdf = () => {
+    if (!assets) throw new Error(assetError ?? 'PDF wird noch vorbereitet. Bitte kurz warten.')
+    const doc = createChecklistPdf(type, assets.logoDataUrl, assets.heroDataUrl)
+    const filename = 'EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf'
+    return { blob: doc.output('blob'), filename }
+  }
+
+  const download = () => {
+    if (workingAction) return
+    setWorkingAction('download')
+
     try {
-      const [logoDataUrl, heroDataUrl] = await Promise.all([
-        loadEmaLogoDataUrl(),
-        loadHeroDataUrl(),
-      ])
-      const doc = createChecklistPdf(type, logoDataUrl, heroDataUrl)
-      doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
-      toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde heruntergeladen.')
+      const { blob, filename } = preparePdf()
+      const blobUrl = URL.createObjectURL(blob)
+      markDocumentViewerOpen()
+
+      const anchor = document.createElement('a')
+      anchor.href = blobUrl
+      anchor.download = filename
+      anchor.rel = 'noopener'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
+      toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde als PDF heruntergeladen.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'PDF konnte nicht erstellt werden.')
     } finally {
-      setDownloading(false)
+      setWorkingAction(null)
+    }
+  }
+
+  const share = async () => {
+    if (workingAction) return
+    setWorkingAction('share')
+
+    try {
+      const { blob, filename } = preparePdf()
+      const file = new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() })
+      const canShareFiles =
+        typeof navigator.share === 'function' &&
+        (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] }))
+
+      if (!canShareFiles) {
+        throw new Error('PDF-Dateien können auf diesem Gerät nicht direkt geteilt werden. Bitte herunterladen und als Datei anhängen.')
+      }
+
+      markDocumentViewerOpen()
+      await navigator.share({ files: [file] })
+      toast.success(type.toUpperCase() + '-PDF wurde als echte Datei zum Teilen geöffnet.')
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      toast.error(error instanceof Error ? error.message : 'PDF konnte nicht geteilt werden.')
+    } finally {
+      setWorkingAction(null)
+      window.setTimeout(clearDocumentViewerMarker, 1500)
     }
   }
 
@@ -677,22 +742,37 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
 
         <div className="mt-5 rounded-2xl border border-[#5CB800]/20 bg-[#5CB800]/5 p-4 text-sm leading-6 text-[#1F2A44]">
           <p>
-            Die PDF selbst enthält echte Textfelder, Auswahllisten und Ankreuzfelder. Sie wird nicht in EMA gespeichert.
+            Die PDF enthält echte Textfelder, Auswahllisten und Ankreuzfelder. Mit „Als Datei teilen“ wird ausschließlich die PDF an WhatsApp, Mail oder AirDrop übergeben – ohne Weblink.
           </p>
           <p className="mt-2 font-bold text-[#2F8A00]">
-            iPhone: Die Safari-Ansicht ist nur eine Vorschau. PDF herunterladen, in „Vorschau“ oder Adobe Acrobat öffnen und dort „Formular ausfüllen“ wählen.
+            Zum digitalen Ausfüllen die heruntergeladene PDF in „Vorschau“ oder Adobe Acrobat öffnen.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={download}
-          disabled={downloading}
-          className="btn-primary mt-5 inline-flex w-full items-center justify-center gap-2"
-        >
-          <Download className="h-4 w-4" />
-          {downloading ? 'PDF wird erstellt…' : type.toUpperCase() + '-PDF ausfüllbar herunterladen'}
-        </button>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={share}
+            disabled={!assets || Boolean(workingAction)}
+            className="btn-primary inline-flex w-full items-center justify-center gap-2"
+          >
+            <Share2 className="h-4 w-4" />
+            {!assets
+              ? 'PDF wird vorbereitet…'
+              : workingAction === 'share'
+                ? 'Teilen wird geöffnet…'
+                : type.toUpperCase() + '-PDF als Datei teilen'}
+          </button>
+          <button
+            type="button"
+            onClick={download}
+            disabled={!assets || Boolean(workingAction)}
+            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-extrabold text-[#1F2A44] transition hover:border-[#5CB800] hover:text-[#2F8A00] disabled:cursor-wait disabled:opacity-60"
+          >
+            <Download className="h-4 w-4" />
+            {workingAction === 'download' ? 'PDF wird erstellt…' : 'PDF herunterladen'}
+          </button>
+        </div>
       </div>
     </div>
   )
