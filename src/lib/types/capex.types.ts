@@ -131,7 +131,7 @@ export interface CapexCalcResult {
   ncfY1: number
   staticPayback: number | null
   years: CapexYearCashflow[]
-  irr: number
+  irr: number | null
   npv: number
   dynPayback: number | null
 }
@@ -149,6 +149,7 @@ export interface ProjectOption {
   location_country?: string | null
   specific_yield?: number | null
   tariff_eur_kwh?: number | null
+  lease_term_years?: number | null
 }
 
 export const WECHSELRICHTER_HERSTELLER = [
@@ -177,7 +178,7 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
     strompreisEurKwh: Number(projectOption?.tariff_eur_kwh ?? 0),
     degradationPct: 0.5,
     betriebskostenPct: 1.5,
-    pachtdauerJahre: 0,
+    pachtdauerJahre: Number(projectOption?.lease_term_years ?? 0),
 
     modulleistungWp: 0,
     preisProModul: 0,
@@ -200,7 +201,7 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
     pachtzahlungProKwp: 0,
     projektrechteProKwp: 0,
 
-    strompreissteigerungPct: 2.0,
+    strompreissteigerungPct: 0,
     waccPct: 6.0,
   }
 }

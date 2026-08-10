@@ -7,6 +7,8 @@
 import { calculateProjectFinancials } from '@/lib/finance/calculate'
 import type { CapexCalcResult, CapexPosition, CapexProject, CapexYearCashflow } from '@/lib/types/capex.types'
 
+export const INVESTOR_OPEX_ESCALATION_PCT = 2
+
 export function calcAll(p: CapexProject): CapexCalcResult {
   const kwp = Number(p.anlagenleistungKwp) || 0
 
@@ -60,7 +62,7 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     ncfY1: 0,
     staticPayback: null,
     years: [{ year: 0, energy: null, price: null, revenue: null, opex: null, ncf: -totalCapex, cum: -totalCapex }],
-    irr: 0,
+    irr: null,
     npv: 0,
     dynPayback: null,
   }
@@ -89,7 +91,7 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     opex_pacht_eur_pa: 0,
     opex_sonstige_eur_pa: 0,
     ruecklage_rueckbau_eur_pa: 0,
-    opex_steigerung_pct_pa: 0,
+    opex_steigerung_pct_pa: INVESTOR_OPEX_ESCALATION_PCT,
     ek_quote_pct: null,
     fk_zins_pct: null,
     fk_laufzeit_jahre: null,
@@ -140,7 +142,10 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     ncfY1: yearOne?.ncf ?? 0,
     staticPayback,
     years,
-    irr: (engineResult.data.irr_projekt_pct ?? 0) / 100,
+    irr:
+      engineResult.data.irr_projekt_pct === null
+        ? null
+        : engineResult.data.irr_projekt_pct / 100,
     npv: engineResult.data.npv_eur,
     dynPayback: engineResult.data.payback_jahre,
   }
