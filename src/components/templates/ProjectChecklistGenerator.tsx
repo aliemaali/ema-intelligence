@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AcroFormCheckBox, AcroFormComboBox, AcroFormTextField, jsPDF } from 'jspdf'
+import { AcroFormCheckBox, AcroFormComboBox, AcroFormRadioButton, AcroFormTextField, jsPDF } from 'jspdf'
 import { BatteryCharging, Download, PanelsTopLeft, X } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -332,17 +332,19 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
       ['folgt', 'Folgt', 139],
       ['nein', 'Nicht vorhanden', 162],
     ] as const
+    const group = new AcroFormRadioButton()
+    group.fieldName = row.name
+    doc.addField(group)
+
     for (const [value, label, x] of choices) {
-      const box = new AcroFormCheckBox()
-      box.fieldName = row.name + '_' + value
-      box.x = x
-      box.y = y
-      box.width = 4.2
-      box.height = 4.2
-      box.appearanceState = 'Off'
-      doc.addField(box)
+      const option = group.createOption(value)
+      option.x = x
+      option.y = y
+      option.width = 4.2
+      option.height = 4.2
+      option.appearanceState = 'Off'
       doc.setDrawColor(92, 184, 0)
-      doc.rect(x, y, 4.2, 4.2, 'S')
+      doc.circle(x + 2.1, y + 2.1, 2.1, 'S')
       doc.setFontSize(7)
       doc.text(label, x + 5.5, y + 3.5)
     }
@@ -403,21 +405,23 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
     doc.setFontSize(8.2)
     doc.text(doc.splitTextToSize(row.label, 165), 18, y + 4.5)
 
+    const group = new AcroFormRadioButton()
+    group.fieldName = row.name
+    doc.addField(group)
+
     row.options.forEach((option, index) => {
       const x = 83 + index * (tileWidth + tileGap)
       doc.setDrawColor(green)
       doc.setLineWidth(0.35)
       doc.roundedRect(x, tileY, tileWidth, tileHeight, 2, 2, 'S')
 
-      const box = new AcroFormCheckBox()
-      box.fieldName = row.name + '_' + option.value
-      box.x = x + 3
-      box.y = tileY + 3
-      box.width = 4.5
-      box.height = 4.5
-      box.appearanceState = 'Off'
-      doc.addField(box)
-      doc.rect(x + 3, tileY + 3, 4.5, 4.5, 'S')
+      const field = group.createOption(option.value)
+      field.x = x + 3
+      field.y = tileY + 3
+      field.width = 4.5
+      field.height = 4.5
+      field.appearanceState = 'Off'
+      doc.circle(x + 5.25, tileY + 5.25, 2.25, 'S')
 
       doc.setTextColor(navy)
       doc.setFont('helvetica', 'bold')
