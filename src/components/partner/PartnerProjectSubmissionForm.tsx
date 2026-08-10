@@ -5,6 +5,8 @@ import { ChangeEvent, FormEvent, useMemo, useState } from 'react'
 import { CheckCircle2, FileText, Loader2, Trash2, UploadCloud } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { PartnerProjectTypeSelector, PartnerTechnicalChecklistForm } from './PartnerTechnicalChecklist'
+import { buildTechnicalChecklist } from '@/lib/partner-submission-checklist'
 
 const PartnerLocationMap = dynamic(
   () => import('./PartnerLocationMap').then((module) => module.PartnerLocationMap),
@@ -52,6 +54,7 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
   const [position, setPosition] = useState<Position | null>(null)
   const [locationCity, setLocationCity] = useState('')
   const [locationState, setLocationState] = useState('')
+  const [projectType, setProjectType] = useState('pv_freiflaeche')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -85,13 +88,28 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
     const projectName = String(form.get('project_name') ?? '').trim()
     const remunerationModel = String(form.get('remuneration_model') ?? '')
     const remunerationCtKwh = numberOrNull(form.get('remuneration_ct_kwh'))
+    const includesPv = projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid'
+    const includesBess = projectType === 'bess' || projectType === 'hybrid'
+    const pvKwp = numberOrNull(form.get('pv_kwp'))
+    const bessMw = numberOrNull(form.get('bess_mw'))
+    const bessMwh = numberOrNull(form.get('bess_mwh'))
 
     if (!projectName || !locationCity || !locationState || !position) {
       setError('Bitte Projektname, Stadt und Bundesland ausfüllen. Der Projektstandort muss auf der Karte angezeigt werden.')
       setSubmitting(false)
       return
     }
-    if (!remunerationModel || remunerationCtKwh === null) {
+    if (includesPv && (!pvKwp || pvKwp <= 0)) {
+      setError('Bitte die geplante PV-Leistung angeben.')
+      setSubmitting(false)
+      return
+    }
+    if (includesBess && ((!bessMw || bessMw <= 0) || (!bessMwh || bessMwh <= 0))) {
+      setError('Bitte BESS-Leistung und BESS-Kapazität vollständig angeben.')
+      setSubmitting(false)
+      return
+    }
+    if (includesPv && (!remunerationModel || remunerationCtKwh === null)) {
       setError('Bitte Einspeiseart und Vergütung vollständig angeben.')
       setSubmitting(false)
       return
@@ -112,18 +130,19 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
         id: submissionId,
         partner_user_id: userId,
         project_name: projectName,
-        project_type: String(form.get('project_type') ?? 'pv_freiflaeche'),
+        project_type: projectType,
         location_address: String(form.get('location_address') ?? '').trim() || null,
         location_city: locationCity.trim(),
         location_state: locationState,
         location_lat: position.lat,
         location_lng: position.lng,
-        pv_kwp: numberOrNull(form.get('pv_kwp')),
-        bess_mw: numberOrNull(form.get('bess_mw')),
-        bess_mwh: numberOrNull(form.get('bess_mwh')),
-        remuneration_model: remunerationModel,
-        remuneration_ct_kwh: remunerationCtKwh,
-        ppa_term_years: remunerationModel === 'ppa' ? numberOrNull(form.get('ppa_term_years')) : null,
+        pv_kwp: includesPv ? pvKwp : null,
+        bess_mw: includesBess ? bessMw : null,
+        bess_mwh: includesBess ? bessMwh : null,
+        remuneration_model: includesPv ? remunerationModel : null,
+        remuneration_ct_kwh: includesPv ? remunerationCtKwh : null,
+        ppa_term_years: includesPv && remunerationModel === 'ppa' ? numberOrNull(form.get('ppa_term_years')) : null,
+        technical_checklist: buildTechnicalChecklist(form, projectType),
         contact_name: String(form.get('contact_name') ?? '').trim() || null,
         contact_email: String(form.get('contact_email') ?? '').trim() || null,
         contact_phone: String(form.get('contact_phone') ?? '').trim() || null,
@@ -144,6 +163,7 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
       setPosition(null)
       setLocationCity('')
       setLocationState('')
+      setProjectType('pv_freiflaeche')
       setSuccess(true)
       router.refresh()
     } catch (caught) {
@@ -160,22 +180,25 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
       {success && <div className="flex items-start gap-3 rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/10 p-4 text-sm font-semibold text-[#2F8A00]"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />Das Projekt wurde sicher an EMA Enterprise übermittelt.</div>}
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
+      <PartnerProjectTypeSelector value={projectType} onChange={setProjectType} />
+
       <section className="rounded-[1.75rem] bg-white p-5 shadow-sm sm:p-7">
-        <h2 className="text-xl font-extrabold text-[#1F2A44]">Projektdaten und Standort</h2>
+        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">Schritt 2</p>
+        <h2 className="mt-2 text-xl font-extrabold text-[#1F2A44]">Projektdaten und Standort</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><span className="text-sm font-bold">Projektname *</span><input name="project_name" required className={inputClass} /></label>
-          <label><span className="text-sm font-bold">Projektart *</span><select name="project_type" className={inputClass}><option value="pv_freiflaeche">PV-Freifläche</option><option value="pv_dach">PV-Dach</option><option value="bess">BESS</option><option value="hybrid">Hybrid</option></select></label>
           <label><span className="text-sm font-bold">Stadt *</span><input name="location_city" required value={locationCity} onChange={(event) => { setLocationCity(event.target.value); setPosition(null) }} className={inputClass} /></label>
           <label><span className="text-sm font-bold">Adresse</span><input name="location_address" className={inputClass} /></label>
           <label><span className="text-sm font-bold">Bundesland *</span><select name="location_state" required value={locationState} onChange={(event) => { setLocationState(event.target.value); setPosition(null) }} className={inputClass}><option value="">Bitte auswählen</option>{FEDERAL_STATES.map((state) => <option key={state} value={state}>{state}</option>)}</select></label>
-          <label><span className="text-sm font-bold">PV-Leistung (kWp)</span><input name="pv_kwp" inputMode="decimal" className={inputClass} /></label>
-          <label><span className="text-sm font-bold">BESS-Leistung (MW)</span><input name="bess_mw" inputMode="decimal" className={inputClass} /></label>
-          <label><span className="text-sm font-bold">BESS-Kapazität (MWh)</span><input name="bess_mwh" inputMode="decimal" className={inputClass} /></label>
+          {(projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid') && <label><span className="text-sm font-bold">PV-Leistung (kWp) *</span><input name="pv_kwp" required inputMode="decimal" className={inputClass} /></label>}
+          {(projectType === 'bess' || projectType === 'hybrid') && <><label><span className="text-sm font-bold">BESS-Leistung (MW) *</span><input name="bess_mw" required inputMode="decimal" className={inputClass} /></label><label><span className="text-sm font-bold">BESS-Kapazität (MWh) *</span><input name="bess_mwh" required inputMode="decimal" className={inputClass} /></label></>}
           <div className="sm:col-span-2"><PartnerLocationMap value={position} city={locationCity} state={locationState} onChange={setPosition} /></div>
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] bg-white p-5 shadow-sm sm:p-7">
+      <PartnerTechnicalChecklistForm projectType={projectType} />
+
+      {projectType !== 'bess' && <section className="rounded-[1.75rem] bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-xl font-extrabold text-[#1F2A44]">EEG / Vermarktung</h2>
         <p className="mt-1 text-sm text-slate-500">Einspeiseart und tatsächlich vereinbarte Vergütung erfassen.</p>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -183,7 +206,7 @@ export function PartnerProjectSubmissionForm({ userId }: { userId: string }) {
           <label><span className="text-sm font-bold">Vergütung (ct/kWh) *</span><input name="remuneration_ct_kwh" required inputMode="decimal" placeholder="z. B. 6,20" className={inputClass} /></label>
           <label className="sm:col-span-2"><span className="text-sm font-bold">PPA-Laufzeit (Jahre, nur bei PPA)</span><input name="ppa_term_years" inputMode="numeric" className={inputClass} /></label>
         </div>
-      </section>
+      </section>}
 
       <section className="rounded-[1.75rem] bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-xl font-extrabold text-[#1F2A44]">Ansprechpartner</h2>
