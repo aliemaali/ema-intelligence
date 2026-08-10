@@ -44,35 +44,67 @@ function resolveVerguetungEurKwh(input: ProjectFinancialInput): number | null {
 }
 
 /**
- * Portierung der Newton-Raphson-IRR aus dem bisherigen CAPEX-Rechner.
- * Startwert, Iterationsanzahl und Abbruchgrenzen bleiben unverändert.
+ * Robuste Projekt-IRR für konventionelle Cashflows mit genau einem
+ * Vorzeichenwechsel. Mehrdeutige oder nicht vorhandene IRRs werden nicht als
+ * scheinbar valide Prozentzahl ausgegeben.
  */
-export function calculateIrr(cashflows: number[]): number {
-  const irrFunc = (rate: number): number =>
-    cashflows.reduce((sum, cashflow, index) => sum + cashflow / Math.pow(1 + rate, index), 0)
+export function calculateIrr(cashflows: number[]): number | null {
+  const nonZeroCashflows = cashflows.filter((cashflow) => Math.abs(cashflow) > 1e-9)
+  let signChanges = 0
 
-  const irrDeriv = (rate: number): number =>
+  for (let index = 1; index < nonZeroCashflows.length; index += 1) {
+    if (Math.sign(nonZeroCashflows[index]) !== Math.sign(nonZeroCashflows[index - 1])) {
+      signChanges += 1
+    }
+  }
+
+  // Ohne genau einen Vorzeichenwechsel ist keine eindeutige Projekt-IRR definiert.
+  if (signChanges !== 1) return null
+
+  const npvAt = (rate: number): number =>
     cashflows.reduce(
-      (sum, cashflow, index) =>
-        sum - (index * cashflow) / Math.pow(1 + rate, index + 1),
+      (sum, cashflow, index) => sum + cashflow / Math.pow(1 + rate, index),
       0
     )
 
-  let irr = 0.1
-  for (let index = 0; index < 100; index += 1) {
-    const value = irrFunc(irr)
-    const derivative = irrDeriv(irr)
-    if (Math.abs(derivative) < 1e-9) break
+  let lower = -0.999999
+  let upper = 1
+  let lowerValue = npvAt(lower)
+  let upperValue = npvAt(upper)
 
-    const next = irr - value / derivative
-    if (Math.abs(next - irr) < 1e-7) {
-      irr = next
-      break
-    }
-    irr = next
+  // Sehr profitable Projekte können eine IRR von über 100 % haben. Die obere
+  // Grenze wird kontrolliert erweitert, statt einen unkonvergierten Newton-Wert
+  // als vermeintliches Ergebnis auszugeben.
+  while (Math.sign(lowerValue) === Math.sign(upperValue) && upper < 1_000_000) {
+    upper *= 2
+    upperValue = npvAt(upper)
   }
 
-  return Number.isFinite(irr) ? irr : 0
+  if (
+    !Number.isFinite(lowerValue) ||
+    !Number.isFinite(upperValue) ||
+    Math.sign(lowerValue) === Math.sign(upperValue)
+  ) {
+    return null
+  }
+
+  for (let index = 0; index < 200; index += 1) {
+    const middle = (lower + upper) / 2
+    const middleValue = npvAt(middle)
+
+    if (!Number.isFinite(middleValue)) return null
+    if (Math.abs(middleValue) < 0.01 || Math.abs(upper - lower) < 1e-10) return middle
+
+    if (Math.sign(middleValue) === Math.sign(lowerValue)) {
+      lower = middle
+      lowerValue = middleValue
+    } else {
+      upper = middle
+      upperValue = middleValue
+    }
+  }
+
+  return (lower + upper) / 2
 }
 
 export function calculateProjectFinancials(input: ProjectFinancialInput): CalculationResult {
@@ -102,7 +134,25 @@ export function calculateProjectFinancials(input: ProjectFinancialInput): Calcul
   const diskontsatz = (input.diskontsatz_pct as number) / 100
 
   if (leistungKwp <= 0) return { ok: false, errors: ['leistung_kwp muss größer als 0 sein'] }
+  if (spezErtrag <= 0) return { ok: false, errors: ['spez_ertrag_kwh_kwp muss größer als 0 sein'] }
   if (yearsCount <= 0) return { ok: false, errors: ['betrachtungszeitraum_jahre muss größer als 0 sein'] }
+  if (verguetungsdauer < 0) return { ok: false, errors: ['verguetungsdauer_jahre darf nicht negativ sein'] }
+  if (degradation < 0 || degradation >= 1) {
+    return { ok: false, errors: ['degradation_pct_pa muss zwischen 0 und unter 100 liegen'] }
+  }
+  if (priceGrowth <= -1) {
+    return { ok: false, errors: ['strompreissteigerung_pct_pa muss größer als -100 sein'] }
+  }
+  if (diskontsatz <= -1) {
+    return { ok: false, errors: ['diskontsatz_pct muss größer als -100 sein'] }
+  }
+
+  const invalidCapexPosition = input.capex_positions.find(
+    (position) => !isFiniteNumber(position.betrag_eur) || position.betrag_eur < 0
+  )
+  if (invalidCapexPosition) {
+    return { ok: false, errors: [`Ungültige CAPEX-Position: ${invalidCapexPosition.bezeichnung}`] }
+  }
 
   const capex = input.capex_positions.reduce(
     (sum, position) => sum + (isFiniteNumber(position.betrag_eur) ? position.betrag_eur : 0),
@@ -120,6 +170,10 @@ export function calculateProjectFinancials(input: ProjectFinancialInput): Calcul
     input.ruecklage_rueckbau_eur_pa,
   ])
   const opexGrowth = (input.opex_steigerung_pct_pa ?? 0) / 100
+  if (opexYearOne < 0) return { ok: false, errors: ['OPEX darf nicht negativ sein'] }
+  if (opexGrowth <= -1) {
+    return { ok: false, errors: ['opex_steigerung_pct_pa muss größer als -100 sein'] }
+  }
 
   const cashflows: number[] = [-capex]
   const cashflowReihe: CashflowJahr[] = [
@@ -180,9 +234,15 @@ export function calculateProjectFinancials(input: ProjectFinancialInput): Calcul
   )
 
   let payback: number | null = null
-  for (const row of cashflowReihe) {
-    if (row.kumulierter_cashflow_eur >= 0) {
-      payback = row.jahr
+  let discountedCumulative = -capex
+  for (let year = 1; year < cashflows.length; year += 1) {
+    const discountedCashflow = cashflows[year] / Math.pow(1 + diskontsatz, year)
+    const previousCumulative = discountedCumulative
+    discountedCumulative += discountedCashflow
+
+    if (discountedCumulative >= 0 && discountedCashflow > 0) {
+      const fractionOfYear = -previousCumulative / discountedCashflow
+      payback = year - 1 + fractionOfYear
       break
     }
   }
@@ -192,7 +252,7 @@ export function calculateProjectFinancials(input: ProjectFinancialInput): Calcul
     data: {
       capex_gesamt_eur: capex,
       capex_eur_pro_kwp: capex / leistungKwp,
-      irr_projekt_pct: irr * 100,
+      irr_projekt_pct: irr === null ? null : irr * 100,
       irr_ek_pct: null,
       npv_eur: npv,
       payback_jahre: payback,

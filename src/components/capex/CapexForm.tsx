@@ -4,6 +4,8 @@
 import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
 import { WECHSELRICHTER_HERSTELLER, UNTERKONSTRUKTION_HERSTELLER } from '@/lib/types/capex.types'
 import { eur, eurKwp, pct, num } from '@/lib/capex/format'
+import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
+import { CapexVisualDashboard } from './CapexVisualDashboard'
 import {
   SectionHeader,
   Field,
@@ -34,13 +36,19 @@ export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: Ca
         <KpiCard label="Spez. Kosten" value={eurKwp(calc.specificCapex)} />
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
-        <KpiCard label="IRR (20J)" value={pct(calc.irr)} accent="#5CB800" />
+        <KpiCard label="Projekt-IRR (20J)" value={pct(calc.irr)} accent="#5CB800" />
         <KpiCard
-          label="Payback (statisch)"
-          value={calc.staticPayback ? num(calc.staticPayback, 1) + ' J.' : '–'}
+          label="Payback (diskontiert)"
+          value={calc.dynPayback !== null ? num(calc.dynPayback, 1) + ' J.' : '–'}
         />
         <KpiCard label="NPV @ WACC" value={eur(calc.npv)} />
       </div>
+      <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs leading-5 text-slate-600">
+        <strong className="text-[#1F2A44]">Investor-Basis:</strong> Projekt-IRR vor Steuern und
+        Finanzierung, diskontierter Payback, {INVESTOR_OPEX_ESCALATION_PCT.toLocaleString('de-DE')} %
+        OPEX-Steigerung p.a., kein Restwert. Für EEG ist die Erlössteigerung mit 0 % anzusetzen.
+      </div>
+      <CapexVisualDashboard calc={calc} />
 
       {/* Projektparameter */}
       <SectionHeader>Projektparameter</SectionHeader>
@@ -57,7 +65,7 @@ export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: Ca
         <NumInput value={project.strompreisEurKwh} onChange={(v) => set('strompreisEurKwh', Number(v))} step="0.0001" suffix="€/kWh" />
       </Field>
       <Field label="Jährliche Degradation Ertrag (%)">
-        <NumInput value={project.degradationPct} onChange={(v) => set('degradationPct', Number(v))} step="0.1" suffix="%" />
+        <NumInput value={project.degradationPct} onChange={(v) => set('degradationPct', Number(v))} step="0.1" max="99.9" suffix="%" />
       </Field>
       <Field label="Betriebskosten p.a. (% von CAPEX)">
         <NumInput value={project.betriebskostenPct} onChange={(v) => set('betriebskostenPct', Number(v))} step="0.1" suffix="%" />
@@ -156,9 +164,16 @@ export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: Ca
 
       {/* Cashflow-Annahmen */}
       <SectionHeader>Cashflow-Annahmen (20 Jahre)</SectionHeader>
-      <Field label="Jährliche Strompreissteigerung (%)">
-        <NumInput value={project.strompreissteigerungPct} onChange={(v) => set('strompreissteigerungPct', Number(v))} step="0.1" suffix="%" />
+      <Field
+        label="Jährliche Erlössteigerung (%)"
+        hint="EEG: 0 %. Bei PPA oder Direktvermarktung nur eine vertraglich bzw. konservativ begründete Annahme eintragen."
+      >
+        <NumInput value={project.strompreissteigerungPct} onChange={(v) => set('strompreissteigerungPct', Number(v))} step="0.1" min="-99.9" suffix="%" />
       </Field>
+      <InfoLine>
+        Laufende Betriebskosten steigen im Investor-Basisfall jährlich um{' '}
+        <strong>{INVESTOR_OPEX_ESCALATION_PCT.toLocaleString('de-DE')} %</strong>.
+      </InfoLine>
       <Field label="Diskontierungszinssatz / WACC (%)">
         <NumInput value={project.waccPct} onChange={(v) => set('waccPct', Number(v))} step="0.1" suffix="%" />
       </Field>

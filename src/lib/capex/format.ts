@@ -9,7 +9,9 @@ export const eurKwp = (v: number | null | undefined): string =>
   (v ?? 0).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €/kWp'
 
 export const pct = (v: number | null | undefined): string =>
-  ((v ?? 0) * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %'
+  v == null
+    ? '–'
+    : (v * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' %'
 
 export const pct1 = pct
 

@@ -4,6 +4,7 @@
 import { useRef, type CSSProperties } from 'react'
 import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
 import { eur, eurKwp, pct1, num } from '@/lib/capex/format'
+import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
 
 const E_NAVY = '#0B2545'
 const E_GREEN = '#5CB800'
@@ -289,8 +290,8 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                 {[
                   [num(project.anlagenleistungKwp) + ' kWp', 'Anlagenleistung'],
                   [eur(calc.totalCapex), 'Investitionsvolumen'],
-                  [pct1(calc.irr), 'Erwartete IRR'],
-                  [calc.staticPayback ? num(calc.staticPayback, 1) + ' J.' : '–', 'Payback'],
+                  [pct1(calc.irr), 'Projekt-IRR vor Steuern'],
+                  [calc.dynPayback !== null ? num(calc.dynPayback, 1) + ' J.' : '–', 'Payback diskontiert'],
                 ].map(([v, l], i) => (
                   <div key={i} className="flex-1">
                     <div className="text-[16px] font-extrabold">{v}</div>
@@ -321,15 +322,16 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
               {num(project.anlagenleistungKwp)} kWp. Bei einem spezifischen Jahresertrag von{' '}
               {num(project.spezErtragKwhKwp)} kWh/kWp und einer angenommenen jährlichen
               Modul-Degradation von {num(project.degradationPct, 1)} % erzielt die Anlage über die
-              betrachtete Laufzeit von {num(project.pachtdauerJahre)} Jahren stabile Erträge. Der
-              Strompreis beträgt{' '}
+              betrachtete Laufzeit von 20 Jahren Erträge. Der Strompreis beträgt{' '}
               {Number(project.strompreisEurKwh).toLocaleString('de-DE', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 4,
               })}{' '}
               EUR/kWh mit einer jährlichen Steigerung von {num(project.strompreissteigerungPct, 1)}{' '}
-              %. Betriebskosten: {num(project.betriebskostenPct, 1)} % p.a. · WACC:{' '}
-              {num(project.waccPct, 1)} %.
+              %. Betriebskosten im Jahr 1: {num(project.betriebskostenPct, 1)} % des CAPEX,
+              anschließend +{num(INVESTOR_OPEX_ESCALATION_PCT, 1)} % p.a. · WACC:{' '}
+              {num(project.waccPct, 1)} %
+              {project.pachtdauerJahre > 0 ? ` · Pachtdauer: ${num(project.pachtdauerJahre)} Jahre.` : '.'}
             </p>
 
             <h2 className="mb-1 mt-2.5 text-[11.5px] font-extrabold" style={{ color: E_NAVY }}>
@@ -341,11 +343,11 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
             >
               <EKpi value={eur(calc.totalCapex)} label="Gesamt-CAPEX" />
               <EKpi value={eurKwp(calc.specificCapex)} label="Spez. Investkosten" />
-              <EKpi value={pct1(calc.irr)} label="IRR" />
+              <EKpi value={pct1(calc.irr)} label="Projekt-IRR vor Steuern" />
               <EKpi value={eur(calc.npv)} label={`NPV @ ${num(project.waccPct, 1)}% WACC`} />
               <EKpi
-                value={calc.staticPayback ? num(calc.staticPayback, 1) + ' Jahre' : '–'}
-                label="Statischer Payback"
+                value={calc.dynPayback !== null ? num(calc.dynPayback, 1) + ' Jahre' : '–'}
+                label="Payback diskontiert"
               />
             </div>
 
@@ -413,7 +415,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
             <p className="mb-2 text-[9.5px] leading-relaxed">
               Projektion der jährlichen freien Cashflows über {calc.years.length - 1} Jahre,
               basierend auf Energieertrag, Strompreisentwicklung und laufenden Betriebskosten.
-              Steuer- und Abschreibungseffekte sind nicht enthalten.
+              Steuer-, Finanzierungs- und Abschreibungseffekte sowie ein Restwert sind nicht enthalten.
             </p>
 
             <h2 className="mb-1 mt-2.5 text-[11.5px] font-extrabold" style={{ color: E_NAVY }}>
@@ -433,7 +435,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
               head={['Kennzahl', 'Wert', 'Erläuterung']}
               rows={[
                 ['Gesamt-CAPEX', eur(calc.totalCapex), 'Gesamtinvestition zum Projektstart (Jahr 0)'],
-                ['IRR', pct1(calc.irr), 'Interner Zinsfuß über die Projektlaufzeit'],
+                ['Projekt-IRR', pct1(calc.irr), 'Interner Zinsfuß vor Steuern und Finanzierung'],
                 ['NPV (Kapitalwert)', eur(calc.npv), `Bei WACC = ${num(project.waccPct, 1)} %`],
                 [
                   'Statischer Payback',
@@ -442,8 +444,8 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                 ],
                 [
                   'Dynamischer Payback',
-                  calc.dynPayback !== null ? calc.dynPayback + ' Jahre' : '–',
-                  'Amortisation unter Berücksichtigung der jährlichen Cashflow-Entwicklung',
+                  calc.dynPayback !== null ? num(calc.dynPayback, 1) + ' Jahre' : '–',
+                  `Diskontierte Amortisation bei ${num(project.waccPct, 1)} % WACC`,
                 ],
                 ['CF Jahr 1', eur(calc.years[1].ncf), 'Freier Cashflow im ersten Betriebsjahr'],
                 [
@@ -465,7 +467,8 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                 maximumFractionDigits: 4,
               })}{' '}
               EUR/kWh mit {num(project.strompreissteigerungPct, 1)} % jährlicher Steigerung,
-              Betriebskosten {num(project.betriebskostenPct, 1)} % der Investitionssumme p.a.,
+              Betriebskosten {num(project.betriebskostenPct, 1)} % der Investitionssumme im Jahr 1
+              mit {num(INVESTOR_OPEX_ESCALATION_PCT, 1)} % jährlicher Steigerung,
               WACC {num(project.waccPct, 1)} %.
             </p>
 

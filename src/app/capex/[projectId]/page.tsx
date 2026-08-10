@@ -26,14 +26,14 @@ export default async function CapexProjectPage({ params }: PageProps) {
   const supabase = await createClient()
   const { data: projectRow, error } = await supabase
     .from('projects')
-    .select('id, project_name, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country, ai_score_details')
+    .select('id, project_name, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country, specific_yield_kwh_kwp, feed_in_tariff_ct_kwh, lease_term_years, ai_score_details')
     .eq('id', projectId)
     .single()
 
   if (error || !projectRow) notFound()
 
   const emaAi = (projectRow.ai_score_details as any)?.ema_ai ?? {}
-  const storedTariff = firstPositive(emaAi.tariff)
+  const storedTariff = firstPositive(emaAi.tariff, projectRow.feed_in_tariff_ct_kwh)
   const tariffEurKwh = storedTariff && storedTariff > 1 ? storedTariff / 100 : storedTariff
 
   const projectOption: ProjectOption = {
@@ -47,8 +47,9 @@ export default async function CapexProjectPage({ params }: PageProps) {
     location_city: projectRow.location_city,
     location_state: projectRow.location_state,
     location_country: projectRow.location_country,
-    specific_yield: firstPositive(emaAi.specific_yield),
+    specific_yield: firstPositive(emaAi.specific_yield, projectRow.specific_yield_kwh_kwp),
     tariff_eur_kwh: tariffEurKwh,
+    lease_term_years: firstPositive(projectRow.lease_term_years),
   }
 
   const calculations = await getCapexCalculationsForProject(projectId)
