@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { consumeDocumentViewerReturn } from '@/lib/ema/appIntroNavigation'
 
@@ -26,6 +27,7 @@ function getIntroStorageKey() {
 }
 
 export function AppIntro() {
+  const pathname = usePathname()
   const [phase, setPhase] = useState<IntroPhase>('checking')
   const [useFallbackAnimation, setUseFallbackAnimation] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -133,7 +135,7 @@ export function AppIntro() {
     }
   }, [finishIntro, phase])
 
-  if (phase === 'done') return null
+  if (pathname === '/projekt-checkliste' || phase === 'done') return null
 
   return (
     <div
