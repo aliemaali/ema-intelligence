@@ -10,7 +10,15 @@ type Props = { onClose: () => void }
 type TextRow = { label: string; name: string; value?: string; multiline?: boolean; kind?: 'text' }
 type SelectRow = { label: string; name: string; kind: 'select'; options: string[] }
 type StatusRow = { label: string; name: string; kind: 'status' }
-type Row = TextRow | SelectRow | StatusRow
+type TileIcon = 'ground' | 'roof' | 'rights' | 'epc'
+type TileOption = {
+  label: string
+  value: string
+  icon: TileIcon
+  detailField?: { label: string; name: string }
+}
+type TileRow = { label: string; name: string; kind: 'tiles'; options: TileOption[] }
+type Row = TextRow | SelectRow | StatusRow | TileRow
 type Section = { title: string; rows: Row[] }
 
 const navy = '#0B1633'
@@ -22,9 +30,34 @@ const commonSections: Section[] = [
   {
     title: '1 · Projekt und Standort',
     rows: [
-      { label: 'Projektname / Referenz', name: 'projekt_name' },
       { label: 'Adresse / Gemarkung / Flurstück', name: 'standort_adresse' },
-      { label: 'PLZ, Ort, Bundesland', name: 'standort_ort' },
+      { label: 'PLZ', name: 'standort_plz' },
+      { label: 'Ort', name: 'standort_ort' },
+      {
+        label: 'Bundesland',
+        name: 'standort_bundesland',
+        kind: 'select',
+        options: [
+          choose,
+          'Baden-Württemberg',
+          'Bayern',
+          'Berlin',
+          'Brandenburg',
+          'Bremen',
+          'Hamburg',
+          'Hessen',
+          'Mecklenburg-Vorpommern',
+          'Niedersachsen',
+          'Nordrhein-Westfalen',
+          'Rheinland-Pfalz',
+          'Saarland',
+          'Sachsen',
+          'Sachsen-Anhalt',
+          'Schleswig-Holstein',
+          'Thüringen',
+          'Außerhalb Deutschlands',
+        ],
+      },
       {
         label: 'Projektstatus',
         name: 'projekt_status',
@@ -32,12 +65,6 @@ const commonSections: Section[] = [
         options: [choose, 'In Entwicklung', 'RTB', 'Im Betrieb'],
       },
       { label: 'Geplante Inbetriebnahme', name: 'projekt_inbetriebnahme' },
-      {
-        label: 'Exklusivität / Vermarktungsrecht',
-        name: 'projekt_exklusivitaet',
-        kind: 'select',
-        options: [choose, 'Ja', 'Nein', 'In Klärung'],
-      },
     ],
   },
 ]
@@ -47,13 +74,20 @@ const pvSections: Section[] = [
     title: '2 · PV-Kerndaten',
     rows: [
       {
-        label: 'Anlagentyp',
+        label: 'Anlagentyp · bitte eine Option ankreuzen',
         name: 'pv_anlagentyp',
-        kind: 'select',
-        options: [choose, 'Freifläche', 'Dachanlage', 'Agri-PV', 'Sonstiges'],
+        kind: 'tiles',
+        options: [
+          {
+            label: 'Freifläche',
+            value: 'freiflaeche',
+            icon: 'ground',
+            detailField: { label: 'Fläche (ha / m²)', name: 'pv_flaeche' },
+          },
+          { label: 'Dachanlage', value: 'dachanlage', icon: 'roof' },
+        ],
       },
       { label: 'PV-Leistung DC (kWp / MWp)', name: 'pv_leistung_dc' },
-      { label: 'Verfügbare Fläche (ha / m²)', name: 'pv_flaeche' },
       {
         label: 'Flächensicherung',
         name: 'pv_flaechensicherung',
@@ -76,12 +110,6 @@ const pvSections: Section[] = [
       },
       { label: 'Zugesagte Leistung / Netzanschlusskosten', name: 'pv_netzzusage' },
       {
-        label: 'Planungsrecht',
-        name: 'pv_planungsrecht',
-        kind: 'select',
-        options: [choose, 'Nicht begonnen', 'In Bearbeitung', 'Gesichert', 'Nicht erforderlich'],
-      },
-      {
         label: 'Baugenehmigung',
         name: 'pv_baugenehmigung',
         kind: 'select',
@@ -92,6 +120,15 @@ const pvSections: Section[] = [
   {
     title: '4 · Ertrag und Kaufpreis',
     rows: [
+      {
+        label: 'Angebotsumfang · bitte eine Option ankreuzen',
+        name: 'pv_angebotsumfang',
+        kind: 'tiles',
+        options: [
+          { label: 'Nur Projektrechte', value: 'projektrechte', icon: 'rights' },
+          { label: 'Schlüsselfertig (Full EPC)', value: 'full_epc', icon: 'epc' },
+        ],
+      },
       { label: 'Spezifischer Ertrag (kWh/kWp)', name: 'pv_spez_ertrag' },
       { label: 'Jahresproduktion (kWh / MWh)', name: 'pv_jahresproduktion' },
       {
@@ -183,14 +220,9 @@ const bessSections: Section[] = [
 
 const documentRows: Record<ChecklistType, StatusRow[]> = {
   pv: [
-    'Exposé / Projektbeschreibung',
-    'Lageplan / Katasterkarte',
-    'Flächensicherungsvertrag',
+    'PV*SOL',
     'Netzanfrage / Netzzusage',
     'Genehmigungsunterlagen',
-    'Ertragsgutachten / PV*SOL',
-    'Technisches Layout',
-    'Kaufpreisaufstellung',
   ].map((label, index) => ({ label, name: 'pv_dokument_' + (index + 1), kind: 'status' as const })),
   bess: [
     'Exposé / Projektbeschreibung',
@@ -317,10 +349,115 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
     y += 9
   }
 
+  const drawTileIcon = (icon: TileIcon, x: number, top: number) => {
+    doc.setDrawColor(green)
+    doc.setLineWidth(0.55)
+
+    if (icon === 'ground') {
+      doc.circle(x + 18, top + 2, 1.8, 'S')
+      doc.rect(x + 3, top + 5, 10, 5.5, 'S')
+      doc.line(x + 8, top + 10.5, x + 8, top + 14)
+      doc.line(x + 5, top + 14, x + 11, top + 14)
+      doc.line(x + 6.3, top + 5, x + 6.3, top + 10.5)
+      doc.line(x + 9.7, top + 5, x + 9.7, top + 10.5)
+      doc.line(x + 3, top + 7.8, x + 13, top + 7.8)
+      return
+    }
+
+    if (icon === 'roof') {
+      doc.line(x + 2, top + 8, x + 10, top + 2)
+      doc.line(x + 10, top + 2, x + 19, top + 8)
+      doc.line(x + 4, top + 7, x + 4, top + 14)
+      doc.line(x + 17, top + 7, x + 17, top + 14)
+      doc.line(x + 4, top + 14, x + 17, top + 14)
+      doc.rect(x + 7, top + 5.2, 7, 4.5, 'S')
+      doc.line(x + 10.5, top + 5.2, x + 10.5, top + 9.7)
+      return
+    }
+
+    if (icon === 'rights') {
+      doc.roundedRect(x + 5, top + 1, 11, 14, 1, 1, 'S')
+      doc.line(x + 8, top + 5, x + 13, top + 5)
+      doc.line(x + 8, top + 8, x + 13, top + 8)
+      doc.line(x + 8, top + 11, x + 11, top + 11)
+      return
+    }
+
+    doc.rect(x + 3, top + 5, 10, 7, 'S')
+    doc.line(x + 6.3, top + 5, x + 6.3, top + 12)
+    doc.line(x + 9.7, top + 5, x + 9.7, top + 12)
+    doc.line(x + 3, top + 8.5, x + 13, top + 8.5)
+    doc.line(x + 15, top + 10, x + 17, top + 12)
+    doc.line(x + 17, top + 12, x + 21, top + 6)
+  }
+
+  const addTileField = (row: TileRow) => {
+    const hasDetail = row.options.some((option) => Boolean(option.detailField))
+    const tileHeight = hasDetail ? 38 : 29
+    const tileY = y + 7
+    const tileWidth = 52.5
+    const tileGap = 4
+
+    doc.setTextColor(textColor)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.2)
+    doc.text(doc.splitTextToSize(row.label, 165), 18, y + 4.5)
+
+    row.options.forEach((option, index) => {
+      const x = 83 + index * (tileWidth + tileGap)
+      doc.setDrawColor(green)
+      doc.setLineWidth(0.35)
+      doc.roundedRect(x, tileY, tileWidth, tileHeight, 2, 2, 'S')
+
+      const box = new AcroFormCheckBox()
+      box.fieldName = row.name + '_' + option.value
+      box.x = x + 3
+      box.y = tileY + 3
+      box.width = 4.5
+      box.height = 4.5
+      box.appearanceState = 'Off'
+      doc.addField(box)
+      doc.rect(x + 3, tileY + 3, 4.5, 4.5, 'S')
+
+      doc.setTextColor(navy)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(option.label.length > 20 ? 7.2 : 8)
+      doc.text(option.label, x + 9.5, tileY + 6.2)
+      drawTileIcon(option.icon, x + 15.5, tileY + 10)
+
+      if (option.detailField) {
+        doc.setTextColor(100)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.6)
+        doc.text(option.detailField.label, x + 4, tileY + 28)
+        const detail = new AcroFormTextField()
+        detail.fieldName = option.detailField.name
+        detail.x = x + 4
+        detail.y = tileY + 29.5
+        detail.width = tileWidth - 8
+        detail.height = 6
+        detail.fontSize = 7
+        doc.addField(detail)
+        doc.setDrawColor(209, 216, 226)
+        doc.roundedRect(x + 4, tileY + 29.5, tileWidth - 8, 6, 1, 1, 'S')
+      }
+    })
+
+    doc.setLineWidth(0.2)
+    y += tileHeight + 12
+  }
+
+  const getRowHeight = (row: Row) => {
+    if (row.kind === 'tiles') {
+      return row.options.some((option) => Boolean(option.detailField)) ? 50 : 41
+    }
+    return 'multiline' in row && row.multiline ? 30 : 12
+  }
+
   addHeader()
   for (const section of sections) {
     const estimatedHeight = 13 + section.rows.reduce(
-      (sum, row) => sum + ('multiline' in row && row.multiline ? 27 : 12),
+      (sum, row) => sum + getRowHeight(row),
       0,
     )
     if (y > 240 || y + Math.min(estimatedHeight, 46) > 278) {
@@ -336,7 +473,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
     y += 13
 
     for (const row of section.rows) {
-      const requiredHeight = 'multiline' in row && row.multiline ? 30 : 12
+      const requiredHeight = getRowHeight(row)
       if (y + requiredHeight > 279) {
         doc.addPage()
         addHeader()
@@ -348,6 +485,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
       }
       if (row.kind === 'status') addStatusField(row)
       else if (row.kind === 'select') addSelectField(row)
+      else if (row.kind === 'tiles') addTileField(row)
       else addTextField(row)
     }
     y += 4
