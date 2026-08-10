@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AcroFormCheckBox, AcroFormComboBox, AcroFormTextField, jsPDF } from 'jspdf'
+import { AcroFormCheckBox, AcroFormComboBox, AcroFormRadioButton, AcroFormTextField, jsPDF } from 'jspdf'
 import { BatteryCharging, Download, PanelsTopLeft, X } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -10,7 +10,15 @@ type Props = { onClose: () => void }
 type TextRow = { label: string; name: string; value?: string; multiline?: boolean; kind?: 'text' }
 type SelectRow = { label: string; name: string; kind: 'select'; options: string[] }
 type StatusRow = { label: string; name: string; kind: 'status' }
-type Row = TextRow | SelectRow | StatusRow
+type TileIcon = 'ground' | 'roof' | 'rights' | 'epc'
+type TileOption = {
+  label: string
+  value: string
+  icon: TileIcon
+  detailField?: { label: string; name: string }
+}
+type TileRow = { label: string; name: string; kind: 'tiles'; options: TileOption[] }
+type Row = TextRow | SelectRow | StatusRow | TileRow
 type Section = { title: string; rows: Row[] }
 
 const navy = '#0B1633'
@@ -22,9 +30,34 @@ const commonSections: Section[] = [
   {
     title: '1 · Projekt und Standort',
     rows: [
-      { label: 'Projektname / Referenz', name: 'projekt_name' },
       { label: 'Adresse / Gemarkung / Flurstück', name: 'standort_adresse' },
-      { label: 'PLZ, Ort, Bundesland', name: 'standort_ort' },
+      { label: 'PLZ', name: 'standort_plz' },
+      { label: 'Ort', name: 'standort_ort' },
+      {
+        label: 'Bundesland',
+        name: 'standort_bundesland',
+        kind: 'select',
+        options: [
+          choose,
+          'Baden-Württemberg',
+          'Bayern',
+          'Berlin',
+          'Brandenburg',
+          'Bremen',
+          'Hamburg',
+          'Hessen',
+          'Mecklenburg-Vorpommern',
+          'Niedersachsen',
+          'Nordrhein-Westfalen',
+          'Rheinland-Pfalz',
+          'Saarland',
+          'Sachsen',
+          'Sachsen-Anhalt',
+          'Schleswig-Holstein',
+          'Thüringen',
+          'Außerhalb Deutschlands',
+        ],
+      },
       {
         label: 'Projektstatus',
         name: 'projekt_status',
@@ -32,12 +65,6 @@ const commonSections: Section[] = [
         options: [choose, 'In Entwicklung', 'RTB', 'Im Betrieb'],
       },
       { label: 'Geplante Inbetriebnahme', name: 'projekt_inbetriebnahme' },
-      {
-        label: 'Exklusivität / Vermarktungsrecht',
-        name: 'projekt_exklusivitaet',
-        kind: 'select',
-        options: [choose, 'Ja', 'Nein', 'In Klärung'],
-      },
     ],
   },
 ]
@@ -47,20 +74,27 @@ const pvSections: Section[] = [
     title: '2 · PV-Kerndaten',
     rows: [
       {
-        label: 'Anlagentyp',
+        label: 'Anlagentyp · bitte eine Option ankreuzen',
         name: 'pv_anlagentyp',
-        kind: 'select',
-        options: [choose, 'Freifläche', 'Dachanlage', 'Agri-PV', 'Sonstiges'],
+        kind: 'tiles',
+        options: [
+          {
+            label: 'Freifläche',
+            value: 'freiflaeche',
+            icon: 'ground',
+            detailField: { label: 'Fläche (ha / m²)', name: 'pv_flaeche' },
+          },
+          { label: 'Dachanlage', value: 'dachanlage', icon: 'roof' },
+        ],
       },
       { label: 'PV-Leistung DC (kWp / MWp)', name: 'pv_leistung_dc' },
-      { label: 'Verfügbare Fläche (ha / m²)', name: 'pv_flaeche' },
       {
-        label: 'Flächensicherung',
+        label: 'Grundstücks- / Dachsicherung',
         name: 'pv_flaechensicherung',
         kind: 'select',
         options: [choose, 'Gesichert', 'In Verhandlung', 'Nicht gesichert'],
       },
-      { label: 'Pachtdauer / wesentliche Konditionen', name: 'pv_pacht' },
+      { label: 'Pacht- / Nutzungsdauer und Konditionen', name: 'pv_pacht' },
     ],
   },
   {
@@ -76,12 +110,6 @@ const pvSections: Section[] = [
       },
       { label: 'Zugesagte Leistung / Netzanschlusskosten', name: 'pv_netzzusage' },
       {
-        label: 'Planungsrecht',
-        name: 'pv_planungsrecht',
-        kind: 'select',
-        options: [choose, 'Nicht begonnen', 'In Bearbeitung', 'Gesichert', 'Nicht erforderlich'],
-      },
-      {
         label: 'Baugenehmigung',
         name: 'pv_baugenehmigung',
         kind: 'select',
@@ -92,6 +120,17 @@ const pvSections: Section[] = [
   {
     title: '4 · Ertrag und Kaufpreis',
     rows: [
+      {
+        label: 'Angebotsumfang · bitte eine Option ankreuzen',
+        name: 'pv_angebotsumfang',
+        kind: 'tiles',
+        options: [
+          { label: 'Nur Projektrechte', value: 'projektrechte', icon: 'rights' },
+          { label: 'Schlüsselfertig (Full EPC)', value: 'full_epc', icon: 'epc' },
+        ],
+      },
+      { label: 'Nur bei Full EPC · Lieferumfang', name: 'pv_epc_lieferumfang' },
+      { label: 'Nur bei Full EPC · Preis pro kWp', name: 'pv_epc_preis_kwp' },
       { label: 'Spezifischer Ertrag (kWh/kWp)', name: 'pv_spez_ertrag' },
       { label: 'Jahresproduktion (kWh / MWh)', name: 'pv_jahresproduktion' },
       {
@@ -101,7 +140,7 @@ const pvSections: Section[] = [
         options: [choose, 'EEG', 'PPA', 'Direktvermarktung', 'Sonstiges'],
       },
       { label: 'Vergütung / Laufzeit', name: 'pv_verguetung' },
-      { label: 'Kaufpreis gesamt / Preis je kWp', name: 'pv_kaufpreis' },
+      { label: 'Kaufpreis gesamt', name: 'pv_kaufpreis' },
     ],
   },
 ]
@@ -183,14 +222,9 @@ const bessSections: Section[] = [
 
 const documentRows: Record<ChecklistType, StatusRow[]> = {
   pv: [
-    'Exposé / Projektbeschreibung',
-    'Lageplan / Katasterkarte',
-    'Flächensicherungsvertrag',
+    'PV*SOL',
     'Netzanfrage / Netzzusage',
     'Genehmigungsunterlagen',
-    'Ertragsgutachten / PV*SOL',
-    'Technisches Layout',
-    'Kaufpreisaufstellung',
   ].map((label, index) => ({ label, name: 'pv_dokument_' + (index + 1), kind: 'status' as const })),
   bess: [
     'Exposé / Projektbeschreibung',
@@ -204,7 +238,7 @@ const documentRows: Record<ChecklistType, StatusRow[]> = {
   ].map((label, index) => ({ label, name: 'bess_dokument_' + (index + 1), kind: 'status' as const })),
 }
 
-export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
+export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string, heroDataUrl?: string) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const sections = [
     ...commonSections,
@@ -225,15 +259,40 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
   ] satisfies Section[]
   let y = 0
 
-  const addHeader = () => {
+  const addHeader = (withHero = false) => {
+    const showHero = withHero && Boolean(heroDataUrl)
+
+    if (showHero && heroDataUrl) {
+      doc.setFillColor(navy)
+      doc.rect(0, 0, 210, 56, 'F')
+      doc.addImage(heroDataUrl, 'JPEG', 72, 0, 138, 56, undefined, 'FAST')
+      doc.setFillColor(navy)
+      doc.triangle(68, 0, 98, 0, 68, 56, 'F')
+      doc.setFillColor(green)
+      doc.rect(0, 56, 210, 2.4, 'F')
+
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 18, 5, 31, 15.3, undefined, 'FAST')
+      }
+
+      doc.setTextColor(255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text('PROJEKT-CHECKLISTE', 18, 37)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.3)
+      doc.text(type.toUpperCase() + ' · AUSFÜLLBARE PROJEKTANFRAGE · VERTRAULICH', 18, 46)
+      doc.setTextColor(textColor)
+      y = 68
+      return
+    }
+
     doc.setFillColor(navy)
     doc.rect(0, 0, 210, 28, 'F')
     doc.setFillColor(green)
     doc.rect(0, 28, 210, 2.4, 'F')
     if (logoDataUrl) {
-      doc.setFillColor(255, 255, 255)
-      doc.roundedRect(157, 3.5, 37, 21, 2, 2, 'F')
-      doc.addImage(logoDataUrl, 'JPEG', 160, 5, 31, 18, undefined, 'FAST')
+      doc.addImage(logoDataUrl, 'PNG', 160, 6, 31, 15.3, undefined, 'FAST')
     }
     doc.setTextColor(255)
     doc.setFont('helvetica', 'bold')
@@ -302,30 +361,139 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
       ['folgt', 'Folgt', 139],
       ['nein', 'Nicht vorhanden', 162],
     ] as const
+    const group = new AcroFormRadioButton()
+    group.fieldName = row.name
+    doc.addField(group)
+
     for (const [value, label, x] of choices) {
-      const box = new AcroFormCheckBox()
-      box.fieldName = row.name + '_' + value
-      box.x = x
-      box.y = y
-      box.width = 4.2
-      box.height = 4.2
-      box.appearanceState = 'Off'
-      doc.addField(box)
+      const option = group.createOption(value)
+      option.x = x
+      option.y = y
+      option.width = 4.2
+      option.height = 4.2
+      option.appearanceState = 'Off'
       doc.setDrawColor(92, 184, 0)
-      doc.rect(x, y, 4.2, 4.2, 'S')
+      doc.circle(x + 2.1, y + 2.1, 2.1, 'S')
       doc.setFontSize(7)
       doc.text(label, x + 5.5, y + 3.5)
     }
     y += 9
   }
 
-  addHeader()
+  const drawTileIcon = (icon: TileIcon, x: number, top: number) => {
+    doc.setDrawColor(green)
+    doc.setLineWidth(0.55)
+
+    if (icon === 'ground') {
+      doc.circle(x + 18, top + 2, 1.8, 'S')
+      doc.rect(x + 3, top + 5, 10, 5.5, 'S')
+      doc.line(x + 8, top + 10.5, x + 8, top + 14)
+      doc.line(x + 5, top + 14, x + 11, top + 14)
+      doc.line(x + 6.3, top + 5, x + 6.3, top + 10.5)
+      doc.line(x + 9.7, top + 5, x + 9.7, top + 10.5)
+      doc.line(x + 3, top + 7.8, x + 13, top + 7.8)
+      return
+    }
+
+    if (icon === 'roof') {
+      doc.line(x + 2, top + 8, x + 10, top + 2)
+      doc.line(x + 10, top + 2, x + 19, top + 8)
+      doc.line(x + 4, top + 7, x + 4, top + 14)
+      doc.line(x + 17, top + 7, x + 17, top + 14)
+      doc.line(x + 4, top + 14, x + 17, top + 14)
+      doc.rect(x + 7, top + 5.2, 7, 4.5, 'S')
+      doc.line(x + 10.5, top + 5.2, x + 10.5, top + 9.7)
+      return
+    }
+
+    if (icon === 'rights') {
+      doc.roundedRect(x + 5, top + 1, 11, 14, 1, 1, 'S')
+      doc.line(x + 8, top + 5, x + 13, top + 5)
+      doc.line(x + 8, top + 8, x + 13, top + 8)
+      doc.line(x + 8, top + 11, x + 11, top + 11)
+      return
+    }
+
+    doc.rect(x + 3, top + 5, 10, 7, 'S')
+    doc.line(x + 6.3, top + 5, x + 6.3, top + 12)
+    doc.line(x + 9.7, top + 5, x + 9.7, top + 12)
+    doc.line(x + 3, top + 8.5, x + 13, top + 8.5)
+    doc.line(x + 15, top + 10, x + 17, top + 12)
+    doc.line(x + 17, top + 12, x + 21, top + 6)
+  }
+
+  const addTileField = (row: TileRow) => {
+    const hasDetail = row.options.some((option) => Boolean(option.detailField))
+    const tileHeight = hasDetail ? 38 : 29
+    const tileY = y + 7
+    const tileWidth = 52.5
+    const tileGap = 4
+
+    doc.setTextColor(textColor)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.2)
+    doc.text(doc.splitTextToSize(row.label, 165), 18, y + 4.5)
+
+    const group = new AcroFormRadioButton()
+    group.fieldName = row.name
+    doc.addField(group)
+
+    row.options.forEach((option, index) => {
+      const x = 83 + index * (tileWidth + tileGap)
+      doc.setDrawColor(green)
+      doc.setLineWidth(0.35)
+      doc.roundedRect(x, tileY, tileWidth, tileHeight, 2, 2, 'S')
+
+      const field = group.createOption(option.value)
+      field.x = x + 3
+      field.y = tileY + 3
+      field.width = 4.5
+      field.height = 4.5
+      field.appearanceState = 'Off'
+      doc.circle(x + 5.25, tileY + 5.25, 2.25, 'S')
+
+      doc.setTextColor(navy)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(option.label.length > 20 ? 7.2 : 8)
+      doc.text(option.label, x + 9.5, tileY + 6.2)
+      drawTileIcon(option.icon, x + 15.5, tileY + 10)
+
+      if (option.detailField) {
+        doc.setTextColor(100)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6.6)
+        doc.text(option.detailField.label, x + 4, tileY + 28)
+        const detail = new AcroFormTextField()
+        detail.fieldName = option.detailField.name
+        detail.x = x + 4
+        detail.y = tileY + 29.5
+        detail.width = tileWidth - 8
+        detail.height = 6
+        detail.fontSize = 7
+        doc.addField(detail)
+        doc.setDrawColor(209, 216, 226)
+        doc.roundedRect(x + 4, tileY + 29.5, tileWidth - 8, 6, 1, 1, 'S')
+      }
+    })
+
+    doc.setLineWidth(0.2)
+    y += tileHeight + 12
+  }
+
+  const getRowHeight = (row: Row) => {
+    if (row.kind === 'tiles') {
+      return row.options.some((option) => Boolean(option.detailField)) ? 50 : 41
+    }
+    return 'multiline' in row && row.multiline ? 30 : 12
+  }
+
+  addHeader(true)
   for (const section of sections) {
     const estimatedHeight = 13 + section.rows.reduce(
-      (sum, row) => sum + ('multiline' in row && row.multiline ? 27 : 12),
+      (sum, row) => sum + getRowHeight(row),
       0,
     )
-    if (y > 240 || y + Math.min(estimatedHeight, 46) > 278) {
+    if (y > 220 || y + Math.min(estimatedHeight, 46) >= 278) {
       doc.addPage()
       addHeader()
     }
@@ -338,7 +506,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
     y += 13
 
     for (const row of section.rows) {
-      const requiredHeight = 'multiline' in row && row.multiline ? 30 : 12
+      const requiredHeight = getRowHeight(row)
       if (y + requiredHeight > 279) {
         doc.addPage()
         addHeader()
@@ -350,6 +518,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
       }
       if (row.kind === 'status') addStatusField(row)
       else if (row.kind === 'select') addSelectField(row)
+      else if (row.kind === 'tiles') addTileField(row)
       else addTextField(row)
     }
     y += 4
@@ -377,7 +546,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
 }
 
 async function loadEmaLogoDataUrl() {
-  const response = await fetch('/ema-logo.jpeg')
+  const response = await fetch('/brand/ema-mark-white.png')
   if (!response.ok) throw new Error('EMA-Logo konnte nicht geladen werden.')
   const blob = await response.blob()
   return await new Promise<string>((resolve, reject) => {
@@ -388,6 +557,58 @@ async function loadEmaLogoDataUrl() {
   })
 }
 
+async function loadHeroDataUrl() {
+  const response = await fetch('/hero-dashboard.png')
+  if (!response.ok) throw new Error('Projekt-Hero konnte nicht geladen werden.')
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+
+  try {
+    const image = new Image()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('Projekt-Hero konnte nicht gelesen werden.'))
+      image.src = objectUrl
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 1380
+    canvas.height = 560
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('Projekt-Hero konnte nicht vorbereitet werden.')
+
+    const targetRatio = canvas.width / canvas.height
+    const sourceRatio = image.naturalWidth / image.naturalHeight
+    let sourceX = 0
+    let sourceY = 0
+    let sourceWidth = image.naturalWidth
+    let sourceHeight = image.naturalHeight
+
+    if (sourceRatio > targetRatio) {
+      sourceWidth = image.naturalHeight * targetRatio
+      sourceX = (image.naturalWidth - sourceWidth) / 2
+    } else {
+      sourceHeight = image.naturalWidth / targetRatio
+      sourceY = (image.naturalHeight - sourceHeight) / 2
+    }
+
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    )
+    return canvas.toDataURL('image/jpeg', 0.88)
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 export function ProjectChecklistGenerator({ onClose }: Props) {
   const [type, setType] = useState<ChecklistType>('pv')
   const [downloading, setDownloading] = useState(false)
@@ -395,8 +616,11 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
   const download = async () => {
     setDownloading(true)
     try {
-      const logoDataUrl = await loadEmaLogoDataUrl()
-      const doc = createChecklistPdf(type, logoDataUrl)
+      const [logoDataUrl, heroDataUrl] = await Promise.all([
+        loadEmaLogoDataUrl(),
+        loadHeroDataUrl(),
+      ])
+      const doc = createChecklistPdf(type, logoDataUrl, heroDataUrl)
       doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
       toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde heruntergeladen.')
     } catch (error) {
@@ -451,9 +675,14 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
           </button>
         </div>
 
-        <p className="mt-5 rounded-2xl border border-[#5CB800]/20 bg-[#5CB800]/5 p-4 text-sm leading-6 text-[#1F2A44]">
-          Die Blanko-PDF enthält Textfelder, Ankreuzfelder und Auswahllisten. Sie kann am Handy oder PC ausgefüllt werden und wird nicht in EMA gespeichert.
-        </p>
+        <div className="mt-5 rounded-2xl border border-[#5CB800]/20 bg-[#5CB800]/5 p-4 text-sm leading-6 text-[#1F2A44]">
+          <p>
+            Die PDF selbst enthält echte Textfelder, Auswahllisten und Ankreuzfelder. Sie wird nicht in EMA gespeichert.
+          </p>
+          <p className="mt-2 font-bold text-[#2F8A00]">
+            iPhone: Die Safari-Ansicht ist nur eine Vorschau. PDF herunterladen, in „Vorschau“ oder Adobe Acrobat öffnen und dort „Formular ausfüllen“ wählen.
+          </p>
+        </div>
 
         <button
           type="button"
@@ -462,7 +691,7 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
           className="btn-primary mt-5 inline-flex w-full items-center justify-center gap-2"
         >
           <Download className="h-4 w-4" />
-          {downloading ? 'PDF wird erstellt…' : type.toUpperCase() + '-Blanko-PDF herunterladen'}
+          {downloading ? 'PDF wird erstellt…' : type.toUpperCase() + '-PDF ausfüllbar herunterladen'}
         </button>
       </div>
     </div>
