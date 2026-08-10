@@ -5,6 +5,7 @@ import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
 import { WECHSELRICHTER_HERSTELLER, UNTERKONSTRUKTION_HERSTELLER } from '@/lib/types/capex.types'
 import { eur, eurKwp, pct, num } from '@/lib/capex/format'
 import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
+import { CapexVisualDashboard } from './CapexVisualDashboard'
 import {
   SectionHeader,
   Field,
@@ -47,6 +48,7 @@ export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: Ca
         Finanzierung, diskontierter Payback, {INVESTOR_OPEX_ESCALATION_PCT.toLocaleString('de-DE')} %
         OPEX-Steigerung p.a., kein Restwert. Für EEG ist die Erlössteigerung mit 0 % anzusetzen.
       </div>
+      <CapexVisualDashboard calc={calc} />
 
       {/* Projektparameter */}
       <SectionHeader>Projektparameter</SectionHeader>
