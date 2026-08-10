@@ -1,5 +1,9 @@
+import type { DataCenterCheckState, DataCenterSiteCheck, DataCenterZoningDesignation } from '@/lib/projects/master-data'
+
 export type ExposeMetric = { label: string; value: string }
 export type ExposeProfileRow = { label: string; value: string }
+export type ExposeDetailSection = { title: string; rows: ExposeProfileRow[] }
+export type ExposeDataCenterDetails = { sections: ExposeDetailSection[]; sourceDate?: string }
 
 export type ExposePresentation = {
   typeLabel: string
@@ -9,6 +13,7 @@ export type ExposePresentation = {
   profile: ExposeProfileRow[]
   highlights: string[]
   showPvEconomics: boolean
+  dataCenterDetails?: ExposeDataCenterDetails
 }
 
 type ProjectLike = Record<string, unknown>
@@ -62,6 +67,52 @@ function compact<T extends { value: string }>(items: T[]): T[] {
   return items.filter((item) => hasValue(item.value))
 }
 
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function text(value: unknown, fallback = 'Nicht bekannt'): string {
+  return hasValue(value) ? String(value) : fallback
+}
+
+function checkStateLabel(value: unknown): string {
+  const labels: Record<DataCenterCheckState, string> = {
+    yes: 'Ja',
+    no: 'Nein',
+    in_preparation: 'In Aufstellung',
+    verify: 'Muss geprüft werden',
+    planned: 'In Planung',
+    unknown: 'Nicht bekannt',
+  }
+  return labels[value as DataCenterCheckState] ?? 'Nicht bekannt'
+}
+
+function fiberStateLabel(value: unknown): string {
+  if (value === 'yes') return 'Vorhanden'
+  if (value === 'no') return 'Nicht vorhanden'
+  return checkStateLabel(value)
+}
+
+function zoningLabel(value: unknown): string {
+  const labels: Record<DataCenterZoningDesignation, string> = {
+    agricultural: 'Landwirtschaftlich',
+    industrial: 'Industriell',
+    commercial: 'Gewerblich',
+    mixed: 'Mischgebiet',
+    special: 'Sondergebiet',
+    unknown: 'Nicht bekannt',
+  }
+  return labels[value as DataCenterZoningDesignation] ?? 'Nicht bekannt'
+}
+
+function formatDate(value: unknown): string {
+  if (!hasValue(value)) return 'Nicht bekannt'
+  const date = new Date(String(value))
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : new Intl.DateTimeFormat('de-DE').format(date)
+}
+
 export function getExposePresentation(project: ProjectLike, location: string, format: Formatter): ExposePresentation {
   const projectType = String(project.project_type ?? '')
   const type = typeDetails(projectType)
@@ -80,24 +131,111 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
   ])
 
   if (projectType === 'rechenzentrum') {
+    const siteCheck = record(project.data_center_site_check) as DataCenterSiteCheck
     const gridMw = value(project, 'data_center_grid_mw')
     const itMw = value(project, 'data_center_it_mw')
-    const land = value(project, 'land_area_sqm')
-    const transformer = value(project, 'transformer_status')
+    const gridConfirmed = project.data_center_grid_confirmed === true
+    const landSqm = value(project, 'land_area_sqm')
+    const siteAreaHectares = siteCheck.siteAreaHectares ?? (landSqm ? Number(landSqm) / 10_000 : null)
+    const transformer = value(project, 'transformer_status') || siteCheck.hvStationName
+    const hvDistance = siteCheck.hvDistanceMeters
+    const fiberStatus = fiberStateLabel(siteCheck.fiberStatus)
+    const address = value(project, 'location_address') || siteCheck.streetPlot
+    const gridStatus = gridConfirmed ? 'Bestätigt' : 'In Prüfung'
+    const summaryParts = [
+      `Rechenzentrumsstandort in ${location}`,
+      siteAreaHectares ? `mit ${format.number(siteAreaHectares, 2)} ha Grundstücksfläche` : '',
+      gridMw ? `rund ${format.number(gridMw, 2)} MW Anschlussleistung` : '',
+      hvDistance !== null && hvDistance !== undefined && transformer
+        ? `${format.number(hvDistance)} m Entfernung zum ${text(transformer)}`
+        : '',
+    ].filter(Boolean)
+    const statusParts = [
+      gridMw ? `Die Netzleistung ist ${gridConfirmed ? 'bestätigt' : 'noch in Prüfung'}.` : 'Die verfügbare Netzleistung ist noch nicht bekannt.',
+      `Bebauungsplan: ${checkStateLabel(siteCheck.zoningPlanStatus)}.`,
+      `Zulässigkeit des Rechenzentrums: ${checkStateLabel(siteCheck.dataCenterPermitted)}.`,
+      `Glasfaser auf dem Grundstück: ${fiberStatus}.`,
+    ]
+    const dataCenterDetails: ExposeDataCenterDetails = {
+      sourceDate: siteCheck.assessmentDate ? formatDate(siteCheck.assessmentDate) : undefined,
+      sections: [
+        {
+          title: 'Standort & Grundstück',
+          rows: [
+            { label: 'Standort', value: location },
+            { label: 'Landkreis', value: text(siteCheck.district) },
+            { label: 'Straße / Flurstück', value: text(address) },
+            { label: 'GPS-Koordinaten', value: text(siteCheck.gpsCoordinates) },
+            { label: 'Grundstücksfläche', value: siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha` : 'Nicht bekannt' },
+            { label: 'Grundstückskosten / Pacht', value: text(siteCheck.landCost) },
+            { label: 'Preis pro m²', value: siteCheck.pricePerSqmEur ? `${format.number(siteCheck.pricePerSqmEur, 2)} €/m²` : 'Nicht bekannt' },
+          ],
+        },
+        {
+          title: 'Baurecht & Flächennutzung',
+          rows: [
+            { label: 'Aktuelle Nutzungsart', value: zoningLabel(siteCheck.zoningDesignation) },
+            { label: 'Weitere Nutzung', value: text(siteCheck.otherDesignation) },
+            { label: 'Bebauungsplan', value: checkStateLabel(siteCheck.zoningPlanStatus) },
+            { label: 'Rechenzentrum zulässig', value: checkStateLabel(siteCheck.dataCenterPermitted) },
+            { label: 'Planungshinweis', value: text(siteCheck.planningNotes) },
+          ],
+        },
+        {
+          title: 'Stromversorgung',
+          rows: [
+            { label: 'Anschlussleistung', value: gridMw ? `${format.number(gridMw, 2)} MW` : 'Nicht bekannt' },
+            { label: 'Netzstatus', value: gridMw ? gridStatus : 'Nicht bekannt' },
+            { label: 'Entfernung zur HV-Station', value: hvDistance !== null && hvDistance !== undefined ? `${format.number(hvDistance)} m` : 'Nicht bekannt' },
+            { label: 'HV-Station / Umspannwerk', value: text(transformer) },
+            { label: 'Netzbetreiber', value: text(siteCheck.gridOperator) },
+            { label: 'IT-Leistung', value: itMw ? `${format.number(itMw, 2)} MW` : 'Nicht bekannt' },
+          ],
+        },
+        {
+          title: 'Glasfaseranbindung',
+          rows: [
+            { label: 'Glasfaser auf Grundstück', value: fiberStatus },
+            { label: 'Entfernung zur Glasfasertrasse', value: siteCheck.fiberDistanceMeters !== null && siteCheck.fiberDistanceMeters !== undefined ? `${format.number(siteCheck.fiberDistanceMeters)} m` : 'Nicht bekannt' },
+            { label: 'Glasfaseranbieter', value: text(siteCheck.fiberProvider) },
+          ],
+        },
+        {
+          title: 'Ansprechpartner & Prüfung',
+          rows: [
+            { label: 'Ansprechpartner', value: text(project.contact_name) },
+            { label: 'Telefon', value: text(project.contact_phone) },
+            { label: 'E-Mail', value: text(project.contact_email) },
+            { label: 'Prüfdatum', value: formatDate(siteCheck.assessmentDate) },
+            { label: 'Zusätzliche Angaben', value: text(siteCheck.additionalNotes) },
+          ],
+        },
+      ],
+    }
     return {
       typeLabel: type.label,
       heroImage: String(value(project, 'project_image_url') || type.image),
-      summary: `Rechenzentrumsprojekt in ${location} mit den vorhandenen Anschluss-, Grundstücks- und Investitionsdaten.`,
-      metrics: compact([
-        { label: 'Netzanschluss', value: gridMw ? `${format.number(gridMw, 2)} MW` : gridConnection },
-        { label: 'IT-Leistung', value: itMw ? `${format.number(itMw, 2)} MW` : '' },
-        { label: 'Grundstück', value: land ? `${format.number(land)} m²` : '' },
-        { label: 'Investitionsvolumen', value: investmentVolume ? format.money(investmentVolume) : '' },
-        { label: 'Kaufpreis', value: purchasePrice ? format.money(purchasePrice) : '' },
-      ]),
-      profile: compact([...commonProfile, { label: 'Transformator / Umspannwerk', value: transformer ? String(transformer) : '' }]),
-      highlights: [stage ? `Projektstatus: ${stage}` : '', gridMw ? `${format.number(gridMw, 2)} MW Anschlussleistung` : '', investmentVolume ? `Investitionsvolumen ${format.money(investmentVolume)}` : ''].filter(Boolean),
+      summary: `${summaryParts.join(', ')}. ${statusParts.join(' ')}`,
+      metrics: [
+        { label: 'Anschlussleistung', value: gridMw ? `${format.number(gridMw, 2)} MW` : 'Nicht bekannt' },
+        { label: 'Netzstatus', value: gridMw ? gridStatus : 'Nicht bekannt' },
+        { label: 'Grundstück', value: siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha` : 'Nicht bekannt' },
+        { label: 'HV-Distanz', value: hvDistance !== null && hvDistance !== undefined ? `${format.number(hvDistance)} m` : 'Nicht bekannt' },
+        { label: 'Glasfaser', value: fiberStatus },
+      ],
+      profile: [
+        ...commonProfile,
+        { label: 'Netzstatus', value: gridMw ? gridStatus : 'Nicht bekannt' },
+        { label: 'Transformator / Umspannwerk', value: text(transformer) },
+      ],
+      highlights: [
+        stage ? `Projektstatus: ${stage}` : 'Projektstatus: In Planung',
+        gridMw ? `${format.number(gridMw, 2)} MW Anschlussleistung (${gridStatus.toLocaleLowerCase('de-DE')})` : 'Anschlussleistung noch nicht bekannt',
+        siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha Grundstücksfläche` : 'Grundstücksfläche noch nicht bekannt',
+        `Rechenzentrum zulässig: ${checkStateLabel(siteCheck.dataCenterPermitted)}`,
+      ],
       showPvEconomics: false,
+      dataCenterDetails,
     }
   }
 

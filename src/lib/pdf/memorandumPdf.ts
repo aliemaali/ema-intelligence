@@ -1,3 +1,5 @@
+import type { ExposeDataCenterDetails } from '@/lib/expose/projectPresentation'
+
 export interface MemorandumPdfData {
   projectName: string
   projectNumber: string
@@ -12,6 +14,7 @@ export interface MemorandumPdfData {
   metrics: Array<{ label: string; value: string }>
   profile: Array<{ label: string; value: string }>
   highlights: string[]
+  dataCenterDetails?: ExposeDataCenterDetails
   heroImage: string
   projectImage?: string
   language?: 'de' | 'en'

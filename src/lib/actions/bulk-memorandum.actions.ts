@@ -97,6 +97,7 @@ function buildPdfData(project: Record<string, unknown>): MemorandumPdfData {
     metrics: presentation.metrics,
     profile: presentation.profile,
     highlights: presentation.highlights,
+    dataCenterDetails: presentation.dataCenterDetails,
     heroImage: '/pdf/hero-solarpark.jpg',
     projectImage: presentation.heroImage,
     language: 'de',

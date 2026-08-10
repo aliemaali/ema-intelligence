@@ -121,6 +121,7 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
     metrics: presentation.metrics,
     profile: presentation.profile,
     highlights: presentation.highlights,
+    dataCenterDetails: presentation.dataCenterDetails,
     heroImage: '/pdf/hero-solarpark.jpg',
     projectImage: presentation.heroImage,
     language: 'de',

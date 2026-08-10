@@ -43,6 +43,14 @@ function copy(language: MemorandumPdfData['language']) {
     profile: en ? 'Project Profile' : 'Projektprofil',
     highlights: en ? 'Investment Highlights' : 'Investment Highlights',
     economics: en ? 'Financial Metrics' : 'Wirtschaftliche Kennzahlen',
+    siteCheck: en ? 'Site assessment' : 'Standortprüfung',
+    siteData: en ? 'Data center · Site data' : 'Rechenzentrum · Standortdaten',
+    evidenceNote: en
+      ? 'The following information is based on the stored site and assessment data. Unverified values are explicitly marked as unknown or requiring verification.'
+      : 'Die folgenden Angaben stammen aus den hinterlegten Standort- und Prüfdaten. Nicht belegte Werte werden ausdrücklich als „Nicht bekannt“ oder „Muss geprüft werden“ ausgewiesen.',
+    dueDiligence: en
+      ? 'Note: The information is intended for an initial site assessment. Technical availability, permitting, land security and telecommunications connectivity must be confirmed during due diligence.'
+      : 'Hinweis: Die Angaben dienen der ersten Standortbewertung. Technische Verfügbarkeit, Genehmigungsfähigkeit, Grundstückssicherung und Telekommunikationsanbindung sind im Rahmen der Due Diligence zu bestätigen.',
     location: en ? 'Project Location' : 'Projektstandort',
     type: en ? 'Project type' : 'Projekttyp',
     country: en ? 'Country' : 'Land',
@@ -140,6 +148,28 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   const german = isGermanCountry(data.country);
   const map = german ? buildGermanyMap(options.germanyMap, data.location) : '';
   const flagSvg = flag(data.country);
+  const totalPages = data.dataCenterDetails ? 2 : 1;
+  const detailSections = data.dataCenterDetails?.sections.map((section, sectionIndex) => {
+    const rows = section.rows.map((row) => {
+      const state = row.value.toLocaleLowerCase('de-DE');
+      const pending = state.includes('nicht bekannt') || state.includes('muss geprüft') || state.includes('nicht vorhanden') || state.includes('unknown') || state.includes('verification');
+      return `<div class="memo-detail-row"><span class="n">${esc(row.label)}</span><span class="v${pending ? ' pending' : ''}">${esc(row.value)}</span></div>`;
+    }).join('');
+    return `<div class="memo-detail-card${sectionIndex === 4 ? ' wide' : ''}"><h3><span></span>${esc(section.title)}</h3><div class="memo-detail-rows">${rows}</div></div>`;
+  }).join('') ?? '';
+  const detailPage = data.dataCenterDetails ? `
+<section class="sheet memo-detail-sheet">
+  <div class="page-head">
+    <div class="brand"><div class="mark">${emaLogoSvg({ onDark: false, withWordmark: false })}</div><div class="t">${esc(c.siteData)}<span>${esc(data.projectName)}</span></div></div>
+    <div class="doc">${esc(data.projectNumber)}<br>${data.dataCenterDetails.sourceDate ? `${data.language === 'en' ? 'Assessment' : 'Prüfstand'} ${esc(data.dataCenterDetails.sourceDate)}` : esc(data.dateLabel)}</div>
+  </div>
+  <div class="page-body">
+    <div class="section-head"><div class="accent"></div><h2>${c.siteCheck}</h2><div class="sub">${esc(c.evidenceNote)}</div></div>
+    <div class="memo-detail-grid">${detailSections}</div>
+    <div class="memo-detail-note">${esc(c.dueDiligence)}</div>
+  </div>
+  <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b> · Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)} · ${esc(data.dateLabel)}<br>${c.page} <span class="num">2</span> / 2</div></div></div>
+</section>` : '';
 
   return `<!doctype html>
 <html lang="${data.language === 'en' ? 'en' : 'de'}">
@@ -178,7 +208,8 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
     </div>
   </div>
 
-  <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b> · Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)} · ${esc(data.dateLabel)}<br>${c.page} <span class="num">1</span> / 1</div></div></div>
+  <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b> · Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)} · ${esc(data.dateLabel)}<br>${c.page} <span class="num">1</span> / ${totalPages}</div></div></div>
 </section>
+${detailPage}
 </body></html>`;
 }

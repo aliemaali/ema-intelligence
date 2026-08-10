@@ -153,6 +153,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     metrics: presentation.metrics,
     profile: presentation.profile,
     highlights: presentation.highlights,
+    dataCenterDetails: presentation.dataCenterDetails,
     heroImage: '/pdf/hero-solarpark.jpg',
     projectImage: presentation.heroImage,
     language: 'de' as const,
@@ -242,13 +243,13 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
           )}
         </section>
 
-        <section className="grid gap-8 border-b border-slate-200 py-7 md:grid-cols-2">
-          <div>
+        <section className={`grid gap-8 border-b border-slate-200 py-7 ${bars.length ? 'md:grid-cols-2' : ''}`}>
+          {bars.length > 0 && <div>
             <SectionTitle>Visuelle Wirtschaftlichkeit</SectionTitle>
             <div className="mt-5 space-y-5">
               {bars.map((bar) => <div key={bar.label} className="grid grid-cols-[40px_1fr] gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white"><bar.icon className="h-5 w-5 text-[#2f841f]" /></div><div><div className="mb-1.5 flex justify-between text-xs"><span>{bar.label}</span><strong>{bar.value}</strong></div><div className="h-2.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-gradient-to-r from-[#5CB800] to-[#2d8b18]" style={{ width: `${bar.width}%` }} /></div></div></div>)}
             </div>
-          </div>
+          </div>}
           <div>
             <SectionTitle>Investment Highlights</SectionTitle>
             <div className="mt-4 space-y-2">
@@ -270,9 +271,58 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
           <div className="flex items-center gap-3"><Building2 className="h-6 w-6 text-[#0B1633]" /><span>EMA Enterprise GmbH<br />Gabriel-von-Seidl-Str. 56<br />67550 Worms</span></div>
           <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#0B1633]" />info@ema-enterprise.de</div>
           <div className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-[#0B1633]" />www.ema-enterprise.de</div>
-          <div className="text-right">{String(project.project_number || '')}<br />{dateLabel}</div>
+          <div className="text-right">{String(project.project_number || '')}<br />{presentation.dataCenterDetails ? 'Seite 1 / 2' : dateLabel}</div>
         </footer>
       </article>
+
+      {presentation.dataCenterDetails && (
+        <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
+          <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-5">
+            <div className="flex items-center gap-4">
+              <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" />
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">Rechenzentrum · Standortdaten</p>
+                <h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Standortprüfung</h2>
+              </div>
+            </div>
+            <div className="text-right text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">
+              {String(project.project_number || '')}<br />
+              {presentation.dataCenterDetails.sourceDate ? `Prüfstand ${presentation.dataCenterDetails.sourceDate}` : dateLabel}
+            </div>
+          </header>
+
+          <div className="mt-6 rounded-2xl border border-[#dce8d7] bg-[#f8fbf5] px-5 py-4 text-sm leading-6 text-[#27334a]">
+            Die folgenden Angaben stammen aus den hinterlegten Standort- und Prüfdaten. Nicht belegte Werte werden ausdrücklich als „Nicht bekannt“ oder „Muss geprüft werden“ ausgewiesen.
+          </div>
+
+          <div className="mt-6 grid items-start gap-5 md:grid-cols-2">
+            {presentation.dataCenterDetails.sections.map((section, sectionIndex) => (
+              <section key={section.title} className={`overflow-hidden rounded-2xl border border-slate-200 bg-white ${sectionIndex === 4 ? 'md:col-span-2' : ''}`}>
+                <div className="border-b border-slate-200 bg-[#0B1633] px-5 py-3 text-sm font-black uppercase tracking-[.05em] text-white">
+                  <span className="mr-2 text-[#72cf16]">●</span>{section.title}
+                </div>
+                <div className={sectionIndex === 4 ? 'grid px-5 md:grid-cols-2 md:gap-x-6' : 'px-5'}>
+                  {section.rows.map((row) => {
+                    const pending = row.value === 'Nicht bekannt' || row.value === 'Muss geprüft werden' || row.value === 'Nicht vorhanden'
+                    return <div key={`${section.title}-${row.label}`} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] gap-4 border-b border-slate-100 py-3 text-xs last:border-b-0"><span className="text-slate-500">{row.label}</span><strong className={`text-right leading-5 ${pending ? 'text-amber-700' : 'text-[#0B1633]'}`}>{row.value}</strong></div>
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-2xl bg-[#0B1633] px-5 py-4 text-xs leading-5 text-white/80">
+            <strong className="text-white">Hinweis:</strong> Die Angaben dienen der ersten Standortbewertung. Technische Verfügbarkeit, Genehmigungsfähigkeit, Grundstückssicherung und Telekommunikationsanbindung sind im Rahmen der Due Diligence zu bestätigen.
+          </div>
+
+          <footer className="mt-7 grid items-center gap-4 border-t border-[#5CB800] pt-4 text-[9px] text-[#4b5565] sm:grid-cols-[1.3fr_1fr_1fr_auto]">
+            <div className="flex items-center gap-3"><Building2 className="h-6 w-6 text-[#0B1633]" /><span>EMA Enterprise GmbH<br />Gabriel-von-Seidl-Str. 56<br />67550 Worms</span></div>
+            <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#0B1633]" />info@ema-enterprise.de</div>
+            <div className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-[#0B1633]" />www.ema-enterprise.de</div>
+            <div className="text-right">{String(project.project_number || '')}<br />Seite 2 / 2</div>
+          </footer>
+        </article>
+      )}
     </div>
   )
 }

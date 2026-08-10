@@ -52,4 +52,20 @@ export const memorandumStyles = `
 .memo-figures .fig-row .n{font-size:6.7pt;color:rgba(255,255,255,.78);}
 .memo-figures .fig-row .v{font-size:8.6pt;font-weight:700;text-align:right;}
 .memo-figures .fig-row .v small{font-size:6pt;font-weight:500;color:rgba(255,255,255,.7);margin-left:.6mm;}
+
+.memo-detail-sheet .section-head{padding-top:7mm;padding-bottom:5mm;}
+.memo-detail-sheet .section-head .sub{max-width:160mm;line-height:1.55;}
+.memo-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;align-items:start;}
+.memo-detail-card{border:.3mm solid var(--line);border-radius:2.5mm;background:#fff;overflow:hidden;break-inside:avoid;}
+.memo-detail-card.wide{grid-column:1 / -1;}
+.memo-detail-card h3{display:flex;align-items:center;gap:2mm;padding:3mm 3.8mm;background:var(--navy);color:#fff;font-size:7.2pt;font-weight:700;letter-spacing:.07em;text-transform:uppercase;}
+.memo-detail-card h3 span{width:1.8mm;height:1.8mm;border-radius:50%;background:var(--green);flex:0 0 auto;}
+.memo-detail-rows{padding:0 3.8mm;}
+.memo-detail-card.wide .memo-detail-rows{display:grid;grid-template-columns:1fr 1fr;column-gap:6mm;}
+.memo-detail-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:3mm;padding:2.15mm 0;border-bottom:.25mm solid var(--line);font-size:6.8pt;line-height:1.4;min-height:8mm;align-items:center;}
+.memo-detail-row:last-child{border-bottom:none;}
+.memo-detail-row .n{color:var(--muted);}
+.memo-detail-row .v{font-weight:650;color:var(--navy);text-align:right;overflow-wrap:anywhere;}
+.memo-detail-row .v.pending{color:#976000;}
+.memo-detail-note{margin-top:5mm;border-radius:2.5mm;background:var(--navy);padding:4mm 4.5mm;color:rgba(255,255,255,.82);font-size:6.8pt;line-height:1.55;}
 `;
