@@ -5,6 +5,8 @@ import { ChangeEvent, FormEvent, useMemo, useState } from 'react'
 import { FileText, Loader2, Trash2, UploadCloud } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { PartnerProjectTypeSelector, PartnerTechnicalChecklistForm } from './PartnerTechnicalChecklist'
+import { buildTechnicalChecklist } from '@/lib/partner-submission-checklist'
 
 const PartnerLocationMap = dynamic(
   () => import('./PartnerLocationMap').then((module) => module.PartnerLocationMap),
@@ -41,6 +43,7 @@ type Submission = {
   contact_email: string | null
   contact_phone: string | null
   notes: string | null
+  technical_checklist: unknown
   status: string
 }
 
@@ -79,6 +82,7 @@ export function PartnerSubmissionEditForm({ submission, existingDocumentCount }:
   const [position, setPosition] = useState<Position | null>(submission.location_lat != null && submission.location_lng != null ? { lat: Number(submission.location_lat), lng: Number(submission.location_lng) } : null)
   const [locationCity, setLocationCity] = useState(submission.location_city ?? '')
   const [locationState, setLocationState] = useState(submission.location_state ?? '')
+  const [projectType, setProjectType] = useState(submission.project_type || 'pv_freiflaeche')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -111,13 +115,28 @@ export function PartnerSubmissionEditForm({ submission, existingDocumentCount }:
     const projectName = String(form.get('project_name') ?? '').trim()
     const remunerationModel = String(form.get('remuneration_model') ?? '')
     const remunerationCtKwh = numberOrNull(form.get('remuneration_ct_kwh'))
+    const includesPv = projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid'
+    const includesBess = projectType === 'bess' || projectType === 'hybrid'
+    const pvKwp = numberOrNull(form.get('pv_kwp'))
+    const bessMw = numberOrNull(form.get('bess_mw'))
+    const bessMwh = numberOrNull(form.get('bess_mwh'))
 
     if (!projectName || !locationCity || !locationState || !position) {
       setError('Bitte Projektname, Stadt und Bundesland ausfüllen und den Standort auf der Karte bestätigen.')
       setSubmitting(false)
       return
     }
-    if (!remunerationModel || remunerationCtKwh === null) {
+    if (includesPv && (!pvKwp || pvKwp <= 0)) {
+      setError('Bitte die geplante PV-Leistung angeben.')
+      setSubmitting(false)
+      return
+    }
+    if (includesBess && ((!bessMw || bessMw <= 0) || (!bessMwh || bessMwh <= 0))) {
+      setError('Bitte BESS-Leistung und BESS-Kapazität vollständig angeben.')
+      setSubmitting(false)
+      return
+    }
+    if (includesPv && (!remunerationModel || remunerationCtKwh === null)) {
       setError('Bitte Einspeiseart und Vergütung vollständig angeben.')
       setSubmitting(false)
       return
@@ -138,18 +157,19 @@ export function PartnerSubmissionEditForm({ submission, existingDocumentCount }:
 
       const { error: updateError } = await supabase.from('project_submissions').update({
         project_name: projectName,
-        project_type: String(form.get('project_type') ?? 'pv_freiflaeche'),
+        project_type: projectType,
         location_address: String(form.get('location_address') ?? '').trim() || null,
         location_city: locationCity.trim(),
         location_state: locationState,
         location_lat: position.lat,
         location_lng: position.lng,
-        pv_kwp: numberOrNull(form.get('pv_kwp')),
-        bess_mw: numberOrNull(form.get('bess_mw')),
-        bess_mwh: numberOrNull(form.get('bess_mwh')),
-        remuneration_model: remunerationModel,
-        remuneration_ct_kwh: remunerationCtKwh,
-        ppa_term_years: remunerationModel === 'ppa' ? numberOrNull(form.get('ppa_term_years')) : null,
+        pv_kwp: includesPv ? pvKwp : null,
+        bess_mw: includesBess ? bessMw : null,
+        bess_mwh: includesBess ? bessMwh : null,
+        remuneration_model: includesPv ? remunerationModel : null,
+        remuneration_ct_kwh: includesPv ? remunerationCtKwh : null,
+        ppa_term_years: includesPv && remunerationModel === 'ppa' ? numberOrNull(form.get('ppa_term_years')) : null,
+        technical_checklist: buildTechnicalChecklist(form, projectType),
         contact_name: String(form.get('contact_name') ?? '').trim() || null,
         contact_email: String(form.get('contact_email') ?? '').trim() || null,
         contact_phone: String(form.get('contact_phone') ?? '').trim() || null,
@@ -177,29 +197,31 @@ export function PartnerSubmissionEditForm({ submission, existingDocumentCount }:
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
+      <PartnerProjectTypeSelector value={projectType} onChange={setProjectType} disabled={!editable} />
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-        <h2 className="text-xl font-extrabold">Projektdaten und Standort</h2>
+        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">Schritt 2</p>
+        <h2 className="mt-2 text-xl font-extrabold">Projektdaten und Standort</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2"><span className="text-sm font-bold">Projektname *</span><input name="project_name" required defaultValue={submission.project_name} className={inputClass} /></label>
-          <label><span className="text-sm font-bold">Projektart *</span><select name="project_type" defaultValue={submission.project_type} className={inputClass}><option value="pv_freiflaeche">PV-Freifläche</option><option value="pv_dach">PV-Dach</option><option value="bess">BESS</option><option value="hybrid">Hybrid</option></select></label>
           <label><span className="text-sm font-bold">Stadt *</span><input name="location_city" required value={locationCity} onChange={(e) => { setLocationCity(e.target.value); setPosition(null) }} className={inputClass} /></label>
           <label><span className="text-sm font-bold">Adresse</span><input name="location_address" defaultValue={submission.location_address ?? ''} className={inputClass} /></label>
           <label><span className="text-sm font-bold">Bundesland *</span><select name="location_state" required value={locationState} onChange={(e) => { setLocationState(e.target.value); setPosition(null) }} className={inputClass}><option value="">Bitte auswählen</option>{FEDERAL_STATES.map((state) => <option key={state} value={state}>{state}</option>)}</select></label>
-          <label><span className="text-sm font-bold">PV-Leistung (kWp)</span><input name="pv_kwp" inputMode="decimal" defaultValue={submission.pv_kwp ?? ''} className={inputClass} /></label>
-          <label><span className="text-sm font-bold">BESS-Leistung (MW)</span><input name="bess_mw" inputMode="decimal" defaultValue={submission.bess_mw ?? ''} className={inputClass} /></label>
-          <label><span className="text-sm font-bold">BESS-Kapazität (MWh)</span><input name="bess_mwh" inputMode="decimal" defaultValue={submission.bess_mwh ?? ''} className={inputClass} /></label>
+          {(projectType === 'pv_freiflaeche' || projectType === 'pv_dach' || projectType === 'hybrid') && <label><span className="text-sm font-bold">PV-Leistung (kWp) *</span><input name="pv_kwp" required inputMode="decimal" defaultValue={submission.pv_kwp ?? ''} className={inputClass} /></label>}
+          {(projectType === 'bess' || projectType === 'hybrid') && <><label><span className="text-sm font-bold">BESS-Leistung (MW) *</span><input name="bess_mw" required inputMode="decimal" defaultValue={submission.bess_mw ?? ''} className={inputClass} /></label><label><span className="text-sm font-bold">BESS-Kapazität (MWh) *</span><input name="bess_mwh" required inputMode="decimal" defaultValue={submission.bess_mwh ?? ''} className={inputClass} /></label></>}
           <div className="sm:col-span-2"><PartnerLocationMap value={position} city={locationCity} state={locationState} onChange={setPosition} /></div>
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <PartnerTechnicalChecklistForm projectType={projectType} initialValue={submission.technical_checklist} />
+
+      {projectType !== 'bess' && <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-xl font-extrabold">EEG / Vermarktung</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label><span className="text-sm font-bold">Einspeiseart *</span><select name="remuneration_model" required defaultValue={submission.remuneration_model ?? ''} className={inputClass}><option value="">Bitte auswählen</option><option value="ppa">PPA</option><option value="volleinspeisung">Volleinspeisung</option><option value="teileinspeisung">Teileinspeisung</option></select></label>
           <label><span className="text-sm font-bold">Vergütung (ct/kWh) *</span><input name="remuneration_ct_kwh" required inputMode="decimal" defaultValue={submission.remuneration_ct_kwh ?? ''} className={inputClass} /></label>
           <label className="sm:col-span-2"><span className="text-sm font-bold">PPA-Laufzeit (Jahre)</span><input name="ppa_term_years" inputMode="numeric" defaultValue={submission.ppa_term_years ?? ''} className={inputClass} /></label>
         </div>
-      </section>
+      </section>}
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         <h2 className="text-xl font-extrabold">Ansprechpartner und Hinweise</h2>
