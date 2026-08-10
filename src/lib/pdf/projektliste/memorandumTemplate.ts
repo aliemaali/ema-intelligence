@@ -126,7 +126,7 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   const logoWhite = options.logoWhiteDataUri
     ? `<img src="${options.logoWhiteDataUri}" alt="EMA">`
     : emaLogoSvg({ onDark: true, withWordmark: false });
-  const kpis = buildKpis(data).map((item) => `<div class="kpi"><div class="k">${esc(item.label)}</div><div class="v">${esc(item.value)}</div></div>`).join('');
+  const kpis = buildKpis(data).map((item) => `<div class="kpi"><div class="k">${esc(item.label)}</div><div class="v${item.value.length > 13 ? ' compact' : ''}">${esc(item.value)}</div></div>`).join('');
   const profile = buildProfile(data).map((item) => `<div class="row"><span class="n">${esc(item.label)}</span><span class="v">${esc(item.value)}</span></div>`).join('');
   const highlights = orderedHighlights(data).map((item) => `<div class="memo-highlight"><span class="check">${checkIcon()}</span><span class="t">${esc(item)}</span></div>`).join('');
   const economics = data.pvEconomics;
