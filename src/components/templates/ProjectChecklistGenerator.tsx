@@ -89,12 +89,12 @@ const pvSections: Section[] = [
       },
       { label: 'PV-Leistung DC (kWp / MWp)', name: 'pv_leistung_dc' },
       {
-        label: 'Flächensicherung',
+        label: 'Grundstücks- / Dachsicherung',
         name: 'pv_flaechensicherung',
         kind: 'select',
         options: [choose, 'Gesichert', 'In Verhandlung', 'Nicht gesichert'],
       },
-      { label: 'Pachtdauer / wesentliche Konditionen', name: 'pv_pacht' },
+      { label: 'Pacht- / Nutzungsdauer und Konditionen', name: 'pv_pacht' },
     ],
   },
   {
@@ -129,6 +129,8 @@ const pvSections: Section[] = [
           { label: 'Schlüsselfertig (Full EPC)', value: 'full_epc', icon: 'epc' },
         ],
       },
+      { label: 'Nur bei Full EPC · Lieferumfang', name: 'pv_epc_lieferumfang' },
+      { label: 'Nur bei Full EPC · Preis pro kWp', name: 'pv_epc_preis_kwp' },
       { label: 'Spezifischer Ertrag (kWh/kWp)', name: 'pv_spez_ertrag' },
       { label: 'Jahresproduktion (kWh / MWh)', name: 'pv_jahresproduktion' },
       {
@@ -138,7 +140,7 @@ const pvSections: Section[] = [
         options: [choose, 'EEG', 'PPA', 'Direktvermarktung', 'Sonstiges'],
       },
       { label: 'Vergütung / Laufzeit', name: 'pv_verguetung' },
-      { label: 'Kaufpreis gesamt / Preis je kWp', name: 'pv_kaufpreis' },
+      { label: 'Kaufpreis gesamt', name: 'pv_kaufpreis' },
     ],
   },
 ]
