@@ -238,7 +238,7 @@ const documentRows: Record<ChecklistType, StatusRow[]> = {
   ].map((label, index) => ({ label, name: 'bess_dokument_' + (index + 1), kind: 'status' as const })),
 }
 
-export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
+export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string, heroDataUrl?: string) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const sections = [
     ...commonSections,
@@ -259,7 +259,34 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
   ] satisfies Section[]
   let y = 0
 
-  const addHeader = () => {
+  const addHeader = (withHero = false) => {
+    const showHero = withHero && type === 'pv' && Boolean(heroDataUrl)
+
+    if (showHero && heroDataUrl) {
+      doc.setFillColor(navy)
+      doc.rect(0, 0, 210, 56, 'F')
+      doc.addImage(heroDataUrl, 'JPEG', 72, 0, 138, 56, undefined, 'FAST')
+      doc.setFillColor(navy)
+      doc.triangle(68, 0, 98, 0, 68, 56, 'F')
+      doc.setFillColor(green)
+      doc.rect(0, 56, 210, 2.4, 'F')
+
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 18, 5, 31, 15.3, undefined, 'FAST')
+      }
+
+      doc.setTextColor(255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text('PROJEKT-CHECKLISTE', 18, 37)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8.3)
+      doc.text('PV · AUSFÜLLBARE PROJEKTANFRAGE · VERTRAULICH', 18, 46)
+      doc.setTextColor(textColor)
+      y = 68
+      return
+    }
+
     doc.setFillColor(navy)
     doc.rect(0, 0, 210, 28, 'F')
     doc.setFillColor(green)
@@ -460,7 +487,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
     return 'multiline' in row && row.multiline ? 30 : 12
   }
 
-  addHeader()
+  addHeader(true)
   for (const section of sections) {
     const estimatedHeight = 13 + section.rows.reduce(
       (sum, row) => sum + getRowHeight(row),
@@ -530,6 +557,58 @@ async function loadEmaLogoDataUrl() {
   })
 }
 
+async function loadHeroDataUrl() {
+  const response = await fetch('/hero-dashboard.png')
+  if (!response.ok) throw new Error('PV-Hero konnte nicht geladen werden.')
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+
+  try {
+    const image = new Image()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('PV-Hero konnte nicht gelesen werden.'))
+      image.src = objectUrl
+    })
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 1380
+    canvas.height = 560
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('PV-Hero konnte nicht vorbereitet werden.')
+
+    const targetRatio = canvas.width / canvas.height
+    const sourceRatio = image.naturalWidth / image.naturalHeight
+    let sourceX = 0
+    let sourceY = 0
+    let sourceWidth = image.naturalWidth
+    let sourceHeight = image.naturalHeight
+
+    if (sourceRatio > targetRatio) {
+      sourceWidth = image.naturalHeight * targetRatio
+      sourceX = (image.naturalWidth - sourceWidth) / 2
+    } else {
+      sourceHeight = image.naturalWidth / targetRatio
+      sourceY = (image.naturalHeight - sourceHeight) / 2
+    }
+
+    context.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    )
+    return canvas.toDataURL('image/jpeg', 0.88)
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 export function ProjectChecklistGenerator({ onClose }: Props) {
   const [type, setType] = useState<ChecklistType>('pv')
   const [downloading, setDownloading] = useState(false)
@@ -537,8 +616,11 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
   const download = async () => {
     setDownloading(true)
     try {
-      const logoDataUrl = await loadEmaLogoDataUrl()
-      const doc = createChecklistPdf(type, logoDataUrl)
+      const [logoDataUrl, heroDataUrl] = await Promise.all([
+        loadEmaLogoDataUrl(),
+        type === 'pv' ? loadHeroDataUrl() : Promise.resolve(undefined),
+      ])
+      const doc = createChecklistPdf(type, logoDataUrl, heroDataUrl)
       doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
       toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde heruntergeladen.')
     } catch (error) {
