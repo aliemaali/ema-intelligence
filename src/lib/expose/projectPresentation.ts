@@ -53,7 +53,7 @@ function typeDetails(projectType: string) {
     case 'bess': return { label: 'Batteriespeicherprojekt', image: '/project-bess.svg' }
     case 'hybrid': return { label: 'PV- & BESS-Hybridprojekt', image: '/hero-dashboard.png' }
     case 'wind': return { label: 'Windenergieprojekt', image: '/hero-wind.svg' }
-    case 'rechenzentrum': return { label: 'Rechenzentrum', image: '/hero-datacenter.svg' }
+    case 'rechenzentrum': return { label: 'Rechenzentrum', image: '/hero-datacenter.webp' }
     default: return { label: 'Energieinfrastrukturprojekt', image: '/hero-generic-project.svg' }
   }
 }

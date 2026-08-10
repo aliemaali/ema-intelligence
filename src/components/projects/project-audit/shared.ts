@@ -8,7 +8,7 @@ export function fallbackProjectImage(type: string) {
   if (type === 'pv_dach') return '/project-dach.svg'
   if (type === 'bess') return '/project-bess.svg'
   if (type === 'wind') return '/hero-wind.svg'
-  if (type === 'rechenzentrum') return '/hero-datacenter.svg'
+  if (type === 'rechenzentrum') return '/hero-datacenter.webp'
   if (type === 'sonstiges') return '/hero-generic-project.svg'
   return '/project-freiflaeche.svg'
 }
