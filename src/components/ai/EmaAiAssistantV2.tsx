@@ -338,7 +338,7 @@ export function EmaAiAssistantV2({ projects }: { projects: EmaAiProject[] }) {
                 </select>
                 <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-white">⌄</span>
               </div>
-              {selectedProject && <div className="flex items-center justify-between gap-4 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10"><span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-300"><KindIcon className="h-4 w-4 text-[#87d33b]" />{kindDetails.metricLabel}</span><span className="text-right text-lg font-extrabold text-white">{metricValue}</span></div>}
+              {selectedProject && <div aria-live="polite" className="flex items-center justify-between gap-4 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/10"><span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-300"><KindIcon className="h-4 w-4 text-[#87d33b]" />{kindDetails.metricLabel}</span><span className="text-right text-lg font-extrabold text-white">{metricValue}</span></div>}
             </div>
           </div>
 
