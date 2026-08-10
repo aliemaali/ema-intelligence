@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation'
 import { convertPartnerSubmission } from '@/lib/actions/partner-submission-conversion.actions'
 import { archivePartnerSubmission, restorePartnerSubmission, updatePartnerSubmissionReview } from '@/lib/actions/partner-submission-review.actions'
 import { createClient } from '@/lib/supabase/server'
+import { PartnerSubmissionChecklistSummary } from '@/components/partner/PartnerSubmissionChecklistSummary'
 
 const TYPE_LABELS: Record<string, string> = {
   pv_freiflaeche: 'PV-Freifläche',
@@ -69,6 +70,8 @@ export default async function PartnerSubmissionDetailPage({ params }: { params: 
 
         {osmUrl && <a href={osmUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm font-extrabold text-[#1F2A44]"><MapPin className="h-4 w-4" /> Standort auf Karte öffnen <ExternalLink className="h-4 w-4" /></a>}
       </section>
+
+      <PartnerSubmissionChecklistSummary value={submission.technical_checklist} />
 
       {isArchived ? (
         <form action={restorePartnerSubmission} className="rounded-[2rem] border border-[#5CB800]/25 bg-white p-6 shadow-sm">
