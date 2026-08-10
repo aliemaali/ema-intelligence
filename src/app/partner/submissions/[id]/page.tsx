@@ -3,6 +3,7 @@ import { ArrowLeft, FileText, MapPin, PencilLine, LockKeyhole } from 'lucide-rea
 import { notFound, redirect } from 'next/navigation'
 import { PartnerReviewResponseForm } from '@/components/partner/PartnerReviewResponseForm'
 import { createClient } from '@/lib/supabase/server'
+import { PartnerSubmissionChecklistSummary } from '@/components/partner/PartnerSubmissionChecklistSummary'
 
 export const metadata = { title: 'Projektstatus' }
 
@@ -54,6 +55,8 @@ export default async function PartnerSubmissionDetailPage({ params }: { params: 
             <div className="mt-5 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"><LockKeyhole className="mt-0.5 h-5 w-5 shrink-0" /><p>Dieses Projekt ist abgeschlossen und kann nicht mehr selbstständig geändert werden.</p></div>
           )}
         </section>
+
+        <div className="mt-5"><PartnerSubmissionChecklistSummary value={submission.technical_checklist} /></div>
 
         {submission.review_note && (
           <section className="mt-5 rounded-[1.75rem] border border-orange-200 bg-orange-50 p-5 sm:p-7">
