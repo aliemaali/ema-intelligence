@@ -200,16 +200,6 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
             { label: 'Glasfaseranbieter', value: text(siteCheck.fiberProvider) },
           ],
         },
-        {
-          title: 'Ansprechpartner & Prüfung',
-          rows: [
-            { label: 'Ansprechpartner', value: text(project.contact_name) },
-            { label: 'Telefon', value: text(project.contact_phone) },
-            { label: 'E-Mail', value: text(project.contact_email) },
-            { label: 'Prüfdatum', value: formatDate(siteCheck.assessmentDate) },
-            { label: 'Zusätzliche Angaben', value: text(siteCheck.additionalNotes) },
-          ],
-        },
       ],
     }
     return {

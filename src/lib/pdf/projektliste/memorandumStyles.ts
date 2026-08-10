@@ -11,6 +11,7 @@ export const memorandumStyles = `
 .memo-kpis .kpi{min-width:0;padding:3.4mm 3mm 3.2mm;}
 .memo-kpis .kpi .k{font-size:5.5pt;white-space:nowrap;}
 .memo-kpis .kpi .v{font-size:12.2pt;margin-top:1.2mm;white-space:nowrap;letter-spacing:-.02em;}
+.memo-kpis .kpi .v.compact{font-size:9.6pt;letter-spacing:-.035em;}
 
 .memo-body{padding:5mm var(--pad) 0;display:grid;grid-template-columns:1.22fr 1fr;gap:6mm;flex:1;min-height:0;}
 .memo-col{display:flex;flex-direction:column;gap:3.3mm;min-height:0;}

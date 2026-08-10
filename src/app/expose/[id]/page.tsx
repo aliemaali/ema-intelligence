@@ -214,11 +214,12 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
             {metrics.map((metric) => {
               const Icon = metricIcon(metric.label)
               const emphasis = metric.label.toLowerCase().includes('amort')
+              const compactValue = metric.value.length > 13
               return (
                 <div key={metric.label} className={`flex min-h-[150px] flex-col items-center justify-center rounded-2xl border px-3 py-5 text-center ${emphasis ? 'border-[#5CB800] bg-gradient-to-br from-[#72cf16] to-[#087032] text-white shadow-[0_12px_28px_rgba(49,137,38,.22)]' : 'border-slate-200 bg-white'}`}>
                   <Icon strokeWidth={1.8} className={`h-11 w-11 ${emphasis ? 'text-white' : 'text-[#2f841f]'}`} />
                   <p className={`mt-4 text-[10px] font-extrabold uppercase tracking-[.04em] ${emphasis ? 'text-white/90' : 'text-[#27334a]'}`}>{metric.label}</p>
-                  <p className={`mt-2 text-xl font-black leading-tight ${emphasis ? 'text-white' : 'text-[#0B1633]'}`}>{metric.value}</p>
+                  <p className={`mt-2 max-w-full break-words font-black leading-tight ${compactValue ? 'text-base sm:text-lg' : 'text-xl'} ${emphasis ? 'text-white' : 'text-[#0B1633]'}`}>{metric.value}</p>
                 </div>
               )
             })}
