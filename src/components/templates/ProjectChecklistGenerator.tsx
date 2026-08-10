@@ -204,7 +204,7 @@ const documentRows: Record<ChecklistType, StatusRow[]> = {
   ].map((label, index) => ({ label, name: 'bess_dokument_' + (index + 1), kind: 'status' as const })),
 }
 
-export function createChecklistPdf(type: ChecklistType) {
+export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const sections = [
     ...commonSections,
@@ -230,6 +230,11 @@ export function createChecklistPdf(type: ChecklistType) {
     doc.rect(0, 0, 210, 28, 'F')
     doc.setFillColor(green)
     doc.rect(0, 28, 210, 2.4, 'F')
+    if (logoDataUrl) {
+      doc.setFillColor(255)
+      doc.roundedRect(157, 3.5, 37, 21, 2, 2, 'F')
+      doc.addImage(logoDataUrl, 'JPEG', 160, 5, 31, 18, undefined, 'FAST')
+    }
     doc.setTextColor(255)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(15)
@@ -238,9 +243,6 @@ export function createChecklistPdf(type: ChecklistType) {
     doc.setFont('helvetica', 'normal')
     doc.text('EMA Enterprise GmbH · Blanko-Formular', 18, 21)
     doc.setTextColor(textColor)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.text('Digital ausfüllbar', 192, 21, { align: 'right' })
     y = 40
   }
 
@@ -374,13 +376,34 @@ export function createChecklistPdf(type: ChecklistType) {
   return doc
 }
 
+async function loadEmaLogoDataUrl() {
+  const response = await fetch('/ema-logo.jpeg')
+  if (!response.ok) throw new Error('EMA-Logo konnte nicht geladen werden.')
+  const blob = await response.blob()
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('EMA-Logo konnte nicht gelesen werden.'))
+    reader.readAsDataURL(blob)
+  })
+}
+
 export function ProjectChecklistGenerator({ onClose }: Props) {
   const [type, setType] = useState<ChecklistType>('pv')
+  const [downloading, setDownloading] = useState(false)
 
-  const download = () => {
-    const doc = createChecklistPdf(type)
-    doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
-    toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde heruntergeladen.')
+  const download = async () => {
+    setDownloading(true)
+    try {
+      const logoDataUrl = await loadEmaLogoDataUrl()
+      const doc = createChecklistPdf(type, logoDataUrl)
+      doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
+      toast.success(type.toUpperCase() + '-Blanko-Checkliste wurde heruntergeladen.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'PDF konnte nicht erstellt werden.')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -435,10 +458,11 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
         <button
           type="button"
           onClick={download}
+          disabled={downloading}
           className="btn-primary mt-5 inline-flex w-full items-center justify-center gap-2"
         >
           <Download className="h-4 w-4" />
-          {type.toUpperCase()}-Blanko-PDF herunterladen
+          {downloading ? 'PDF wird erstellt…' : type.toUpperCase() + '-Blanko-PDF herunterladen'}
         </button>
       </div>
     </div>
