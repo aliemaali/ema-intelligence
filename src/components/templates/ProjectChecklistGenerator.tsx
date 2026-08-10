@@ -260,7 +260,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string, he
   let y = 0
 
   const addHeader = (withHero = false) => {
-    const showHero = withHero && type === 'pv' && Boolean(heroDataUrl)
+    const showHero = withHero && Boolean(heroDataUrl)
 
     if (showHero && heroDataUrl) {
       doc.setFillColor(navy)
@@ -281,7 +281,7 @@ export function createChecklistPdf(type: ChecklistType, logoDataUrl?: string, he
       doc.text('PROJEKT-CHECKLISTE', 18, 37)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8.3)
-      doc.text('PV · AUSFÜLLBARE PROJEKTANFRAGE · VERTRAULICH', 18, 46)
+      doc.text(type.toUpperCase() + ' · AUSFÜLLBARE PROJEKTANFRAGE · VERTRAULICH', 18, 46)
       doc.setTextColor(textColor)
       y = 68
       return
@@ -559,7 +559,7 @@ async function loadEmaLogoDataUrl() {
 
 async function loadHeroDataUrl() {
   const response = await fetch('/hero-dashboard.png')
-  if (!response.ok) throw new Error('PV-Hero konnte nicht geladen werden.')
+  if (!response.ok) throw new Error('Projekt-Hero konnte nicht geladen werden.')
   const blob = await response.blob()
   const objectUrl = URL.createObjectURL(blob)
 
@@ -567,7 +567,7 @@ async function loadHeroDataUrl() {
     const image = new Image()
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve()
-      image.onerror = () => reject(new Error('PV-Hero konnte nicht gelesen werden.'))
+      image.onerror = () => reject(new Error('Projekt-Hero konnte nicht gelesen werden.'))
       image.src = objectUrl
     })
 
@@ -575,7 +575,7 @@ async function loadHeroDataUrl() {
     canvas.width = 1380
     canvas.height = 560
     const context = canvas.getContext('2d')
-    if (!context) throw new Error('PV-Hero konnte nicht vorbereitet werden.')
+    if (!context) throw new Error('Projekt-Hero konnte nicht vorbereitet werden.')
 
     const targetRatio = canvas.width / canvas.height
     const sourceRatio = image.naturalWidth / image.naturalHeight
@@ -618,7 +618,7 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
     try {
       const [logoDataUrl, heroDataUrl] = await Promise.all([
         loadEmaLogoDataUrl(),
-        type === 'pv' ? loadHeroDataUrl() : Promise.resolve(undefined),
+        loadHeroDataUrl(),
       ])
       const doc = createChecklistPdf(type, logoDataUrl, heroDataUrl)
       doc.save('EMA_Projekt-Checkliste_' + type.toUpperCase() + '_Blanko.pdf')
