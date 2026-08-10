@@ -7,12 +7,13 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
+import { ProjectChecklistGenerator } from '@/components/templates/ProjectChecklistGenerator'
 
 type FolderItem = { id: string; name: string }
 type Props = { userId: string; folders: FolderItem[] }
 type Language = 'de' | 'en'
 
-type GeneratorKind = 'commission' | 'investor-profile'
+type GeneratorKind = 'commission' | 'investor-profile' | 'project-checklist'
 
 function clean(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_').replace(/^_+|_+$/g, '') || 'Dokument'
@@ -27,10 +28,12 @@ export function AdditionalDocumentGenerators({ userId, folders }: Props) {
 
   return (
     <>
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <GeneratorCard title="Projekt-Checkliste" description="Leere, ausfüllbare PV- oder BESS-Checkliste als PDF zum Versenden." onClick={() => setKind('project-checklist')} />
         <GeneratorCard title="Provisionsvereinbarung" description="Pauschal, €/kWp, €/MWh oder prozentual – mit automatischer Berechnung." onClick={() => setKind('commission')} />
         <GeneratorCard title="Investoren-Suchprofil" description="Zweisprachiges Suchprofil für neue Investoren, direkt als PDF speicherbar." onClick={() => setKind('investor-profile')} />
       </div>
+      {kind === 'project-checklist' && <ProjectChecklistGenerator onClose={() => setKind(null)} />}
       {kind === 'commission' && <CommissionGenerator userId={userId} folders={folders} onClose={() => setKind(null)} />}
       {kind === 'investor-profile' && <InvestorProfileGenerator userId={userId} folders={folders} onClose={() => setKind(null)} />}
     </>
