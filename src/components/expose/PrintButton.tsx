@@ -13,6 +13,21 @@ const translations: Record<string, string> = {
   'Spez. Ertrag': 'Specific yield', Vergütung: 'Feed-in tariff', Pachtdauer: 'Lease term', Amortisation: 'Payback period',
   Standort: 'Location', Projektstatus: 'Project status', Netzanschluss: 'Grid connection', Einspeiseart: 'Feed-in model',
   Grundstück: 'Land area', Investitionsvolumen: 'Investment volume', Kapazität: 'Capacity', Dauer: 'Duration',
+  Anschlussleistung: 'Grid capacity', Netzstatus: 'Grid status', Bestätigt: 'Confirmed', 'In Prüfung': 'Under review',
+  'HV-Distanz': 'HV distance', Glasfaser: 'Fiber connection', Landkreis: 'District',
+  'Straße / Flurstück': 'Street / parcel', 'GPS-Koordinaten': 'GPS coordinates', Grundstücksfläche: 'Site area',
+  'Grundstückskosten / Pacht': 'Land cost / lease', 'Preis pro m²': 'Price per m²',
+  'Standort & Grundstück': 'Location & site', 'Baurecht & Flächennutzung': 'Planning law & land use',
+  'Aktuelle Nutzungsart': 'Current land use', 'Weitere Nutzung': 'Additional designation', Bebauungsplan: 'Zoning plan',
+  'Rechenzentrum zulässig': 'Data center permitted', Planungshinweis: 'Planning note', Stromversorgung: 'Power supply',
+  'Entfernung zur HV-Station': 'Distance to HV substation', 'HV-Station / Umspannwerk': 'HV station / substation',
+  Netzbetreiber: 'Grid operator', 'IT-Leistung': 'IT capacity', Glasfaseranbindung: 'Fiber connectivity',
+  'Glasfaser auf Grundstück': 'Fiber on site', 'Entfernung zur Glasfasertrasse': 'Distance to fiber route',
+  Glasfaseranbieter: 'Fiber provider', 'Ansprechpartner & Prüfung': 'Contact & assessment', Ansprechpartner: 'Contact person',
+  Telefon: 'Phone', 'E-Mail': 'Email', Prüfdatum: 'Assessment date', 'Zusätzliche Angaben': 'Additional notes',
+  'Nicht bekannt': 'Unknown', 'Muss geprüft werden': 'Requires verification', 'In Aufstellung': 'In preparation',
+  Sondergebiet: 'Special-purpose zone', Landwirtschaftlich: 'Agricultural', Industriell: 'Industrial',
+  Gewerblich: 'Commercial', Mischgebiet: 'Mixed-use zone', Nein: 'No', Ja: 'Yes',
   'Transformator / Umspannwerk': 'Transformer / substation', Jahresproduktion: 'Annual production', Jahreserlös: 'Annual revenue',
   'Rendite p.a.': 'Annual return', Vorhanden: 'Available', 'Nicht vorhanden': 'Not available', 'Noch offen': 'Pending',
   'In Planung': 'In planning', 'Im Betrieb': 'Operational',
@@ -58,6 +73,13 @@ function dataForLanguage(data: MemorandumPdfData, language: MemorandumLanguage):
     metrics: data.metrics.map((item) => ({ label: translateText(item.label), value: translateText(item.value) })),
     profile: data.profile.map((item) => ({ label: translateText(item.label), value: translateText(item.value) })),
     highlights: data.highlights.map(translateText),
+    dataCenterDetails: data.dataCenterDetails ? {
+      ...data.dataCenterDetails,
+      sections: data.dataCenterDetails.sections.map((section) => ({
+        title: translateText(section.title),
+        rows: section.rows.map((row) => ({ label: translateText(row.label), value: translateText(row.value) })),
+      })),
+    } : undefined,
   }
 }
 

@@ -17,6 +17,13 @@ export const dynamic = 'force-dynamic'
 const CHROMIUM_PACK_URL = process.env.CHROMIUM_PACK_URL ?? 'https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar'
 
 const metricSchema = z.object({ label: z.string().trim().max(100), value: z.string().trim().max(160) })
+const dataCenterDetailsSchema = z.object({
+  sourceDate: z.string().trim().max(100).optional(),
+  sections: z.array(z.object({
+    title: z.string().trim().max(120),
+    rows: z.array(metricSchema).max(12),
+  })).max(6),
+})
 const economicsSchema = z.object({
   annualYield: z.number().finite(),
   annualRevenue: z.number().finite(),
@@ -39,6 +46,7 @@ const requestSchema = z.object({
   metrics: z.array(metricSchema).max(12),
   profile: z.array(metricSchema).max(16),
   highlights: z.array(z.string().trim().max(240)).max(12),
+  dataCenterDetails: dataCenterDetailsSchema.optional(),
   heroImage: z.string().max(2_048),
   projectImage: z.string().max(4_096).optional(),
   language: z.enum(['de', 'en']).default('de'),
