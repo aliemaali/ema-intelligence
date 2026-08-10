@@ -102,7 +102,11 @@ export async function POST(request: Request) {
   const root = process.cwd()
   const heroImage = fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg')
   if (!heroImage) return NextResponse.json({ error: 'Das EMA-Hero-Bild fehlt.' }, { status: 500 })
-  const projectImage = await remoteImageToDataUri(parsed.data.projectImage)
+  const uploadedProjectImage = await remoteImageToDataUri(parsed.data.projectImage)
+  const defaultDataCenterImage = parsed.data.projectType === 'rechenzentrum'
+    ? fileToDataUri(path.join(root, 'public/hero-datacenter.webp'), 'image/webp')
+    : undefined
+  const projectImage = uploadedProjectImage ?? defaultDataCenterImage
   const html = renderMemorandumHtml(parsed.data, {
     germanyMap: germany,
     fontFaceCss: fontFaceCss(),
