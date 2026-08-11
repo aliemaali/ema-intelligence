@@ -2,7 +2,11 @@
 'use client'
 
 import { useRef, type CSSProperties } from 'react'
-import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
+import {
+  capexCalculationModeLabel,
+  type CapexCalcResult,
+  type CapexProject,
+} from '@/lib/types/capex.types'
 import { eur, eurKwp, pct1, num } from '@/lib/capex/format'
 import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
 
@@ -193,7 +197,10 @@ const pageStyle: CSSProperties = {
 }
 
 export function CapexExpose({ project, calc, onBack }: CapexExposeProps) {
-  const other = calc.positions.slice(5)
+  const calculationMode = project.componentPricing.acquisition.mode
+  const calculationModeName = capexCalculationModeLabel(calculationMode)
+  const isTurnkey = calculationMode === 'turnkey'
+  const other = isTurnkey ? calc.positions : calc.positions.slice(5)
   const cfs = calc.years.slice(1).map((y) => y.ncf)
   const cum = calc.years.map((y) => y.cum)
   const pagesRef = useRef<HTMLDivElement>(null)
@@ -333,6 +340,10 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
               {num(project.waccPct, 1)} %
               {project.pachtdauerJahre > 0 ? ` · Pachtdauer: ${num(project.pachtdauerJahre)} Jahre.` : '.'}
             </p>
+            <div className="mb-2 rounded px-2 py-1.5 text-[9px] font-extrabold" style={{ background: E_LIGHT, color: E_NAVY }}>
+              Kalkulationsart: {calculationModeName}
+              {isTurnkey ? ' · Komponentenpreise dienen nur der internen Plausibilitätsprüfung.' : ''}
+            </div>
 
             <h2 className="mb-1 mt-2.5 text-[11.5px] font-extrabold" style={{ color: E_NAVY }}>
               Wirtschaftliche Eckdaten auf einen Blick
@@ -361,7 +372,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                   'PV-Module',
                   `${num(project.modulleistungWp)} Wp je Modul`,
                   `${num(calc.moduleCount)} Stück`,
-                  eur(calc.moduleCost),
+                  isTurnkey ? 'intern, nicht addiert' : eur(calc.moduleCost),
                 ],
                 [
                   project.componentPricing.inverterMode === 'hybrid'
@@ -371,7 +382,7 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                     .filter(Boolean)
                     .join(' · '),
                   `${num(project.wrAnzahl)} × ${eur(project.wrEinzelpreis)}`,
-                  eur(calc.wrTotal),
+                  isTurnkey ? 'intern, nicht addiert' : eur(calc.wrTotal),
                 ],
                 [
                   'Unterkonstruktion',
@@ -382,25 +393,25 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                     project.componentPricing.mounting.snowZone ? `Schneelastzone ${project.componentPricing.mounting.snowZone}` : '',
                   ].filter(Boolean).join(' · '),
                   `${num(project.ukPreisProKwp)} EUR/kWp`,
-                  eur(calc.ukTotal),
+                  isTurnkey ? 'intern, nicht addiert' : eur(calc.ukTotal),
                 ],
                 [
                   'DC-Installation',
                   `${num(project.dcPreisProKwp)} EUR/kWp`,
                   `${num(project.anlagenleistungKwp)} kWp`,
-                  eur(calc.dcTotal),
+                  isTurnkey ? 'im Kaufpreis enthalten' : eur(calc.dcTotal),
                 ],
                 [
                   'AC-Installation',
                   `${num(project.acPreisProKwp)} EUR/kWp`,
                   `${num(project.anlagenleistungKwp)} kWp`,
-                  eur(calc.acTotal),
+                  isTurnkey ? 'im Kaufpreis enthalten' : eur(calc.acTotal),
                 ],
               ]}
             />
 
             <h1 className="mb-2 mt-3.5 text-base font-extrabold" style={{ color: E_NAVY }}>
-              3. Weitere CAPEX-Positionen
+              {isTurnkey ? '3. Kaufpreisbasis' : '3. Weitere CAPEX-Positionen'}
             </h1>
             <ETable
               head={['Position', 'Betrag (EUR)']}
@@ -499,4 +510,3 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
     </div>
   )
 }
-
