@@ -3,10 +3,14 @@
 import { useState } from 'react'
 import { ExternalLink, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import {
+  getBestInverterRecommendation,
   getInverterRecommendation,
   getModuleRecommendation,
   isApprovedHybridInverter,
   INVERTER_MANUFACTURERS,
+  INVERTER_MAX_DC_AC_RATIO,
+  INVERTER_MIN_DC_AC_RATIO,
+  INVERTER_TARGET_DC_AC_RATIO,
   MODULE_MANUFACTURERS,
   MODULE_POWER_MAX_WP,
   MODULE_POWER_MIN_WP,
@@ -164,6 +168,12 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     setWarnings((current) => ({ ...current, inverter: '' }))
   }
 
+  function chooseBestInverter() {
+    const recommendation = getBestInverterRecommendation(project.anlagenleistungKwp)
+    if (!recommendation) return
+    chooseInverter(recommendation.manufacturer)
+  }
+
   function updateDiscount(kind: ComponentKind, value: number) {
     const discountPct = Math.max(0, Math.min(60, value || 0))
     const current = selection(kind)
@@ -225,9 +235,21 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     inverter.manufacturer,
     inverter.model,
   )
+  const bestInverterRecommendation = getBestInverterRecommendation(project.anlagenleistungKwp)
   const inverterRecommendation = inverterIsApprovedHybrid
     ? getInverterRecommendation(inverter.manufacturer, project.anlagenleistungKwp)
     : null
+  const inverterMatchesRecommendation = Boolean(
+    inverterRecommendation
+    && inverterRecommendation.model === inverter.model
+    && inverterRecommendation.quantity === project.wrAnzahl,
+  )
+  const inverterIsBestRecommendation = Boolean(
+    bestInverterRecommendation
+    && bestInverterRecommendation.manufacturer === inverter.manufacturer
+    && bestInverterRecommendation.model === inverter.model
+    && bestInverterRecommendation.quantity === project.wrAnzahl,
+  )
 
   return (
     <>
@@ -366,23 +388,75 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       </InfoLine>
 
       <div className="mb-3 mt-6 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
-        2 · Hybrid-Wechselrichterhersteller wählen
+        2 · Effizientesten Hybrid-Wechselrichter wählen
       </div>
+
+      {bestInverterRecommendation ? (
+        <button
+          type="button"
+          onClick={chooseBestInverter}
+          className={`mb-3 w-full rounded-2xl border p-3.5 text-left transition-colors ${
+            inverterIsBestRecommendation
+              ? 'border-[#5CB800] bg-[#EAF7E0]'
+              : 'border-[#b9dd98] bg-gradient-to-br from-[#f7fff1] to-white'
+          }`}
+        >
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#5CB800]">
+            EMA beste Auslegung · geringste Gerätezahl
+          </div>
+          <div className="mt-1 font-extrabold text-[#1F2A44]">
+            {bestInverterRecommendation.quantity} × {bestInverterRecommendation.manufacturer}{' '}
+            {bestInverterRecommendation.model}
+          </div>
+          <div className="mt-1 text-xs leading-5 text-slate-600">
+            {num(bestInverterRecommendation.totalAcPowerKw)} kW AC · DC/AC{' '}
+            {num(bestInverterRecommendation.dcAcRatio, 2)} · Ziel{' '}
+            {num(INVERTER_TARGET_DC_AC_RATIO, 2)}
+          </div>
+        </button>
+      ) : (
+        <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold text-amber-900">
+          Für diese Anlagenleistung liegt aktuell keine Hybrid-Auslegung im EMA Vorplanungsbereich.
+        </div>
+      )}
+
+      <p className="mb-3 text-[11px] leading-4 text-slate-500">
+        Priorität: so wenige Geräte wie möglich. Zugelassen werden nur Auslegungen mit DC/AC{' '}
+        {num(INVERTER_MIN_DC_AC_RATIO, 2)}–{num(INVERTER_MAX_DC_AC_RATIO, 2)}. Die endgültige
+        String-, Batterie- und Netzplanung bestätigt der Elektro-Fachplaner.
+      </p>
+
       <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-        {INVERTER_MANUFACTURERS.map((manufacturer) => (
-          <button
-            key={manufacturer}
-            type="button"
-            onClick={() => chooseInverter(manufacturer)}
-            className={`min-h-12 rounded-xl border px-2 py-2 text-xs font-extrabold transition-colors ${
-              inverter.manufacturer === manufacturer && inverterIsApprovedHybrid
-                ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
-                : 'border-slate-200 bg-white text-[#1F2A44]'
-            }`}
-          >
-            {manufacturer}
-          </button>
-        ))}
+        {INVERTER_MANUFACTURERS.map((manufacturer) => {
+          const recommendation = getInverterRecommendation(
+            manufacturer,
+            project.anlagenleistungKwp,
+          )
+          const isSelected = inverter.manufacturer === manufacturer && inverterIsApprovedHybrid
+
+          return (
+            <button
+              key={manufacturer}
+              type="button"
+              onClick={() => chooseInverter(manufacturer)}
+              disabled={!recommendation}
+              className={`min-h-14 rounded-xl border px-2 py-2 text-xs font-extrabold transition-colors ${
+                isSelected
+                  ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
+                  : recommendation
+                    ? 'border-slate-200 bg-white text-[#1F2A44]'
+                    : 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400'
+              }`}
+            >
+              <span className="block">{manufacturer}</span>
+              <span className="mt-0.5 block text-[9px] font-semibold leading-3">
+                {recommendation
+                  ? `${recommendation.quantity} Gerät${recommendation.quantity === 1 ? '' : 'e'} · ${num(recommendation.dcAcRatio, 2)}`
+                  : 'für diese Größe ungeeignet'}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {inverter.manufacturer && !inverterIsApprovedHybrid && (
@@ -392,10 +466,24 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         </div>
       )}
 
+      {inverter.manufacturer && inverterIsApprovedHybrid && !inverterRecommendation && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold leading-5 text-amber-900">
+          Die gespeicherte {inverter.manufacturer}-Auslegung ist für {num(project.anlagenleistungKwp, 2)} kWp
+          nicht effizient genug. Bitte „EMA beste Auslegung“ wählen.
+        </div>
+      )}
+
       {inverter.manufacturer && inverterRecommendation && (
         <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
-            Hybrid-Wechselrichter-Empfehlung
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
+              Hybrid-Wechselrichter-Empfehlung
+            </div>
+            {inverterIsBestRecommendation && (
+              <span className="rounded-full bg-[#5CB800] px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider text-white">
+                EMA beste Auslegung
+              </span>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="font-extrabold text-[#1F2A44]">{inverter.model}</span>
@@ -406,8 +494,19 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           <div className="mt-1 text-xs leading-5 text-slate-600">
             {num(inverter.ratedPower)} kW je Gerät · {num(project.wrAnzahl)} Stück ·{' '}
             {num(project.wrAnzahl * inverter.ratedPower)} kW AC · DC/AC ca.{' '}
-            {num(inverterRecommendation.dcAcRatio, 2)}
+            {num(
+              project.wrAnzahl * inverter.ratedPower > 0
+                ? project.anlagenleistungKwp / (project.wrAnzahl * inverter.ratedPower)
+                : 0,
+              2,
+            )}
           </div>
+          {!inverterMatchesRecommendation && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800">
+              Manuelle Stückzahl weicht von der effizienten Empfehlung ab:{' '}
+              {inverterRecommendation.quantity} Stück.
+            </p>
+          )}
           <p className="mt-2 text-[11px] leading-4 text-slate-500">
             Batterie-Spannung, BMS-Kompatibilität und Ersatzstromkonzept sind projektspezifisch
             durch den Elektro-Fachplaner zu bestätigen.
