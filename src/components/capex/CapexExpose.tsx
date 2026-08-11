@@ -364,8 +364,12 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                   eur(calc.moduleCost),
                 ],
                 [
-                  'Wechselrichter',
-                  project.wrHersteller,
+                  project.componentPricing.inverterMode === 'hybrid'
+                    ? 'Hybrid-Wechselrichter'
+                    : 'Standard-Wechselrichter',
+                  [project.wrHersteller, project.componentPricing.inverter.model]
+                    .filter(Boolean)
+                    .join(' · '),
                   `${num(project.wrAnzahl)} × ${eur(project.wrEinzelpreis)}`,
                   eur(calc.wrTotal),
                 ],
