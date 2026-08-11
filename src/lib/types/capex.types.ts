@@ -6,6 +6,7 @@
 // Arbeitsmodell, das die UI/Berechnungslogik verwendet.
 
 export type ComponentKind = 'module' | 'inverter'
+export type InverterMode = 'standard' | 'hybrid'
 
 export interface ComponentPriceSource {
   retailer: string
@@ -30,6 +31,7 @@ export interface ComponentPricingSelection {
 export interface CapexComponentPricing {
   module: ComponentPricingSelection
   inverter: ComponentPricingSelection
+  inverterMode: InverterMode
 }
 
 export interface CapexCalculationRow {
@@ -205,7 +207,7 @@ export function emptyComponentPricing(): CapexComponentPricing {
     sources: [],
   })
 
-  return { module: selection(), inverter: selection() }
+  return { module: selection(), inverter: selection(), inverterMode: 'standard' }
 }
 
 export function normalizeComponentPricing(value: unknown): CapexComponentPricing {
@@ -213,6 +215,7 @@ export function normalizeComponentPricing(value: unknown): CapexComponentPricing
   if (!value || typeof value !== 'object') return defaults
 
   const raw = value as Partial<Record<ComponentKind, Partial<ComponentPricingSelection>>>
+    & { inverterMode?: unknown }
   const normalizeSelection = (
     kind: ComponentKind,
     fallback: ComponentPricingSelection,
@@ -243,6 +246,11 @@ export function normalizeComponentPricing(value: unknown): CapexComponentPricing
   return {
     module: normalizeSelection('module', defaults.module),
     inverter: normalizeSelection('inverter', defaults.inverter),
+    inverterMode: raw.inverterMode === 'standard' || raw.inverterMode === 'hybrid'
+      ? raw.inverterMode
+      : raw.inverter?.model
+        ? 'hybrid'
+        : 'standard',
   }
 }
 
