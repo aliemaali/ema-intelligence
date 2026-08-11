@@ -94,11 +94,31 @@ export const INVERTER_CATALOG: InverterCatalogItem[] = [
   },
 ]
 
+export const MODULE_POWER_OPTIONS = [430, 440, 450, 460, 500, 550, 580, 600, 700] as const
+export const MODULE_POWER_MIN_WP = 300
+export const MODULE_POWER_MAX_WP = 800
+
 export const MODULE_MANUFACTURERS = MODULE_CATALOG.map((item) => item.manufacturer)
 export const INVERTER_MANUFACTURERS = INVERTER_CATALOG.map((item) => item.manufacturer)
 
-export function getModuleRecommendation(manufacturer: string) {
-  return MODULE_CATALOG.find((item) => item.manufacturer === manufacturer) ?? null
+export function getModuleRecommendation(manufacturer: string, requestedPowerWp?: number) {
+  const item = MODULE_CATALOG.find((entry) => entry.manufacturer === manufacturer)
+  if (!item) return null
+
+  const requested = Math.round(Number(requestedPowerWp))
+  const powerWp = Number.isFinite(requested)
+    && requested >= MODULE_POWER_MIN_WP
+    && requested <= MODULE_POWER_MAX_WP
+    ? requested
+    : item.powerWp
+
+  return {
+    ...item,
+    powerWp,
+    model: powerWp === item.powerWp
+      ? item.model
+      : `${item.manufacturer} · ${powerWp} Wp Leistungsklasse`,
+  }
 }
 
 export function getInverterRecommendation(manufacturer: string, plantKwp: number) {
