@@ -56,6 +56,62 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     eurPerKwp: kwp > 0 ? position.cost / kwp : 0,
   }))
 
+  if (calculationMode === 'turnkey') {
+    const specificYield = Number(p.spezErtragKwhKwp) || 0
+    const tariff = Number(p.strompreisEurKwh) || 0
+    const energyY1 = kwp * specificYield
+    const revenueY1 = energyY1 * tariff
+    const simplePayback = turnkeyPurchasePrice > 0 && revenueY1 > 0
+      ? turnkeyPurchasePrice / revenueY1
+      : null
+    const years: CapexYearCashflow[] = [{
+      year: 0,
+      energy: null,
+      price: null,
+      revenue: null,
+      opex: null,
+      ncf: -turnkeyPurchasePrice,
+      cum: -turnkeyPurchasePrice,
+    }]
+    let cumulative = -turnkeyPurchasePrice
+
+    for (let year = 1; year <= 20; year += 1) {
+      cumulative += revenueY1
+      years.push({
+        year,
+        energy: energyY1,
+        price: tariff,
+        revenue: revenueY1,
+        opex: 0,
+        ncf: revenueY1,
+        cum: cumulative,
+      })
+    }
+
+    return {
+      moduleCount,
+      moduleCost,
+      actualKwp,
+      wrTotal,
+      wrEurPerKwp,
+      ukTotal,
+      dcTotal,
+      acTotal,
+      positions,
+      totalCapex: turnkeyPurchasePrice,
+      specificCapex: kwp > 0 ? turnkeyPurchasePrice / kwp : 0,
+      energyY1,
+      revenueY1,
+      opexY1: 0,
+      ncfY1: revenueY1,
+      staticPayback: simplePayback,
+      years,
+      irr: null,
+      npv: 0,
+      dynPayback: null,
+    }
+  }
+
   const emptyResult: CapexCalcResult = {
     moduleCount,
     moduleCost,
