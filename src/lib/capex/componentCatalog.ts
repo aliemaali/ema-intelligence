@@ -85,6 +85,13 @@ export const INVERTER_CATALOG: InverterCatalogItem[] = [
     ],
   },
   {
+    manufacturer: 'Huawei',
+    family: 'SUN2000-MAP0 · 3-phasig Hybrid',
+    models: [
+      { model: 'SUN2000-12K-MAP0', acPowerKw: 12, hybrid: true },
+    ],
+  },
+  {
     manufacturer: 'SMA',
     family: 'Sunny Tripower Hybrid X',
     models: [
