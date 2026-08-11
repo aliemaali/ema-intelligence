@@ -113,11 +113,21 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       return
     }
 
-    setBusy(true)
     try {
-      // Dieser Aufruf läuft direkt im zweiten Tastendruck. Dadurch bleibt die von iOS
-      // verlangte Benutzeraktivierung erhalten, auch wenn die PDF-Erstellung länger dauert.
-      await navigator.share({ files })
+      const shareData: ShareData = {
+        title: files.length === 1 ? 'EMA Projekt-Exposé' : `EMA Projekt-Exposés (${files.length})`,
+        text: files.length === 1
+          ? 'Projekt-Exposé der EMA Enterprise GmbH'
+          : `${files.length} Projekt-Exposés der EMA Enterprise GmbH`,
+        files,
+      }
+
+      // navigator.share muss auf iOS die allererste Aktion des zweiten Fingertipps
+      // bleiben. Bereits ein React-State-Update davor kann die Benutzeraktivierung
+      // in der installierten PWA ungültig machen und das Teilen-Menü blockieren.
+      const sharePromise = navigator.share(shareData)
+      setBusy(true)
+      await sharePromise
       toast.success('WhatsApp-Teilen wurde abgeschlossen.')
       resetCenter()
       void recordMemorandumDeliveries({
