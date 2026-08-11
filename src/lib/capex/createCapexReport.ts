@@ -37,8 +37,8 @@ export async function createCapexReport(project:CapexProject,calc:CapexCalcResul
     : 'Module: manuelle Eingabe'
   const inverterLine=inverterPricing.model
     ? `${inverterPricing.manufacturer} · ${inverterPricing.model} · ${n0.format(project.wrAnzahl)} Stk. · ${n2.format(project.wrEinzelpreis)} EUR/Stk. · Stand ${dateLabel(inverterPricing.priceDate)}`
-    : 'Wechselrichter: manuelle Eingabe'
-  txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(6.6);d.text('MODULE',M,188);d.text('WECHSELRICHTER',M+88,188)
+    : 'Hybrid-Wechselrichter: manuelle Eingabe'
+  txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(6.6);d.text('MODULE',M,188);d.text('HYBRID-WECHSELRICHTER',M+88,188)
   txt(C.muted);d.setFont('helvetica','normal');d.setFontSize(6.2);d.text(d.splitTextToSize(moduleLine,82)[0],M,192);d.text(d.splitTextToSize(inverterLine,82)[0],M+88,192)
 
   sec('Kumulierter Cashflow',201)
