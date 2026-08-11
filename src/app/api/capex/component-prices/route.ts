@@ -2,7 +2,12 @@ import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEmaVoiceUserName } from '@/lib/ema/voiceAccess'
-import { INVERTER_CATALOG, MODULE_CATALOG } from '@/lib/capex/componentCatalog'
+import {
+  INVERTER_CATALOG,
+  MODULE_CATALOG,
+  MODULE_POWER_MAX_WP,
+  MODULE_POWER_MIN_WP,
+} from '@/lib/capex/componentCatalog'
 import type { ComponentKind, ComponentPriceSource } from '@/lib/types/capex.types'
 
 export const dynamic = 'force-dynamic'
@@ -72,17 +77,40 @@ function getOutputText(payload: any): string {
   return ''
 }
 
-function findCatalogEntry(kind: ComponentKind, manufacturer: string, model: string) {
+function findCatalogEntry(
+  kind: ComponentKind,
+  manufacturer: string,
+  model: string,
+  requestedRatedPower: number,
+) {
   if (kind === 'module') {
-    const item = MODULE_CATALOG.find((entry) => (
-      entry.manufacturer === manufacturer && entry.model === model
-    ))
-    return item ? { ratedPower: item.powerWp, unit: 'ein einzelnes PV-Modul' } : null
+    const item = MODULE_CATALOG.find((entry) => entry.manufacturer === manufacturer)
+    const ratedPower = Math.round(requestedRatedPower)
+    if (
+      !item
+      || !Number.isFinite(ratedPower)
+      || ratedPower < MODULE_POWER_MIN_WP
+      || ratedPower > MODULE_POWER_MAX_WP
+    ) return null
+
+    return {
+      ratedPower,
+      unit: 'ein einzelnes PV-Modul',
+      searchModel: ratedPower === item.powerWp
+        ? item.model
+        : `${manufacturer} PV-Modul ${ratedPower} Wp`,
+    }
   }
 
   const brand = INVERTER_CATALOG.find((entry) => entry.manufacturer === manufacturer)
   const item = brand?.models.find((entry) => entry.model === model)
-  return item ? { ratedPower: item.acPowerKw, unit: 'einen einzelnen Wechselrichter' } : null
+  return item
+    ? {
+        ratedPower: item.acPowerKw,
+        unit: 'einen einzelnen Wechselrichter',
+        searchModel: item.model,
+      }
+    : null
 }
 
 function normalizeOffers(value: unknown): ComponentPriceSource[] {
@@ -130,21 +158,37 @@ function normalizeOffers(value: unknown): ComponentPriceSource[] {
 }
 
 function cleanedAverage(offers: ComponentPriceSource[]) {
-  if (offers.length < 3) return null
+  if (!offers.length) return null
+
+  if (offers.length < 3) {
+    return {
+      average: offers.reduce((sum, offer) => sum + offer.priceNetEur, 0) / offers.length,
+      usedCount: offers.length,
+      basis: 'limited_offers' as const,
+    }
+  }
 
   const prices = offers.map((offer) => offer.priceNetEur).sort((a, b) => a - b)
   const median = prices[Math.floor(prices.length / 2)]
   const plausible = offers.filter((offer) => (
     offer.priceNetEur >= median * 0.5 && offer.priceNetEur <= median * 2
   ))
-
-  if (plausible.length < 3) return null
-  const ordered = [...plausible].sort((a, b) => a.priceNetEur - b.priceNetEur)
+  const ordered = [...(plausible.length ? plausible : offers)]
+    .sort((a, b) => a.priceNetEur - b.priceNetEur)
   const used = ordered.length >= 5 ? ordered.slice(1, -1) : ordered
+
   return {
     average: used.reduce((sum, offer) => sum + offer.priceNetEur, 0) / used.length,
     usedCount: used.length,
+    basis: used.length >= 3 ? 'cleaned_average' as const : 'limited_offers' as const,
   }
+}
+
+function referencePrice(kind: ComponentKind, ratedPower: number) {
+  const value = kind === 'module'
+    ? ratedPower * 0.13
+    : ratedPower * 45
+  return Math.round(value * 100) / 100
 }
 
 export async function POST(request: NextRequest) {
@@ -169,7 +213,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'EMA ist noch nicht mit OpenAI verbunden.' }, { status: 503 })
   }
 
-  let body: { kind?: unknown; manufacturer?: unknown; model?: unknown }
+  let body: { kind?: unknown; manufacturer?: unknown; model?: unknown; ratedPower?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -179,18 +223,19 @@ export async function POST(request: NextRequest) {
   const kind = body.kind === 'module' || body.kind === 'inverter' ? body.kind : null
   const manufacturer = typeof body.manufacturer === 'string' ? body.manufacturer.trim() : ''
   const model = typeof body.model === 'string' ? body.model.trim() : ''
-  if (!kind || !manufacturer || !model) {
+  const ratedPower = Number(body.ratedPower)
+  if (!kind || !manufacturer || !model || !Number.isFinite(ratedPower)) {
     return NextResponse.json({ error: 'Komponente ist unvollständig.' }, { status: 400 })
   }
 
-  const catalogEntry = findCatalogEntry(kind, manufacturer, model)
+  const catalogEntry = findCatalogEntry(kind, manufacturer, model, ratedPower)
   if (!catalogEntry) {
     return NextResponse.json({ error: 'Komponente ist nicht im freigegebenen EMA-Katalog.' }, { status: 400 })
   }
 
   const today = new Date().toISOString().slice(0, 10)
   const prompt = [
-    `Recherchiere exakt ${manufacturer} ${model} (${catalogEntry.ratedPower} ${kind === 'module' ? 'Wp' : 'kW'}) für den deutschen gewerblichen PV-Markt.`,
+    `Recherchiere ${manufacturer} ${catalogEntry.searchModel} (${catalogEntry.ratedPower} ${kind === 'module' ? 'Wp' : 'kW'}) für den deutschen gewerblichen PV-Markt.`,
     `Gesucht sind bis zu fünf aktuell verfügbare Online-Angebote für ${catalogEntry.unit}.`,
     'Nutze bevorzugt deutsche oder EU-Fachhändler und nur konkrete Produktseiten mit sichtbarem Preis.',
     'Normalisiere jeden Preis auf netto ohne Umsatzsteuer und auf eine einzelne Einheit.',
@@ -199,7 +244,8 @@ export async function POST(request: NextRequest) {
     'Paket-, Paletten- oder Mengenpreise nur verwenden, wenn der Netto-Einzelpreis eindeutig berechenbar ist.',
     'Versandkosten netto separat erfassen; unbekannte Versandkosten mit 0 und einem klaren Hinweis kennzeichnen.',
     'Nicht verfügbare, gebrauchte, generalüberholte oder abweichende Modelle als available=false kennzeichnen.',
-    'Keine Preise schätzen. Wenn weniger als fünf belastbare Angebote existieren, nur die belastbaren zurückgeben.',
+    'Wenn das exakte Modul nicht erhältlich ist, dürfen bei PV-Modulen Angebote desselben Herstellers aus derselben Leistungsklasse mit maximal ±15 W verwendet werden; die Abweichung im Hinweis nennen.',
+    'Keine Händlerpreise erfinden. Wenn weniger als fünf belastbare Angebote existieren, nur die belastbaren zurückgeben.',
     `Recherchezeitpunkt: ${today}.`,
   ].join(' ')
 
@@ -258,22 +304,27 @@ export async function POST(request: NextRequest) {
 
   const offers = normalizeOffers(research)
   const result = cleanedAverage(offers)
-  if (!result) {
-    return NextResponse.json({
-      error: 'Es wurden weniger als drei belastbare Netto-Angebote gefunden. Bitte den Preis manuell eintragen.',
-      offers,
-    }, { status: 422 })
-  }
+  const averageOnlineNetEur = result
+    ? Math.round(result.average * 100) / 100
+    : referencePrice(kind, catalogEntry.ratedPower)
+  const pricingBasis = result?.basis ?? 'reference_value'
+  const warning = pricingBasis === 'reference_value'
+    ? 'Keine konkreten Onlineangebote gefunden. EMA verwendet einen vorsichtigen Netto-Referenzwert für diese Leistungsklasse.'
+    : pricingBasis === 'limited_offers'
+      ? `Richtwert aus nur ${result?.usedCount ?? 0} belastbaren Online-Angebot(en). Bitte vor Bestellung gegenprüfen.`
+      : ''
 
   return NextResponse.json({
     kind,
     manufacturer,
-    model,
+    model: catalogEntry.searchModel,
     ratedPower: catalogEntry.ratedPower,
     priceDate: new Date().toISOString(),
-    averageOnlineNetEur: Math.round(result.average * 100) / 100,
+    averageOnlineNetEur,
+    pricingBasis,
+    warning,
     sourceCount: offers.length,
-    averagedOfferCount: result.usedCount,
+    averagedOfferCount: result?.usedCount ?? 0,
     offers,
   }, {
     headers: { 'Cache-Control': 'no-store' },
