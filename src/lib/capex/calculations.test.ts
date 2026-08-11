@@ -36,6 +36,11 @@ describe('CAPEX-Kalkulationsarten', () => {
     assert.equal(result.positions.length, 1)
     assert.equal(result.positions[0].name, 'Schlüsselfertiger Anlagenkauf')
     assert.equal(result.positions[0].cost, 359_910)
+    assert.equal(result.opexY1, 0)
+    assert.equal(result.irr, null)
+    assert.equal(result.npv, 0)
+    assert.equal(result.dynPayback, null)
+    assert.ok(Math.abs((result.staticPayback ?? 0) - 11.066) < 0.001)
   })
 
   it('addiert Projektrechte nur im Modell Projektrechte + EPC', () => {
