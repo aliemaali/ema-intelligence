@@ -1,4 +1,4 @@
-import type { ComponentKind } from '@/lib/types/capex.types'
+import type { ComponentKind, InverterMode } from '@/lib/types/capex.types'
 
 export interface ModuleCatalogItem {
   manufacturer: string
@@ -10,13 +10,13 @@ export interface ModuleCatalogItem {
 export interface InverterCatalogModel {
   model: string
   acPowerKw: number
-  hybrid: true
   maxRecommendedUnits?: number
 }
 
 export interface InverterCatalogItem {
   manufacturer: string
   family: string
+  mode: InverterMode
   models: InverterCatalogModel[]
 }
 
@@ -71,34 +71,77 @@ export const MODULE_CATALOG: ModuleCatalogItem[] = [
 
 export const INVERTER_CATALOG: InverterCatalogItem[] = [
   {
+    manufacturer: 'Huawei',
+    family: 'SUN2000 · C&I String',
+    mode: 'standard',
+    models: [
+      { model: 'SUN2000-150K-MG0', acPowerKw: 150 },
+    ],
+  },
+  {
+    manufacturer: 'Sungrow',
+    family: 'SG · C&I String',
+    mode: 'standard',
+    models: [
+      { model: 'SG150CX', acPowerKw: 150 },
+    ],
+  },
+  {
+    manufacturer: 'SMA',
+    family: 'Sunny Highpower PEAK3',
+    mode: 'standard',
+    models: [
+      { model: 'Sunny Highpower PEAK3 180', acPowerKw: 180 },
+    ],
+  },
+  {
+    manufacturer: 'GoodWe',
+    family: 'GT · C&I String',
+    mode: 'standard',
+    models: [
+      { model: 'GW150K-GT-G10', acPowerKw: 150 },
+    ],
+  },
+  {
+    manufacturer: 'Solis',
+    family: 'S6-GC · C&I String',
+    mode: 'standard',
+    models: [
+      { model: 'S6-GC125K', acPowerKw: 125 },
+    ],
+  },
+  {
     manufacturer: 'Sungrow',
     family: 'SH · C&I Hybrid',
+    mode: 'hybrid',
     models: [
-      { model: 'SH125CX', acPowerKw: 125, hybrid: true },
+      { model: 'SH125CX', acPowerKw: 125 },
     ],
   },
   {
     manufacturer: 'GoodWe',
     family: 'ET · C&I Hybrid',
+    mode: 'hybrid',
     models: [
-      { model: 'GW50K-ET-10', acPowerKw: 50, hybrid: true },
+      { model: 'GW50K-ET-10', acPowerKw: 50 },
     ],
   },
   {
     manufacturer: 'Huawei',
     family: 'SUN2000-MAP0 · 3-phasig Hybrid',
+    mode: 'hybrid',
     models: [
-      { model: 'SUN2000-12K-MAP0', acPowerKw: 12, hybrid: true },
+      { model: 'SUN2000-12K-MAP0', acPowerKw: 12 },
     ],
   },
   {
     manufacturer: 'SMA',
     family: 'Sunny Tripower Hybrid X',
+    mode: 'hybrid',
     models: [
       {
         model: 'Sunny Tripower Hybrid X 30',
         acPowerKw: 30,
-        hybrid: true,
         maxRecommendedUnits: 5,
       },
     ],
@@ -106,26 +149,30 @@ export const INVERTER_CATALOG: InverterCatalogItem[] = [
   {
     manufacturer: 'Solis',
     family: 'S6-EH3P · C&I Hybrid',
+    mode: 'hybrid',
     models: [
-      { model: 'S6-EH3P50K-H', acPowerKw: 50, hybrid: true },
-      { model: 'S6-EH3P60K-H', acPowerKw: 60, hybrid: true },
+      { model: 'S6-EH3P50K-H', acPowerKw: 50 },
+      { model: 'S6-EH3P60K-H', acPowerKw: 60 },
+      { model: 'S6-EH3P125K10-NV-YD-H', acPowerKw: 125, maxRecommendedUnits: 6 },
     ],
   },
   {
     manufacturer: 'Deye',
     family: 'SUN-SG02HP3 · C&I Hybrid',
+    mode: 'hybrid',
     models: [
-      { model: 'SUN-50K-SG02HP3-EU-BM4-P', acPowerKw: 50, hybrid: true },
+      { model: 'SUN-50K-SG02HP3-EU-BM4-P', acPowerKw: 50 },
     ],
   },
   {
     manufacturer: 'ATESS',
     family: 'HPS · All-in-one Hybrid',
+    mode: 'hybrid',
     models: [
-      { model: 'HPS50', acPowerKw: 50, hybrid: true },
-      { model: 'HPS100', acPowerKw: 100, hybrid: true },
-      { model: 'HPS120', acPowerKw: 120, hybrid: true },
-      { model: 'HPS150', acPowerKw: 150, hybrid: true },
+      { model: 'HPS50', acPowerKw: 50 },
+      { model: 'HPS100', acPowerKw: 100 },
+      { model: 'HPS120', acPowerKw: 120 },
+      { model: 'HPS150', acPowerKw: 150 },
     ],
   },
 ]
@@ -135,7 +182,14 @@ export const MODULE_POWER_MIN_WP = 300
 export const MODULE_POWER_MAX_WP = 800
 
 export const MODULE_MANUFACTURERS = MODULE_CATALOG.map((item) => item.manufacturer)
-export const INVERTER_MANUFACTURERS = INVERTER_CATALOG.map((item) => item.manufacturer)
+
+export function getInverterManufacturers(mode: InverterMode) {
+  return [...new Set(
+    INVERTER_CATALOG
+      .filter((item) => item.mode === mode)
+      .map((item) => item.manufacturer),
+  )]
+}
 
 export function getModuleRecommendation(manufacturer: string, requestedPowerWp?: number) {
   const item = MODULE_CATALOG.find((entry) => entry.manufacturer === manufacturer)
@@ -159,13 +213,17 @@ export function getModuleRecommendation(manufacturer: string, requestedPowerWp?:
 
 function getRecommendationCandidates(
   plantKwp: number,
+  mode: InverterMode,
   manufacturer?: string,
 ): InverterRecommendation[] {
   const dcPowerKwp = Math.max(0, Number(plantKwp) || 0)
   if (dcPowerKwp <= 0) return []
 
   return INVERTER_CATALOG
-    .filter((brand) => !manufacturer || brand.manufacturer === manufacturer)
+    .filter((brand) => (
+      brand.mode === mode
+      && (!manufacturer || brand.manufacturer === manufacturer)
+    ))
     .flatMap((brand) => brand.models.flatMap((model) => {
       const maxUnits = model.maxRecommendedUnits ?? DEFAULT_MAX_RECOMMENDED_UNITS
       const candidates: InverterRecommendation[] = []
@@ -208,23 +266,32 @@ function rankRecommendations(
   return b.acPowerKw - a.acPowerKw
 }
 
-export function getInverterRecommendation(manufacturer: string, plantKwp: number) {
-  return getRecommendationCandidates(plantKwp, manufacturer)
+export function getInverterRecommendation(
+  manufacturer: string,
+  plantKwp: number,
+  mode: InverterMode,
+) {
+  return getRecommendationCandidates(plantKwp, mode, manufacturer)
     .sort(rankRecommendations)[0] ?? null
 }
 
-export function getBestInverterRecommendation(plantKwp: number) {
-  return getRecommendationCandidates(plantKwp)
+export function getBestInverterRecommendation(plantKwp: number, mode: InverterMode) {
+  return getRecommendationCandidates(plantKwp, mode)
     .sort(rankRecommendations)[0] ?? null
 }
 
-export function isApprovedHybridInverter(manufacturer: string, model: string) {
+export function isApprovedInverter(
+  manufacturer: string,
+  model: string,
+  mode: InverterMode,
+) {
   return INVERTER_CATALOG.some((brand) => (
     brand.manufacturer === manufacturer
-    && brand.models.some((entry) => entry.model === model && entry.hybrid)
+    && brand.mode === mode
+    && brand.models.some((entry) => entry.model === model)
   ))
 }
 
 export function componentUnitLabel(kind: ComponentKind) {
-  return kind === 'module' ? 'pro Modul' : 'pro Hybrid-Wechselrichter'
+  return kind === 'module' ? 'pro Modul' : 'pro Wechselrichter'
 }
