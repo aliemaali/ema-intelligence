@@ -364,14 +364,23 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                   eur(calc.moduleCost),
                 ],
                 [
-                  'Wechselrichter',
-                  project.wrHersteller,
+                  project.componentPricing.inverterMode === 'hybrid'
+                    ? 'Hybrid-Wechselrichter'
+                    : 'Standard-Wechselrichter',
+                  [project.wrHersteller, project.componentPricing.inverter.model]
+                    .filter(Boolean)
+                    .join(' · '),
                   `${num(project.wrAnzahl)} × ${eur(project.wrEinzelpreis)}`,
                   eur(calc.wrTotal),
                 ],
                 [
                   'Unterkonstruktion',
-                  project.ukHersteller,
+                  [
+                    project.ukHersteller,
+                    project.componentPricing.mounting.application === 'roof' ? 'Dachanlage' : project.componentPricing.mounting.application === 'ground' ? 'Freifläche' : '',
+                    project.componentPricing.mounting.windZone ? `Windzone ${project.componentPricing.mounting.windZone}` : '',
+                    project.componentPricing.mounting.snowZone ? `Schneelastzone ${project.componentPricing.mounting.snowZone}` : '',
+                  ].filter(Boolean).join(' · '),
                   `${num(project.ukPreisProKwp)} EUR/kWp`,
                   eur(calc.ukTotal),
                 ],

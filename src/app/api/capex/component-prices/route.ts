@@ -8,7 +8,7 @@ import {
   MODULE_POWER_MAX_WP,
   MODULE_POWER_MIN_WP,
 } from '@/lib/capex/componentCatalog'
-import type { ComponentKind, ComponentPriceSource } from '@/lib/types/capex.types'
+import type { ComponentKind, ComponentPriceSource, InverterMode } from '@/lib/types/capex.types'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -82,6 +82,7 @@ function findCatalogEntry(
   manufacturer: string,
   model: string,
   requestedRatedPower: number,
+  inverterMode: InverterMode,
 ) {
   if (kind === 'module') {
     const item = MODULE_CATALOG.find((entry) => entry.manufacturer === manufacturer)
@@ -102,13 +103,18 @@ function findCatalogEntry(
     }
   }
 
-  const brand = INVERTER_CATALOG.find((entry) => entry.manufacturer === manufacturer)
+  const brand = INVERTER_CATALOG.find((entry) => (
+    entry.manufacturer === manufacturer && entry.mode === inverterMode
+  ))
   const item = brand?.models.find((entry) => entry.model === model)
   return item
     ? {
         ratedPower: item.acPowerKw,
-        unit: 'einen einzelnen gewerblichen Hybrid-Wechselrichter',
+        unit: inverterMode === 'hybrid'
+          ? 'einen einzelnen gewerblichen Hybrid-Wechselrichter'
+          : 'einen einzelnen gewerblichen PV-Stringwechselrichter',
         searchModel: item.model,
+        inverterMode,
       }
     : null
 }
@@ -213,7 +219,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'EMA ist noch nicht mit OpenAI verbunden.' }, { status: 503 })
   }
 
-  let body: { kind?: unknown; manufacturer?: unknown; model?: unknown; ratedPower?: unknown }
+  let body: {
+    kind?: unknown
+    manufacturer?: unknown
+    model?: unknown
+    ratedPower?: unknown
+    inverterMode?: unknown
+  }
   try {
     body = await request.json()
   } catch {
@@ -224,11 +236,12 @@ export async function POST(request: NextRequest) {
   const manufacturer = typeof body.manufacturer === 'string' ? body.manufacturer.trim() : ''
   const model = typeof body.model === 'string' ? body.model.trim() : ''
   const ratedPower = Number(body.ratedPower)
+  const inverterMode: InverterMode = body.inverterMode === 'hybrid' ? 'hybrid' : 'standard'
   if (!kind || !manufacturer || !model || !Number.isFinite(ratedPower)) {
     return NextResponse.json({ error: 'Komponente ist unvollständig.' }, { status: 400 })
   }
 
-  const catalogEntry = findCatalogEntry(kind, manufacturer, model, ratedPower)
+  const catalogEntry = findCatalogEntry(kind, manufacturer, model, ratedPower, inverterMode)
   if (!catalogEntry) {
     return NextResponse.json({ error: 'Komponente ist nicht im freigegebenen EMA-Katalog.' }, { status: 400 })
   }
@@ -244,8 +257,10 @@ export async function POST(request: NextRequest) {
     'Paket-, Paletten- oder Mengenpreise nur verwenden, wenn der Netto-Einzelpreis eindeutig berechenbar ist.',
     'Versandkosten netto separat erfassen; unbekannte Versandkosten mit 0 und einem klaren Hinweis kennzeichnen.',
     'Nicht verfügbare, gebrauchte, generalüberholte oder abweichende Modelle als available=false kennzeichnen.',
-    kind === 'inverter'
+    kind === 'inverter' && inverterMode === 'hybrid'
       ? 'Nur Angebote für das exakte Hybrid-Wechselrichtermodell verwenden. Reine PV-Stringwechselrichter, netzgekoppelte Standardvarianten, Batterie-Wechselrichter ohne PV-Eingang und ähnlich benannte Nicht-Hybridmodelle strikt ausschließen.'
+      : kind === 'inverter'
+        ? 'Nur Angebote für das exakte netzgekoppelte PV-Stringwechselrichtermodell verwenden. Hybrid- und reine Batterie-Wechselrichter strikt ausschließen.'
       : 'Wenn das exakte Modul nicht erhältlich ist, dürfen Angebote desselben Herstellers aus derselben Leistungsklasse mit maximal ±15 W verwendet werden; die Abweichung im Hinweis nennen.',
     'Keine Händlerpreise erfinden. Wenn weniger als fünf belastbare Angebote existieren, nur die belastbaren zurückgeben.',
     `Recherchezeitpunkt: ${today}.`,

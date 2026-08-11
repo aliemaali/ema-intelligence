@@ -6,6 +6,29 @@
 // Arbeitsmodell, das die UI/Berechnungslogik verwendet.
 
 export type ComponentKind = 'module' | 'inverter'
+export type InverterMode = 'standard' | 'hybrid'
+export type MountingApplication = 'roof' | 'ground'
+
+export interface MountingConfiguration {
+  application: MountingApplication | ''
+  surfaceType: string
+  terrainType: string
+  orientation: 'south' | 'east-west' | ''
+  moduleLengthMm: number
+  moduleWidthMm: number
+  moduleHeightMm: number
+  snowZone: string
+  windZone: string
+  loadSourceUrl: string
+  loadCheckedAt: string
+  loadConfidence: 'official' | 'manual' | 'unverified' | ''
+  manufacturer: string
+  system: string
+  onlineAverageNetEurPerKwp: number
+  discountPct: number
+  priceDate: string
+  sources: ComponentPriceSource[]
+}
 
 export interface ComponentPriceSource {
   retailer: string
@@ -30,6 +53,8 @@ export interface ComponentPricingSelection {
 export interface CapexComponentPricing {
   module: ComponentPricingSelection
   inverter: ComponentPricingSelection
+  inverterMode: InverterMode
+  mounting: MountingConfiguration
 }
 
 export interface CapexCalculationRow {
@@ -176,13 +201,17 @@ export interface ProjectOption {
   location_city?: string | null
   location_state?: string | null
   location_country?: string | null
+  location_address?: string | null
+  location_lat?: number | null
+  location_lng?: number | null
+  project_type?: string | null
   specific_yield?: number | null
   tariff_eur_kwh?: number | null
   lease_term_years?: number | null
 }
 
 export const WECHSELRICHTER_HERSTELLER = [
-  'Huawei', 'Sungrow', 'SMA', 'Solis', 'KACO',
+  'Sungrow', 'GoodWe', 'Huawei', 'SMA', 'Solis', 'Deye', 'ATESS',
 ] as const
 
 export const MODUL_HERSTELLER = [
@@ -205,7 +234,31 @@ export function emptyComponentPricing(): CapexComponentPricing {
     sources: [],
   })
 
-  return { module: selection(), inverter: selection() }
+  return {
+    module: selection(),
+    inverter: selection(),
+    inverterMode: 'standard',
+    mounting: {
+      application: '',
+      surfaceType: '',
+      terrainType: '',
+      orientation: '',
+      moduleLengthMm: 0,
+      moduleWidthMm: 0,
+      moduleHeightMm: 0,
+      snowZone: '',
+      windZone: '',
+      loadSourceUrl: '',
+      loadCheckedAt: '',
+      loadConfidence: '',
+      manufacturer: '',
+      system: '',
+      onlineAverageNetEurPerKwp: 0,
+      discountPct: 20,
+      priceDate: '',
+      sources: [],
+    },
+  }
 }
 
 export function normalizeComponentPricing(value: unknown): CapexComponentPricing {
@@ -213,6 +266,7 @@ export function normalizeComponentPricing(value: unknown): CapexComponentPricing
   if (!value || typeof value !== 'object') return defaults
 
   const raw = value as Partial<Record<ComponentKind, Partial<ComponentPricingSelection>>>
+    & { inverterMode?: unknown; mounting?: Partial<MountingConfiguration> }
   const normalizeSelection = (
     kind: ComponentKind,
     fallback: ComponentPricingSelection,
@@ -240,9 +294,52 @@ export function normalizeComponentPricing(value: unknown): CapexComponentPricing
     }
   }
 
+  const mounting = raw.mounting && typeof raw.mounting === 'object' ? raw.mounting : {}
+
   return {
     module: normalizeSelection('module', defaults.module),
     inverter: normalizeSelection('inverter', defaults.inverter),
+    inverterMode: raw.inverterMode === 'standard' || raw.inverterMode === 'hybrid'
+      ? raw.inverterMode
+      : raw.inverter?.model
+        ? 'hybrid'
+        : 'standard',
+    mounting: {
+      ...defaults.mounting,
+      application: mounting.application === 'roof' || mounting.application === 'ground'
+        ? mounting.application
+        : '',
+      surfaceType: typeof mounting.surfaceType === 'string' ? mounting.surfaceType : '',
+      terrainType: typeof mounting.terrainType === 'string' ? mounting.terrainType : '',
+      orientation: mounting.orientation === 'south' || mounting.orientation === 'east-west'
+        ? mounting.orientation
+        : '',
+      moduleLengthMm: Math.max(0, Number(mounting.moduleLengthMm) || 0),
+      moduleWidthMm: Math.max(0, Number(mounting.moduleWidthMm) || 0),
+      moduleHeightMm: Math.max(0, Number(mounting.moduleHeightMm) || 0),
+      snowZone: typeof mounting.snowZone === 'string' ? mounting.snowZone : '',
+      windZone: typeof mounting.windZone === 'string' ? mounting.windZone : '',
+      loadSourceUrl: typeof mounting.loadSourceUrl === 'string' ? mounting.loadSourceUrl : '',
+      loadCheckedAt: typeof mounting.loadCheckedAt === 'string' ? mounting.loadCheckedAt : '',
+      loadConfidence: mounting.loadConfidence === 'official'
+        || mounting.loadConfidence === 'manual'
+        || mounting.loadConfidence === 'unverified'
+        ? mounting.loadConfidence
+        : '',
+      manufacturer: typeof mounting.manufacturer === 'string' ? mounting.manufacturer : '',
+      system: typeof mounting.system === 'string' ? mounting.system : '',
+      onlineAverageNetEurPerKwp: Math.max(0, Number(mounting.onlineAverageNetEurPerKwp) || 0),
+      discountPct: Number.isFinite(Number(mounting.discountPct))
+        ? Math.max(0, Math.min(60, Number(mounting.discountPct)))
+        : 20,
+      priceDate: typeof mounting.priceDate === 'string' ? mounting.priceDate : '',
+      sources: Array.isArray(mounting.sources)
+        ? mounting.sources.filter((source): source is ComponentPriceSource => (
+          !!source && typeof source === 'object' && typeof source.url === 'string'
+          && source.url.startsWith('https://')
+        ))
+        : [],
+    },
   }
 }
 

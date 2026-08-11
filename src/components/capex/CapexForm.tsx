@@ -1,12 +1,12 @@
 // src/components/capex/CapexForm.tsx
 'use client'
 
-import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
-import { UNTERKONSTRUKTION_HERSTELLER } from '@/lib/types/capex.types'
+import type { CapexCalcResult, CapexProject, ProjectOption } from '@/lib/types/capex.types'
 import { eur, eurKwp, pct, num } from '@/lib/capex/format'
 import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
 import { CapexVisualDashboard } from './CapexVisualDashboard'
 import { CapexComponentPricing } from './CapexComponentPricing'
+import { CapexMountingPricing } from './CapexMountingPricing'
 import {
   SectionHeader,
   Field,
@@ -24,9 +24,10 @@ interface CapexFormProps {
   onSave: () => void
   onNew: () => void
   saving?: boolean
+  projectOption: ProjectOption
 }
 
-export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: CapexFormProps) {
+export function CapexForm({ project, projectOption, calc, onChange, onSave, onNew, saving }: CapexFormProps) {
   const set = onChange
 
   return (
@@ -81,19 +82,7 @@ export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: Ca
 
       {/* Unterkonstruktion */}
       <SectionHeader>Kalkulation – Unterkonstruktion</SectionHeader>
-      <Field label="Hersteller">
-        <SelectInput
-          value={project.ukHersteller}
-          onChange={(v) => set('ukHersteller', v)}
-          options={UNTERKONSTRUKTION_HERSTELLER}
-        />
-      </Field>
-      <Field label="Preis pro kWp (€/kWp)">
-        <NumInput value={project.ukPreisProKwp} onChange={(v) => set('ukPreisProKwp', Number(v))} suffix="€/kWp" />
-      </Field>
-      <InfoLine>
-        Gesamtkosten Unterkonstruktion: <strong>{eur(calc.ukTotal)}</strong>
-      </InfoLine>
+      <CapexMountingPricing project={project} projectOption={projectOption} calc={calc} onChange={onChange} />
 
       {/* DC/AC */}
       <SectionHeader>Kalkulation – DC- und AC-Installation</SectionHeader>

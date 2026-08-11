@@ -3,10 +3,14 @@
 import { useState } from 'react'
 import { ExternalLink, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import {
+  getBestInverterRecommendation,
+  getInverterManufacturers,
   getInverterRecommendation,
   getModuleRecommendation,
-  isApprovedHybridInverter,
-  INVERTER_MANUFACTURERS,
+  isApprovedInverter,
+  INVERTER_MAX_DC_AC_RATIO,
+  INVERTER_MIN_DC_AC_RATIO,
+  INVERTER_TARGET_DC_AC_RATIO,
   MODULE_MANUFACTURERS,
   MODULE_POWER_MAX_WP,
   MODULE_POWER_MIN_WP,
@@ -18,6 +22,7 @@ import type {
   ComponentKind,
   ComponentPriceSource,
   ComponentPricingSelection,
+  InverterMode,
 } from '@/lib/types/capex.types'
 import { eur, num } from '@/lib/capex/format'
 import { Field, InfoLine, NumInput } from './FormControls'
@@ -113,13 +118,23 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     )
     if (!recommendation) return
 
-    updateSelection('module', {
-      manufacturer: recommendation.manufacturer,
-      model: recommendation.model,
-      ratedPower: recommendation.powerWp,
-      onlineAverageNetEur: 0,
-      priceDate: '',
-      sources: [],
+    onChange('componentPricing', {
+      ...project.componentPricing,
+      module: {
+        ...project.componentPricing.module,
+        manufacturer: recommendation.manufacturer,
+        model: recommendation.model,
+        ratedPower: recommendation.powerWp,
+        onlineAverageNetEur: 0,
+        priceDate: '',
+        sources: [],
+      },
+      mounting: {
+        ...project.componentPricing.mounting,
+        moduleLengthMm: recommendation.lengthMm,
+        moduleWidthMm: recommendation.widthMm,
+        moduleHeightMm: recommendation.heightMm,
+      },
     })
     onChange('modulleistungWp', recommendation.powerWp)
     onChange('preisProModul', 0)
@@ -132,12 +147,22 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     const recommendation = getModuleRecommendation(moduleSelection.manufacturer, powerWp)
     if (!recommendation) return
 
-    updateSelection('module', {
-      model: recommendation.model,
-      ratedPower: recommendation.powerWp,
-      onlineAverageNetEur: 0,
-      priceDate: '',
-      sources: [],
+    onChange('componentPricing', {
+      ...project.componentPricing,
+      module: {
+        ...project.componentPricing.module,
+        model: recommendation.model,
+        ratedPower: recommendation.powerWp,
+        onlineAverageNetEur: 0,
+        priceDate: '',
+        sources: [],
+      },
+      mounting: {
+        ...project.componentPricing.mounting,
+        moduleLengthMm: recommendation.lengthMm,
+        moduleWidthMm: recommendation.widthMm,
+        moduleHeightMm: recommendation.heightMm,
+      },
     })
     onChange('modulleistungWp', recommendation.powerWp)
     onChange('preisProModul', 0)
@@ -146,7 +171,11 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
   }
 
   function chooseInverter(manufacturer: string) {
-    const recommendation = getInverterRecommendation(manufacturer, project.anlagenleistungKwp)
+    const recommendation = getInverterRecommendation(
+      manufacturer,
+      project.anlagenleistungKwp,
+      inverterMode,
+    )
     if (!recommendation) return
 
     updateSelection('inverter', {
@@ -159,6 +188,37 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     })
     onChange('wrHersteller', recommendation.manufacturer)
     onChange('wrAnzahl', recommendation.quantity)
+    onChange('wrEinzelpreis', 0)
+    setErrors((current) => ({ ...current, inverter: '' }))
+    setWarnings((current) => ({ ...current, inverter: '' }))
+  }
+
+  function chooseBestInverter() {
+    const recommendation = getBestInverterRecommendation(
+      project.anlagenleistungKwp,
+      inverterMode,
+    )
+    if (!recommendation) return
+    chooseInverter(recommendation.manufacturer)
+  }
+
+  function chooseInverterMode(mode: InverterMode) {
+    if (mode === inverterMode) return
+    onChange('componentPricing', {
+      ...project.componentPricing,
+      inverterMode: mode,
+      inverter: {
+        ...project.componentPricing.inverter,
+        manufacturer: '',
+        model: '',
+        ratedPower: 0,
+        onlineAverageNetEur: 0,
+        priceDate: '',
+        sources: [],
+      },
+    })
+    onChange('wrHersteller', '')
+    onChange('wrAnzahl', 0)
     onChange('wrEinzelpreis', 0)
     setErrors((current) => ({ ...current, inverter: '' }))
     setWarnings((current) => ({ ...current, inverter: '' }))
@@ -193,6 +253,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           manufacturer: current.manufacturer,
           model: current.model,
           ratedPower: current.ratedPower,
+          inverterMode: kind === 'inverter' ? inverterMode : undefined,
         }),
       })
       const result = await response.json() as ResearchResponse
@@ -221,13 +282,37 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
 
   const moduleSelection = selection('module')
   const inverter = selection('inverter')
-  const inverterIsApprovedHybrid = isApprovedHybridInverter(
+  const inverterMode = project.componentPricing.inverterMode
+  const inverterModeLabel = inverterMode === 'hybrid' ? 'Hybrid-Wechselrichter' : 'Standard-Wechselrichter'
+  const inverterModeShortLabel = inverterMode === 'hybrid' ? 'Hybrid' : 'Standard'
+  const inverterManufacturers = getInverterManufacturers(inverterMode)
+  const inverterIsApproved = isApprovedInverter(
     inverter.manufacturer,
     inverter.model,
+    inverterMode,
   )
-  const inverterRecommendation = inverterIsApprovedHybrid
-    ? getInverterRecommendation(inverter.manufacturer, project.anlagenleistungKwp)
+  const bestInverterRecommendation = getBestInverterRecommendation(
+    project.anlagenleistungKwp,
+    inverterMode,
+  )
+  const inverterRecommendation = inverterIsApproved
+    ? getInverterRecommendation(
+        inverter.manufacturer,
+        project.anlagenleistungKwp,
+        inverterMode,
+      )
     : null
+  const inverterMatchesRecommendation = Boolean(
+    inverterRecommendation
+    && inverterRecommendation.model === inverter.model
+    && inverterRecommendation.quantity === project.wrAnzahl,
+  )
+  const inverterIsBestRecommendation = Boolean(
+    bestInverterRecommendation
+    && bestInverterRecommendation.manufacturer === inverter.manufacturer
+    && bestInverterRecommendation.model === inverter.model
+    && bestInverterRecommendation.quantity === project.wrAnzahl,
+  )
 
   return (
     <>
@@ -238,8 +323,9 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         </div>
         <p className="text-xs leading-5 text-slate-600">
           Vorplanung auf Hersteller- und Modellbasis. Die elektrische Auslegung muss durch den
-          Fachplaner geprüft werden. EMA bietet ausschließlich gewerbliche Hybrid-Wechselrichter
-          mit PV- und Batterieanschluss an. Preise sind unverbindliche Netto-Marktwerte.
+          Fachplaner geprüft werden. EMA unterscheidet zwischen Standard-Wechselrichtern für reine
+          PV-Anlagen und Hybrid-Wechselrichtern mit Batterieanschluss. Preise sind unverbindliche
+          Netto-Marktwerte.
         </p>
       </div>
 
@@ -366,52 +452,169 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       </InfoLine>
 
       <div className="mb-3 mt-6 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
-        2 · Hybrid-Wechselrichterhersteller wählen
-      </div>
-      <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
-        {INVERTER_MANUFACTURERS.map((manufacturer) => (
-          <button
-            key={manufacturer}
-            type="button"
-            onClick={() => chooseInverter(manufacturer)}
-            className={`min-h-12 rounded-xl border px-2 py-2 text-xs font-extrabold transition-colors ${
-              inverter.manufacturer === manufacturer && inverterIsApprovedHybrid
-                ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
-                : 'border-slate-200 bg-white text-[#1F2A44]'
-            }`}
-          >
-            {manufacturer}
-          </button>
-        ))}
+        2 · Wechselrichterart wählen
       </div>
 
-      {inverter.manufacturer && !inverterIsApprovedHybrid && (
+      <div className="mb-4 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => chooseInverterMode('standard')}
+          className={`rounded-2xl border p-3.5 text-left transition-colors ${
+            inverterMode === 'standard'
+              ? 'border-[#5CB800] bg-[#EAF7E0]'
+              : 'border-slate-200 bg-white'
+          }`}
+        >
+          <span className="block text-sm font-extrabold text-[#1F2A44]">Standard</span>
+          <span className="mt-1 block text-[11px] leading-4 text-slate-500">
+            Reine PV-Anlage · größere Geräte · meist günstiger
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => chooseInverterMode('hybrid')}
+          className={`rounded-2xl border p-3.5 text-left transition-colors ${
+            inverterMode === 'hybrid'
+              ? 'border-[#5CB800] bg-[#EAF7E0]'
+              : 'border-slate-200 bg-white'
+          }`}
+        >
+          <span className="block text-sm font-extrabold text-[#1F2A44]">Hybrid</span>
+          <span className="mt-1 block text-[11px] leading-4 text-slate-500">
+            PV plus Batteriespeicher · Batterieanschluss integriert
+          </span>
+        </button>
+      </div>
+
+      <div className="mb-3 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
+        3 · Effizientesten {inverterModeLabel} wählen
+      </div>
+
+      {bestInverterRecommendation ? (
+        <button
+          type="button"
+          onClick={chooseBestInverter}
+          className={`mb-3 w-full rounded-2xl border p-3.5 text-left transition-colors ${
+            inverterIsBestRecommendation
+              ? 'border-[#5CB800] bg-[#EAF7E0]'
+              : 'border-[#b9dd98] bg-gradient-to-br from-[#f7fff1] to-white'
+          }`}
+        >
+          <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#5CB800]">
+            EMA beste Auslegung · geringste Gerätezahl
+          </div>
+          <div className="mt-1 font-extrabold text-[#1F2A44]">
+            {bestInverterRecommendation.quantity} × {bestInverterRecommendation.manufacturer}{' '}
+            {bestInverterRecommendation.model}
+          </div>
+          <div className="mt-1 text-xs leading-5 text-slate-600">
+            {num(bestInverterRecommendation.totalAcPowerKw)} kW AC · DC/AC{' '}
+            {num(bestInverterRecommendation.dcAcRatio, 2)} · Ziel{' '}
+            {num(INVERTER_TARGET_DC_AC_RATIO, 2)}
+          </div>
+        </button>
+      ) : (
+        <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold text-amber-900">
+          Für diese Anlagenleistung liegt aktuell keine {inverterModeShortLabel}-Auslegung im EMA
+          Vorplanungsbereich.
+        </div>
+      )}
+
+      <p className="mb-3 text-[11px] leading-4 text-slate-500">
+        Priorität: so wenige Geräte wie möglich. Zugelassen werden nur Auslegungen mit DC/AC{' '}
+        {num(INVERTER_MIN_DC_AC_RATIO, 2)}–{num(INVERTER_MAX_DC_AC_RATIO, 2)}. Die endgültige
+        String- und Netzplanung bestätigt der Elektro-Fachplaner.
+        {inverterMode === 'hybrid' ? ' Batterie und BMS werden zusätzlich geprüft.' : ''}
+      </p>
+
+      <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
+        {inverterManufacturers.map((manufacturer) => {
+          const recommendation = getInverterRecommendation(
+            manufacturer,
+            project.anlagenleistungKwp,
+            inverterMode,
+          )
+          const isSelected = inverter.manufacturer === manufacturer && inverterIsApproved
+
+          return (
+            <button
+              key={manufacturer}
+              type="button"
+              onClick={() => chooseInverter(manufacturer)}
+              disabled={!recommendation}
+              className={`min-h-14 rounded-xl border px-2 py-2 text-xs font-extrabold transition-colors ${
+                isSelected
+                  ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
+                  : recommendation
+                    ? 'border-slate-200 bg-white text-[#1F2A44]'
+                    : 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-400'
+              }`}
+            >
+              <span className="block">{manufacturer}</span>
+              <span className="mt-0.5 block text-[9px] font-semibold leading-3">
+                {recommendation
+                  ? `${recommendation.quantity} Gerät${recommendation.quantity === 1 ? '' : 'e'} · ${num(recommendation.dcAcRatio, 2)}`
+                  : 'für diese Größe ungeeignet'}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {inverter.manufacturer && !inverterIsApproved && (
         <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold leading-5 text-amber-900">
           Die gespeicherte Auswahl „{inverter.manufacturer} {inverter.model}“ ist kein freigegebenes
-          Hybridgerät. Bitte oben einen Hybrid-Wechselrichter neu auswählen.
+          {inverterModeShortLabel}-Gerät. Bitte oben einen passenden Wechselrichter neu auswählen.
+        </div>
+      )}
+
+      {inverter.manufacturer && inverterIsApproved && !inverterRecommendation && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold leading-5 text-amber-900">
+          Die gespeicherte {inverter.manufacturer}-Auslegung ist für {num(project.anlagenleistungKwp, 2)} kWp
+          nicht effizient genug. Bitte „EMA beste Auslegung“ wählen.
         </div>
       )}
 
       {inverter.manufacturer && inverterRecommendation && (
         <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
-          <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
-            Hybrid-Wechselrichter-Empfehlung
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
+              {inverterModeLabel}-Empfehlung
+            </div>
+            {inverterIsBestRecommendation && (
+              <span className="rounded-full bg-[#5CB800] px-2 py-1 text-[9px] font-extrabold uppercase tracking-wider text-white">
+                EMA beste Auslegung
+              </span>
+            )}
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className="font-extrabold text-[#1F2A44]">{inverter.model}</span>
             <span className="rounded-full bg-[#EAF7E0] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2f7d00]">
-              Hybrid · speicherfähig
+              {inverterMode === 'hybrid' ? 'Hybrid · speicherfähig' : 'Standard · PV-Netzeinspeisung'}
             </span>
           </div>
           <div className="mt-1 text-xs leading-5 text-slate-600">
             {num(inverter.ratedPower)} kW je Gerät · {num(project.wrAnzahl)} Stück ·{' '}
             {num(project.wrAnzahl * inverter.ratedPower)} kW AC · DC/AC ca.{' '}
-            {num(inverterRecommendation.dcAcRatio, 2)}
+            {num(
+              project.wrAnzahl * inverter.ratedPower > 0
+                ? project.anlagenleistungKwp / (project.wrAnzahl * inverter.ratedPower)
+                : 0,
+              2,
+            )}
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-slate-500">
-            Batterie-Spannung, BMS-Kompatibilität und Ersatzstromkonzept sind projektspezifisch
-            durch den Elektro-Fachplaner zu bestätigen.
-          </p>
+          {!inverterMatchesRecommendation && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800">
+              Manuelle Stückzahl weicht von der effizienten Empfehlung ab:{' '}
+              {inverterRecommendation.quantity} Stück.
+            </p>
+          )}
+          {inverterMode === 'hybrid' && (
+            <p className="mt-2 text-[11px] leading-4 text-slate-500">
+              Batterie-Spannung, BMS-Kompatibilität und Ersatzstromkonzept sind projektspezifisch
+              durch den Elektro-Fachplaner zu bestätigen.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => researchPrice('inverter')}
@@ -441,7 +644,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         </div>
       )}
 
-      <Field label="Großhandelsabschlag Hybrid-Wechselrichter (%)" hint="Standard 20 %. Kann kundenspezifisch angepasst werden.">
+      <Field label={`Großhandelsabschlag ${inverterModeLabel} (%)`} hint="Standard 20 %. Kann kundenspezifisch angepasst werden.">
         <NumInput
           value={inverter.discountPct}
           onChange={(value) => updateDiscount('inverter', Number(value))}
@@ -450,7 +653,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           suffix="%"
         />
       </Field>
-      <Field label="Verwendeter Einzelpreis pro Hybrid-Wechselrichter (netto)">
+      <Field label={`Verwendeter Einzelpreis pro ${inverterModeLabel} (netto)`}>
         <NumInput
           value={roundMoney(project.wrEinzelpreis)}
           onChange={(value) => onChange('wrEinzelpreis', roundMoney(Number(value)))}
@@ -458,7 +661,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           suffix="€"
         />
       </Field>
-      <Field label="Anzahl Hybrid-Wechselrichter">
+      <Field label={`Anzahl ${inverterModeLabel}`}>
         <NumInput
           value={project.wrAnzahl}
           onChange={(value) => onChange('wrAnzahl', Number(value))}
@@ -466,7 +669,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         />
       </Field>
       <InfoLine>
-        Gesamtpreis Hybrid-Wechselrichter: <strong>{eur(calc.wrTotal)}</strong>
+        Gesamtpreis {inverterModeLabel}: <strong>{eur(calc.wrTotal)}</strong>
       </InfoLine>
     </>
   )

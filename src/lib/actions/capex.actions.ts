@@ -19,7 +19,7 @@ export async function getProjectOptions(): Promise<ProjectOption[]> {
   const { data, error } = await supabase
     .from('projects')
     .select(
-      'id, project_name, tags, is_archived, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_city, location_state, location_country, specific_yield_kwh_kwp, feed_in_tariff_ct_kwh, lease_term_years, master_data_version'
+      'id, project_name, project_type, tags, is_archived, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_address, location_city, location_state, location_country, location_lat, location_lng, specific_yield_kwh_kwp, feed_in_tariff_ct_kwh, lease_term_years, master_data_version'
     )
     .eq('is_archived', false)
     .order('project_name', { ascending: true })
@@ -42,6 +42,10 @@ export async function getProjectOptions(): Promise<ProjectOption[]> {
       location_city: project.location_city,
       location_state: project.location_state,
       location_country: project.location_country,
+      location_address: project.location_address,
+      location_lat: project.location_lat,
+      location_lng: project.location_lng,
+      project_type: project.project_type,
       specific_yield: project.specific_yield_kwh_kwp,
       tariff_eur_kwh:
         project.feed_in_tariff_ct_kwh == null

@@ -110,6 +110,7 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
       {view === 'form' && (
         <CapexForm
           project={project}
+          projectOption={projectOption}
           calc={calc}
           onChange={set}
           onSave={handleSave}
