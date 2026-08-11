@@ -7,6 +7,7 @@ import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
 import { CapexVisualDashboard } from './CapexVisualDashboard'
 import { CapexComponentPricing } from './CapexComponentPricing'
 import { CapexMountingPricing } from './CapexMountingPricing'
+import { CapexCalculationModeSelector } from './CapexCalculationMode'
 import {
   SectionHeader,
   Field,
@@ -32,6 +33,13 @@ export function CapexForm({ project, projectOption, calc, onChange, onSave, onNe
 
   return (
     <>
+      <SectionHeader>Kalkulationsart</SectionHeader>
+      <CapexCalculationModeSelector
+        project={project}
+        projectOption={projectOption}
+        onChange={onChange}
+      />
+
       {/* KPI cards */}
       <div className="mt-3.5 flex flex-wrap gap-2">
         <KpiCard label="Gesamt-CAPEX" value={eur(calc.totalCapex)} />
@@ -78,50 +86,63 @@ export function CapexForm({ project, projectOption, calc, onChange, onSave, onNe
 
       {/* Komponenten */}
       <SectionHeader>Kalkulation – Module & Wechselrichter</SectionHeader>
+      {project.componentPricing.acquisition.mode === 'turnkey' && (
+        <div className="mb-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs font-bold leading-5 text-blue-800">
+          Interne Preisprüfung: Diese Komponentenwerte werden bei der schlüsselfertigen Anlage nicht
+          zum Kaufpreis addiert.
+        </div>
+      )}
       <CapexComponentPricing project={project} calc={calc} onChange={onChange} />
 
       {/* Unterkonstruktion */}
       <SectionHeader>Kalkulation – Unterkonstruktion</SectionHeader>
       <CapexMountingPricing project={project} projectOption={projectOption} calc={calc} onChange={onChange} />
 
-      {/* DC/AC */}
-      <SectionHeader>Kalkulation – DC- und AC-Installation</SectionHeader>
-      <Field label="Elektroinstallation (AC) – Preis pro kWp">
-        <NumInput value={project.acPreisProKwp} onChange={(v) => set('acPreisProKwp', Number(v))} suffix="€/kWp" />
-      </Field>
-      <Field label="Montagearbeiten (DC) – Preis pro kWp">
-        <NumInput value={project.dcPreisProKwp} onChange={(v) => set('dcPreisProKwp', Number(v))} suffix="€/kWp" />
-      </Field>
-      <InfoLine>
-        AC: <strong>{eur(calc.acTotal)}</strong> · DC: <strong>{eur(calc.dcTotal)}</strong>
-      </InfoLine>
+      {(project.componentPricing.acquisition.mode === 'epc'
+        || project.componentPricing.acquisition.mode === 'project_rights_epc') && (
+        <>
+          {/* DC/AC */}
+          <SectionHeader>Kalkulation – DC- und AC-Installation</SectionHeader>
+          <Field label="Elektroinstallation (AC) – Preis pro kWp">
+            <NumInput value={project.acPreisProKwp} onChange={(v) => set('acPreisProKwp', Number(v))} suffix="€/kWp" />
+          </Field>
+          <Field label="Montagearbeiten (DC) – Preis pro kWp">
+            <NumInput value={project.dcPreisProKwp} onChange={(v) => set('dcPreisProKwp', Number(v))} suffix="€/kWp" />
+          </Field>
+          <InfoLine>
+            AC: <strong>{eur(calc.acTotal)}</strong> · DC: <strong>{eur(calc.dcTotal)}</strong>
+          </InfoLine>
 
-      {/* Weitere CAPEX-Positionen */}
-      <SectionHeader>Weitere CAPEX-Positionen</SectionHeader>
-      <Field label="Planung, Genehmigung & Engineering (€)">
-        <NumInput value={project.planungEngineering} onChange={(v) => set('planungEngineering', Number(v))} suffix="€" />
-      </Field>
-      <Field label="Bauliche Maßnahmen / Erdarbeiten (€)">
-        <NumInput value={project.baulicheMassnahmen} onChange={(v) => set('baulicheMassnahmen', Number(v))} suffix="€" />
-      </Field>
-      <Field label="Logistik & Transport (€)">
-        <NumInput value={project.logistikTransport} onChange={(v) => set('logistikTransport', Number(v))} suffix="€" />
-      </Field>
-      <Field label="Inbetriebnahme & Abnahme (€)">
-        <NumInput value={project.inbetriebnahme} onChange={(v) => set('inbetriebnahme', Number(v))} suffix="€" />
-      </Field>
-      <Field label="Sonstige Kosten / Contingency (€)">
-        <NumInput value={project.contingency} onChange={(v) => set('contingency', Number(v))} suffix="€" />
-      </Field>
-      <Field
-        label="Einmalige Pachtzahlung (€/kWp)"
-        hint={`Pachtdauer: ${project.pachtdauerJahre} Jahre`}
-      >
-        <NumInput value={project.pachtzahlungProKwp} onChange={(v) => set('pachtzahlungProKwp', Number(v))} suffix="€/kWp" />
-      </Field>
-      <Field label="Einmalige Zahlung für Projektrechte (€/kWp)">
-        <NumInput value={project.projektrechteProKwp} onChange={(v) => set('projektrechteProKwp', Number(v))} suffix="€/kWp" />
-      </Field>
+          {/* Weitere CAPEX-Positionen */}
+          <SectionHeader>Weitere CAPEX-Positionen</SectionHeader>
+          <Field label="Planung, Genehmigung & Engineering (€)">
+            <NumInput value={project.planungEngineering} onChange={(v) => set('planungEngineering', Number(v))} suffix="€" />
+          </Field>
+          <Field label="Bauliche Maßnahmen / Erdarbeiten (€)">
+            <NumInput value={project.baulicheMassnahmen} onChange={(v) => set('baulicheMassnahmen', Number(v))} suffix="€" />
+          </Field>
+          <Field label="Logistik & Transport (€)">
+            <NumInput value={project.logistikTransport} onChange={(v) => set('logistikTransport', Number(v))} suffix="€" />
+          </Field>
+          <Field label="Inbetriebnahme & Abnahme (€)">
+            <NumInput value={project.inbetriebnahme} onChange={(v) => set('inbetriebnahme', Number(v))} suffix="€" />
+          </Field>
+          <Field label="Sonstige Kosten / Contingency (€)">
+            <NumInput value={project.contingency} onChange={(v) => set('contingency', Number(v))} suffix="€" />
+          </Field>
+          <Field
+            label="Einmalige Pachtzahlung (€/kWp)"
+            hint={`Pachtdauer: ${project.pachtdauerJahre} Jahre`}
+          >
+            <NumInput value={project.pachtzahlungProKwp} onChange={(v) => set('pachtzahlungProKwp', Number(v))} suffix="€/kWp" />
+          </Field>
+          {project.componentPricing.acquisition.mode === 'project_rights_epc' && (
+            <Field label="Einmalige Zahlung für Projektrechte (€/kWp)">
+              <NumInput value={project.projektrechteProKwp} onChange={(v) => set('projektrechteProKwp', Number(v))} suffix="€/kWp" />
+            </Field>
+          )}
+        </>
+      )}
 
       {/* Cashflow-Annahmen */}
       <SectionHeader>Cashflow-Annahmen (20 Jahre)</SectionHeader>
