@@ -1,7 +1,7 @@
 // src/components/capex/CapexList.tsx
 'use client'
 
-import type { CapexProject } from '@/lib/types/capex.types'
+import { capexCalculationModeLabel, type CapexProject } from '@/lib/types/capex.types'
 import { calcAll } from '@/lib/capex/calculations'
 import { eur, pct } from '@/lib/capex/format'
 
@@ -30,6 +30,9 @@ export function CapexList({ calculations, onOpen, onDelete }: CapexListProps) {
             <div className="mb-2 text-xs text-slate-500">
               {Number(p.anlagenleistungKwp).toLocaleString('de-DE')} kWp · {eur(c.totalCapex)} · IRR{' '}
               {pct(c.irr)}
+            </div>
+            <div className="mb-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-extrabold text-[#1F2A44]">
+              {capexCalculationModeLabel(p.componentPricing.acquisition.mode)}
             </div>
             {p.createdAt && (
               <div className="mb-2 text-[11px] text-slate-400">
