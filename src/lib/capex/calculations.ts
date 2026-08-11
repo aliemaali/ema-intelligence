@@ -11,6 +11,8 @@ export const INVESTOR_OPEX_ESCALATION_PCT = 2
 
 export function calcAll(p: CapexProject): CapexCalcResult {
   const kwp = Number(p.anlagenleistungKwp) || 0
+  const calculationMode = p.componentPricing.acquisition.mode
+  const turnkeyPurchasePrice = Number(p.componentPricing.acquisition.turnkeyPurchasePrice) || 0
 
   const moduleCount = kwp > 0 ? Math.ceil((kwp * 1000) / (Number(p.modulleistungWp) || 1)) : 0
   const moduleCost = moduleCount * (Number(p.preisProModul) || 0)
@@ -22,7 +24,7 @@ export function calcAll(p: CapexProject): CapexCalcResult {
   const dcTotal = (Number(p.dcPreisProKwp) || 0) * kwp
   const acTotal = (Number(p.acPreisProKwp) || 0) * kwp
 
-  const rawPositions: Array<{ name: string; cost: number }> = [
+  const epcPositions: Array<{ name: string; cost: number }> = [
     { name: 'PV-Module', cost: moduleCost },
     { name: 'Wechselrichter', cost: wrTotal },
     { name: 'Unterkonstruktion / Montagesystem', cost: ukTotal },
@@ -34,8 +36,18 @@ export function calcAll(p: CapexProject): CapexCalcResult {
     { name: 'Inbetriebnahme & Abnahme', cost: Number(p.inbetriebnahme) || 0 },
     { name: 'Sonstige Kosten / Unvorhergesehenes (Contingency)', cost: Number(p.contingency) || 0 },
     { name: 'Einmalige Pachtzahlung (Vorauszahlung gesamte Laufzeit)', cost: (Number(p.pachtzahlungProKwp) || 0) * kwp },
-    { name: 'Einmalige Zahlung für Projektrechte', cost: (Number(p.projektrechteProKwp) || 0) * kwp },
   ]
+
+  const rawPositions: Array<{ name: string; cost: number }> = calculationMode === 'turnkey'
+    ? [{ name: 'Schlüsselfertiger Anlagenkauf', cost: turnkeyPurchasePrice }]
+    : calculationMode === 'epc' || calculationMode === 'project_rights_epc'
+      ? [
+          ...epcPositions,
+          ...(calculationMode === 'project_rights_epc'
+            ? [{ name: 'Einmalige Zahlung für Projektrechte', cost: (Number(p.projektrechteProKwp) || 0) * kwp }]
+            : []),
+        ]
+      : []
 
   const totalCapex = rawPositions.reduce((sum, position) => sum + position.cost, 0)
   const positions: CapexPosition[] = rawPositions.map((position) => ({
