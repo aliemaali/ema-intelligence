@@ -5,6 +5,10 @@ export interface ModuleCatalogItem {
   model: string
   powerWp: number
   technology: string
+  lengthMm: number
+  widthMm: number
+  heightMm: number
+  dimensionSourceUrl: string
 }
 
 export interface InverterCatalogModel {
@@ -42,30 +46,50 @@ export const MODULE_CATALOG: ModuleCatalogItem[] = [
     model: 'Tiger Neo JKM450N-54HL4R-V',
     powerWp: 450,
     technology: 'N-Type TOPCon',
+    lengthMm: 1762,
+    widthMm: 1134,
+    heightMm: 30,
+    dimensionSourceUrl: 'https://www.jinkosolar.com/',
   },
   {
     manufacturer: 'LONGi',
     model: 'Hi-MO 6 LR5-54HTH-450M',
     powerWp: 450,
     technology: 'HPBC',
+    lengthMm: 1722,
+    widthMm: 1134,
+    heightMm: 30,
+    dimensionSourceUrl: 'https://www.longi.com/cn/products/modules/hi-mo-x6-artist-full-black/',
   },
   {
     manufacturer: 'Trina Solar',
     model: 'Vertex S+ TSM-NEG9R.28 450',
     powerWp: 450,
     technology: 'N-Type i-TOPCon',
+    lengthMm: 1762,
+    widthMm: 1134,
+    heightMm: 30,
+    dimensionSourceUrl: 'https://www.trinasolar.com/de/NEG9R.28/',
   },
   {
     manufacturer: 'JA Solar',
     model: 'DeepBlue 4.0 Pro JAM54D41-450/LB',
     powerWp: 450,
     technology: 'N-Type bifazial',
+    lengthMm: 1762,
+    widthMm: 1134,
+    heightMm: 30,
+    dimensionSourceUrl: 'https://www.jasolar.com/',
   },
   {
     manufacturer: 'Canadian Solar',
     model: 'TOPHiKu6 CS6.1-54TM-450',
     powerWp: 450,
     technology: 'N-Type TOPCon',
+    lengthMm: 1800,
+    widthMm: 1134,
+    heightMm: 30,
+    dimensionSourceUrl: 'https://www.csisolar.com/',
   },
 ]
 
@@ -208,6 +232,9 @@ export function getModuleRecommendation(manufacturer: string, requestedPowerWp?:
     model: powerWp === item.powerWp
       ? item.model
       : `${item.manufacturer} · ${powerWp} Wp Leistungsklasse`,
+    lengthMm: powerWp === item.powerWp ? item.lengthMm : 0,
+    widthMm: powerWp === item.powerWp ? item.widthMm : 0,
+    heightMm: powerWp === item.powerWp ? item.heightMm : 0,
   }
 }
 

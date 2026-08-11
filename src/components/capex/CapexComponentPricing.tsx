@@ -118,13 +118,23 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     )
     if (!recommendation) return
 
-    updateSelection('module', {
-      manufacturer: recommendation.manufacturer,
-      model: recommendation.model,
-      ratedPower: recommendation.powerWp,
-      onlineAverageNetEur: 0,
-      priceDate: '',
-      sources: [],
+    onChange('componentPricing', {
+      ...project.componentPricing,
+      module: {
+        ...project.componentPricing.module,
+        manufacturer: recommendation.manufacturer,
+        model: recommendation.model,
+        ratedPower: recommendation.powerWp,
+        onlineAverageNetEur: 0,
+        priceDate: '',
+        sources: [],
+      },
+      mounting: {
+        ...project.componentPricing.mounting,
+        moduleLengthMm: recommendation.lengthMm,
+        moduleWidthMm: recommendation.widthMm,
+        moduleHeightMm: recommendation.heightMm,
+      },
     })
     onChange('modulleistungWp', recommendation.powerWp)
     onChange('preisProModul', 0)
@@ -137,12 +147,22 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     const recommendation = getModuleRecommendation(moduleSelection.manufacturer, powerWp)
     if (!recommendation) return
 
-    updateSelection('module', {
-      model: recommendation.model,
-      ratedPower: recommendation.powerWp,
-      onlineAverageNetEur: 0,
-      priceDate: '',
-      sources: [],
+    onChange('componentPricing', {
+      ...project.componentPricing,
+      module: {
+        ...project.componentPricing.module,
+        model: recommendation.model,
+        ratedPower: recommendation.powerWp,
+        onlineAverageNetEur: 0,
+        priceDate: '',
+        sources: [],
+      },
+      mounting: {
+        ...project.componentPricing.mounting,
+        moduleLengthMm: recommendation.lengthMm,
+        moduleWidthMm: recommendation.widthMm,
+        moduleHeightMm: recommendation.heightMm,
+      },
     })
     onChange('modulleistungWp', recommendation.powerWp)
     onChange('preisProModul', 0)
