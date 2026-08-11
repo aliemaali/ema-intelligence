@@ -2,10 +2,11 @@
 'use client'
 
 import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
-import { WECHSELRICHTER_HERSTELLER, UNTERKONSTRUKTION_HERSTELLER } from '@/lib/types/capex.types'
+import { UNTERKONSTRUKTION_HERSTELLER } from '@/lib/types/capex.types'
 import { eur, eurKwp, pct, num } from '@/lib/capex/format'
 import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
 import { CapexVisualDashboard } from './CapexVisualDashboard'
+import { CapexComponentPricing } from './CapexComponentPricing'
 import {
   SectionHeader,
   Field,
@@ -74,38 +75,9 @@ export function CapexForm({ project, calc, onChange, onSave, onNew, saving }: Ca
         <NumInput value={project.pachtdauerJahre} onChange={(v) => set('pachtdauerJahre', Number(v))} suffix="Jahre" />
       </Field>
 
-      {/* Module */}
-      <SectionHeader>Kalkulation – Module</SectionHeader>
-      <Field label="Modulleistung (Wp pro Modul)">
-        <NumInput value={project.modulleistungWp} onChange={(v) => set('modulleistungWp', Number(v))} suffix="Wp" />
-      </Field>
-      <Field label="Preis pro Modul (€)">
-        <NumInput value={project.preisProModul} onChange={(v) => set('preisProModul', Number(v))} suffix="€" />
-      </Field>
-      <InfoLine>
-        Benötigte Module: <strong>{num(calc.moduleCount)} Stk.</strong> · Tatsächliche
-        Leistung: <strong>{num(calc.actualKwp, 2)} kWp</strong> · Gesamtkosten:{' '}
-        <strong>{eur(calc.moduleCost)}</strong>
-      </InfoLine>
-
-      {/* Wechselrichter */}
-      <SectionHeader>Kalkulation – Wechselrichter</SectionHeader>
-      <Field label="Hersteller">
-        <SelectInput
-          value={project.wrHersteller}
-          onChange={(v) => set('wrHersteller', v)}
-          options={WECHSELRICHTER_HERSTELLER}
-        />
-      </Field>
-      <Field label="Einzelpreis pro Wechselrichter (€)">
-        <NumInput value={project.wrEinzelpreis} onChange={(v) => set('wrEinzelpreis', Number(v))} suffix="€" />
-      </Field>
-      <Field label="Anzahl Wechselrichter">
-        <NumInput value={project.wrAnzahl} onChange={(v) => set('wrAnzahl', Number(v))} suffix="Stk." />
-      </Field>
-      <InfoLine>
-        Gesamtpreis Wechselrichter: <strong>{eur(calc.wrTotal)}</strong> ({eurKwp(calc.wrEurPerKwp)})
-      </InfoLine>
+      {/* Komponenten */}
+      <SectionHeader>Kalkulation – Module & Wechselrichter</SectionHeader>
+      <CapexComponentPricing project={project} calc={calc} onChange={onChange} />
 
       {/* Unterkonstruktion */}
       <SectionHeader>Kalkulation – Unterkonstruktion</SectionHeader>
