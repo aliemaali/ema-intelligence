@@ -3,10 +3,10 @@
 // 1:1 migrierte Formatierungs-Helper aus EMA_CAPEX_Rechner.html.
 
 export const eur = (v: number | null | undefined): string =>
-  (v ?? 0).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €'
+  (v ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
 
 export const eurKwp = (v: number | null | undefined): string =>
-  (v ?? 0).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' €/kWp'
+  (v ?? 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €/kWp'
 
 export const pct = (v: number | null | undefined): string =>
   v == null

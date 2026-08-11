@@ -29,8 +29,20 @@ export async function createCapexReport(project:CapexProject,calc:CapexCalcResul
   const cards=[['Gesamt-CAPEX',`${n0.format(calc.totalCapex)} EUR`,'Investitionsvolumen'],['Spez. Investitionskosten',`${n2.format(calc.specificCapex)} EUR/kWp`,`bezogen auf ${n2.format(project.anlagenleistungKwp)} kWp`],['Projekt-IRR (20 Jahre)',calc.irr==null?'':`${n1.format(calc.irr*100)} %`,'vor Steuern und Finanzierung'],['NPV',`${n0.format(calc.npv)} EUR`,`bei WACC ${n1.format(project.waccPct)} %`],['Statische Amortisation',calc.staticPayback==null?'':`${n1.format(calc.staticPayback)} Jahre`,'CAPEX / Cashflow Jahr 1'],['Diskontierte Amortisation',calc.dynPayback==null?'':`${n1.format(calc.dynPayback)} Jahre`,'diskontiert mit WACC']].filter(x=>x[1])
   cards.forEach((c,i)=>{const x=M+(i%3)*59.7,y=113+Math.floor(i/3)*34,inv=i===0;fill(inv?C.navy:C.light);d.roundedRect(x,y,54.7,29,2.2,2.2,'F');fill(C.green);d.rect(x,y,1.6,29,'F');txt(inv?[169,179,198]:C.muted);d.setFont('helvetica','bold');d.setFontSize(6.8);d.text(c[0].toUpperCase(),x+5,y+7);txt(inv?C.white:C.navy);d.setFontSize(c[1].length>20?12.2:15);d.text(c[1],x+5,y+16.5);if(c[2]){txt(inv?C.green:C.muted);d.setFont('helvetica','normal');d.setFontSize(7);d.text(d.splitTextToSize(c[2],45)[0],x+5,y+24.5)}})
 
-  sec('Kumulierter Cashflow',188)
-  const x0=38,y0=198,cw=154,ch=63,values=calc.years.slice(0,21).map(r=>r.cum),min=Math.min(...values,0),max=Math.max(...values,0),span=Math.max(max-min,1),yf=(v:number)=>y0+ch-((v-min)/span)*ch,xf=(i:number)=>x0+(i/Math.max(values.length-1,1))*cw
+  sec('Komponentenbasis',181)
+  const modulePricing=project.componentPricing.module,inverterPricing=project.componentPricing.inverter
+  const dateLabel=(value:string)=>{if(!value)return 'manuell';const date=new Date(value);return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat('de-DE').format(date)}
+  const moduleLine=modulePricing.model
+    ? `${modulePricing.manufacturer} · ${modulePricing.model} · ${n0.format(calc.moduleCount)} Stk. · ${n2.format(project.preisProModul)} EUR/Stk. · Stand ${dateLabel(modulePricing.priceDate)}`
+    : 'Module: manuelle Eingabe'
+  const inverterLine=inverterPricing.model
+    ? `${inverterPricing.manufacturer} · ${inverterPricing.model} · ${n0.format(project.wrAnzahl)} Stk. · ${n2.format(project.wrEinzelpreis)} EUR/Stk. · Stand ${dateLabel(inverterPricing.priceDate)}`
+    : 'Hybrid-Wechselrichter: manuelle Eingabe'
+  txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(6.6);d.text('MODULE',M,188);d.text('HYBRID-WECHSELRICHTER',M+88,188)
+  txt(C.muted);d.setFont('helvetica','normal');d.setFontSize(6.2);d.text(d.splitTextToSize(moduleLine,82)[0],M,192);d.text(d.splitTextToSize(inverterLine,82)[0],M+88,192)
+
+  sec('Kumulierter Cashflow',201)
+  const x0=38,y0=211,cw=154,ch=40,values=calc.years.slice(0,21).map(r=>r.cum),min=Math.min(...values,0),max=Math.max(...values,0),span=Math.max(max-min,1),yf=(v:number)=>y0+ch-((v-min)/span)*ch,xf=(i:number)=>x0+(i/Math.max(values.length-1,1))*cw
   for(let i=0;i<5;i++){const q=i/4,v=max-q*span,y=y0+q*ch;draw(C.grid);d.setLineWidth(.35);d.line(x0,y,x0+cw,y);txt(C.muted);d.setFont('helvetica','normal');d.setFontSize(6.4);d.text(`${n1.format(v/1e6)} Mio.`,x0-2.5,y+1.8,{align:'right'})}
   const zy=yf(0);draw(C.navy);d.setLineWidth(.8);d.line(x0,zy,x0+cw,zy);draw(C.green);d.setLineWidth(1.8);values.forEach((v,i)=>{if(i)d.line(xf(i-1),yf(values[i-1]),xf(i),yf(v))})
   const bi=values.findIndex((v,i)=>i>0&&v>=0);if(bi>0){const a=values[bi-1],b=values[bi],f=b===a?0:(-a)/(b-a),year=bi-1+f,bx=xf(bi-1+f),label=`Break-even Jahr ${n1.format(year)} (nominal)`;draw(C.navy);d.setLineDashPattern([2,2],0);d.setLineWidth(.55);d.line(bx,y0+ch,bx,zy);d.setLineDashPattern([],0);fill(C.navy);d.circle(bx,zy,1.5,'F');fill(C.white);d.circle(bx,zy,.65,'F');const lw=Math.min(56,Math.max(39,d.getTextWidth(label)+6)),lx=Math.min(192-lw,Math.max(18,bx-lw/2));fill(C.navy);d.roundedRect(lx,zy-10,lw,6,1.2,1.2,'F');txt(C.white);d.setFont('helvetica','bold');d.setFontSize(7.2);d.text(label,lx+lw/2,zy-6,{align:'center'})}

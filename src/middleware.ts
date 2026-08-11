@@ -30,7 +30,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/deals') || pathname.startsWith('/partners') ||
     pathname.startsWith('/partner-submissions') || pathname.startsWith('/partner-management') ||
     pathname.startsWith('/investors') || pathname.startsWith('/tasks') ||
-    pathname.startsWith('/settings') || pathname.startsWith('/ai') || pathname.startsWith('/expose')
+    pathname.startsWith('/settings') || pathname.startsWith('/ai') ||
+    pathname.startsWith('/expose') || pathname.startsWith('/capex')
 
   const isProtectedRoute = isInternalRoute || isPartnerRoute
   const isAuthRoute = pathname.startsWith('/login')
