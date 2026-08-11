@@ -41,6 +41,10 @@ function formatDate(value: string) {
     : new Intl.DateTimeFormat('de-DE').format(date)
 }
 
+function roundMoney(value: number) {
+  return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
 function PriceSourceList({ sources }: { sources: ComponentPriceSource[] }) {
   if (!sources.length) return null
 
@@ -134,7 +138,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     updateSelection(kind, { discountPct })
 
     if (current.onlineAverageNetEur > 0) {
-      const calculatedPrice = current.onlineAverageNetEur * (1 - discountPct / 100)
+      const calculatedPrice = roundMoney(current.onlineAverageNetEur * (1 - discountPct / 100))
       onChange(kind === 'module' ? 'preisProModul' : 'wrEinzelpreis', calculatedPrice)
     }
   }
@@ -161,9 +165,10 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       const result = await response.json() as ResearchResponse
       if (!response.ok) throw new Error(result.error || 'Preisermittlung fehlgeschlagen.')
 
-      const finalPrice = result.averageOnlineNetEur * (1 - current.discountPct / 100)
+      const onlineAverageNetEur = roundMoney(result.averageOnlineNetEur)
+      const finalPrice = roundMoney(onlineAverageNetEur * (1 - current.discountPct / 100))
       updateSelection(kind, {
-        onlineAverageNetEur: result.averageOnlineNetEur,
+        onlineAverageNetEur,
         priceDate: result.priceDate,
         sources: result.offers,
       })
@@ -265,8 +270,9 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       </Field>
       <Field label="Verwendeter Preis pro Modul (netto)">
         <NumInput
-          value={project.preisProModul}
-          onChange={(value) => onChange('preisProModul', Number(value))}
+          value={roundMoney(project.preisProModul)}
+          onChange={(value) => onChange('preisProModul', roundMoney(Number(value)))}
+          step="0.01"
           suffix="€"
         />
       </Field>
@@ -346,8 +352,9 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       </Field>
       <Field label="Verwendeter Einzelpreis pro Wechselrichter (netto)">
         <NumInput
-          value={project.wrEinzelpreis}
-          onChange={(value) => onChange('wrEinzelpreis', Number(value))}
+          value={roundMoney(project.wrEinzelpreis)}
+          onChange={(value) => onChange('wrEinzelpreis', roundMoney(Number(value)))}
+          step="0.01"
           suffix="€"
         />
       </Field>
