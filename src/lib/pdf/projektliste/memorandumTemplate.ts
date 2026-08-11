@@ -13,15 +13,13 @@ export interface MemorandumRenderOptions {
 }
 
 const esc = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const locale = (language: MemorandumPdfData['language']) => language === 'en' ? 'en-GB' : 'de-DE';
-const nf = (value: number, digits = 0, language: MemorandumPdfData['language'] = 'de') => value.toLocaleString(locale(language), { minimumFractionDigits: digits, maximumFractionDigits: digits });
-const money = (value: number, language: MemorandumPdfData['language'] = 'de') => value.toLocaleString(locale(language), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const NUMBER_LOCALE = 'de-DE';
+const nf = (value: number, digits = 0, _language: MemorandumPdfData['language'] = 'de') => value.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const money = (value: number, _language: MemorandumPdfData['language'] = 'de') => value.toLocaleString(NUMBER_LOCALE, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const upper = (value: string, language: MemorandumPdfData['language']) => language === 'de' ? value.replace(/ß/g, 'ẞ').toLocaleUpperCase('de-DE') : value.toLocaleUpperCase('en-GB');
 
-function parseMetricNumber(value: string, language: MemorandumPdfData['language']): number {
-  const normalized = language === 'en'
-    ? value.replace(/,/g, '').replace(/[^\d.-]/g, '')
-    : value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+function parseMetricNumber(value: string, _language: MemorandumPdfData['language']): number {
+  const normalized = value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
   const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }

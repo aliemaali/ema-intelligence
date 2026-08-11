@@ -11,9 +11,9 @@ const germanFormat = {
 }
 
 const englishFormat = {
-  number: (value: unknown, digits = 0) => Number(value).toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits }),
-  money: (value: unknown) => Number(value).toLocaleString('en-GB', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
-  tariff: (value: unknown) => `${Number(value).toLocaleString('en-GB', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €/kWh`,
+  number: (value: unknown, digits = 0) => Number(value).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits }),
+  money: (value: unknown) => Number(value).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }),
+  tariff: (value: unknown) => `${Number(value).toLocaleString('de-DE', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} €/kWh`,
 }
 
 const pvProject = {
@@ -45,7 +45,7 @@ describe('getExposePresentation language variants', () => {
     assert.ok(result.profile.some((row) => row.label === 'Feed-in model' && row.value === 'Full feed-in'))
     assert.ok(result.profile.some((row) => row.label === 'Grid connection' && row.value === 'Available'))
     assert.ok(result.highlights.some((item) => item.includes('Grid connection available')))
-    assert.ok(result.metrics.some((metric) => metric.label === 'Payback period' && metric.value === '11.1 years'))
+    assert.ok(result.metrics.some((metric) => metric.label === 'Payback period' && metric.value === '11,1 years'))
   })
 
   it('translates data-center assessment sections and unknown values', () => {
@@ -68,7 +68,7 @@ describe('getExposePresentation language variants', () => {
     assert.ok(result.dataCenterDetails?.sections.flatMap((section) => section.rows).some((row) => row.value === 'Not available'))
   })
 
-  it('renders English PDF labels and English-formatted financial values', () => {
+  it('renders English PDF labels with German-formatted financial values', () => {
     const presentation = getExposePresentation(pvProject, 'Münzenberg, Hesse', englishFormat, 'en')
     const data: MemorandumPdfData = {
       projectName: 'Münzenberg',
@@ -106,8 +106,10 @@ describe('getExposePresentation language variants', () => {
     assert.match(html, /Project Profile/)
     assert.match(html, /Financial Metrics/)
     assert.match(html, /Annual production/)
-    assert.match(html, /359,910/)
-    assert.match(html, /11\.1/)
+    assert.match(html, /359\.910/)
+    assert.match(html, /1\.000 <small>€\/kWp<\/small>/)
+    assert.match(html, /0,096 <small>€\/kWh<\/small>/)
+    assert.match(html, /11,1/)
     assert.doesNotMatch(html, /Wirtschaftliche Kennzahlen/)
   })
 })

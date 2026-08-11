@@ -21,28 +21,30 @@ const COUNTRY_NAMES_EN: Record<string, string> = {
   Griechenland: 'Greece', Greece: 'Greece', Portugal: 'Portugal', Belgien: 'Belgium', Belgium: 'Belgium',
 }
 
-function locale(language: MemorandumLanguage) {
+const NUMBER_LOCALE = 'de-DE'
+
+function dateLocale(language: MemorandumLanguage) {
   return language === 'en' ? 'en-GB' : 'de-DE'
 }
 
-function formatNumber(value: unknown, digits = 0, language: MemorandumLanguage = 'de') {
+function formatNumber(value: unknown, digits = 0) {
   const parsed = Number(value)
   return Number.isFinite(parsed)
-    ? new Intl.NumberFormat(locale(language), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(parsed)
+    ? new Intl.NumberFormat(NUMBER_LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(parsed)
     : '—'
 }
 
-function formatMoney(value: unknown, language: MemorandumLanguage = 'de') {
+function formatMoney(value: unknown) {
   const parsed = Number(value)
   return Number.isFinite(parsed)
-    ? new Intl.NumberFormat(locale(language), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parsed)
+    ? new Intl.NumberFormat(NUMBER_LOCALE, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parsed)
     : '—'
 }
 
 function tariffDisplay(raw: unknown, language: MemorandumLanguage = 'de') {
   const parsed = Number(raw)
   if (!Number.isFinite(parsed) || parsed <= 0) return language === 'en' ? 'Pending' : 'Noch offen'
-  return parsed <= 1 ? `${formatNumber(parsed, 3, language)} €/kWh` : `${formatNumber(parsed, 2, language)} ct/kWh`
+  return parsed <= 1 ? `${formatNumber(parsed, 3)} €/kWh` : `${formatNumber(parsed, 2)} ct/kWh`
 }
 
 function stageLabel(raw: unknown, language: MemorandumLanguage) {
@@ -78,7 +80,7 @@ function buildPdfData(project: Record<string, unknown>, language: MemorandumLang
   const country = language === 'en' ? COUNTRY_NAMES_EN[rawCountry] || rawCountry : rawCountry
   const code = COUNTRY_CODES[rawCountry]
   const location = [project.location_city, project.location_state].filter(Boolean).join(', ') || country
-  const dateLabel = new Intl.DateTimeFormat(locale(language), { month: 'long', year: 'numeric' }).format(new Date())
+  const dateLabel = new Intl.DateTimeFormat(dateLocale(language), { month: 'long', year: 'numeric' }).format(new Date())
   const economics = resolvePvEconomics(project)
   const purchasePrice = economics.purchasePrice
   const pvKwp = economics.pvKwp
@@ -94,8 +96,8 @@ function buildPdfData(project: Record<string, unknown>, language: MemorandumLang
     { ...project, purchase_price: purchasePrice, pv_kwp: pvKwp, specific_yield: displaySpecificYield, feed_in_tariff: tariff, amortisation_years: amortisation },
     location,
     {
-      number: (value, digits) => formatNumber(value, digits, language),
-      money: (value) => formatMoney(value, language),
+      number: (value, digits) => formatNumber(value, digits),
+      money: (value) => formatMoney(value),
       tariff: (value) => tariffDisplay(value, language),
     },
     language,
