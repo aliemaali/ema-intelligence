@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Check, Contact, FileText, Mail, MessageCircle, Send, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { generateMemorandumPdf } from '@/lib/pdf/memorandumPdf'
+import { generateMemorandumPdf, type MemorandumLanguage } from '@/lib/pdf/memorandumPdf'
 import { getBulkMemorandumData, recordMemorandumDeliveries } from '@/lib/actions/bulk-memorandum.actions'
 
 interface ProjectOption { id: string; name: string; number: string; location: string; typeLabel: string }
@@ -11,7 +11,8 @@ interface RecipientOption { id: string; name: string; email: string; type: 'inve
 interface DeviceContact { name: string; phone: string }
 interface BulkMemorandumCenterProps { projects: ProjectOption[]; recipients: RecipientOption[] }
 type DeliveryRecipient = RecipientOption | { name: string; email: string; type: 'manual' } | { name: string; type: 'manual' }
-interface PreparedShare { files: File[]; projectIds: string[]; recipients: DeliveryRecipient[] }
+type LanguageSelection = MemorandumLanguage | 'both'
+interface PreparedShare { files: File[]; projectIds: string[]; recipients: DeliveryRecipient[]; languages: MemorandumLanguage[] }
 
 function safeFileName(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_').replace(/^_+|_+$/g, '') || 'Projekt'
@@ -41,6 +42,7 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
   const [deviceContact, setDeviceContact] = useState<DeviceContact | null>(null)
   const [manualPhone, setManualPhone] = useState('')
   const [channel, setChannel] = useState<'email' | 'whatsapp'>('email')
+  const [languageSelection, setLanguageSelection] = useState<LanguageSelection>('de')
   const [busy, setBusy] = useState(false)
   const [preparedShare, setPreparedShare] = useState<PreparedShare | null>(null)
 
@@ -64,6 +66,11 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
   function changeChannel(nextChannel: 'email' | 'whatsapp') {
     clearPreparedShare()
     setChannel(nextChannel)
+  }
+
+  function changeLanguage(nextLanguage: LanguageSelection) {
+    clearPreparedShare()
+    setLanguageSelection(nextLanguage)
   }
 
   async function pickDeviceContact() {
@@ -101,12 +108,13 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
     setManualEmail('')
     setDeviceContact(null)
     setManualPhone('')
+    setLanguageSelection('de')
     setPreparedShare(null)
   }
 
   async function sharePreparedFiles() {
     if (!preparedShare) return
-    const { files, projectIds, recipients: deliveryRecipients } = preparedShare
+    const { files, projectIds, recipients: deliveryRecipients, languages } = preparedShare
 
     if (!navigator.share || !navigator.canShare?.({ files })) {
       toast.error('Das Teilen dieser PDFs wird auf diesem Gerät nicht unterstützt.')
@@ -135,6 +143,7 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
         recipients: deliveryRecipients,
         channel: 'whatsapp',
         status: 'shared',
+        languages,
       }).catch(() => undefined)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -154,15 +163,17 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
 
     setBusy(true)
     try {
-      const result = await getBulkMemorandumData(selectedProjects)
+      const languages: MemorandumLanguage[] = languageSelection === 'both' ? ['de', 'en'] : [languageSelection]
+      const result = await getBulkMemorandumData(selectedProjects, languages)
       if (!result.success || !result.data.length) throw new Error('Keine Exposés konnten erstellt werden.')
 
-      const generated: Array<{ projectId: string; name: string; file: File; contentBytes?: string }> = []
+      const generated: Array<{ projectId: string; language: MemorandumLanguage; name: string; file: File; contentBytes?: string }> = []
       for (const item of result.data) {
         const blob = await generateMemorandumPdf(item.data)
-        const name = `EMA_Expose_${safeFileName(item.data.projectName)}.pdf`
+        const name = `EMA_Expose_${safeFileName(item.data.projectName)}_${item.language.toUpperCase()}.pdf`
         generated.push({
           projectId: item.projectId,
+          language: item.language,
           name,
           file: new File([blob], name, { type: 'application/pdf' }),
           contentBytes: channel === 'email' ? await blobToBase64(blob) : undefined,
@@ -175,20 +186,32 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       const deliveryRecipients: DeliveryRecipient[] = [...selected, ...manual, ...whatsappContact]
 
       if (channel === 'email') {
+        const projectCount = selectedProjects.length
+        const languageLabel = languageSelection === 'both' ? 'DE & EN' : languageSelection.toUpperCase()
+        const subject = languageSelection === 'en'
+          ? `Project Exposés – ${projectCount} project${projectCount === 1 ? '' : 's'} · EN`
+          : languageSelection === 'both'
+            ? `Exposés / Project Exposés – ${projectCount} Projekt${projectCount === 1 ? '' : 'e'} · DE & EN`
+            : `Exposés – ${projectCount} Projekt${projectCount === 1 ? '' : 'e'} · DE`
+        const mailBody = languageSelection === 'en'
+          ? 'Dear Sir or Madam,\n\nPlease find the selected project exposés attached for your review.\n\nKind regards\nEMA Enterprise GmbH'
+          : languageSelection === 'both'
+            ? 'Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ausgewählten Exposés auf Deutsch und Englisch zur Prüfung.\n\nDear Sir or Madam,\n\nPlease find the selected project exposés in German and English attached for your review.\n\nMit freundlichen Grüßen / Kind regards\nEMA Enterprise GmbH'
+            : 'Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ausgewählten Exposés zur Prüfung.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH'
         const response = await fetch('/api/microsoft/send-mail', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: deliveryRecipients.map((item) => 'email' in item ? item.email : '').filter(Boolean).join(','),
-            subject: `Exposés – ${generated.length} Projekt${generated.length === 1 ? '' : 'e'}`,
-            body: 'Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ausgewählten Exposés zur Prüfung.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH',
+            subject,
+            body: mailBody,
             attachments: generated.map((item) => ({ fileName: item.name, contentBytes: item.contentBytes, contentType: 'application/pdf' })),
           }),
         })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error || 'E-Mail-Versand fehlgeschlagen.')
-        await recordMemorandumDeliveries({ projectIds: selectedProjects, recipients: deliveryRecipients, channel: 'email', status: 'sent' })
-        toast.success(`${generated.length} Exposé${generated.length === 1 ? '' : 's'} versendet.`)
+        await recordMemorandumDeliveries({ projectIds: selectedProjects, recipients: deliveryRecipients, channel: 'email', status: 'sent', languages })
+        toast.success(`${generated.length} PDF-Datei${generated.length === 1 ? '' : 'en'} (${languageLabel}) versendet.`)
         resetCenter()
         return
       }
@@ -196,8 +219,8 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
       const files = generated.map((item) => item.file)
       if (!navigator.share || !navigator.canShare?.({ files })) throw new Error('Das Teilen mehrerer PDFs wird auf diesem Gerät nicht unterstützt.')
 
-      setPreparedShare({ files, projectIds: [...selectedProjects], recipients: deliveryRecipients })
-      toast.success('Exposés sind bereit. Tippe jetzt auf „Jetzt WhatsApp öffnen“.')
+      setPreparedShare({ files, projectIds: [...selectedProjects], recipients: deliveryRecipients, languages })
+      toast.success(`${generated.length} PDF-Datei${generated.length === 1 ? '' : 'en'} ${generated.length === 1 ? 'ist' : 'sind'} bereit. Tippe jetzt auf „Jetzt WhatsApp öffnen“.`)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (isBlockedShareError(error)) {
@@ -228,6 +251,21 @@ export function BulkMemorandumCenter({ projects, recipients }: BulkMemorandumCen
             const checked = selectedProjects.includes(project.id)
             return <button key={project.id} type="button" onClick={() => toggleProject(project.id)} className={`flex items-center gap-3 rounded-2xl border p-3 text-left ${checked ? 'border-[#5CB800] bg-[#5CB800]/8' : 'border-slate-200 bg-white'}`}><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${checked ? 'border-[#5CB800] bg-[#5CB800] text-white' : 'border-slate-300 text-transparent'}`}><Check className="h-4 w-4" /></span><span className="min-w-0"><span className="block truncate font-extrabold text-[#07142F]">{project.name}</span><span className="block truncate text-xs text-slate-500">{project.number} · {project.location} · {project.typeLabel}</span></span></button>
           })}</div>
+
+          <div className="mt-5">
+            <div className="flex items-center justify-between"><h3 className="font-extrabold text-[#07142F]">Sprache der Exposés</h3><span className="text-xs font-bold text-slate-400">PDF-Ausgabe</span></div>
+            <div className="mt-2 grid grid-cols-3 gap-2" role="group" aria-label="Sprache der Exposés">
+              {([
+                { value: 'de', label: 'Deutsch', short: 'DE' },
+                { value: 'en', label: 'English', short: 'EN' },
+                { value: 'both', label: 'Beide', short: 'DE + EN' },
+              ] as const).map((option) => {
+                const active = languageSelection === option.value
+                return <button key={option.value} type="button" aria-pressed={active} onClick={() => changeLanguage(option.value)} className={`min-h-16 rounded-2xl border px-2 py-3 text-center transition ${active ? 'border-[#5CB800] bg-[#5CB800]/10 text-[#07142F] ring-1 ring-[#5CB800]' : 'border-slate-200 bg-white text-slate-500'}`}><span className="block text-sm font-extrabold">{option.label}</span><span className={`mt-0.5 block text-[10px] font-extrabold tracking-[.12em] ${active ? 'text-[#3D9200]' : 'text-slate-400'}`}>{option.short}</span></button>
+              })}
+            </div>
+            {languageSelection === 'both' && <p className="mt-2 rounded-xl bg-[#07142F]/5 px-3 py-2 text-xs leading-5 text-slate-600">Für jedes ausgewählte Projekt werden zwei getrennte PDF-Dateien erstellt: eine auf Deutsch und eine auf Englisch.</p>}
+          </div>
 
           <div className="mt-5 grid grid-cols-2 gap-2"><button type="button" onClick={() => changeChannel('email')} className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl font-extrabold ${channel === 'email' ? 'bg-[#07142F] text-white' : 'border border-slate-200 bg-white text-[#07142F]'}`}><Mail className="h-5 w-5" /> E-Mail</button><button type="button" onClick={() => changeChannel('whatsapp')} className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl font-extrabold ${channel === 'whatsapp' ? 'bg-[#5CB800] text-white' : 'border border-slate-200 bg-white text-[#07142F]'}`}><MessageCircle className="h-5 w-5" /> WhatsApp</button></div>
 
