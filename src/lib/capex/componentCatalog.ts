@@ -10,6 +10,7 @@ export interface ModuleCatalogItem {
 export interface InverterCatalogModel {
   model: string
   acPowerKw: number
+  hybrid: true
 }
 
 export interface InverterCatalogItem {
@@ -53,43 +54,42 @@ export const MODULE_CATALOG: ModuleCatalogItem[] = [
 
 export const INVERTER_CATALOG: InverterCatalogItem[] = [
   {
-    manufacturer: 'Huawei',
-    family: 'SUN2000',
-    models: [
-      { model: 'SUN2000-50KTL-M3', acPowerKw: 50 },
-      { model: 'SUN2000-100KTL-M2', acPowerKw: 100 },
-    ],
-  },
-  {
     manufacturer: 'Sungrow',
-    family: 'SG',
+    family: 'SH · C&I Hybrid',
     models: [
-      { model: 'SG50CX-P2', acPowerKw: 50 },
-      { model: 'SG125CX-P2', acPowerKw: 125 },
+      { model: 'SH125CX', acPowerKw: 125, hybrid: true },
     ],
   },
   {
-    manufacturer: 'SMA',
-    family: 'Sunny Tripower / Highpower',
+    manufacturer: 'GoodWe',
+    family: 'ET · C&I Hybrid',
     models: [
-      { model: 'Sunny Tripower CORE1 STP 50-41', acPowerKw: 50 },
-      { model: 'Sunny Highpower PEAK3 SHP 150-20', acPowerKw: 150 },
+      { model: 'GW50K-ET-10', acPowerKw: 50, hybrid: true },
     ],
   },
   {
     manufacturer: 'Solis',
-    family: 'S5 / S6',
+    family: 'S6-EH3P · C&I Hybrid',
     models: [
-      { model: 'S5-GC50K', acPowerKw: 50 },
-      { model: 'S6-GC125K', acPowerKw: 125 },
+      { model: 'S6-EH3P50K-H', acPowerKw: 50, hybrid: true },
+      { model: 'S6-EH3P60K-H', acPowerKw: 60, hybrid: true },
     ],
   },
   {
-    manufacturer: 'KACO',
-    family: 'blueplanet',
+    manufacturer: 'Deye',
+    family: 'SUN-SG02HP3 · C&I Hybrid',
     models: [
-      { model: 'blueplanet 60.0 TL3', acPowerKw: 60 },
-      { model: 'blueplanet 125 NX3 M10', acPowerKw: 125 },
+      { model: 'SUN-50K-SG02HP3-EU-BM4-P', acPowerKw: 50, hybrid: true },
+    ],
+  },
+  {
+    manufacturer: 'ATESS',
+    family: 'HPS · All-in-one Hybrid',
+    models: [
+      { model: 'HPS50', acPowerKw: 50, hybrid: true },
+      { model: 'HPS100', acPowerKw: 100, hybrid: true },
+      { model: 'HPS120', acPowerKw: 120, hybrid: true },
+      { model: 'HPS150', acPowerKw: 150, hybrid: true },
     ],
   },
 ]
@@ -149,6 +149,13 @@ export function getInverterRecommendation(manufacturer: string, plantKwp: number
   }
 }
 
+export function isApprovedHybridInverter(manufacturer: string, model: string) {
+  return INVERTER_CATALOG.some((brand) => (
+    brand.manufacturer === manufacturer
+    && brand.models.some((entry) => entry.model === model && entry.hybrid)
+  ))
+}
+
 export function componentUnitLabel(kind: ComponentKind) {
-  return kind === 'module' ? 'pro Modul' : 'pro Wechselrichter'
+  return kind === 'module' ? 'pro Modul' : 'pro Hybrid-Wechselrichter'
 }
