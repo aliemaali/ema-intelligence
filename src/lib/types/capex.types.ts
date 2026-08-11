@@ -182,7 +182,7 @@ export interface ProjectOption {
 }
 
 export const WECHSELRICHTER_HERSTELLER = [
-  'Sungrow', 'GoodWe', 'SMA', 'Solis', 'Deye', 'ATESS',
+  'Sungrow', 'GoodWe', 'Huawei', 'SMA', 'Solis', 'Deye', 'ATESS',
 ] as const
 
 export const MODUL_HERSTELLER = [
