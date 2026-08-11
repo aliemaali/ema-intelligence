@@ -26,14 +26,16 @@ async function blobToBase64(blob: Blob) {
 }
 
 export function CapexExportPanel({ project, calc }: CapexExportPanelProps) {
+  const isTurnkey = project.componentPricing.acquisition.mode === 'turnkey'
+  const reportLabel = isTurnkey ? 'Amortisationsberechnung' : 'CAPEX-Kalkulation'
   const [recipient, setRecipient] = useState('')
-  const [subject, setSubject] = useState(`CAPEX-Kalkulation – ${project.projektname || project.calculationName}`)
-  const [message, setMessage] = useState('Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die CAPEX-Kalkulation zum Projekt.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH')
+  const [subject, setSubject] = useState(`${reportLabel} – ${project.projektname || project.calculationName}`)
+  const [message, setMessage] = useState(`Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die ${reportLabel} zum Projekt.\n\nMit freundlichen Grüßen\nEMA Enterprise GmbH`)
   const [busy, setBusy] = useState<'download' | 'save' | 'send' | null>(null)
   const [status, setStatus] = useState('')
   const supabase = createClient()
   const isoDate = new Date().toISOString().slice(0, 10)
-  const fileName = `EMA_CAPEX_${safeName(project.projektname || project.calculationName)}_${isoDate}.pdf`
+  const fileName = `EMA_${isTurnkey ? 'Amortisation' : 'CAPEX'}_${safeName(project.projektname || project.calculationName)}_${isoDate}.pdf`
 
   async function savePdf(blob: Blob) {
     if (!project.projectId) throw new Error('Kein Projekt zugeordnet.')
@@ -44,7 +46,7 @@ export function CapexExportPanel({ project, calc }: CapexExportPanelProps) {
     if (uploadError) throw uploadError
     const result = await createDocumentRecord({
       projectId: project.projectId,
-      displayName: `CAPEX-Kalkulation – ${project.projektname || project.calculationName}`,
+      displayName: `${reportLabel} – ${project.projektname || project.calculationName}`,
       fileName,
       filePath: path,
       fileSizeBytes: blob.size,
@@ -99,7 +101,7 @@ export function CapexExportPanel({ project, calc }: CapexExportPanelProps) {
   }
 
   return <div className="space-y-4 rounded-[1.5rem] bg-white p-4 shadow-sm md:p-6">
-    <div><h3 className="text-lg font-extrabold text-[#1F2A44]">CAPEX-PDF</h3><p className="mt-1 text-sm text-slate-500">Zweiseitigen EMA-Report erstellen, im Projekt speichern und direkt über Microsoft 365 versenden.</p></div>
+    <div><h3 className="text-lg font-extrabold text-[#1F2A44]">{isTurnkey ? 'Amortisations-PDF' : 'CAPEX-PDF'}</h3><p className="mt-1 text-sm text-slate-500">Zweiseitigen EMA-Report erstellen, im Projekt speichern und direkt über Microsoft 365 versenden.</p></div>
     <div className="grid gap-3 sm:grid-cols-2"><input type="email" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Empfänger-E-Mail" className="form-input" /><input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Betreff" className="form-input" /></div>
     <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={6} className="form-input w-full resize-y" />
     <div className="grid gap-2 sm:grid-cols-3">
