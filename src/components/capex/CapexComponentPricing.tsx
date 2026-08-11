@@ -178,7 +178,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     }
   }
 
-  const module = selection('module')
+  const moduleSelection = selection('module')
   const inverter = selection('inverter')
   const inverterRecommendation = inverter.manufacturer
     ? getInverterRecommendation(inverter.manufacturer, project.anlagenleistungKwp)
@@ -207,7 +207,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
             type="button"
             onClick={() => chooseModule(manufacturer)}
             className={`min-h-12 rounded-xl border px-2 py-2 text-xs font-extrabold transition-colors ${
-              module.manufacturer === manufacturer
+              moduleSelection.manufacturer === manufacturer
                 ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
                 : 'border-slate-200 bg-white text-[#1F2A44]'
             }`}
@@ -217,14 +217,14 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         ))}
       </div>
 
-      {module.manufacturer && (
+      {moduleSelection.manufacturer && (
         <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
             Empfohlenes Modul
           </div>
-          <div className="mt-1 font-extrabold text-[#1F2A44]">{module.model}</div>
+          <div className="mt-1 font-extrabold text-[#1F2A44]">{moduleSelection.model}</div>
           <div className="mt-1 text-xs text-slate-600">
-            {num(module.ratedPower)} Wp · {num(calc.moduleCount)} Module · {num(calc.actualKwp, 2)} kWp
+            {num(moduleSelection.ratedPower)} Wp · {num(calc.moduleCount)} Module · {num(calc.actualKwp, 2)} kWp
           </div>
           <button
             type="button"
@@ -238,25 +238,25 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
             {loading === 'module' ? 'EMA sucht aktuelle Preise…' : 'Onlinepreise ermitteln'}
           </button>
           {errors.module && <p className="mt-2 text-xs font-semibold text-red-600">{errors.module}</p>}
-          {module.onlineAverageNetEur > 0 && (
+          {moduleSelection.onlineAverageNetEur > 0 && (
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl bg-white p-2.5">
                 <div className="text-slate-500">Bereinigter Online-Ø</div>
-                <div className="mt-1 font-extrabold text-[#1F2A44]">{eur(module.onlineAverageNetEur)}</div>
+                <div className="mt-1 font-extrabold text-[#1F2A44]">{eur(moduleSelection.onlineAverageNetEur)}</div>
               </div>
               <div className="rounded-xl bg-white p-2.5">
                 <div className="text-slate-500">Preisstand</div>
-                <div className="mt-1 font-extrabold text-[#1F2A44]">{formatDate(module.priceDate)}</div>
+                <div className="mt-1 font-extrabold text-[#1F2A44]">{formatDate(moduleSelection.priceDate)}</div>
               </div>
             </div>
           )}
-          <PriceSourceList sources={module.sources} />
+          <PriceSourceList sources={moduleSelection.sources} />
         </div>
       )}
 
       <Field label="Großhandelsabschlag Module (%)" hint="Standard 20 %. Kann kundenspezifisch angepasst werden.">
         <NumInput
-          value={module.discountPct}
+          value={moduleSelection.discountPct}
           onChange={(value) => updateDiscount('module', Number(value))}
           max="60"
           step="1"
