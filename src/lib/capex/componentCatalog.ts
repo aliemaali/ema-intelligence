@@ -68,6 +68,13 @@ export const INVERTER_CATALOG: InverterCatalogItem[] = [
     ],
   },
   {
+    manufacturer: 'SMA',
+    family: 'Sunny Tripower Hybrid X',
+    models: [
+      { model: 'Sunny Tripower Hybrid X 30', acPowerKw: 30, hybrid: true },
+    ],
+  },
+  {
     manufacturer: 'Solis',
     family: 'S6-EH3P · C&I Hybrid',
     models: [
