@@ -7,6 +7,9 @@ import {
   getModuleRecommendation,
   INVERTER_MANUFACTURERS,
   MODULE_MANUFACTURERS,
+  MODULE_POWER_MAX_WP,
+  MODULE_POWER_MIN_WP,
+  MODULE_POWER_OPTIONS,
 } from '@/lib/capex/componentCatalog'
 import type {
   CapexCalcResult,
@@ -26,6 +29,10 @@ interface Props {
 
 type ResearchResponse = {
   averageOnlineNetEur: number
+  model: string
+  ratedPower: number
+  pricingBasis: 'cleaned_average' | 'limited_offers' | 'reference_value'
+  warning: string
   priceDate: string
   offers: ComponentPriceSource[]
   sourceCount: number
@@ -82,6 +89,7 @@ function PriceSourceList({ sources }: { sources: ComponentPriceSource[] }) {
 export function CapexComponentPricing({ project, calc, onChange }: Props) {
   const [loading, setLoading] = useState<ComponentKind | null>(null)
   const [errors, setErrors] = useState<Partial<Record<ComponentKind, string>>>({})
+  const [warnings, setWarnings] = useState<Partial<Record<ComponentKind, string>>>({})
 
   function selection(kind: ComponentKind) {
     return project.componentPricing[kind]
@@ -98,7 +106,10 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
   }
 
   function chooseModule(manufacturer: string) {
-    const recommendation = getModuleRecommendation(manufacturer)
+    const recommendation = getModuleRecommendation(
+      manufacturer,
+      project.modulleistungWp || undefined,
+    )
     if (!recommendation) return
 
     updateSelection('module', {
@@ -112,6 +123,25 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     onChange('modulleistungWp', recommendation.powerWp)
     onChange('preisProModul', 0)
     setErrors((current) => ({ ...current, module: '' }))
+    setWarnings((current) => ({ ...current, module: '' }))
+  }
+
+  function chooseModulePower(powerWp: number) {
+    if (!moduleSelection.manufacturer) return
+    const recommendation = getModuleRecommendation(moduleSelection.manufacturer, powerWp)
+    if (!recommendation) return
+
+    updateSelection('module', {
+      model: recommendation.model,
+      ratedPower: recommendation.powerWp,
+      onlineAverageNetEur: 0,
+      priceDate: '',
+      sources: [],
+    })
+    onChange('modulleistungWp', recommendation.powerWp)
+    onChange('preisProModul', 0)
+    setErrors((current) => ({ ...current, module: '' }))
+    setWarnings((current) => ({ ...current, module: '' }))
   }
 
   function chooseInverter(manufacturer: string) {
@@ -130,6 +160,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
     onChange('wrAnzahl', recommendation.quantity)
     onChange('wrEinzelpreis', 0)
     setErrors((current) => ({ ...current, inverter: '' }))
+    setWarnings((current) => ({ ...current, inverter: '' }))
   }
 
   function updateDiscount(kind: ComponentKind, value: number) {
@@ -160,6 +191,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           kind,
           manufacturer: current.manufacturer,
           model: current.model,
+          ratedPower: current.ratedPower,
         }),
       })
       const result = await response.json() as ResearchResponse
@@ -168,10 +200,13 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       const onlineAverageNetEur = roundMoney(result.averageOnlineNetEur)
       const finalPrice = roundMoney(onlineAverageNetEur * (1 - current.discountPct / 100))
       updateSelection(kind, {
+        model: result.model || current.model,
+        ratedPower: result.ratedPower || current.ratedPower,
         onlineAverageNetEur,
         priceDate: result.priceDate,
         sources: result.offers,
       })
+      setWarnings((state) => ({ ...state, [kind]: result.warning || '' }))
       onChange(kind === 'module' ? 'preisProModul' : 'wrEinzelpreis', finalPrice)
     } catch (error) {
       setErrors((state) => ({
@@ -223,9 +258,50 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       </div>
 
       {moduleSelection.manufacturer && (
+        <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-3.5">
+          <div className="mb-2 text-xs font-extrabold text-[#1F2A44]">
+            Modulleistung selbst wählen
+          </div>
+          <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
+            {MODULE_POWER_OPTIONS.map((powerWp) => (
+              <button
+                key={powerWp}
+                type="button"
+                onClick={() => chooseModulePower(powerWp)}
+                className={`min-h-10 rounded-xl border px-2 text-xs font-extrabold ${
+                  project.modulleistungWp === powerWp
+                    ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
+                    : 'border-slate-200 bg-slate-50 text-[#1F2A44]'
+                }`}
+              >
+                {powerWp} Wp
+              </button>
+            ))}
+          </div>
+          <NumInput
+            value={project.modulleistungWp}
+            onChange={(value) => {
+              if (value === '') {
+                onChange('modulleistungWp', 0)
+                return
+              }
+              chooseModulePower(Number(value))
+            }}
+            min={String(MODULE_POWER_MIN_WP)}
+            max={String(MODULE_POWER_MAX_WP)}
+            step="1"
+            suffix="Wp"
+          />
+          <p className="mt-1.5 text-[11px] text-slate-400">
+            Freie Eingabe von {MODULE_POWER_MIN_WP} bis {MODULE_POWER_MAX_WP} Wp.
+          </p>
+        </div>
+      )}
+
+      {moduleSelection.manufacturer && (
         <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
-            Empfohlenes Modul
+            Gewähltes Modul
           </div>
           <div className="mt-1 font-extrabold text-[#1F2A44]">{moduleSelection.model}</div>
           <div className="mt-1 text-xs text-slate-600">
@@ -243,10 +319,11 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
             {loading === 'module' ? 'EMA sucht aktuelle Preise…' : 'Onlinepreise ermitteln'}
           </button>
           {errors.module && <p className="mt-2 text-xs font-semibold text-red-600">{errors.module}</p>}
+          {warnings.module && <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800">{warnings.module}</p>}
           {moduleSelection.onlineAverageNetEur > 0 && (
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl bg-white p-2.5">
-                <div className="text-slate-500">Bereinigter Online-Ø</div>
+                <div className="text-slate-500">Ermittelter Netto-Richtwert</div>
                 <div className="mt-1 font-extrabold text-[#1F2A44]">{eur(moduleSelection.onlineAverageNetEur)}</div>
               </div>
               <div className="rounded-xl bg-white p-2.5">
@@ -325,6 +402,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
             {loading === 'inverter' ? 'EMA sucht aktuelle Preise…' : 'Onlinepreise ermitteln'}
           </button>
           {errors.inverter && <p className="mt-2 text-xs font-semibold text-red-600">{errors.inverter}</p>}
+          {warnings.inverter && <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs font-semibold text-amber-800">{warnings.inverter}</p>}
           {inverter.onlineAverageNetEur > 0 && (
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl bg-white p-2.5">
