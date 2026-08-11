@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ExternalLink, Loader2, MapPin, RefreshCw, ShieldCheck } from 'lucide-react'
 import { eur } from '@/lib/capex/format'
 import {
@@ -8,6 +8,7 @@ import {
   GROUND_TERRAIN_TYPES,
   ROOF_SURFACE_TYPES,
 } from '@/lib/capex/mountingCatalog'
+import { MODULE_CATALOG } from '@/lib/capex/componentCatalog'
 import type {
   CapexCalcResult,
   CapexProject,
@@ -39,6 +40,36 @@ export function CapexMountingPricing({ project, projectOption, calc, onChange }:
     config.surfaceType,
     config.terrainType,
   ), [config.application, config.surfaceType, config.terrainType])
+
+  useEffect(() => {
+    if (
+      !project.componentPricing.module.manufacturer
+      || (config.moduleLengthMm > 0 && config.moduleWidthMm > 0 && config.moduleHeightMm > 0)
+    ) return
+
+    const catalogModule = MODULE_CATALOG.find((item) => (
+      item.manufacturer === project.componentPricing.module.manufacturer
+    ))
+    if (!catalogModule) return
+
+    onChange('componentPricing', {
+      ...project.componentPricing,
+      mounting: {
+        ...config,
+        moduleLengthMm: catalogModule.lengthMm,
+        moduleWidthMm: catalogModule.widthMm,
+        moduleHeightMm: catalogModule.heightMm,
+      },
+    })
+  }, [
+    config,
+    config.moduleHeightMm,
+    config.moduleLengthMm,
+    config.moduleWidthMm,
+    onChange,
+    project.componentPricing,
+    project.componentPricing.module.manufacturer,
+  ])
 
   function update(patch: Partial<MountingConfiguration>) {
     onChange('componentPricing', {
