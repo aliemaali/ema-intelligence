@@ -8,6 +8,12 @@
 export type ComponentKind = 'module' | 'inverter'
 export type InverterMode = 'standard' | 'hybrid'
 export type MountingApplication = 'roof' | 'ground'
+export type CapexCalculationMode = '' | 'turnkey' | 'epc' | 'project_rights_epc'
+
+export interface CapexAcquisitionConfiguration {
+  mode: CapexCalculationMode
+  turnkeyPurchasePrice: number
+}
 
 export interface MountingConfiguration {
   application: MountingApplication | ''
@@ -55,6 +61,7 @@ export interface CapexComponentPricing {
   inverter: ComponentPricingSelection
   inverterMode: InverterMode
   mounting: MountingConfiguration
+  acquisition: CapexAcquisitionConfiguration
 }
 
 export interface CapexCalculationRow {
@@ -208,6 +215,19 @@ export interface ProjectOption {
   specific_yield?: number | null
   tariff_eur_kwh?: number | null
   lease_term_years?: number | null
+  purchase_price?: number | null
+  purchase_per_kwp?: number | null
+  purchase_price_type?: string | null
+}
+
+export const CAPEX_CALCULATION_MODE_LABELS: Record<Exclude<CapexCalculationMode, ''>, string> = {
+  turnkey: 'Schlüsselfertige Anlage',
+  epc: 'Eigenkalkulation / EPC',
+  project_rights_epc: 'Projektrechte + EPC',
+}
+
+export function capexCalculationModeLabel(mode: CapexCalculationMode) {
+  return mode ? CAPEX_CALCULATION_MODE_LABELS[mode] : 'Kalkulationsart auswählen'
 }
 
 export const WECHSELRICHTER_HERSTELLER = [
@@ -238,6 +258,10 @@ export function emptyComponentPricing(): CapexComponentPricing {
     module: selection(),
     inverter: selection(),
     inverterMode: 'standard',
+    acquisition: {
+      mode: '',
+      turnkeyPurchasePrice: 0,
+    },
     mounting: {
       application: '',
       surfaceType: '',
@@ -263,10 +287,19 @@ export function emptyComponentPricing(): CapexComponentPricing {
 
 export function normalizeComponentPricing(value: unknown): CapexComponentPricing {
   const defaults = emptyComponentPricing()
-  if (!value || typeof value !== 'object') return defaults
+  if (!value || typeof value !== 'object') {
+    return {
+      ...defaults,
+      acquisition: { mode: 'epc', turnkeyPurchasePrice: 0 },
+    }
+  }
 
   const raw = value as Partial<Record<ComponentKind, Partial<ComponentPricingSelection>>>
-    & { inverterMode?: unknown; mounting?: Partial<MountingConfiguration> }
+    & {
+      inverterMode?: unknown
+      mounting?: Partial<MountingConfiguration>
+      acquisition?: Partial<CapexAcquisitionConfiguration>
+    }
   const normalizeSelection = (
     kind: ComponentKind,
     fallback: ComponentPricingSelection,
@@ -295,6 +328,14 @@ export function normalizeComponentPricing(value: unknown): CapexComponentPricing
   }
 
   const mounting = raw.mounting && typeof raw.mounting === 'object' ? raw.mounting : {}
+  const acquisition = raw.acquisition && typeof raw.acquisition === 'object'
+    ? raw.acquisition
+    : null
+  const acquisitionMode = acquisition?.mode === 'turnkey'
+    || acquisition?.mode === 'epc'
+    || acquisition?.mode === 'project_rights_epc'
+    ? acquisition.mode
+    : 'epc'
 
   return {
     module: normalizeSelection('module', defaults.module),
@@ -304,6 +345,10 @@ export function normalizeComponentPricing(value: unknown): CapexComponentPricing
       : raw.inverter?.model
         ? 'hybrid'
         : 'standard',
+    acquisition: {
+      mode: acquisitionMode,
+      turnkeyPurchasePrice: Math.max(0, Number(acquisition?.turnkeyPurchasePrice) || 0),
+    },
     mounting: {
       ...defaults.mounting,
       application: mounting.application === 'roof' || mounting.application === 'ground'
@@ -347,6 +392,9 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
   const projectOption = typeof project === 'object' && project !== null ? project : null
   const projectId = typeof project === 'string' ? project : projectOption?.id ?? null
 
+  const componentPricing = emptyComponentPricing()
+  componentPricing.acquisition.turnkeyPurchasePrice = Number(projectOption?.purchase_price ?? 0)
+
   return {
     id: null,
     projectId,
@@ -367,7 +415,7 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
     wrHersteller: '',
     wrEinzelpreis: 0,
     wrAnzahl: 0,
-    componentPricing: emptyComponentPricing(),
+    componentPricing,
 
     ukHersteller: '',
     ukPreisProKwp: 0,

@@ -24,11 +24,25 @@ export default async function CapexProjectPage({ params }: PageProps) {
   const { projectId } = await params
 
   const supabase = await createClient()
-  const { data: projectRow, error } = await supabase
-    .from('projects')
-    .select('id, project_name, project_type, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_address, location_city, location_state, location_country, location_lat, location_lng, specific_yield_kwh_kwp, feed_in_tariff_ct_kwh, lease_term_years, ai_score_details')
-    .eq('id', projectId)
-    .single()
+  const [projectResult, dealResult, calculations] = await Promise.all([
+    supabase
+      .from('projects')
+      .select('id, project_name, project_type, pv_mwp, pv_ac_mw, bess_mw, bess_mwh, bess_duration_h, location_address, location_city, location_state, location_country, location_lat, location_lng, specific_yield_kwh_kwp, feed_in_tariff_ct_kwh, lease_term_years, ai_score_details')
+      .eq('id', projectId)
+      .single(),
+    supabase
+      .from('deals')
+      .select('purchase_price, purchase_per_kwp, purchase_price_type')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    getCapexCalculationsForProject(projectId),
+  ])
+
+  const { data: projectRow, error } = projectResult
+  const deal = dealResult.data
 
   if (error || !projectRow) notFound()
 
@@ -54,9 +68,10 @@ export default async function CapexProjectPage({ params }: PageProps) {
     specific_yield: firstPositive(emaAi.specific_yield, projectRow.specific_yield_kwh_kwp),
     tariff_eur_kwh: tariffEurKwh,
     lease_term_years: firstPositive(projectRow.lease_term_years),
+    purchase_price: firstPositive(deal?.purchase_price),
+    purchase_per_kwp: firstPositive(deal?.purchase_per_kwp),
+    purchase_price_type: deal?.purchase_price_type ?? null,
   }
-
-  const calculations = await getCapexCalculationsForProject(projectId)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white">
