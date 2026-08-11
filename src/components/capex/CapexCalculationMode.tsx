@@ -20,7 +20,7 @@ const options = [
   {
     mode: 'turnkey' as const,
     icon: Building2,
-    description: 'Der vollständige Anlagenkaufpreis bildet den CAPEX. Komponenten werden nicht doppelt addiert.',
+    description: 'Einfache Amortisation aus Kaufpreis ÷ Jahreserlös. Keine OPEX-, CAPEX-, IRR-, NPV- oder WACC-Berechnung.',
   },
   {
     mode: 'epc' as const,
@@ -117,8 +117,7 @@ export function CapexCalculationModeSelector({ project, projectOption, onChange 
             </InfoLine>
           )}
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            Komponentenpreise bleiben als interne Plausibilitätsprüfung sichtbar, fließen aber nicht
-            zusätzlich in den Gesamt-CAPEX ein.
+            Berechnet wird ausschließlich die einfache Amortisation aus Kaufpreis und Jahreserlös.
           </p>
         </div>
       )}
