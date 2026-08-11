@@ -13,12 +13,16 @@ export interface MemorandumRenderOptions {
 }
 
 const esc = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const nf = (value: number, digits = 0) => value.toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
-const money = (value: number) => value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const upperDe = (value: string) => value.replace(/ß/g, 'ẞ').toLocaleUpperCase('de-DE');
+const locale = (language: MemorandumPdfData['language']) => language === 'en' ? 'en-GB' : 'de-DE';
+const nf = (value: number, digits = 0, language: MemorandumPdfData['language'] = 'de') => value.toLocaleString(locale(language), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const money = (value: number, language: MemorandumPdfData['language'] = 'de') => value.toLocaleString(locale(language), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const upper = (value: string, language: MemorandumPdfData['language']) => language === 'de' ? value.replace(/ß/g, 'ẞ').toLocaleUpperCase('de-DE') : value.toLocaleUpperCase('en-GB');
 
-function parseMetricNumber(value: string): number {
-  const parsed = Number.parseFloat(value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''));
+function parseMetricNumber(value: string, language: MemorandumPdfData['language']): number {
+  const normalized = language === 'en'
+    ? value.replace(/,/g, '').replace(/[^\d.-]/g, '')
+    : value.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+  const parsed = Number.parseFloat(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
@@ -80,14 +84,14 @@ function buildKpis(data: MemorandumPdfData) {
     const key = item.label.toLocaleLowerCase('de-DE');
     return key.includes('pv-leistung') || key === 'leistung' || key.includes('pv capacity');
   });
-  const pvKwp = capacity ? parseMetricNumber(capacity.value) : 0;
+  const pvKwp = capacity ? parseMetricNumber(capacity.value, data.language) : 0;
   const economics = data.pvEconomics;
   return [
     capacity,
-    economics.purchasePrice > 0 ? { label: c.purchasePrice, value: money(economics.purchasePrice) } : undefined,
-    economics.purchasePrice > 0 && pvKwp > 0 ? { label: c.pricePerKwp, value: `${nf(economics.purchasePrice / pvKwp)} €/kWp` } : undefined,
-    economics.amortisation > 0 ? { label: c.amortisation, value: `${nf(economics.amortisation, 1)} ${data.language === 'en' ? 'years' : 'Jahre'}` } : undefined,
-    economics.roi > 0 ? { label: c.returnPa, value: `${nf(economics.roi, 2)} %` } : undefined,
+    economics.purchasePrice > 0 ? { label: c.purchasePrice, value: money(economics.purchasePrice, data.language) } : undefined,
+    economics.purchasePrice > 0 && pvKwp > 0 ? { label: c.pricePerKwp, value: `${nf(economics.purchasePrice / pvKwp, 0, data.language)} €/kWp` } : undefined,
+    economics.amortisation > 0 ? { label: c.amortisation, value: `${nf(economics.amortisation, 1, data.language)} ${data.language === 'en' ? 'years' : 'Jahre'}` } : undefined,
+    economics.roi > 0 ? { label: c.returnPa, value: `${nf(economics.roi, 2, data.language)} %` } : undefined,
   ].filter((item): item is { label: string; value: string } => Boolean(item));
 }
 
@@ -131,19 +135,19 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   const highlights = orderedHighlights(data).map((item) => `<div class="memo-highlight"><span class="check">${checkIcon()}</span><span class="t">${esc(item)}</span></div>`).join('');
   const economics = data.pvEconomics;
   const capacity = buildKpis(data)[0];
-  const pvKwp = capacity ? parseMetricNumber(capacity.value) : 0;
+  const pvKwp = capacity ? parseMetricNumber(capacity.value, data.language) : 0;
   const economicsRows = economics ? [
-    economics.annualYield > 0 ? [c.annualProduction, `${nf(economics.annualYield)} <small>kWh</small>`] : undefined,
-    economics.annualRevenue > 0 ? [c.annualRevenue, money(economics.annualRevenue)] : undefined,
-    economics.purchasePrice > 0 ? [c.purchasePrice, money(economics.purchasePrice)] : undefined,
-    economics.purchasePrice > 0 && pvKwp > 0 ? [c.pricePerKwp, `${nf(economics.purchasePrice / pvKwp)} <small>€/kWp</small>`] : undefined,
-    economics.tariffEurKwh > 0 ? [c.tariff, `${nf(economics.tariffEurKwh, 3)} <small>€/kWh</small>`] : undefined,
-    economics.roi > 0 ? [c.returnPa, `${nf(economics.roi, 2)} <small>%</small>`] : undefined,
-    economics.amortisation > 0 ? [c.amortisation, `${nf(economics.amortisation, 1)} <small>${data.language === 'en' ? 'years' : 'Jahre'}</small>`] : undefined,
+    economics.annualYield > 0 ? [c.annualProduction, `${nf(economics.annualYield, 0, data.language)} <small>kWh</small>`] : undefined,
+    economics.annualRevenue > 0 ? [c.annualRevenue, money(economics.annualRevenue, data.language)] : undefined,
+    economics.purchasePrice > 0 ? [c.purchasePrice, money(economics.purchasePrice, data.language)] : undefined,
+    economics.purchasePrice > 0 && pvKwp > 0 ? [c.pricePerKwp, `${nf(economics.purchasePrice / pvKwp, 0, data.language)} <small>€/kWp</small>`] : undefined,
+    economics.tariffEurKwh > 0 ? [c.tariff, `${nf(economics.tariffEurKwh, 3, data.language)} <small>€/kWh</small>`] : undefined,
+    economics.roi > 0 ? [c.returnPa, `${nf(economics.roi, 2, data.language)} <small>%</small>`] : undefined,
+    economics.amortisation > 0 ? [c.amortisation, `${nf(economics.amortisation, 1, data.language)} <small>${data.language === 'en' ? 'years' : 'Jahre'}</small>`] : undefined,
   ].filter((item): item is string[] => Boolean(item)) : [];
   const figures = economicsRows.map(([label, value]) => `<div class="fig-row"><span class="n">${esc(label)}</span><span class="v">${value}</span></div>`).join('');
   const projectPhoto = options.projectImage
-    ? `<div class="memo-photo"><div class="frame"><img src="${options.projectImage}" alt="${esc(data.projectName)}"></div><div class="cap">${upperDe(c.projectView)} · ${upperDe(data.projectName)}</div></div>`
+    ? `<div class="memo-photo"><div class="frame"><img src="${options.projectImage}" alt="${esc(data.projectName)}"></div><div class="cap">${upper(c.projectView, data.language)} · ${upper(data.projectName, data.language)}</div></div>`
     : '';
   const german = isGermanCountry(data.country);
   const map = german ? buildGermanyMap(options.germanyMap, data.location) : '';
@@ -152,7 +156,7 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   const detailSections = data.dataCenterDetails?.sections.map((section, sectionIndex) => {
     const rows = section.rows.map((row) => {
       const state = row.value.toLocaleLowerCase('de-DE');
-      const pending = state.includes('nicht bekannt') || state.includes('muss geprüft') || state.includes('nicht vorhanden') || state.includes('unknown') || state.includes('verification');
+      const pending = state.includes('nicht bekannt') || state.includes('muss geprüft') || state.includes('nicht vorhanden') || state.includes('unknown') || state.includes('verification') || state.includes('not available');
       return `<div class="memo-detail-row"><span class="n">${esc(row.label)}</span><span class="v${pending ? ' pending' : ''}">${esc(row.value)}</span></div>`;
     }).join('');
     return `<div class="memo-detail-card${sectionIndex === 4 ? ' wide' : ''}"><h3><span></span>${esc(section.title)}</h3><div class="memo-detail-rows">${rows}</div></div>`;

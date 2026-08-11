@@ -1,5 +1,7 @@
 import type { ExposeDataCenterDetails } from '@/lib/expose/projectPresentation'
 
+export type MemorandumLanguage = 'de' | 'en'
+
 export interface MemorandumPdfData {
   projectName: string
   projectNumber: string
@@ -17,7 +19,7 @@ export interface MemorandumPdfData {
   dataCenterDetails?: ExposeDataCenterDetails
   heroImage: string
   projectImage?: string
-  language?: 'de' | 'en'
+  language?: MemorandumLanguage
   showPvEconomics: boolean
   latitude?: number | null
   longitude?: number | null
