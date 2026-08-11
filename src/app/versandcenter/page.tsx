@@ -1,4 +1,5 @@
-import { Mail, MessageCircle, Send, ShieldCheck } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Mail, MessageCircle, Send, ShieldCheck } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { BulkMemorandumCenter } from '@/components/projects/BulkMemorandumCenter'
 import { getProjects } from '@/lib/actions/project.actions'
@@ -75,8 +76,22 @@ export default async function VersandcenterPage() {
   const recipientOptions = [...investorRecipients, ...partnerRecipients]
 
   return (
-    <main className="min-h-screen bg-[#F5F7F9] px-3 pb-28 pt-4 md:px-8 md:py-8">
-      <div className="mx-auto max-w-[1100px] space-y-6">
+    <main className="min-h-screen bg-[#F5F7F9] px-3 pb-28 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-8 md:py-8">
+      <div className="mx-auto max-w-[1100px] space-y-5 md:space-y-6">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/dashboard"
+            className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-sm transition active:scale-[0.98]"
+            aria-label="Zurück zur Startseite"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            Zurück zur Startseite
+          </Link>
+          <Link href="/dashboard" aria-label="EMA Startseite" className="hidden sm:block">
+            <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-12 w-auto object-contain" />
+          </Link>
+        </div>
+
         <section className="relative overflow-hidden rounded-[2rem] bg-[#07142F] text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
           <img
             src="/hero-dashboard.png"
