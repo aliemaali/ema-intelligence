@@ -26,6 +26,7 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
   const [isPending, startTransition] = useTransition()
 
   const calc = useMemo(() => calcAll(project), [project])
+  const isTurnkey = project.componentPricing.acquisition.mode === 'turnkey'
 
   function showToast(msg: string) {
     setToast(msg)
@@ -89,9 +90,11 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
     <div className="mx-auto w-full max-w-5xl rounded-[2rem] bg-[#fafafa] px-3.5 pb-20 pt-0 md:px-6">
       <div className="mb-3 rounded-[1.65rem] bg-[#1F2A44] px-5 py-6 text-white shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xl font-extrabold md:text-2xl">EMA CAPEX Rechner</div>
+          <div className="text-xl font-extrabold md:text-2xl">
+            {isTurnkey ? 'EMA Amortisationsrechner' : 'EMA CAPEX Rechner'}
+          </div>
           <span className="rounded-full bg-[#5CB800] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-white">
-            Finance Engine aktiv
+            {isTurnkey ? 'Einfache Amortisation' : 'Finance Engine aktiv'}
           </span>
         </div>
         <div className="mt-1 text-sm opacity-[0.85]">Projekt: {projectOption.name}</div>
