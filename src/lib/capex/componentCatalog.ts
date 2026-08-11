@@ -11,6 +11,7 @@ export interface InverterCatalogModel {
   model: string
   acPowerKw: number
   hybrid: true
+  maxRecommendedUnits?: number
 }
 
 export interface InverterCatalogItem {
@@ -18,6 +19,22 @@ export interface InverterCatalogItem {
   family: string
   models: InverterCatalogModel[]
 }
+
+export interface InverterRecommendation {
+  manufacturer: string
+  family: string
+  model: string
+  acPowerKw: number
+  quantity: number
+  totalAcPowerKw: number
+  dcAcRatio: number
+}
+
+export const INVERTER_TARGET_DC_AC_RATIO = 1.15
+export const INVERTER_MIN_DC_AC_RATIO = 0.9
+export const INVERTER_MAX_DC_AC_RATIO = 1.3
+
+const DEFAULT_MAX_RECOMMENDED_UNITS = 20
 
 export const MODULE_CATALOG: ModuleCatalogItem[] = [
   {
@@ -71,7 +88,12 @@ export const INVERTER_CATALOG: InverterCatalogItem[] = [
     manufacturer: 'SMA',
     family: 'Sunny Tripower Hybrid X',
     models: [
-      { model: 'Sunny Tripower Hybrid X 30', acPowerKw: 30, hybrid: true },
+      {
+        model: 'Sunny Tripower Hybrid X 30',
+        acPowerKw: 30,
+        hybrid: true,
+        maxRecommendedUnits: 5,
+      },
     ],
   },
   {
@@ -128,32 +150,65 @@ export function getModuleRecommendation(manufacturer: string, requestedPowerWp?:
   }
 }
 
+function getRecommendationCandidates(
+  plantKwp: number,
+  manufacturer?: string,
+): InverterRecommendation[] {
+  const dcPowerKwp = Math.max(0, Number(plantKwp) || 0)
+  if (dcPowerKwp <= 0) return []
+
+  return INVERTER_CATALOG
+    .filter((brand) => !manufacturer || brand.manufacturer === manufacturer)
+    .flatMap((brand) => brand.models.flatMap((model) => {
+      const maxUnits = model.maxRecommendedUnits ?? DEFAULT_MAX_RECOMMENDED_UNITS
+      const candidates: InverterRecommendation[] = []
+
+      for (let quantity = 1; quantity <= maxUnits; quantity += 1) {
+        const totalAcPowerKw = quantity * model.acPowerKw
+        const dcAcRatio = dcPowerKwp / totalAcPowerKw
+        if (
+          dcAcRatio < INVERTER_MIN_DC_AC_RATIO
+          || dcAcRatio > INVERTER_MAX_DC_AC_RATIO
+        ) {
+          continue
+        }
+
+        candidates.push({
+          manufacturer: brand.manufacturer,
+          family: brand.family,
+          model: model.model,
+          acPowerKw: model.acPowerKw,
+          quantity,
+          totalAcPowerKw,
+          dcAcRatio,
+        })
+      }
+
+      return candidates
+    }))
+}
+
+function rankRecommendations(
+  a: InverterRecommendation,
+  b: InverterRecommendation,
+) {
+  if (a.quantity !== b.quantity) return a.quantity - b.quantity
+
+  const aDistance = Math.abs(a.dcAcRatio - INVERTER_TARGET_DC_AC_RATIO)
+  const bDistance = Math.abs(b.dcAcRatio - INVERTER_TARGET_DC_AC_RATIO)
+  if (aDistance !== bDistance) return aDistance - bDistance
+
+  return b.acPowerKw - a.acPowerKw
+}
+
 export function getInverterRecommendation(manufacturer: string, plantKwp: number) {
-  const brand = INVERTER_CATALOG.find((item) => item.manufacturer === manufacturer)
-  if (!brand) return null
+  return getRecommendationCandidates(plantKwp, manufacturer)
+    .sort(rankRecommendations)[0] ?? null
+}
 
-  const targetAcKw = Math.max(0, plantKwp) / 1.15
-  const sortedModels = [...brand.models].sort((a, b) => a.acPowerKw - b.acPowerKw)
-  const preferredPower = targetAcKw <= 0
-    ? sortedModels[0].acPowerKw
-    : Math.min(125, Math.max(50, targetAcKw / Math.max(1, Math.ceil(targetAcKw / 125))))
-
-  const model = sortedModels.reduce((best, current) => {
-    return Math.abs(current.acPowerKw - preferredPower) < Math.abs(best.acPowerKw - preferredPower)
-      ? current
-      : best
-  }, sortedModels[0])
-
-  const quantity = targetAcKw > 0 ? Math.max(1, Math.ceil(targetAcKw / model.acPowerKw)) : 1
-  return {
-    manufacturer: brand.manufacturer,
-    family: brand.family,
-    model: model.model,
-    acPowerKw: model.acPowerKw,
-    quantity,
-    totalAcPowerKw: quantity * model.acPowerKw,
-    dcAcRatio: quantity * model.acPowerKw > 0 ? plantKwp / (quantity * model.acPowerKw) : 0,
-  }
+export function getBestInverterRecommendation(plantKwp: number) {
+  return getRecommendationCandidates(plantKwp)
+    .sort(rankRecommendations)[0] ?? null
 }
 
 export function isApprovedHybridInverter(manufacturer: string, model: string) {
