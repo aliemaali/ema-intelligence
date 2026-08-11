@@ -107,7 +107,7 @@ function findCatalogEntry(
   return item
     ? {
         ratedPower: item.acPowerKw,
-        unit: 'einen einzelnen Wechselrichter',
+        unit: 'einen einzelnen gewerblichen Hybrid-Wechselrichter',
         searchModel: item.model,
       }
     : null
@@ -244,7 +244,9 @@ export async function POST(request: NextRequest) {
     'Paket-, Paletten- oder Mengenpreise nur verwenden, wenn der Netto-Einzelpreis eindeutig berechenbar ist.',
     'Versandkosten netto separat erfassen; unbekannte Versandkosten mit 0 und einem klaren Hinweis kennzeichnen.',
     'Nicht verfügbare, gebrauchte, generalüberholte oder abweichende Modelle als available=false kennzeichnen.',
-    'Wenn das exakte Modul nicht erhältlich ist, dürfen bei PV-Modulen Angebote desselben Herstellers aus derselben Leistungsklasse mit maximal ±15 W verwendet werden; die Abweichung im Hinweis nennen.',
+    kind === 'inverter'
+      ? 'Nur Angebote für das exakte Hybrid-Wechselrichtermodell verwenden. Reine PV-Stringwechselrichter, netzgekoppelte Standardvarianten, Batterie-Wechselrichter ohne PV-Eingang und ähnlich benannte Nicht-Hybridmodelle strikt ausschließen.'
+      : 'Wenn das exakte Modul nicht erhältlich ist, dürfen Angebote desselben Herstellers aus derselben Leistungsklasse mit maximal ±15 W verwendet werden; die Abweichung im Hinweis nennen.',
     'Keine Händlerpreise erfinden. Wenn weniger als fünf belastbare Angebote existieren, nur die belastbaren zurückgeben.',
     `Recherchezeitpunkt: ${today}.`,
   ].join(' ')
