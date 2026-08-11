@@ -3,7 +3,7 @@
 
 import { capexCalculationModeLabel, type CapexProject } from '@/lib/types/capex.types'
 import { calcAll } from '@/lib/capex/calculations'
-import { eur, pct } from '@/lib/capex/format'
+import { eur, num, pct } from '@/lib/capex/format'
 
 interface CapexListProps {
   calculations: CapexProject[]
@@ -24,12 +24,15 @@ export function CapexList({ calculations, onOpen, onDelete }: CapexListProps) {
     <div className="mt-3.5 space-y-2.5">
       {calculations.map((p) => {
         const c = calcAll(p)
+        const isTurnkey = p.componentPricing.acquisition.mode === 'turnkey'
         return (
           <div key={p.id} className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="mb-1 text-sm font-extrabold">{p.calculationName}</div>
             <div className="mb-2 text-xs text-slate-500">
-              {Number(p.anlagenleistungKwp).toLocaleString('de-DE')} kWp · {eur(c.totalCapex)} · IRR{' '}
-              {pct(c.irr)}
+              {Number(p.anlagenleistungKwp).toLocaleString('de-DE')} kWp · {eur(c.totalCapex)} ·{' '}
+              {isTurnkey
+                ? `Amortisation ${c.staticPayback === null ? '–' : `${num(c.staticPayback, 1)} Jahre`}`
+                : `IRR ${pct(c.irr)}`}
             </div>
             <div className="mb-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-extrabold text-[#1F2A44]">
               {capexCalculationModeLabel(p.componentPricing.acquisition.mode)}
