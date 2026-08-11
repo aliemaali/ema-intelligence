@@ -1,4 +1,8 @@
-import type { CapexCalcResult, CapexProject } from '@/lib/types/capex.types'
+import {
+  capexCalculationModeLabel,
+  type CapexCalcResult,
+  type CapexProject,
+} from '@/lib/types/capex.types'
 import { INVESTOR_OPEX_ESCALATION_PCT } from '@/lib/capex/calculations'
 
 const C={navy:[31,42,68] as const,green:[92,184,0] as const,light:[244,246,249] as const,line:[221,226,234] as const,grid:[237,240,245] as const,muted:[107,116,132] as const,white:[255,255,255] as const}
@@ -22,17 +26,18 @@ export async function createCapexReport(project:CapexProject,calc:CapexCalcResul
   addHero()
 
   sec('Projektdaten',64)
-  const fields=[['Kalkulation',project.calculationName,2],['Projekttyp','Photovoltaik',1],['Erstellungsdatum',new Intl.DateTimeFormat('de-DE').format(new Date()),1],['Anlagenleistung',`${n2.format(project.anlagenleistungKwp)} kWp`,1],['Spezifischer Ertrag',`${n2.format(project.spezErtragKwhKwp)} kWh/kWp`,1],['Strompreis',`${n2.format(project.strompreisEurKwh*100)} ct/kWh`,1],['Pachtdauer',project.pachtdauerJahre>0?`${n1.format(project.pachtdauerJahre)} Jahre`:'',1]] as const
+  const fields=[['Kalkulation',project.calculationName,2],['Kalkulationsart',capexCalculationModeLabel(project.componentPricing.acquisition.mode),2],['Projekttyp','Photovoltaik',1],['Erstellungsdatum',new Intl.DateTimeFormat('de-DE').format(new Date()),1],['Anlagenleistung',`${n2.format(project.anlagenleistungKwp)} kWp`,1],['Spezifischer Ertrag',`${n2.format(project.spezErtragKwhKwp)} kWh/kWp`,1],['Strompreis',`${n2.format(project.strompreisEurKwh*100)} ct/kWh`,1],['Pachtdauer',project.pachtdauerJahre>0?`${n1.format(project.pachtdauerJahre)} Jahre`:'',1]] as const
   let slot=0;for(const [label,value,slots] of fields){if(value===null||value===undefined||value==='')continue;if(slot%4+slots>4)slot+=4-slot%4;const row=Math.floor(slot/4),col=slot%4,x=M+col*43.5,y=72+row*13;txt(C.muted);d.setFont('helvetica','normal');d.setFontSize(6.6);d.text(label.toUpperCase(),x,y);txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(9.2);const max=slots*43.5-4,s=String(value);d.text(d.getTextWidth(s)<=max?s:`${s.slice(0,Math.max(4,Math.floor(s.length*.72)))}…`,x,y+4.6);slot+=slots}
 
   sec('Kennzahlen',104)
   const cards=[['Gesamt-CAPEX',`${n0.format(calc.totalCapex)} EUR`,'Investitionsvolumen'],['Spez. Investitionskosten',`${n2.format(calc.specificCapex)} EUR/kWp`,`bezogen auf ${n2.format(project.anlagenleistungKwp)} kWp`],['Projekt-IRR (20 Jahre)',calc.irr==null?'':`${n1.format(calc.irr*100)} %`,'vor Steuern und Finanzierung'],['NPV',`${n0.format(calc.npv)} EUR`,`bei WACC ${n1.format(project.waccPct)} %`],['Statische Amortisation',calc.staticPayback==null?'':`${n1.format(calc.staticPayback)} Jahre`,'CAPEX / Cashflow Jahr 1'],['Diskontierte Amortisation',calc.dynPayback==null?'':`${n1.format(calc.dynPayback)} Jahre`,'diskontiert mit WACC']].filter(x=>x[1])
   cards.forEach((c,i)=>{const x=M+(i%3)*59.7,y=113+Math.floor(i/3)*34,inv=i===0;fill(inv?C.navy:C.light);d.roundedRect(x,y,54.7,29,2.2,2.2,'F');fill(C.green);d.rect(x,y,1.6,29,'F');txt(inv?[169,179,198]:C.muted);d.setFont('helvetica','bold');d.setFontSize(6.8);d.text(c[0].toUpperCase(),x+5,y+7);txt(inv?C.white:C.navy);d.setFontSize(c[1].length>20?12.2:15);d.text(c[1],x+5,y+16.5);if(c[2]){txt(inv?C.green:C.muted);d.setFont('helvetica','normal');d.setFontSize(7);d.text(d.splitTextToSize(c[2],45)[0],x+5,y+24.5)}})
 
-  sec('Komponentenbasis',181)
+  sec(project.componentPricing.acquisition.mode==='turnkey'?'Interne Komponentenbasis · nicht im CAPEX addiert':'Komponentenbasis',181)
   const modulePricing=project.componentPricing.module,inverterPricing=project.componentPricing.inverter,mounting=project.componentPricing.mounting
   const inverterLabel=project.componentPricing.inverterMode==='hybrid'?'Hybrid-Wechselrichter':'Standard-Wechselrichter'
   const dateLabel=(value:string)=>{if(!value)return 'manuell';const date=new Date(value);return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat('de-DE').format(date)}
+  const internalOnly=project.componentPricing.acquisition.mode==='turnkey'?' · interne Plausibilitätsprüfung, nicht im CAPEX addiert':''
   const moduleLine=modulePricing.model
     ? `${modulePricing.manufacturer} · ${modulePricing.model} · ${n0.format(calc.moduleCount)} Stk. · ${n2.format(project.preisProModul)} EUR/Stk. · Stand ${dateLabel(modulePricing.priceDate)}`
     : 'Module: manuelle Eingabe'
@@ -44,7 +49,7 @@ export async function createCapexReport(project:CapexProject,calc:CapexCalcResul
     : 'Unterkonstruktion: manuelle Eingabe'
   txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(6.6);d.text('MODULE',M,188);d.text(inverterLabel.toUpperCase(),M+88,188)
   txt(C.muted);d.setFont('helvetica','normal');d.setFontSize(6.2);d.text(d.splitTextToSize(moduleLine,82)[0],M,192);d.text(d.splitTextToSize(inverterLine,82)[0],M+88,192)
-  d.text(d.splitTextToSize(mountingLine,170)[0],M,197)
+  d.text(d.splitTextToSize(mountingLine+internalOnly,170)[0],M,197)
 
   sec('Kumulierter Cashflow',201)
   const x0=38,y0=211,cw=154,ch=40,values=calc.years.slice(0,21).map(r=>r.cum),min=Math.min(...values,0),max=Math.max(...values,0),span=Math.max(max-min,1),yf=(v:number)=>y0+ch-((v-min)/span)*ch,xf=(i:number)=>x0+(i/Math.max(values.length-1,1))*cw
