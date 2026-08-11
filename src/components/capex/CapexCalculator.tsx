@@ -37,6 +37,16 @@ export function CapexCalculator({ projectOption, initialCalculations }: CapexCal
   }
 
   function handleSave() {
+    const acquisition = project.componentPricing.acquisition
+    if (!acquisition.mode) {
+      showToast('Bitte zuerst die Kalkulationsart auswählen')
+      return
+    }
+    if (acquisition.mode === 'turnkey' && acquisition.turnkeyPurchasePrice <= 0) {
+      showToast('Bitte den Kaufpreis der schlüsselfertigen Anlage eintragen')
+      return
+    }
+
     startTransition(async () => {
       const { data, error } = await saveCapexCalculation(project)
       if (error || !data) {
