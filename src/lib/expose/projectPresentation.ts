@@ -17,10 +17,15 @@ export type ExposePresentation = {
 }
 
 type ProjectLike = Record<string, unknown>
+export type ExposeLanguage = 'de' | 'en'
 type Formatter = {
   number: (value: unknown, digits?: number) => string
   money: (value: unknown) => string
   tariff: (value: unknown) => string
+}
+
+function tr(language: ExposeLanguage, de: string, en: string): string {
+  return language === 'en' ? en : de
 }
 
 function value(project: ProjectLike, ...keys: string[]): unknown {
@@ -35,31 +40,31 @@ function hasValue(raw: unknown): boolean {
   return raw !== null && raw !== undefined && raw !== '' && raw !== 'Noch offen' && raw !== '—'
 }
 
-function stageLabel(raw: unknown): string {
+function stageLabel(raw: unknown, language: ExposeLanguage): string {
   if (raw === 'rtb') return 'RTB'
-  if (raw === 'betrieb') return 'Im Betrieb'
-  return raw ? 'In Planung' : ''
+  if (raw === 'betrieb') return tr(language, 'Im Betrieb', 'In operation')
+  return raw ? tr(language, 'In Planung', 'In development') : ''
 }
 
-function developmentLabel(project: ProjectLike, key: string): string {
+function developmentLabel(project: ProjectLike, key: string, language: ExposeLanguage): string {
   const devStatus = project.dev_status && typeof project.dev_status === 'object'
     ? project.dev_status as Record<string, unknown>
     : {}
   const current = devStatus[key]
-  if (current === true) return 'Vorhanden'
-  if (current === false) return 'Nicht vorhanden'
+  if (current === true) return tr(language, 'Vorhanden', 'Available')
+  if (current === false) return tr(language, 'Nicht vorhanden', 'Not available')
   return ''
 }
 
-function typeDetails(projectType: string) {
+function typeDetails(projectType: string, language: ExposeLanguage) {
   switch (projectType) {
-    case 'pv_dach': return { label: 'PV-Dachanlage', image: '/project-dach.svg' }
-    case 'pv_freiflaeche': return { label: 'PV-Freiflächenanlage', image: '/project-freiflaeche.svg' }
-    case 'bess': return { label: 'Batteriespeicherprojekt', image: '/project-bess.svg' }
-    case 'hybrid': return { label: 'PV- & BESS-Hybridprojekt', image: '/hero-dashboard.png' }
-    case 'wind': return { label: 'Windenergieprojekt', image: '/hero-wind.svg' }
-    case 'rechenzentrum': return { label: 'Rechenzentrum', image: '/hero-datacenter.webp' }
-    default: return { label: 'Energieinfrastrukturprojekt', image: '/hero-generic-project.svg' }
+    case 'pv_dach': return { label: tr(language, 'PV-Dachanlage', 'Rooftop PV'), image: '/project-dach.svg' }
+    case 'pv_freiflaeche': return { label: tr(language, 'PV-Freiflächenanlage', 'Ground-mounted PV'), image: '/project-freiflaeche.svg' }
+    case 'bess': return { label: tr(language, 'Batteriespeicherprojekt', 'Battery storage project'), image: '/project-bess.svg' }
+    case 'hybrid': return { label: tr(language, 'PV- & BESS-Hybridprojekt', 'PV & BESS hybrid project'), image: '/hero-dashboard.png' }
+    case 'wind': return { label: tr(language, 'Windenergieprojekt', 'Wind energy project'), image: '/hero-wind.svg' }
+    case 'rechenzentrum': return { label: tr(language, 'Rechenzentrum', 'Data center'), image: '/hero-datacenter.webp' }
+    default: return { label: tr(language, 'Energieinfrastrukturprojekt', 'Energy infrastructure project'), image: '/hero-generic-project.svg' }
   }
 }
 
@@ -71,63 +76,75 @@ function record(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
-function text(value: unknown, fallback = 'Nicht bekannt'): string {
-  return hasValue(value) ? String(value) : fallback
+function text(value: unknown, language: ExposeLanguage, fallback?: string): string {
+  const empty = fallback ?? tr(language, 'Nicht bekannt', 'Unknown')
+  return hasValue(value) ? String(value) : empty
 }
 
-function checkStateLabel(value: unknown): string {
-  const labels: Record<DataCenterCheckState, string> = {
-    yes: 'Ja',
-    no: 'Nein',
-    in_preparation: 'In Aufstellung',
-    verify: 'Muss geprüft werden',
-    planned: 'In Planung',
-    unknown: 'Nicht bekannt',
+function checkStateLabel(value: unknown, language: ExposeLanguage): string {
+  const labels: Record<DataCenterCheckState, [string, string]> = {
+    yes: ['Ja', 'Yes'],
+    no: ['Nein', 'No'],
+    in_preparation: ['In Aufstellung', 'In preparation'],
+    verify: ['Muss geprüft werden', 'Verification required'],
+    planned: ['In Planung', 'Planned'],
+    unknown: ['Nicht bekannt', 'Unknown'],
   }
-  return labels[value as DataCenterCheckState] ?? 'Nicht bekannt'
+  const label = labels[value as DataCenterCheckState]
+  return label ? tr(language, label[0], label[1]) : tr(language, 'Nicht bekannt', 'Unknown')
 }
 
-function fiberStateLabel(value: unknown): string {
-  if (value === 'yes') return 'Vorhanden'
-  if (value === 'no') return 'Nicht vorhanden'
-  return checkStateLabel(value)
+function fiberStateLabel(value: unknown, language: ExposeLanguage): string {
+  if (value === 'yes') return tr(language, 'Vorhanden', 'Available')
+  if (value === 'no') return tr(language, 'Nicht vorhanden', 'Not available')
+  return checkStateLabel(value, language)
 }
 
-function zoningLabel(value: unknown): string {
-  const labels: Record<DataCenterZoningDesignation, string> = {
-    agricultural: 'Landwirtschaftlich',
-    industrial: 'Industriell',
-    commercial: 'Gewerblich',
-    mixed: 'Mischgebiet',
-    special: 'Sondergebiet',
-    unknown: 'Nicht bekannt',
+function zoningLabel(value: unknown, language: ExposeLanguage): string {
+  const labels: Record<DataCenterZoningDesignation, [string, string]> = {
+    agricultural: ['Landwirtschaftlich', 'Agricultural'],
+    industrial: ['Industriell', 'Industrial'],
+    commercial: ['Gewerblich', 'Commercial'],
+    mixed: ['Mischgebiet', 'Mixed-use'],
+    special: ['Sondergebiet', 'Special-use area'],
+    unknown: ['Nicht bekannt', 'Unknown'],
   }
-  return labels[value as DataCenterZoningDesignation] ?? 'Nicht bekannt'
+  const label = labels[value as DataCenterZoningDesignation]
+  return label ? tr(language, label[0], label[1]) : tr(language, 'Nicht bekannt', 'Unknown')
 }
 
-function formatDate(value: unknown): string {
-  if (!hasValue(value)) return 'Nicht bekannt'
+function feedInTypeLabel(value: unknown, language: ExposeLanguage): string {
+  if (!hasValue(value) || language === 'de') return hasValue(value) ? String(value) : ''
+  const key = String(value).trim().toLocaleLowerCase('de-DE')
+  if (key.includes('voll')) return 'Full feed-in'
+  if (key.includes('teil')) return 'Partial feed-in'
+  if (key.includes('direkt')) return 'Direct marketing'
+  return String(value)
+}
+
+function formatDate(value: unknown, language: ExposeLanguage): string {
+  if (!hasValue(value)) return tr(language, 'Nicht bekannt', 'Unknown')
   const date = new Date(String(value))
   return Number.isNaN(date.getTime())
     ? String(value)
-    : new Intl.DateTimeFormat('de-DE').format(date)
+    : new Intl.DateTimeFormat(language === 'en' ? 'en-GB' : 'de-DE').format(date)
 }
 
-export function getExposePresentation(project: ProjectLike, location: string, format: Formatter): ExposePresentation {
+export function getExposePresentation(project: ProjectLike, location: string, format: Formatter, language: ExposeLanguage = 'de'): ExposePresentation {
   const projectType = String(project.project_type ?? '')
-  const type = typeDetails(projectType)
+  const type = typeDetails(projectType, language)
   const purchasePrice = value(project, 'purchase_price', 'deal_purchase_price', 'total_purchase_price')
   const investmentVolume = value(project, 'investment_volume_eur')
   const amortisation = value(project, 'amortisation_years', 'amortization_years', 'payback_years')
-  const stage = stageLabel(value(project, 'project_stage'))
+  const stage = stageLabel(value(project, 'project_stage'), language)
   const leaseTerm = value(project, 'lease_term_years', 'pachtdauer_jahre')
-  const gridConnection = developmentLabel(project, 'netzanschluss')
+  const gridConnection = developmentLabel(project, 'netzanschluss', language)
 
   const commonProfile = compact<ExposeProfileRow>([
-    { label: 'Standort', value: location },
-    { label: 'Projektstatus', value: stage },
-    { label: 'Netzanschluss', value: gridConnection },
-    { label: 'Pachtdauer', value: leaseTerm ? `${format.number(leaseTerm)} Jahre` : '' },
+    { label: tr(language, 'Standort', 'Location'), value: location },
+    { label: tr(language, 'Projektstatus', 'Project status'), value: stage },
+    { label: tr(language, 'Netzanschluss', 'Grid connection'), value: gridConnection },
+    { label: tr(language, 'Pachtdauer', 'Lease term'), value: leaseTerm ? `${format.number(leaseTerm)} ${tr(language, 'Jahre', 'years')}` : '' },
   ])
 
   if (projectType === 'rechenzentrum') {
@@ -139,65 +156,67 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
     const siteAreaHectares = siteCheck.siteAreaHectares ?? (landSqm ? Number(landSqm) / 10_000 : null)
     const transformer = value(project, 'transformer_status') || siteCheck.hvStationName
     const hvDistance = siteCheck.hvDistanceMeters
-    const fiberStatus = fiberStateLabel(siteCheck.fiberStatus)
+    const fiberStatus = fiberStateLabel(siteCheck.fiberStatus, language)
     const address = value(project, 'location_address') || siteCheck.streetPlot
-    const gridStatus = gridConfirmed ? 'Bestätigt' : 'In Prüfung'
+    const gridStatus = gridConfirmed ? tr(language, 'Bestätigt', 'Confirmed') : tr(language, 'In Prüfung', 'Under review')
     const summaryParts = [
-      `Rechenzentrumsstandort in ${location}`,
-      siteAreaHectares ? `mit ${format.number(siteAreaHectares, 2)} ha Grundstücksfläche` : '',
-      gridMw ? `rund ${format.number(gridMw, 2)} MW Anschlussleistung` : '',
+      tr(language, `Rechenzentrumsstandort in ${location}`, `Data center site in ${location}`),
+      siteAreaHectares ? tr(language, `mit ${format.number(siteAreaHectares, 2)} ha Grundstücksfläche`, `with a site area of ${format.number(siteAreaHectares, 2)} ha`) : '',
+      gridMw ? tr(language, `rund ${format.number(gridMw, 2)} MW Anschlussleistung`, `approximately ${format.number(gridMw, 2)} MW grid connection capacity`) : '',
       hvDistance !== null && hvDistance !== undefined && transformer
-        ? `${format.number(hvDistance)} m Entfernung zum ${text(transformer)}`
+        ? tr(language, `${format.number(hvDistance)} m Entfernung zum ${text(transformer, language)}`, `${format.number(hvDistance)} m from ${text(transformer, language)}`)
         : '',
     ].filter(Boolean)
     const statusParts = [
-      gridMw ? `Die Netzleistung ist ${gridConfirmed ? 'bestätigt' : 'noch in Prüfung'}.` : 'Die verfügbare Netzleistung ist noch nicht bekannt.',
-      `Bebauungsplan: ${checkStateLabel(siteCheck.zoningPlanStatus)}.`,
-      `Zulässigkeit des Rechenzentrums: ${checkStateLabel(siteCheck.dataCenterPermitted)}.`,
-      `Glasfaser auf dem Grundstück: ${fiberStatus}.`,
+      gridMw
+        ? tr(language, `Die Netzleistung ist ${gridConfirmed ? 'bestätigt' : 'noch in Prüfung'}.`, `The grid capacity is ${gridConfirmed ? 'confirmed' : 'still under review'}.`)
+        : tr(language, 'Die verfügbare Netzleistung ist noch nicht bekannt.', 'The available grid capacity is not yet known.'),
+      tr(language, `Bebauungsplan: ${checkStateLabel(siteCheck.zoningPlanStatus, language)}.`, `Zoning plan: ${checkStateLabel(siteCheck.zoningPlanStatus, language)}.`),
+      tr(language, `Zulässigkeit des Rechenzentrums: ${checkStateLabel(siteCheck.dataCenterPermitted, language)}.`, `Data center permitted: ${checkStateLabel(siteCheck.dataCenterPermitted, language)}.`),
+      tr(language, `Glasfaser auf dem Grundstück: ${fiberStatus}.`, `On-site fiber connection: ${fiberStatus}.`),
     ]
     const dataCenterDetails: ExposeDataCenterDetails = {
-      sourceDate: siteCheck.assessmentDate ? formatDate(siteCheck.assessmentDate) : undefined,
+      sourceDate: siteCheck.assessmentDate ? formatDate(siteCheck.assessmentDate, language) : undefined,
       sections: [
         {
-          title: 'Standort & Grundstück',
+          title: tr(language, 'Standort & Grundstück', 'Site & land'),
           rows: [
-            { label: 'Standort', value: location },
-            { label: 'Landkreis', value: text(siteCheck.district) },
-            { label: 'Straße / Flurstück', value: text(address) },
-            { label: 'GPS-Koordinaten', value: text(siteCheck.gpsCoordinates) },
-            { label: 'Grundstücksfläche', value: siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha` : 'Nicht bekannt' },
-            { label: 'Grundstückskosten / Pacht', value: text(siteCheck.landCost) },
-            { label: 'Preis pro m²', value: siteCheck.pricePerSqmEur ? `${format.number(siteCheck.pricePerSqmEur, 2)} €/m²` : 'Nicht bekannt' },
+            { label: tr(language, 'Standort', 'Location'), value: location },
+            { label: tr(language, 'Landkreis', 'District'), value: text(siteCheck.district, language) },
+            { label: tr(language, 'Straße / Flurstück', 'Street / plot'), value: text(address, language) },
+            { label: tr(language, 'GPS-Koordinaten', 'GPS coordinates'), value: text(siteCheck.gpsCoordinates, language) },
+            { label: tr(language, 'Grundstücksfläche', 'Site area'), value: siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha` : tr(language, 'Nicht bekannt', 'Unknown') },
+            { label: tr(language, 'Grundstückskosten / Pacht', 'Land cost / lease'), value: text(siteCheck.landCost, language) },
+            { label: tr(language, 'Preis pro m²', 'Price per m²'), value: siteCheck.pricePerSqmEur ? `${format.number(siteCheck.pricePerSqmEur, 2)} €/m²` : tr(language, 'Nicht bekannt', 'Unknown') },
           ],
         },
         {
-          title: 'Baurecht & Flächennutzung',
+          title: tr(language, 'Baurecht & Flächennutzung', 'Planning law & land use'),
           rows: [
-            { label: 'Aktuelle Nutzungsart', value: zoningLabel(siteCheck.zoningDesignation) },
-            { label: 'Weitere Nutzung', value: text(siteCheck.otherDesignation) },
-            { label: 'Bebauungsplan', value: checkStateLabel(siteCheck.zoningPlanStatus) },
-            { label: 'Rechenzentrum zulässig', value: checkStateLabel(siteCheck.dataCenterPermitted) },
-            { label: 'Planungshinweis', value: text(siteCheck.planningNotes) },
+            { label: tr(language, 'Aktuelle Nutzungsart', 'Current land use'), value: zoningLabel(siteCheck.zoningDesignation, language) },
+            { label: tr(language, 'Weitere Nutzung', 'Other designation'), value: text(siteCheck.otherDesignation, language) },
+            { label: tr(language, 'Bebauungsplan', 'Zoning plan'), value: checkStateLabel(siteCheck.zoningPlanStatus, language) },
+            { label: tr(language, 'Rechenzentrum zulässig', 'Data center permitted'), value: checkStateLabel(siteCheck.dataCenterPermitted, language) },
+            { label: tr(language, 'Planungshinweis', 'Planning note'), value: text(siteCheck.planningNotes, language) },
           ],
         },
         {
-          title: 'Stromversorgung',
+          title: tr(language, 'Stromversorgung', 'Power supply'),
           rows: [
-            { label: 'Anschlussleistung', value: gridMw ? `${format.number(gridMw, 2)} MW` : 'Nicht bekannt' },
-            { label: 'Netzstatus', value: gridMw ? gridStatus : 'Nicht bekannt' },
-            { label: 'Entfernung zur HV-Station', value: hvDistance !== null && hvDistance !== undefined ? `${format.number(hvDistance)} m` : 'Nicht bekannt' },
-            { label: 'HV-Station / Umspannwerk', value: text(transformer) },
-            { label: 'Netzbetreiber', value: text(siteCheck.gridOperator) },
-            { label: 'IT-Leistung', value: itMw ? `${format.number(itMw, 2)} MW` : 'Nicht bekannt' },
+            { label: tr(language, 'Anschlussleistung', 'Grid connection capacity'), value: gridMw ? `${format.number(gridMw, 2)} MW` : tr(language, 'Nicht bekannt', 'Unknown') },
+            { label: tr(language, 'Netzstatus', 'Grid status'), value: gridMw ? gridStatus : tr(language, 'Nicht bekannt', 'Unknown') },
+            { label: tr(language, 'Entfernung zur HV-Station', 'Distance to HV substation'), value: hvDistance !== null && hvDistance !== undefined ? `${format.number(hvDistance)} m` : tr(language, 'Nicht bekannt', 'Unknown') },
+            { label: tr(language, 'HV-Station / Umspannwerk', 'HV station / substation'), value: text(transformer, language) },
+            { label: tr(language, 'Netzbetreiber', 'Grid operator'), value: text(siteCheck.gridOperator, language) },
+            { label: tr(language, 'IT-Leistung', 'IT capacity'), value: itMw ? `${format.number(itMw, 2)} MW` : tr(language, 'Nicht bekannt', 'Unknown') },
           ],
         },
         {
-          title: 'Glasfaseranbindung',
+          title: tr(language, 'Glasfaseranbindung', 'Fiber connectivity'),
           rows: [
-            { label: 'Glasfaser auf Grundstück', value: fiberStatus },
-            { label: 'Entfernung zur Glasfasertrasse', value: siteCheck.fiberDistanceMeters !== null && siteCheck.fiberDistanceMeters !== undefined ? `${format.number(siteCheck.fiberDistanceMeters)} m` : 'Nicht bekannt' },
-            { label: 'Glasfaseranbieter', value: text(siteCheck.fiberProvider) },
+            { label: tr(language, 'Glasfaser auf Grundstück', 'On-site fiber'), value: fiberStatus },
+            { label: tr(language, 'Entfernung zur Glasfasertrasse', 'Distance to fiber route'), value: siteCheck.fiberDistanceMeters !== null && siteCheck.fiberDistanceMeters !== undefined ? `${format.number(siteCheck.fiberDistanceMeters)} m` : tr(language, 'Nicht bekannt', 'Unknown') },
+            { label: tr(language, 'Glasfaseranbieter', 'Fiber provider'), value: text(siteCheck.fiberProvider, language) },
           ],
         },
       ],
@@ -207,22 +226,22 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
       heroImage: String(value(project, 'project_image_url') || type.image),
       summary: `${summaryParts.join(', ')}. ${statusParts.join(' ')}`,
       metrics: [
-        { label: 'Anschlussleistung', value: gridMw ? `${format.number(gridMw, 2)} MW` : 'Nicht bekannt' },
-        { label: 'Netzstatus', value: gridMw ? gridStatus : 'Nicht bekannt' },
-        { label: 'Grundstück', value: siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha` : 'Nicht bekannt' },
-        { label: 'HV-Distanz', value: hvDistance !== null && hvDistance !== undefined ? `${format.number(hvDistance)} m` : 'Nicht bekannt' },
-        { label: 'Glasfaser', value: fiberStatus },
+        { label: tr(language, 'Anschlussleistung', 'Grid capacity'), value: gridMw ? `${format.number(gridMw, 2)} MW` : tr(language, 'Nicht bekannt', 'Unknown') },
+        { label: tr(language, 'Netzstatus', 'Grid status'), value: gridMw ? gridStatus : tr(language, 'Nicht bekannt', 'Unknown') },
+        { label: tr(language, 'Grundstück', 'Site area'), value: siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha` : tr(language, 'Nicht bekannt', 'Unknown') },
+        { label: tr(language, 'HV-Distanz', 'HV distance'), value: hvDistance !== null && hvDistance !== undefined ? `${format.number(hvDistance)} m` : tr(language, 'Nicht bekannt', 'Unknown') },
+        { label: tr(language, 'Glasfaser', 'Fiber'), value: fiberStatus },
       ],
       profile: [
         ...commonProfile,
-        { label: 'Netzstatus', value: gridMw ? gridStatus : 'Nicht bekannt' },
-        { label: 'Transformator / Umspannwerk', value: text(transformer) },
+        { label: tr(language, 'Netzstatus', 'Grid status'), value: gridMw ? gridStatus : tr(language, 'Nicht bekannt', 'Unknown') },
+        { label: tr(language, 'Transformator / Umspannwerk', 'Transformer / substation'), value: text(transformer, language) },
       ],
       highlights: [
-        stage ? `Projektstatus: ${stage}` : 'Projektstatus: In Planung',
-        gridMw ? `${format.number(gridMw, 2)} MW Anschlussleistung (${gridStatus.toLocaleLowerCase('de-DE')})` : 'Anschlussleistung noch nicht bekannt',
-        siteAreaHectares ? `${format.number(siteAreaHectares, 2)} ha Grundstücksfläche` : 'Grundstücksfläche noch nicht bekannt',
-        `Rechenzentrum zulässig: ${checkStateLabel(siteCheck.dataCenterPermitted)}`,
+        stage ? tr(language, `Projektstatus: ${stage}`, `Project status: ${stage}`) : tr(language, 'Projektstatus: In Planung', 'Project status: In development'),
+        gridMw ? tr(language, `${format.number(gridMw, 2)} MW Anschlussleistung (${gridStatus.toLocaleLowerCase('de-DE')})`, `${format.number(gridMw, 2)} MW grid capacity (${gridStatus.toLocaleLowerCase('en-GB')})`) : tr(language, 'Anschlussleistung noch nicht bekannt', 'Grid capacity not yet known'),
+        siteAreaHectares ? tr(language, `${format.number(siteAreaHectares, 2)} ha Grundstücksfläche`, `${format.number(siteAreaHectares, 2)} ha site area`) : tr(language, 'Grundstücksfläche noch nicht bekannt', 'Site area not yet known'),
+        tr(language, `Rechenzentrum zulässig: ${checkStateLabel(siteCheck.dataCenterPermitted, language)}`, `Data center permitted: ${checkStateLabel(siteCheck.dataCenterPermitted, language)}`),
       ],
       showPvEconomics: false,
       dataCenterDetails,
@@ -236,16 +255,23 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
     return {
       typeLabel: type.label,
       heroImage: String(value(project, 'project_image_url') || type.image),
-      summary: `Batteriespeicherprojekt in ${location} mit den vorhandenen Leistungs-, Kapazitäts- und Entwicklungsdaten.`,
+      summary: tr(language,
+        `Batteriespeicherprojekt in ${location} mit den vorhandenen Leistungs-, Kapazitäts- und Entwicklungsdaten.`,
+        `Battery storage project in ${location} based on the available power, capacity and development data.`,
+      ),
       metrics: compact([
-        { label: 'Leistung', value: bessMw ? `${format.number(bessMw, 2)} MW` : '' },
-        { label: 'Kapazität', value: bessMwh ? `${format.number(bessMwh, 2)} MWh` : '' },
-        { label: 'Dauer', value: duration ? `${format.number(duration, 1)} h` : '' },
-        { label: 'Investitionsvolumen', value: investmentVolume ? format.money(investmentVolume) : '' },
-        { label: 'Kaufpreis', value: purchasePrice ? format.money(purchasePrice) : '' },
+        { label: tr(language, 'Leistung', 'Power'), value: bessMw ? `${format.number(bessMw, 2)} MW` : '' },
+        { label: tr(language, 'Kapazität', 'Capacity'), value: bessMwh ? `${format.number(bessMwh, 2)} MWh` : '' },
+        { label: tr(language, 'Dauer', 'Duration'), value: duration ? `${format.number(duration, 1)} h` : '' },
+        { label: tr(language, 'Investitionsvolumen', 'Investment volume'), value: investmentVolume ? format.money(investmentVolume) : '' },
+        { label: tr(language, 'Kaufpreis', 'Purchase price'), value: purchasePrice ? format.money(purchasePrice) : '' },
       ]),
       profile: commonProfile,
-      highlights: [stage ? `Projektstatus: ${stage}` : '', bessMw ? `${format.number(bessMw, 2)} MW Speicherleistung` : '', bessMwh ? `${format.number(bessMwh, 2)} MWh Kapazität` : ''].filter(Boolean),
+      highlights: [
+        stage ? tr(language, `Projektstatus: ${stage}`, `Project status: ${stage}`) : '',
+        bessMw ? tr(language, `${format.number(bessMw, 2)} MW Speicherleistung`, `${format.number(bessMw, 2)} MW storage power`) : '',
+        bessMwh ? tr(language, `${format.number(bessMwh, 2)} MWh Kapazität`, `${format.number(bessMwh, 2)} MWh capacity`) : '',
+      ].filter(Boolean),
       showPvEconomics: false,
     }
   }
@@ -257,24 +283,27 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
   const bessMwh = value(project, 'bess_mwh')
 
   const metrics = compact<ExposeMetric>([
-    { label: projectType === 'wind' ? 'Leistung' : 'PV-Leistung', value: pvKwp ? `${format.number(pvKwp, 2)} kWp` : '' },
-    { label: 'Amortisation', value: amortisation ? `${format.number(amortisation, 1)} Jahre` : '' },
-    { label: 'Kaufpreis', value: purchasePrice ? format.money(purchasePrice) : '' },
-    { label: projectType === 'hybrid' ? 'BESS-Kapazität' : 'Vergütung', value: projectType === 'hybrid' ? (bessMwh ? `${format.number(bessMwh, 2)} MWh` : '') : (tariff ? format.tariff(tariff) : '') },
-    { label: 'Spez. Ertrag', value: specificYield ? `${format.number(specificYield)} kWh/kWp` : '' },
+    { label: projectType === 'wind' ? tr(language, 'Leistung', 'Capacity') : tr(language, 'PV-Leistung', 'PV capacity'), value: pvKwp ? `${format.number(pvKwp, 2)} kWp` : '' },
+    { label: tr(language, 'Amortisation', 'Payback period'), value: amortisation ? `${format.number(amortisation, 1)} ${tr(language, 'Jahre', 'years')}` : '' },
+    { label: tr(language, 'Kaufpreis', 'Purchase price'), value: purchasePrice ? format.money(purchasePrice) : '' },
+    { label: projectType === 'hybrid' ? tr(language, 'BESS-Kapazität', 'BESS capacity') : tr(language, 'Vergütung', 'Feed-in tariff'), value: projectType === 'hybrid' ? (bessMwh ? `${format.number(bessMwh, 2)} MWh` : '') : (tariff ? format.tariff(tariff) : '') },
+    { label: tr(language, 'Spez. Ertrag', 'Specific yield'), value: specificYield ? `${format.number(specificYield)} kWh/kWp` : '' },
   ])
 
   return {
     typeLabel: type.label,
     heroImage: String(value(project, 'project_image_url') || type.image),
-    summary: `${type.label} in ${location} mit den vorhandenen technischen und wirtschaftlichen Projektdaten.`,
+    summary: tr(language,
+      `${type.label} in ${location} mit den vorhandenen technischen und wirtschaftlichen Projektdaten.`,
+      `${type.label} in ${location} based on the available technical and financial project data.`,
+    ),
     metrics,
-    profile: compact([...commonProfile, { label: 'Einspeiseart', value: feedInType ? String(feedInType) : '' }]),
+    profile: compact([...commonProfile, { label: tr(language, 'Einspeiseart', 'Feed-in model'), value: feedInTypeLabel(feedInType, language) }]),
     highlights: [
-      specificYield ? `Spezifischer Ertrag von ${format.number(specificYield)} kWh/kWp` : '',
-      tariff ? `Vergütung von ${format.tariff(tariff)}` : '',
-      gridConnection === 'Vorhanden' ? 'Netzanschluss vorhanden' : '',
-      stage ? `Projektstatus: ${stage}` : '',
+      specificYield ? tr(language, `Spezifischer Ertrag von ${format.number(specificYield)} kWh/kWp`, `Specific yield of ${format.number(specificYield)} kWh/kWp`) : '',
+      tariff ? tr(language, `Vergütung von ${format.tariff(tariff)}`, `Feed-in tariff of ${format.tariff(tariff)}`) : '',
+      gridConnection === tr(language, 'Vorhanden', 'Available') ? tr(language, 'Netzanschluss vorhanden', 'Grid connection available') : '',
+      stage ? tr(language, `Projektstatus: ${stage}`, `Project status: ${stage}`) : '',
     ].filter(Boolean),
     showPvEconomics: ['pv_dach', 'pv_freiflaeche', 'hybrid'].includes(projectType),
   }
