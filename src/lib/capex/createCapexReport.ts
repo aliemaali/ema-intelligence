@@ -31,14 +31,15 @@ export async function createCapexReport(project:CapexProject,calc:CapexCalcResul
 
   sec('Komponentenbasis',181)
   const modulePricing=project.componentPricing.module,inverterPricing=project.componentPricing.inverter
+  const inverterLabel=project.componentPricing.inverterMode==='hybrid'?'Hybrid-Wechselrichter':'Standard-Wechselrichter'
   const dateLabel=(value:string)=>{if(!value)return 'manuell';const date=new Date(value);return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat('de-DE').format(date)}
   const moduleLine=modulePricing.model
     ? `${modulePricing.manufacturer} · ${modulePricing.model} · ${n0.format(calc.moduleCount)} Stk. · ${n2.format(project.preisProModul)} EUR/Stk. · Stand ${dateLabel(modulePricing.priceDate)}`
     : 'Module: manuelle Eingabe'
   const inverterLine=inverterPricing.model
     ? `${inverterPricing.manufacturer} · ${inverterPricing.model} · ${n0.format(project.wrAnzahl)} Stk. · ${n2.format(project.wrEinzelpreis)} EUR/Stk. · Stand ${dateLabel(inverterPricing.priceDate)}`
-    : 'Hybrid-Wechselrichter: manuelle Eingabe'
-  txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(6.6);d.text('MODULE',M,188);d.text('HYBRID-WECHSELRICHTER',M+88,188)
+    : `${inverterLabel}: manuelle Eingabe`
+  txt(C.navy);d.setFont('helvetica','bold');d.setFontSize(6.6);d.text('MODULE',M,188);d.text(inverterLabel.toUpperCase(),M+88,188)
   txt(C.muted);d.setFont('helvetica','normal');d.setFontSize(6.2);d.text(d.splitTextToSize(moduleLine,82)[0],M,192);d.text(d.splitTextToSize(inverterLine,82)[0],M+88,192)
 
   sec('Kumulierter Cashflow',201)
