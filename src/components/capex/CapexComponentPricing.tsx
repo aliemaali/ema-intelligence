@@ -5,6 +5,7 @@ import { ExternalLink, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import {
   getInverterRecommendation,
   getModuleRecommendation,
+  isApprovedHybridInverter,
   INVERTER_MANUFACTURERS,
   MODULE_MANUFACTURERS,
   MODULE_POWER_MAX_WP,
@@ -220,7 +221,11 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
 
   const moduleSelection = selection('module')
   const inverter = selection('inverter')
-  const inverterRecommendation = inverter.manufacturer
+  const inverterIsApprovedHybrid = isApprovedHybridInverter(
+    inverter.manufacturer,
+    inverter.model,
+  )
+  const inverterRecommendation = inverterIsApprovedHybrid
     ? getInverterRecommendation(inverter.manufacturer, project.anlagenleistungKwp)
     : null
 
@@ -233,7 +238,8 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         </div>
         <p className="text-xs leading-5 text-slate-600">
           Vorplanung auf Hersteller- und Modellbasis. Die elektrische Auslegung muss durch den
-          Fachplaner geprüft werden. Preise sind unverbindliche Netto-Marktwerte.
+          Fachplaner geprüft werden. EMA bietet ausschließlich gewerbliche Hybrid-Wechselrichter
+          mit PV- und Batterieanschluss an. Preise sind unverbindliche Netto-Marktwerte.
         </p>
       </div>
 
@@ -360,7 +366,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
       </InfoLine>
 
       <div className="mb-3 mt-6 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">
-        2 · Wechselrichterhersteller wählen
+        2 · Hybrid-Wechselrichterhersteller wählen
       </div>
       <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-5">
         {INVERTER_MANUFACTURERS.map((manufacturer) => (
@@ -369,7 +375,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
             type="button"
             onClick={() => chooseInverter(manufacturer)}
             className={`min-h-12 rounded-xl border px-2 py-2 text-xs font-extrabold transition-colors ${
-              inverter.manufacturer === manufacturer
+              inverter.manufacturer === manufacturer && inverterIsApprovedHybrid
                 ? 'border-[#5CB800] bg-[#EAF7E0] text-[#2f7d00]'
                 : 'border-slate-200 bg-white text-[#1F2A44]'
             }`}
@@ -379,17 +385,33 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         ))}
       </div>
 
+      {inverter.manufacturer && !inverterIsApprovedHybrid && (
+        <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs font-semibold leading-5 text-amber-900">
+          Die gespeicherte Auswahl „{inverter.manufacturer} {inverter.model}“ ist kein freigegebenes
+          Hybridgerät. Bitte oben einen Hybrid-Wechselrichter neu auswählen.
+        </div>
+      )}
+
       {inverter.manufacturer && inverterRecommendation && (
         <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
           <div className="text-[11px] font-bold uppercase tracking-wider text-[#5CB800]">
-            Vorläufige Wechselrichter-Empfehlung
+            Hybrid-Wechselrichter-Empfehlung
           </div>
-          <div className="mt-1 font-extrabold text-[#1F2A44]">{inverter.model}</div>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="font-extrabold text-[#1F2A44]">{inverter.model}</span>
+            <span className="rounded-full bg-[#EAF7E0] px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-[#2f7d00]">
+              Hybrid · speicherfähig
+            </span>
+          </div>
           <div className="mt-1 text-xs leading-5 text-slate-600">
             {num(inverter.ratedPower)} kW je Gerät · {num(project.wrAnzahl)} Stück ·{' '}
             {num(project.wrAnzahl * inverter.ratedPower)} kW AC · DC/AC ca.{' '}
             {num(inverterRecommendation.dcAcRatio, 2)}
           </div>
+          <p className="mt-2 text-[11px] leading-4 text-slate-500">
+            Batterie-Spannung, BMS-Kompatibilität und Ersatzstromkonzept sind projektspezifisch
+            durch den Elektro-Fachplaner zu bestätigen.
+          </p>
           <button
             type="button"
             onClick={() => researchPrice('inverter')}
@@ -419,7 +441,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         </div>
       )}
 
-      <Field label="Großhandelsabschlag Wechselrichter (%)" hint="Standard 20 %. Kann kundenspezifisch angepasst werden.">
+      <Field label="Großhandelsabschlag Hybrid-Wechselrichter (%)" hint="Standard 20 %. Kann kundenspezifisch angepasst werden.">
         <NumInput
           value={inverter.discountPct}
           onChange={(value) => updateDiscount('inverter', Number(value))}
@@ -428,7 +450,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           suffix="%"
         />
       </Field>
-      <Field label="Verwendeter Einzelpreis pro Wechselrichter (netto)">
+      <Field label="Verwendeter Einzelpreis pro Hybrid-Wechselrichter (netto)">
         <NumInput
           value={roundMoney(project.wrEinzelpreis)}
           onChange={(value) => onChange('wrEinzelpreis', roundMoney(Number(value)))}
@@ -436,7 +458,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           suffix="€"
         />
       </Field>
-      <Field label="Anzahl Wechselrichter">
+      <Field label="Anzahl Hybrid-Wechselrichter">
         <NumInput
           value={project.wrAnzahl}
           onChange={(value) => onChange('wrAnzahl', Number(value))}
@@ -444,7 +466,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
         />
       </Field>
       <InfoLine>
-        Gesamtpreis Wechselrichter: <strong>{eur(calc.wrTotal)}</strong>
+        Gesamtpreis Hybrid-Wechselrichter: <strong>{eur(calc.wrTotal)}</strong>
       </InfoLine>
     </>
   )
