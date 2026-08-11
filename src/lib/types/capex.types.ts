@@ -5,6 +5,33 @@
 // (snake_case, wie von Supabase generiert). `CapexProject` ist das camelCase
 // Arbeitsmodell, das die UI/Berechnungslogik verwendet.
 
+export type ComponentKind = 'module' | 'inverter'
+
+export interface ComponentPriceSource {
+  retailer: string
+  url: string
+  priceNetEur: number
+  shippingNetEur: number
+  available: boolean
+  observedAt: string
+  note: string
+}
+
+export interface ComponentPricingSelection {
+  manufacturer: string
+  model: string
+  ratedPower: number
+  onlineAverageNetEur: number
+  discountPct: number
+  priceDate: string
+  sources: ComponentPriceSource[]
+}
+
+export interface CapexComponentPricing {
+  module: ComponentPricingSelection
+  inverter: ComponentPricingSelection
+}
+
 export interface CapexCalculationRow {
   id: string
   project_id: string
@@ -23,6 +50,7 @@ export interface CapexCalculationRow {
   wr_hersteller: string
   wr_einzelpreis: number
   wr_anzahl: number
+  component_pricing: CapexComponentPricing | null
 
   uk_hersteller: string
   uk_preis_pro_kwp: number
@@ -77,6 +105,7 @@ export interface CapexProject {
   wrHersteller: string
   wrEinzelpreis: number
   wrAnzahl: number
+  componentPricing: CapexComponentPricing
 
   ukHersteller: string
   ukPreisProKwp: number
@@ -153,14 +182,69 @@ export interface ProjectOption {
 }
 
 export const WECHSELRICHTER_HERSTELLER = [
-  'Huawei', 'SMA', 'Sungrow', 'Fronius', 'Solaredge',
-  'Growatt', 'GoodWe', 'Kostal', 'Hoymiles', 'Fox ESS',
+  'Huawei', 'Sungrow', 'SMA', 'Solis', 'KACO',
+] as const
+
+export const MODUL_HERSTELLER = [
+  'JinkoSolar', 'LONGi', 'Trina Solar', 'JA Solar', 'Canadian Solar',
 ] as const
 
 export const UNTERKONSTRUKTION_HERSTELLER = [
   'K2 Systems', 'Schletter', 'Renusol', 'Esdec', 'Van der Valk',
   'Mounting Systems', 'Aerocompact', 'S:FLEX', 'IBC Solar', 'Valmont',
 ] as const
+
+export function emptyComponentPricing(): CapexComponentPricing {
+  const selection = (): ComponentPricingSelection => ({
+    manufacturer: '',
+    model: '',
+    ratedPower: 0,
+    onlineAverageNetEur: 0,
+    discountPct: 20,
+    priceDate: '',
+    sources: [],
+  })
+
+  return { module: selection(), inverter: selection() }
+}
+
+export function normalizeComponentPricing(value: unknown): CapexComponentPricing {
+  const defaults = emptyComponentPricing()
+  if (!value || typeof value !== 'object') return defaults
+
+  const raw = value as Partial<Record<ComponentKind, Partial<ComponentPricingSelection>>>
+  const normalizeSelection = (
+    kind: ComponentKind,
+    fallback: ComponentPricingSelection,
+  ): ComponentPricingSelection => {
+    const selection = raw[kind]
+    if (!selection || typeof selection !== 'object') return fallback
+
+    return {
+      manufacturer: typeof selection.manufacturer === 'string' ? selection.manufacturer : '',
+      model: typeof selection.model === 'string' ? selection.model : '',
+      ratedPower: Number(selection.ratedPower) || 0,
+      onlineAverageNetEur: Number(selection.onlineAverageNetEur) || 0,
+      discountPct: Number.isFinite(Number(selection.discountPct))
+        ? Math.max(0, Math.min(60, Number(selection.discountPct)))
+        : 20,
+      priceDate: typeof selection.priceDate === 'string' ? selection.priceDate : '',
+      sources: Array.isArray(selection.sources)
+        ? selection.sources.filter((source): source is ComponentPriceSource => (
+          !!source
+          && typeof source === 'object'
+          && typeof source.url === 'string'
+          && source.url.startsWith('https://')
+        ))
+        : [],
+    }
+  }
+
+  return {
+    module: normalizeSelection('module', defaults.module),
+    inverter: normalizeSelection('inverter', defaults.inverter),
+  }
+}
 
 export function defaultCapexProject(project: string | ProjectOption | null = null): CapexProject {
   const projectOption = typeof project === 'object' && project !== null ? project : null
@@ -186,6 +270,7 @@ export function defaultCapexProject(project: string | ProjectOption | null = nul
     wrHersteller: '',
     wrEinzelpreis: 0,
     wrAnzahl: 0,
+    componentPricing: emptyComponentPricing(),
 
     ukHersteller: '',
     ukPreisProKwp: 0,
@@ -227,6 +312,7 @@ export function rowToCapexProject(row: CapexCalculationRow): CapexProject {
     wrHersteller: row.wr_hersteller,
     wrEinzelpreis: Number(row.wr_einzelpreis),
     wrAnzahl: Number(row.wr_anzahl),
+    componentPricing: normalizeComponentPricing(row.component_pricing),
 
     ukHersteller: row.uk_hersteller,
     ukPreisProKwp: Number(row.uk_preis_pro_kwp),
@@ -271,6 +357,7 @@ export function capexProjectToRow(
     wr_hersteller: p.wrHersteller,
     wr_einzelpreis: p.wrEinzelpreis,
     wr_anzahl: p.wrAnzahl,
+    component_pricing: p.componentPricing,
 
     uk_hersteller: p.ukHersteller,
     uk_preis_pro_kwp: p.ukPreisProKwp,
