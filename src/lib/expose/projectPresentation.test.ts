@@ -112,4 +112,33 @@ describe('getExposePresentation language variants', () => {
     assert.match(html, /11,1/)
     assert.doesNotMatch(html, /Wirtschaftliche Kennzahlen/)
   })
+
+  it('renders a BESS package sale as one portfolio with site-specific diligence', () => {
+    const sites = [
+      { name: 'Bopfingen', state: 'Baden-Württemberg', mw: 2, mwh: 4, durationH: 2, gridOperator: 'Netze ODR', gridStatus: 'Netzanschlussvertrag vorhanden', landStatus: 'Mietvertrag unterzeichnet', permitStatus: 'Nicht dokumentiert' },
+      { name: 'Kölsa', state: 'Brandenburg', mw: 7.5, mwh: 16.29, durationH: 2.17, gridOperator: 'MITNETZ STROM', gridStatus: 'VOG 413510 · Vertrag offen', landStatus: 'Mietvertrag unterzeichnet', permitStatus: 'Nicht dokumentiert' },
+    ]
+    const presentation = getExposePresentation({
+      project_type: 'bess',
+      source_metadata: { bessPortfolio: { isPackageSale: true, sites } },
+      dev_status: {},
+    }, 'Deutschland', germanFormat, 'de')
+
+    assert.equal(presentation.typeLabel, 'BESS-Portfolio')
+    assert.equal(presentation.bessPortfolioDetails?.siteCount, 2)
+    assert.equal(presentation.bessPortfolioDetails?.totalMw, 9.5)
+    assert.equal(presentation.bessPortfolioDetails?.totalMwh, 20.29)
+
+    const html = renderMemorandumHtml({
+      projectName: 'BESS Portfolio Deutschland', projectNumber: 'BESS-2026-001', projectType: 'bess',
+      typeLabel: presentation.typeLabel, location: 'Deutschland', country: 'Deutschland', countryFlag: '', dateLabel: 'August 2026', status: 'In Planung',
+      summary: presentation.summary, metrics: presentation.metrics, profile: presentation.profile, highlights: presentation.highlights,
+      bessPortfolioDetails: presentation.bessPortfolioDetails, heroImage: '/pdf/hero-solarpark.jpg', language: 'de', showPvEconomics: false, pvEconomics: null,
+    }, { germanyMap: { viewBox: '0 0 100 100', locations: [] }, fontFaceCss: '', heroImage: 'data:image/png;base64,' })
+
+    assert.match(html, /Portfolio- und Standortprüfung/)
+    assert.match(html, /Bopfingen/)
+    assert.match(html, /Kölsa/)
+    assert.match(html, /Seite <span class="num">2<\/span> \/ 2/)
+  })
 })

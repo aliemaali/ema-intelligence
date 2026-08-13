@@ -11,6 +11,7 @@ import {
 } from '@/lib/types/constants'
 import { formatProjectCountryLabel } from '@/lib/projects/location'
 import type { ProjectCustomerIntake } from '@/lib/projects/master-data'
+import { calculateBessPortfolioTotals, portfolioFromSourceMetadata } from '@/lib/projects/bessPortfolio'
 
 interface OverviewTabProps { params: { id: string } }
 
@@ -27,6 +28,8 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
   const hasBess = project.bess_mwh !== null
   const status = project.dev_status ?? {}
   const customerIntake = (project.customer_intake ?? {}) as ProjectCustomerIntake
+  const bessPortfolio = portfolioFromSourceMetadata(project.source_metadata)
+  const portfolioTotals = calculateBessPortfolioTotals(bessPortfolio)
 
   const devItems = project.project_type === 'pv_dach'
     ? [
@@ -60,6 +63,12 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
           <InfoRow label="Letzte Aktivität" value={formatRelativeTime(project.last_activity_at)} />
         </div>
       </div>
+
+      {bessPortfolio && <div className="card-padded border-[#5CB800]/25 bg-[#5CB800]/5">
+        <SectionHeader title="BESS-Portfolio · Paketverkauf" />
+        <div className="mb-4 grid grid-cols-3 gap-2 text-center"><PortfolioTotal label="Standorte" value={String(portfolioTotals.siteCount)} /><PortfolioTotal label="Leistung" value={`${portfolioTotals.mw.toLocaleString('de-DE')} MW`} /><PortfolioTotal label="Kapazität" value={`${portfolioTotals.mwh.toLocaleString('de-DE')} MWh`} /></div>
+        <div className="space-y-3">{bessPortfolio.sites.map((site) => <div key={site.name} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-extrabold text-[#07142F]">{site.name}</h3><p className="mt-1 text-xs text-slate-500">{site.state || 'Deutschland'}</p></div><strong className="text-right text-sm text-[#2F8A00]">{site.mw ?? '—'} MW<br /><span className="text-xs text-slate-500">{site.mwh ?? '—'} MWh</span></strong></div><div className="mt-3 grid gap-2 text-xs"><SiteStatus label="Netz" value={[site.gridOperator, site.gridStatus].filter(Boolean).join(' · ')} /><SiteStatus label="Fläche" value={site.landStatus} /><SiteStatus label="Genehmigung" value={site.permitStatus} /></div></div>)}</div>
+      </div>}
 
       {(project.contact_name || project.partner_name) && (
         <div className="card-padded">
@@ -101,4 +110,13 @@ export default async function OverviewTab({ params }: OverviewTabProps) {
       {project.notes && <div className="card-padded"><SectionHeader title="Notizen" /><p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{project.notes}</p></div>}
     </div>
   )
+}
+
+function PortfolioTotal({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl bg-[#07142F] px-2 py-3 text-white"><p className="text-[9px] font-bold uppercase tracking-wide text-white/55">{label}</p><p className="mt-1 text-sm font-extrabold">{value}</p></div>
+}
+
+function SiteStatus({ label, value }: { label: string; value: string }) {
+  const pending = !value || /nicht|offen|unbekannt/i.test(value)
+  return <div className="grid grid-cols-[75px_1fr] gap-2 border-t border-slate-100 pt-2"><span className="text-slate-500">{label}</span><strong className={`text-right ${pending ? 'text-amber-700' : 'text-[#07142F]'}`}>{value || 'Nicht bekannt'}</strong></div>
 }

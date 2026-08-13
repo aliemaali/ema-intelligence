@@ -5,6 +5,7 @@ import type {
   AnalysisSourceData, GeneratedAnalysis, RiskItem,
   MissingDocument, InvestorFit, MarketingRecommendation, AnalysisDocumentType,
 } from '@/lib/types/analysis.types'
+import { portfolioFromSourceMetadata } from '@/lib/projects/bessPortfolio'
 
 const DEFAULT_REQUIRED_DOCUMENT_TYPES: AnalysisDocumentType[] = [
   'expose', 'lageplan', 'netzanschluss', 'pachtvertrag', 'genehmigung',
@@ -45,6 +46,8 @@ function automaticallyPresent(type: AnalysisDocumentType, documents: AnalysisSou
 export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAnalysis {
   const { project, deal, documents, documentChecklist, linkedInvestors } = source
   const isRoofProject = project.project_type === 'pv_dach'
+  const isBessProject = project.project_type === 'bess'
+  const bessPortfolio = portfolioFromSourceMetadata(project.source_metadata)
   const requiredDocumentTypes = isRoofProject ? ROOF_REQUIRED_DOCUMENT_TYPES : DEFAULT_REQUIRED_DOCUMENT_TYPES
 
   const relevantDevStatus = isRoofProject
@@ -53,7 +56,15 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
         pachtvertrag: project.dev_status.pachtvertrag,
         eeg_faehigkeit: project.dev_status.eeg_faehigkeit,
       }
-    : project.dev_status
+    : isBessProject
+      ? {
+          netzanschluss: project.dev_status.netzanschluss,
+          baugenehmigung: project.dev_status.baugenehmigung,
+          pachtvertrag: project.dev_status.pachtvertrag,
+          gutachten: project.dev_status.gutachten,
+          umweltpruefung: project.dev_status.umweltpruefung,
+        }
+      : project.dev_status
 
   const devValues = Object.values(relevantDevStatus)
   const completed = devValues.filter((value) => value === true).length
@@ -113,6 +124,27 @@ export function generateProjectAnalysis(source: AnalysisSourceData): GeneratedAn
       severity: missingDocuments.length >= 3 ? 'hoch' : 'mittel',
       title: `${missingDocuments.length} von ${applicableDocumentTypes.length} Kerndokumenten fehlen`,
       description: `Fehlende Dokumente: ${missingDocuments.map((document) => document.label).join(', ')}.`,
+    })
+  }
+
+  if (bessPortfolio) {
+    const gridOpen = bessPortfolio.sites.filter((site) => !/vertrag\s+vorhanden|vertraglich\s+gesichert|gesichert/i.test(site.gridStatus))
+    const permitsOpen = bessPortfolio.sites.filter((site) => !/erteilt|genehmigt|vorhanden/i.test(site.permitStatus))
+    const landOpen = bessPortfolio.sites.filter((site) => !/unterzeichnet|abgeschlossen|eigentum|gesichert/i.test(site.landStatus))
+    if (gridOpen.length) risks.push({
+      severity: 'mittel',
+      title: `Netzverträge bei ${gridOpen.length} von ${bessPortfolio.sites.length} Standorten offen`,
+      description: `Betroffene Standorte: ${gridOpen.map((site) => site.name).join(', ')}. Positive Stellungnahmen ersetzen keinen bindenden Netzanschlussvertrag.`,
+    })
+    if (permitsOpen.length) risks.push({
+      severity: 'mittel',
+      title: `Genehmigungsnachweis bei ${permitsOpen.length} Standorten offen`,
+      description: `Die Genehmigungsfähigkeit ist je Standort separat zu belegen: ${permitsOpen.map((site) => site.name).join(', ')}.`,
+    })
+    if (landOpen.length) risks.push({
+      severity: 'mittel',
+      title: `Flächensicherung bei ${landOpen.length} Standorten nicht abschließend`,
+      description: `Betroffene Standorte: ${landOpen.map((site) => site.name).join(', ')}. Entwürfe oder Bedingungen sind in der Due Diligence zu klären.`,
     })
   }
 

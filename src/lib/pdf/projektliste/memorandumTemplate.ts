@@ -47,6 +47,15 @@ function copy(language: MemorandumPdfData['language']) {
     economics: en ? 'Financial Metrics' : 'Wirtschaftliche Kennzahlen',
     siteCheck: en ? 'Site assessment' : 'Standortprüfung',
     siteData: en ? 'Data center · Site data' : 'Rechenzentrum · Standortdaten',
+    portfolioData: en ? 'BESS portfolio · Site overview' : 'BESS-Portfolio · Standortübersicht',
+    portfolioOverview: en ? 'Portfolio and site due diligence' : 'Portfolio- und Standortprüfung',
+    sites: en ? 'Sites' : 'Standorte',
+    power: en ? 'Power' : 'Leistung',
+    capacity: en ? 'Capacity' : 'Kapazität',
+    duration: en ? 'Duration' : 'Dauer',
+    grid: en ? 'Grid status' : 'Netzstatus',
+    land: en ? 'Land security' : 'Flächensicherung',
+    permit: en ? 'Permitting' : 'Genehmigung',
     evidenceNote: en
       ? 'The following information is based on the stored site and assessment data. Unverified values are explicitly marked as unknown or requiring verification.'
       : 'Die folgenden Angaben stammen aus den hinterlegten Standort- und Prüfdaten. Nicht belegte Werte werden ausdrücklich als „Nicht bekannt“ oder „Muss geprüft werden“ ausgewiesen.',
@@ -150,7 +159,7 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   const german = isGermanCountry(data.country);
   const map = german ? buildGermanyMap(options.germanyMap, data.location) : '';
   const flagSvg = flag(data.country);
-  const totalPages = data.dataCenterDetails ? 2 : 1;
+  const totalPages = data.dataCenterDetails || data.bessPortfolioDetails ? 2 : 1;
   const detailSections = data.dataCenterDetails?.sections.map((section, sectionIndex) => {
     const rows = section.rows.map((row) => {
       const state = row.value.toLocaleLowerCase('de-DE');
@@ -169,6 +178,26 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
     <div class="section-head"><div class="accent"></div><h2>${c.siteCheck}</h2><div class="sub">${esc(c.evidenceNote)}</div></div>
     <div class="memo-detail-grid">${detailSections}</div>
     <div class="memo-detail-note">${esc(c.dueDiligence)}</div>
+  </div>
+  <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b> · Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)} · ${esc(data.dateLabel)}<br>${c.page} <span class="num">2</span> / 2</div></div></div>
+</section>` : '';
+  const portfolio = data.bessPortfolioDetails;
+  const portfolioRows = portfolio?.sites.map((site) => `
+    <div class="memo-portfolio-site">
+      <div class="site-title"><div><b>${esc(site.name)}</b><span>${esc(site.state || data.country)}</span></div><div class="site-power">${site.mw !== null ? `${nf(site.mw, 2, data.language)} MW` : '—'}<span>${site.mwh !== null ? `${nf(site.mwh, 2, data.language)} MWh` : '—'}${site.durationH !== null ? ` · ${nf(site.durationH, 2, data.language)} h` : ''}</span></div></div>
+      <div class="site-dd"><div><span>${c.grid}</span><b>${esc(site.gridStatus || (data.language === 'en' ? 'Unknown' : 'Nicht bekannt'))}</b></div><div><span>${c.land}</span><b>${esc(site.landStatus || (data.language === 'en' ? 'Unknown' : 'Nicht bekannt'))}</b></div><div><span>${c.permit}</span><b class="${/nicht|unknown|offen|open/i.test(site.permitStatus) ? 'pending' : ''}">${esc(site.permitStatus || (data.language === 'en' ? 'Unknown' : 'Nicht bekannt'))}</b></div></div>
+    </div>`).join('') ?? '';
+  const portfolioPage = portfolio ? `
+<section class="sheet memo-detail-sheet memo-portfolio-sheet">
+  <div class="page-head">
+    <div class="brand"><div class="mark">${emaLogoSvg({ onDark: false, withWordmark: false })}</div><div class="t">${esc(c.portfolioData)}<span>${esc(data.projectName)}</span></div></div>
+    <div class="doc">${esc(data.projectNumber)}<br>${esc(data.dateLabel)}</div>
+  </div>
+  <div class="page-body">
+    <div class="section-head"><div class="accent"></div><h2>${c.portfolioOverview}</h2><div class="sub">${data.language === 'en' ? 'The portfolio is marketed as one package. Grid, land and permitting status remain subject to separate verification for each site.' : 'Das Portfolio wird als ein Paket vermarktet. Netzanschluss, Flächensicherung und Genehmigungen bleiben je Standort separat zu prüfen.'}</div></div>
+    <div class="memo-portfolio-kpis"><div><span>${c.sites}</span><b>${portfolio.siteCount}</b></div><div><span>${c.power}</span><b>${nf(portfolio.totalMw, 2, data.language)} MW</b></div><div><span>${c.capacity}</span><b>${nf(portfolio.totalMwh, 2, data.language)} MWh</b></div><div><span>${c.duration}</span><b>${portfolio.averageDurationH !== null ? `${nf(portfolio.averageDurationH, 2, data.language)} h` : '—'}</b></div></div>
+    <div class="memo-portfolio-list">${portfolioRows}</div>
+    <div class="memo-detail-note">${data.language === 'en' ? 'Important: The information is based on documents provided by the project partner and does not constitute a guarantee, valuation or investment recommendation. All assumptions must be confirmed during technical, legal, tax and financial due diligence.' : 'Wichtig: Die Angaben basieren auf den vom Projektpartner bereitgestellten Unterlagen und stellen weder eine Garantie noch eine Bewertung oder Anlageempfehlung dar. Sämtliche Annahmen sind im Rahmen der technischen, rechtlichen, steuerlichen und wirtschaftlichen Due Diligence zu bestätigen.'}</div>
   </div>
   <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b> · Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)} · ${esc(data.dateLabel)}<br>${c.page} <span class="num">2</span> / 2</div></div></div>
 </section>` : '';
@@ -213,5 +242,6 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b> · Gabriel-von-Seidl-Str. 56 · 67550 Worms<br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)} · ${esc(data.dateLabel)}<br>${c.page} <span class="num">1</span> / ${totalPages}</div></div></div>
 </section>
 ${detailPage}
+${portfolioPage}
 </body></html>`;
 }

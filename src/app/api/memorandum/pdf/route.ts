@@ -24,6 +24,23 @@ const dataCenterDetailsSchema = z.object({
     rows: z.array(metricSchema).max(12),
   })).max(6),
 })
+const bessPortfolioDetailsSchema = z.object({
+  siteCount: z.number().int().min(2).max(30),
+  totalMw: z.number().finite().nonnegative(),
+  totalMwh: z.number().finite().nonnegative(),
+  averageDurationH: z.number().finite().nonnegative().nullable(),
+  sites: z.array(z.object({
+    name: z.string().trim().min(1).max(100),
+    state: z.string().trim().max(100),
+    mw: z.number().finite().nonnegative().nullable(),
+    mwh: z.number().finite().nonnegative().nullable(),
+    durationH: z.number().finite().nonnegative().nullable(),
+    gridOperator: z.string().trim().max(120),
+    gridStatus: z.string().trim().max(180),
+    landStatus: z.string().trim().max(180),
+    permitStatus: z.string().trim().max(180),
+  })).min(2).max(30),
+})
 const economicsSchema = z.object({
   annualYield: z.number().finite(),
   annualRevenue: z.number().finite(),
@@ -47,6 +64,7 @@ const requestSchema = z.object({
   profile: z.array(metricSchema).max(16),
   highlights: z.array(z.string().trim().max(240)).max(12),
   dataCenterDetails: dataCenterDetailsSchema.optional(),
+  bessPortfolioDetails: bessPortfolioDetailsSchema.optional(),
   heroImage: z.string().max(2_048),
   projectImage: z.string().max(4_096).optional(),
   language: z.enum(['de', 'en']).default('de'),

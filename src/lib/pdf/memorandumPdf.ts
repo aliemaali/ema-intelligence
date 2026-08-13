@@ -1,4 +1,4 @@
-import type { ExposeDataCenterDetails } from '@/lib/expose/projectPresentation'
+import type { ExposeBessPortfolioDetails, ExposeDataCenterDetails } from '@/lib/expose/projectPresentation'
 
 export type MemorandumLanguage = 'de' | 'en'
 
@@ -17,6 +17,7 @@ export interface MemorandumPdfData {
   profile: Array<{ label: string; value: string }>
   highlights: string[]
   dataCenterDetails?: ExposeDataCenterDetails
+  bessPortfolioDetails?: ExposeBessPortfolioDetails
   heroImage: string
   projectImage?: string
   language?: MemorandumLanguage
