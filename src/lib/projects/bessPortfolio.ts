@@ -78,7 +78,7 @@ export function calculateBessPortfolioTotals(portfolio: BessPortfolio | null): B
     siteCount: portfolio.sites.length,
     mw,
     mwh,
-    durationH: mw > 0 && mwh > 0 ? mwh / mw : null,
+    durationH: mw > 0 && mwh > 0 ? Math.round((mwh / mw) * 100) / 100 : null,
   }
 }
 
@@ -86,10 +86,45 @@ function canonicalName(value: string) {
   return value.replace(/\s+/g, ' ').replace(/\s+(?:MW|MWh).*$/i, '').trim()
 }
 
+const GERMAN_STATES = [
+  'Baden-Württemberg',
+  'Bayern',
+  'Berlin',
+  'Brandenburg',
+  'Bremen',
+  'Hamburg',
+  'Hessen',
+  'Mecklenburg-Vorpommern',
+  'Niedersachsen',
+  'Nordrhein-Westfalen',
+  'Rheinland-Pfalz',
+  'Saarland',
+  'Sachsen',
+  'Sachsen-Anhalt',
+  'Schleswig-Holstein',
+  'Thüringen',
+] as const
+
+function compactOcrText(value: string) {
+  return value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ß/g, 'ss')
+    .toLocaleLowerCase('de-DE')
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function canonicalState(value: string) {
+  const compact = compactOcrText(value)
+  return [...GERMAN_STATES]
+    .sort((a, b) => compactOcrText(b).length - compactOcrText(a).length)
+    .find((state) => compact.includes(compactOcrText(state))) ?? ''
+}
+
 function siteState(source: string, siteName: string) {
   const escaped = siteName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = source.match(new RegExp(`${escaped}\\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]+(?:-[A-Za-zÄÖÜäöüß]+)?)\\s*[·|]\\s*[\\d.,]+\\s*MW`, 'i'))
-  return match?.[1]?.trim() ?? ''
+  return canonicalState(match?.[1]?.trim() ?? '')
 }
 
 function siteWindow(source: string, heading: string, siteName: string, nextNames: string[]) {
@@ -108,17 +143,40 @@ function siteWindow(source: string, heading: string, siteName: string, nextNames
 
 export function extractBessPortfolioFromText(input: string): BessPortfolio | null {
   const source = input.replace(/\u00a0/g, ' ').replace(/\r/g, '\n')
-  if (!/BESS[-\s]?Portfolio/i.test(source)) return null
+  if (!/BESS[-\s]?Portfolio/i.test(source) && !/BESS-?PORTFOLIO/i.test(source.replace(/\s+/g, ''))) return null
 
-  const profilePattern = /Projektprofil:\s*([^\n]+?)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s*h\s+MW\s+MWh\s+Speicherdauer/gi
-  const matches = [...source.matchAll(profilePattern)]
-  const baseSites = matches.map((match) => ({
-    name: canonicalName(match[1]),
-    state: siteState(source, canonicalName(match[1])),
-    mw: number(match[2]),
-    mwh: number(match[3]),
-    durationH: number(match[4]),
-  }))
+  const profileHeadings = [...source.matchAll(/Projektprofil:\s*([^\n]+)/gi)]
+  const baseSites = profileHeadings.flatMap((heading, index) => {
+    const name = canonicalName(heading[1])
+    const start = (heading.index ?? 0) + heading[0].length
+    const end = profileHeadings[index + 1]?.index ?? source.length
+    const section = source.slice(start, Math.min(end, start + 2600))
+    const metrics = section.match(/([\d.,]+)\s*MW\s*([\d.,]+)\s*MWh\s*([\d.,]+)\s*h\s*Speicherdauer/i)
+    if (!name || !metrics) return []
+    const profileState = section.match(/Standort\s+([\s\S]{1,100}?)\s+Netzstatus/i)?.[1] ?? ''
+    return [{
+      name,
+      state: canonicalState(profileState) || siteState(source, name),
+      mw: number(metrics[1]),
+      mwh: number(metrics[2]),
+      durationH: number(metrics[3]),
+    }]
+  })
+
+  // Fallback für PDFs, deren Textschicht die drei Kennzahlen vor die Einheiten stellt.
+  if (baseSites.length < 2) {
+    const compactProfilePattern = /Projektprofil:\s*([^\n]+?)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s*h\s+MW\s+MWh\s+Speicherdauer/gi
+    for (const match of source.matchAll(compactProfilePattern)) {
+      const name = canonicalName(match[1])
+      baseSites.push({
+        name,
+        state: siteState(source, name),
+        mw: number(match[2]),
+        mwh: number(match[3]),
+        durationH: number(match[4]),
+      })
+    }
+  }
 
   const unique = new Map(baseSites.filter((site) => site.name).map((site) => [site.name.toLocaleLowerCase('de-DE'), site]))
   if (unique.size < 2) return null
@@ -128,13 +186,22 @@ export function extractBessPortfolioFromText(input: string): BessPortfolio | nul
     const otherNames = siteNames.filter((name) => name !== site.name)
     const grid = siteWindow(source, 'Netzanschlussstatus', site.name.replace(' Nord', ''), otherNames)
     const land = siteWindow(source, 'Grundstück & Flächensicherung', site.name.replace(' Nord', ''), otherNames)
-    const gridOperator = /Netze\s+ODR/i.test(grid) ? 'Netze ODR' : /MITNETZ/i.test(grid) ? 'MITNETZ STROM' : ''
-    const gridStatus = /Netzanschlusszusage\s*\+\s*Vertrag|Netzanschlussvertrag/i.test(grid)
+    const compactGrid = compactOcrText(grid)
+    const compactLand = compactOcrText(land)
+    const vog = grid.match(/VOG\s*((?:\d[\s]*){6})/i)?.[1]?.replace(/\s/g, '')
+    const gridOperator = compactGrid.includes('netzeodr') ? 'Netze ODR' : compactGrid.includes('mitnetz') ? 'MITNETZ STROM' : ''
+    const gridStatus = compactGrid.includes('netzanschlusszusagevertrag') || compactGrid.includes('netzanschlussvertrag')
       ? 'Netzanschlussvertrag vorhanden'
-      : /VOG\s*\d+/i.test(grid)
-        ? `${grid.match(/VOG\s*\d+/i)?.[0] ?? 'Positive Stellungnahme'} · Reservierung/Vertrag offen`
+      : vog
+        ? `VOG ${vog} · Reservierung/Vertrag offen`
         : grid.slice(0, 180)
-    const landStatus = land.match(/(Unterzeichneter\s+Flächenmietvertrag[^.·]*|Flächenmietvertrag[^.·]*|Notarieller\s+Grundstückskaufvertragsentwurf[^.·]*)/i)?.[0]?.trim() ?? land.slice(0, 180)
+    const landStatus = compactLand.includes('notariellergrundstuckskaufvertragsentwurf')
+      ? 'Notarieller Grundstückskaufvertragsentwurf'
+      : compactLand.includes('unterzeichneterflachenmietvertrag')
+        ? 'Unterzeichneter Flächenmietvertrag'
+        : compactLand.includes('flachenmietvertrag')
+          ? 'Flächenmietvertrag'
+          : land.slice(0, 180)
     return {
       ...site,
       gridOperator,

@@ -207,7 +207,7 @@ function extractUploadedProjectData(text: string): ExtractedProjectImport {
   const found = [projectName, plantType, pvText, purchaseText, tariff, specificYield].filter(Boolean).length
 
   return {
-    project_name: bessPortfolio ? 'BESS Portfolio Deutschland' : projectName,
+    project_name: bessPortfolio ? 'BESS-Portfolio Deutschland' : projectName,
     plant_type: bessPortfolio ? 'BESS-Portfolio · Paketverkauf' : plantType,
     location_city: bessPortfolio ? null : city,
     location_state: null,
