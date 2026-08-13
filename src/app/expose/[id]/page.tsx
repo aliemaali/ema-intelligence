@@ -154,6 +154,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     profile: presentation.profile,
     highlights: presentation.highlights,
     dataCenterDetails: presentation.dataCenterDetails,
+    bessPortfolioDetails: presentation.bessPortfolioDetails,
     heroImage: '/pdf/hero-solarpark.jpg',
     projectImage: presentation.heroImage,
     language: 'de' as const,
@@ -173,6 +174,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     amortisation ? { label: 'Amortisation', value: `${formatNumber(amortisation, 1)} Jahre`, width: Math.max(15, 100 - Number(amortisation) * 4), icon: Clock3 } : null,
     annualRevenue ? { label: 'Jahreserlös', value: formatMoney(annualRevenue), width: price > 0 ? Math.min(100, Number(annualRevenue) / price * 700) : 65, icon: Euro } : null,
   ].filter(Boolean) as Array<{ label: string; value: string; width: number; icon: typeof Zap }>
+  const hasSecondPage = Boolean(presentation.dataCenterDetails || presentation.bessPortfolioDetails)
 
   return (
     <div className="min-h-screen bg-[#edf1f4] pb-16 print:bg-white print:pb-0">
@@ -272,9 +274,29 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
           <div className="flex items-center gap-3"><Building2 className="h-6 w-6 text-[#0B1633]" /><span>EMA Enterprise GmbH<br />Gabriel-von-Seidl-Str. 56<br />67550 Worms</span></div>
           <div className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#0B1633]" />info@ema-enterprise.de</div>
           <div className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-[#0B1633]" />www.ema-enterprise.de</div>
-          <div className="text-right">{String(project.project_number || '')}<br />{presentation.dataCenterDetails ? 'Seite 1 / 2' : dateLabel}</div>
+          <div className="text-right">{String(project.project_number || '')}<br />{hasSecondPage ? 'Seite 1 / 2' : dateLabel}</div>
         </footer>
       </article>
+
+      {presentation.bessPortfolioDetails && (
+        <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
+          <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-5">
+            <div className="flex items-center gap-4"><img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" /><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">BESS-Portfolio · Standortübersicht</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Ein Paket, vier Standortprüfungen</h2></div></div>
+            <div className="text-right text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">{String(project.project_number || '')}<br />{dateLabel}</div>
+          </header>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <PortfolioKpi label="Standorte" value={String(presentation.bessPortfolioDetails.siteCount)} />
+            <PortfolioKpi label="Leistung" value={`${formatNumber(presentation.bessPortfolioDetails.totalMw, 2)} MW`} />
+            <PortfolioKpi label="Kapazität" value={`${formatNumber(presentation.bessPortfolioDetails.totalMwh, 2)} MWh`} />
+            <PortfolioKpi label="Ø Dauer" value={presentation.bessPortfolioDetails.averageDurationH ? `${formatNumber(presentation.bessPortfolioDetails.averageDurationH, 2)} h` : '—'} />
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {presentation.bessPortfolioDetails.sites.map((site) => <section key={site.name} className="overflow-hidden rounded-2xl border border-slate-200"><div className="flex items-start justify-between gap-3 bg-[#0B1633] px-4 py-3 text-white"><div><h3 className="font-black">{site.name}</h3><p className="mt-1 text-xs text-white/65">{site.state || 'Deutschland'}</p></div><BatteryCharging className="h-6 w-6 text-[#72cf16]" /></div><div className="p-4"><div className="grid grid-cols-3 gap-2 text-center"><MiniMetric label="MW" value={site.mw} /><MiniMetric label="MWh" value={site.mwh} /><MiniMetric label="Dauer" value={site.durationH} suffix="h" /></div><div className="mt-3 space-y-2 text-xs"><SiteRow label="Netz" value={[site.gridOperator, site.gridStatus].filter(Boolean).join(' · ')} /><SiteRow label="Fläche" value={site.landStatus} /><SiteRow label="Genehmigung" value={site.permitStatus} warning /></div></div></section>)}
+          </div>
+          <div className="mt-6 rounded-2xl bg-[#0B1633] px-5 py-4 text-xs leading-5 text-white/80"><strong className="text-white">Hinweis:</strong> Das Portfolio wird gemeinsam vermarktet. Die Angaben basieren auf Partnerunterlagen und sind je Standort im Rahmen der technischen, rechtlichen, steuerlichen und wirtschaftlichen Due Diligence zu bestätigen.</div>
+          <footer className="mt-7 grid items-center gap-4 border-t border-[#5CB800] pt-4 text-[9px] text-[#4b5565] sm:grid-cols-[1.3fr_1fr_1fr_auto]"><div className="flex items-center gap-3"><Building2 className="h-6 w-6 text-[#0B1633]" /><span>EMA Enterprise GmbH<br />Gabriel-von-Seidl-Str. 56<br />67550 Worms</span></div><div className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#0B1633]" />info@ema-enterprise.de</div><div className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-[#0B1633]" />www.ema-enterprise.de</div><div className="text-right">{String(project.project_number || '')}<br />Seite 2 / 2</div></footer>
+        </article>
+      )}
 
       {presentation.dataCenterDetails && (
         <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
@@ -330,4 +352,16 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <div><h3 className="text-sm font-black uppercase tracking-[-.01em] text-[#0B1633]">{children}</h3><div className="mt-1 h-0.5 w-14 bg-[#5CB800]" /></div>
+}
+
+function PortfolioKpi({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-2xl border border-slate-200 border-l-4 border-l-[#5CB800] bg-white p-4"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-xl font-black text-[#0B1633]">{value}</p></div>
+}
+
+function MiniMetric({ label, value, suffix = '' }: { label: string; value: number | null; suffix?: string }) {
+  return <div className="rounded-xl bg-slate-50 px-2 py-2"><p className="text-[9px] font-bold uppercase text-slate-400">{label}</p><p className="mt-1 font-black">{value !== null ? `${formatNumber(value, 2)}${suffix ? ` ${suffix}` : ''}` : '—'}</p></div>
+}
+
+function SiteRow({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
+  return <div className="grid grid-cols-[70px_1fr] gap-2 border-t border-slate-100 pt-2"><span className="text-slate-500">{label}</span><strong className={`text-right ${warning && (!value || /nicht|offen|unbekannt/i.test(value)) ? 'text-amber-700' : 'text-[#0B1633]'}`}>{value || 'Nicht bekannt'}</strong></div>
 }

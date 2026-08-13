@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { DocumentType } from '@/lib/types/database.types'
+import { calculateBessPortfolioTotals, extractBessPortfolioFromText, type BessPortfolio } from '@/lib/projects/bessPortfolio'
 
 const BUCKET_NAME = 'project-imports'
 const PROJECT_DOCUMENTS_BUCKET = 'project-documents'
@@ -16,7 +17,10 @@ type ExtractedProjectImport = {
   location_city?: string | null
   location_state?: string | null
   pv_kwp?: number | null
+  bess_mw?: number | null
   bess_mwh?: number | null
+  bess_duration_h?: number | null
+  bess_portfolio?: BessPortfolio | null
   feed_in_type?: string | null
   purchase_price?: number | null
   tariff?: string | null
@@ -127,7 +131,10 @@ function mergeExtractedData(current: ExtractedProjectImport, next: ExtractedProj
     location_city: current.location_city ?? next.location_city ?? null,
     location_state: current.location_state ?? next.location_state ?? null,
     pv_kwp: current.pv_kwp ?? next.pv_kwp ?? null,
+    bess_mw: current.bess_mw ?? next.bess_mw ?? null,
     bess_mwh: current.bess_mwh ?? next.bess_mwh ?? null,
+    bess_duration_h: current.bess_duration_h ?? next.bess_duration_h ?? null,
+    bess_portfolio: current.bess_portfolio ?? next.bess_portfolio ?? null,
     feed_in_type: current.feed_in_type ?? next.feed_in_type ?? null,
     purchase_price: current.purchase_price ?? next.purchase_price ?? null,
     tariff: current.tariff ?? next.tariff ?? null,
@@ -139,6 +146,8 @@ function mergeExtractedData(current: ExtractedProjectImport, next: ExtractedProj
 
 function extractUploadedProjectData(text: string): ExtractedProjectImport {
   const normalized = cleanText(text)
+  const bessPortfolio = extractBessPortfolioFromText(normalized)
+  const portfolioTotals = calculateBessPortfolioTotals(bessPortfolio)
 
   const projectName = firstMatch(normalized, [
     /Projekt\s+([^\n]+)/i,
@@ -198,16 +207,20 @@ function extractUploadedProjectData(text: string): ExtractedProjectImport {
   const found = [projectName, plantType, pvText, purchaseText, tariff, specificYield].filter(Boolean).length
 
   return {
-    project_name: projectName,
-    plant_type: plantType,
-    location_city: city,
+    project_name: bessPortfolio ? 'BESS Portfolio Deutschland' : projectName,
+    plant_type: bessPortfolio ? 'BESS-Portfolio · Paketverkauf' : plantType,
+    location_city: bessPortfolio ? null : city,
+    location_state: null,
     pv_kwp: normalizeNumber(pvText),
-    bess_mwh: normalizeNumber(bessText),
+    bess_mw: bessPortfolio ? portfolioTotals.mw : null,
+    bess_mwh: bessPortfolio ? portfolioTotals.mwh : normalizeNumber(bessText),
+    bess_duration_h: bessPortfolio ? portfolioTotals.durationH : null,
+    bess_portfolio: bessPortfolio,
     purchase_price: normalizeNumber(purchaseText),
     feed_in_type: feedInType,
     tariff,
     specific_yield: specificYield,
-    confidence_score: Math.min(1, found / 6),
+    confidence_score: bessPortfolio ? 0.95 : Math.min(1, found / 6),
     raw_extracted_text: normalized.slice(0, 12000),
   }
 }
@@ -355,6 +368,9 @@ export async function prepareProjectImport(importId: string) {
     raw_result: {
       mode: 'soldesk-data-room-v1-3',
       plant_type: extracted.plant_type ?? null,
+      bess_mw: extracted.bess_mw ?? null,
+      bess_duration_h: extracted.bess_duration_h ?? null,
+      bess_portfolio: extracted.bess_portfolio ?? null,
       tariff: extracted.tariff ?? null,
       specific_yield: extracted.specific_yield ?? null,
       raw_extracted_text: extracted.raw_extracted_text ?? null,

@@ -80,6 +80,15 @@ function dataForLanguage(data: MemorandumPdfData, language: MemorandumLanguage):
         rows: section.rows.map((row) => ({ label: translateText(row.label), value: translateText(row.value) })),
       })),
     } : undefined,
+    bessPortfolioDetails: data.bessPortfolioDetails ? {
+      ...data.bessPortfolioDetails,
+      sites: data.bessPortfolioDetails.sites.map((site) => ({
+        ...site,
+        gridStatus: translateText(site.gridStatus),
+        landStatus: translateText(site.landStatus),
+        permitStatus: translateText(site.permitStatus),
+      })),
+    } : undefined,
   }
 }
 

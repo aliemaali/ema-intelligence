@@ -34,6 +34,8 @@ import {
 } from '@/lib/projects/location'
 import type { DataCenterImport } from '@/lib/ai/data-center-import'
 import type { ProjectType } from '@/lib/types/database.types'
+import { BessPortfolioEditor } from '@/components/projects/BessPortfolioEditor'
+import { normalizeBessPortfolio } from '@/lib/projects/bessPortfolio'
 
 type ImportMode = 'single' | 'list'
 
@@ -117,6 +119,7 @@ export function ProjectImportUploaderV2() {
   const [isPending, startTransition] = useTransition()
 
   const raw = (result?.raw_result ?? {}) as Record<string, any>
+  const importedBessPortfolio = normalizeBessPortfolio(raw.bess_portfolio)
   const countryOptions = Array.from(new Set([locationCountry, ...PROJECT_COUNTRIES]))
   const showPvFields = projectType !== null && ['pv_freiflaeche', 'pv_dach', 'hybrid'].includes(projectType)
   const showBessFields = projectType !== null && ['bess', 'hybrid'].includes(projectType)
@@ -369,12 +372,15 @@ export function ProjectImportUploaderV2() {
               <InputField name="location_city" label="Ort" defaultValue={sanitizeImportedLocationCity(result.location_city)} />
               {isGermanProjectCountry(locationCountry) ? <InputField name="location_state" label="Bundesland" defaultValue={String(result.location_state ?? '')} /> : null}
               {showPvFields ? <InputField name="pv_kwp" label="PV-Leistung" type="number" unit="kWp" defaultValue={plainNumber(result.pv_kwp)} /> : null}
+              {showBessFields ? <InputField name="bess_mw" label="BESS-Leistung" type="number" unit="MW" defaultValue={plainNumber(raw.bess_mw)} /> : null}
               {showBessFields ? <InputField name="bess_mwh" label="BESS-Kapazität" type="number" unit="MWh" defaultValue={plainNumber(result.bess_mwh)} /> : null}
+              {showBessFields ? <InputField name="bess_duration_h" label="Speicherdauer" type="number" unit="h" defaultValue={plainNumber(raw.bess_duration_h)} /> : null}
               <InputField name="purchase_price" label="EK-Kaufpreis" type="number" unit="€" defaultValue={plainNumber(result.purchase_price)} />
               {showPvFields ? <InputField name="feed_in_type" label="Einspeiseart" defaultValue={String(result.feed_in_type ?? '')} /> : null}
               {showPvFields ? <InputField name="tariff" label="Vergütung" type="number" unit="ct/kWh" defaultValue={tariffNumber(raw.tariff)} /> : null}
               {showPvFields ? <InputField name="specific_yield" label="Spezifischer Ertrag" type="number" unit="kWh/kWp" defaultValue={yieldNumber(raw.specific_yield)} /> : null}
             </div>
+            {projectType === 'bess' && importedBessPortfolio ? <div className="mt-5"><BessPortfolioEditor initialPortfolio={importedBessPortfolio} /></div> : null}
             <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/8 p-4"><input type="checkbox" name="confirmed" value="yes" required className="mt-1 h-5 w-5 accent-[#5CB800]" /><span className="text-sm font-bold leading-6 text-[#07142F]">Ich habe die Werte mit den Originalunterlagen geprüft. Das Projekt darf mit diesen Angaben angelegt werden.</span></label>
             <button type="submit" disabled={isPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">{isPending ? 'Projekt wird erstellt ...' : 'Geprüftes Projekt anlegen'}</button>
           </form>

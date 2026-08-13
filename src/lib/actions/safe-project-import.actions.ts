@@ -10,6 +10,7 @@ import {
 } from '@/lib/projects/location'
 import type { DataCenterSiteCheck } from '@/lib/projects/master-data'
 import type { ProjectType } from '@/lib/types/database.types'
+import { calculateBessPortfolioTotals, parseBessPortfolioJson } from '@/lib/projects/bessPortfolio'
 
 const PROJECT_TYPES: ProjectType[] = [
   'pv_freiflaeche',
@@ -97,7 +98,11 @@ export async function createVerifiedProjectFromImport(formData: FormData) {
     ? getString(formData, 'location_state') || null
     : null
   const pvKwp = parseLocalizedNumber(formData.get('pv_kwp'))
-  const bessMwh = parseLocalizedNumber(formData.get('bess_mwh'))
+  const bessPortfolio = type === 'bess' ? parseBessPortfolioJson(formData.get('bess_portfolio_json')) : null
+  const portfolioTotals = calculateBessPortfolioTotals(bessPortfolio)
+  const bessMw = bessPortfolio ? portfolioTotals.mw : parseLocalizedNumber(formData.get('bess_mw'))
+  const bessMwh = bessPortfolio ? portfolioTotals.mwh : parseLocalizedNumber(formData.get('bess_mwh'))
+  const bessDurationH = bessPortfolio ? portfolioTotals.durationH : parseLocalizedNumber(formData.get('bess_duration_h'))
   const purchasePrice = parseLocalizedNumber(formData.get('purchase_price'))
   const tariffInput = parseLocalizedNumber(formData.get('tariff'))
   const tariffCt = tariffInput !== null && tariffInput <= 1 ? tariffInput * 100 : tariffInput
@@ -151,7 +156,10 @@ export async function createVerifiedProjectFromImport(formData: FormData) {
     location_state: locationState,
     location_country: locationCountry,
     pv_mwp: ['pv_freiflaeche', 'pv_dach', 'hybrid'].includes(type) ? pvKwp : null,
+    bess_mw: ['bess', 'hybrid'].includes(type) ? bessMw : null,
     bess_mwh: ['bess', 'hybrid'].includes(type) ? bessMwh : null,
+    bess_duration_h: ['bess', 'hybrid'].includes(type) ? bessDurationH : null,
+    source_metadata: bessPortfolio ? { bessPortfolio } : {},
     data_center_grid_mw: type === 'rechenzentrum' ? dataCenterGridMw : null,
     data_center_grid_confirmed: type === 'rechenzentrum' ? dataCenterGridConfirmed : false,
     data_center_status: type === 'rechenzentrum' ? 'in_entwicklung' : null,
@@ -170,7 +178,7 @@ export async function createVerifiedProjectFromImport(formData: FormData) {
       plantType ? `Erkannte Anlagenart: ${plantType}` : null,
       getString(formData, 'contact_company') ? `Unternehmen: ${getString(formData, 'contact_company')}` : null,
     ].filter(Boolean).join('\n'),
-    tags: ['import', 'geprueft', type],
+    tags: bessPortfolio ? ['import', 'geprueft', type, 'bess-portfolio', 'paketverkauf'] : ['import', 'geprueft', type],
     is_archived: false,
   } as never).select('id, project_number, project_name').single()
 

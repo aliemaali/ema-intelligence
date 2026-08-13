@@ -20,6 +20,8 @@ import {
   PROJECT_COUNTRIES,
 } from '@/lib/projects/location'
 import type { Project, ProjectType, Partner } from '@/lib/types/database.types'
+import { BessPortfolioEditor } from '@/components/projects/BessPortfolioEditor'
+import { portfolioFromSourceMetadata } from '@/lib/projects/bessPortfolio'
 
 interface ProjectFormProps {
   project?: Project & { partner_name?: string | null; partner_company?: string | null }
@@ -57,6 +59,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
   const showBessFields = ['bess', 'hybrid'].includes(projectType)
   const showDataCenterFields = projectType === 'rechenzentrum'
   const showDevelopmentChecklist = projectType !== 'sonstiges'
+  const initialBessPortfolio = portfolioFromSourceMetadata(projectData?.source_metadata)
   const countryOptions = Array.from(new Set([locationCountry, ...PROJECT_COUNTRIES]))
 
   const handleSubmit = async (formData: FormData) => {
@@ -135,7 +138,7 @@ export function ProjectForm({ project, partners = [], mode }: ProjectFormProps) 
       <div className={mode === 'create' && step !== 'technical' ? 'hidden' : 'mb-6 space-y-4'}>
         {mode === 'create' && <h2 className="text-base font-semibold">Technische Daten</h2>}
         {showPvFields && <div className="space-y-3"><p className="text-xs font-semibold uppercase text-muted-foreground">PV</p><div className="grid grid-cols-2 gap-3"><UnitField label="Leistung" name="pv_mwp" unit="kWp" step="0.001" defaultValue={project?.pv_mwp} /><UnitField label="AC-Leistung" name="pv_ac_mw" unit="kW" step="0.001" defaultValue={project?.pv_ac_mw} /></div></div>}
-        {showBessFields && <div className="space-y-3"><p className="text-xs font-semibold uppercase text-muted-foreground">BESS</p><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><UnitField label="Leistung" name="bess_mw" unit="MW" step="0.1" defaultValue={project?.bess_mw} /><UnitField label="Energie" name="bess_mwh" unit="MWh" step="0.1" defaultValue={project?.bess_mwh} /><UnitField label="Dauer" name="bess_dur" unit="h" step="0.5" defaultValue={project?.bess_duration_h} /></div></div>}
+        {showBessFields && <div className="space-y-3"><p className="text-xs font-semibold uppercase text-muted-foreground">BESS</p><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><UnitField label="Leistung" name="bess_mw" unit="MW" step="0.1" defaultValue={project?.bess_mw} /><UnitField label="Energie" name="bess_mwh" unit="MWh" step="0.1" defaultValue={project?.bess_mwh} /><UnitField label="Dauer" name="bess_dur" unit="h" step="0.5" defaultValue={project?.bess_duration_h} /></div>{projectType === 'bess' && <BessPortfolioEditor initialPortfolio={initialBessPortfolio} />}</div>}
         {showDataCenterFields && <div className="space-y-3 rounded-2xl border p-4"><p className="text-xs font-semibold uppercase">Rechenzentrum</p><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><UnitField label="Netzanschlussleistung" name="data_center_grid_mw" unit="MW" step="0.1" defaultValue={projectData?.data_center_grid_mw} /><UnitField label="IT-Leistung" name="data_center_it_mw" unit="MW" step="0.1" defaultValue={projectData?.data_center_it_mw} /><UnitField label="Grundstücksfläche" name="land_area_sqm" unit="m²" step="1" defaultValue={projectData?.land_area_sqm} /><div><label className="form-label">Transformator / Umspannwerk</label><input name="transformer_status" defaultValue={projectData?.transformer_status ?? ''} className="form-input" /></div></div></div>}
         {showDevelopmentChecklist && <div className="space-y-2"><p className="text-xs font-semibold uppercase text-muted-foreground">Entwicklungsstand</p>{[
           ['dev_netzanschluss', 'Netzanschluss', 'netzanschluss'], ['dev_baugenehmigung', 'Baugenehmigung', 'baugenehmigung'], ['dev_pachtvertrag', 'Pachtvertrag', 'pachtvertrag'], ['dev_eeg', 'EEG-Fähigkeit', 'eeg_faehigkeit'], ['dev_gutachten', 'Gutachten', 'gutachten'], ['dev_umwelt', 'Umweltprüfung', 'umweltpruefung'],

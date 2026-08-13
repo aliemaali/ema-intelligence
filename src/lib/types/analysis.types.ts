@@ -25,6 +25,7 @@ export interface AnalysisSourceData {
     pv_mwp:           number | null
     bess_mw:          number | null
     bess_mwh:         number | null
+    source_metadata:  Record<string, unknown> | null
     dev_status:       DevStatus
     created_at:       string
     last_activity_at: string | null

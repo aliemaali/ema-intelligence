@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { ProjectType, ProjectStatus, ProjectPriority, MarketingStatus, DevStatus } from '@/lib/types/database.types'
+import { calculateBessPortfolioTotals, parseBessPortfolioJson } from '@/lib/projects/bessPortfolio'
 
 const PROJECT_IMAGE_BUCKET = 'project-images'
 const MAX_PROJECT_IMAGE_SIZE = 8 * 1024 * 1024
@@ -124,7 +125,10 @@ export async function getProject(id: string) {
 function projectPayload(formData: FormData) {
   const projectType = getString(formData, 'project_type') as ProjectType
   const projectStage = getString(formData, 'project_stage')
+  const bessPortfolio = projectType === 'bess' ? parseBessPortfolioJson(formData.get('bess_portfolio_json')) : null
+  const portfolioTotals = calculateBessPortfolioTotals(bessPortfolio)
   return {
+    __bessPortfolio: bessPortfolio,
     project_name: getString(formData, 'project_name'),
     project_type: projectType,
     status: (getStringOrNull(formData, 'status') as ProjectStatus) ?? 'lead',
@@ -142,9 +146,9 @@ function projectPayload(formData: FormData) {
     lease_term_years: getNumberOrNull(formData, 'lease_term_years'),
     pv_mwp: getNumberOrNull(formData, 'pv_mwp'),
     pv_ac_mw: getNumberOrNull(formData, 'pv_ac_mw'),
-    bess_mw: getNumberOrNull(formData, 'bess_mw'),
-    bess_mwh: getNumberOrNull(formData, 'bess_mwh'),
-    bess_duration_h: getNumberOrNull(formData, 'bess_dur'),
+    bess_mw: bessPortfolio ? portfolioTotals.mw : getNumberOrNull(formData, 'bess_mw'),
+    bess_mwh: bessPortfolio ? portfolioTotals.mwh : getNumberOrNull(formData, 'bess_mwh'),
+    bess_duration_h: bessPortfolio ? portfolioTotals.durationH : getNumberOrNull(formData, 'bess_dur'),
     data_center_grid_mw: projectType === 'rechenzentrum' ? getNumberOrNull(formData, 'data_center_grid_mw') : null,
     data_center_it_mw: projectType === 'rechenzentrum' ? getNumberOrNull(formData, 'data_center_it_mw') : null,
     land_area_sqm: projectType === 'rechenzentrum' ? getNumberOrNull(formData, 'land_area_sqm') : null,
@@ -158,14 +162,20 @@ function projectPayload(formData: FormData) {
 
 export async function createProject(formData: FormData) {
   const { supabase, userId } = await requireUser()
-  const payload = projectPayload(formData)
+  const { __bessPortfolio, ...payload } = projectPayload(formData)
   const image = getProjectImage(formData)
   const imageError = validateProjectImage(image)
   if (imageError) return { error: imageError }
   if (!payload.project_name) return { error: 'Projektname fehlt' }
   if (!payload.project_type) return { error: 'Projekttyp fehlt' }
 
-  const { data, error } = await supabase.from('projects').insert({ ...payload, user_id: userId, tags: [], is_archived: false } as never).select('id, project_number, project_name').single()
+  const { data, error } = await supabase.from('projects').insert({
+    ...payload,
+    source_metadata: __bessPortfolio ? { bessPortfolio: __bessPortfolio } : {},
+    user_id: userId,
+    tags: __bessPortfolio ? ['bess-portfolio', 'paketverkauf'] : [],
+    is_archived: false,
+  } as never).select('id, project_number, project_name').single()
   if (error || !data) return { error: error?.message ?? 'Projekt konnte nicht erstellt werden' }
 
   if (image) {
@@ -190,7 +200,7 @@ export async function createProject(formData: FormData) {
 
 export async function updateProject(id: string, formData: FormData) {
   const { supabase, userId } = await requireUser()
-  const payload = projectPayload(formData)
+  const { __bessPortfolio, ...payload } = projectPayload(formData)
   const image = getProjectImage(formData)
   const imageError = validateProjectImage(image)
   if (imageError) return { error: imageError }
@@ -203,14 +213,22 @@ export async function updateProject(id: string, formData: FormData) {
     imageUrl = uploaded.url
   }
 
+  const { data: existingProject } = await supabase
+    .from('projects')
+    .select('data_center_grid_mw, data_center_grid_confirmed, source_metadata, tags')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle()
+  const sourceMetadata = existingProject?.source_metadata && typeof existingProject.source_metadata === 'object'
+    ? { ...(existingProject.source_metadata as Record<string, unknown>) }
+    : {}
+  if (__bessPortfolio) sourceMetadata.bessPortfolio = __bessPortfolio
+  else delete sourceMetadata.bessPortfolio
+  const existingTags = Array.isArray(existingProject?.tags) ? existingProject.tags.filter((tag) => !['bess-portfolio', 'paketverkauf'].includes(tag)) : []
+  const nextTags = __bessPortfolio ? [...existingTags, 'bess-portfolio', 'paketverkauf'] : existingTags
+
   let gridConfirmedUpdate: boolean | undefined
   if (payload.project_type === 'rechenzentrum') {
-    const { data: existingProject } = await supabase
-      .from('projects')
-      .select('data_center_grid_mw, data_center_grid_confirmed')
-      .eq('id', id)
-      .eq('user_id', userId)
-      .maybeSingle()
     if (existingProject?.data_center_grid_confirmed) {
       const previousGridMw = Number(existingProject.data_center_grid_mw ?? 0)
       const nextGridMw = Number(payload.data_center_grid_mw ?? 0)
@@ -220,6 +238,8 @@ export async function updateProject(id: string, formData: FormData) {
 
   const { error } = await supabase.from('projects').update({
     ...payload,
+    source_metadata: sourceMetadata,
+    tags: nextTags,
     project_image_url: imageUrl,
     ...(gridConfirmedUpdate !== undefined ? { data_center_grid_confirmed: gridConfirmedUpdate } : {}),
   } as never).eq('id', id).eq('user_id', userId)

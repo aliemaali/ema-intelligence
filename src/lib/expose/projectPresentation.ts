@@ -1,9 +1,17 @@
 import type { DataCenterCheckState, DataCenterSiteCheck, DataCenterZoningDesignation } from '@/lib/projects/master-data'
+import { calculateBessPortfolioTotals, portfolioFromSourceMetadata, type BessPortfolioSite } from '@/lib/projects/bessPortfolio'
 
 export type ExposeMetric = { label: string; value: string }
 export type ExposeProfileRow = { label: string; value: string }
 export type ExposeDetailSection = { title: string; rows: ExposeProfileRow[] }
 export type ExposeDataCenterDetails = { sections: ExposeDetailSection[]; sourceDate?: string }
+export type ExposeBessPortfolioDetails = {
+  sites: BessPortfolioSite[]
+  siteCount: number
+  totalMw: number
+  totalMwh: number
+  averageDurationH: number | null
+}
 
 export type ExposePresentation = {
   typeLabel: string
@@ -14,6 +22,7 @@ export type ExposePresentation = {
   highlights: string[]
   showPvEconomics: boolean
   dataCenterDetails?: ExposeDataCenterDetails
+  bessPortfolioDetails?: ExposeBessPortfolioDetails
 }
 
 type ProjectLike = Record<string, unknown>
@@ -249,30 +258,49 @@ export function getExposePresentation(project: ProjectLike, location: string, fo
   }
 
   if (projectType === 'bess') {
-    const bessMw = value(project, 'bess_mw')
-    const bessMwh = value(project, 'bess_mwh')
-    const duration = value(project, 'bess_duration_h')
+    const portfolio = portfolioFromSourceMetadata(project.source_metadata)
+    const totals = calculateBessPortfolioTotals(portfolio)
+    const bessMw = portfolio ? totals.mw : value(project, 'bess_mw')
+    const bessMwh = portfolio ? totals.mwh : value(project, 'bess_mwh')
+    const duration = portfolio ? totals.durationH : value(project, 'bess_duration_h')
     return {
-      typeLabel: type.label,
+      typeLabel: portfolio ? tr(language, 'BESS-Portfolio', 'BESS portfolio') : type.label,
       heroImage: String(value(project, 'project_image_url') || type.image),
-      summary: tr(language,
-        `Batteriespeicherprojekt in ${location} mit den vorhandenen Leistungs-, Kapazitäts- und Entwicklungsdaten.`,
-        `Battery storage project in ${location} based on the available power, capacity and development data.`,
-      ),
+      summary: portfolio
+        ? tr(language,
+            `Deutsches BESS-Portfolio mit ${totals.siteCount} Standorten. Die Projekte werden ausschließlich gemeinsam als Paket angeboten; technische und rechtliche Prüfungen erfolgen weiterhin je Standort.`,
+            `German BESS portfolio comprising ${totals.siteCount} sites. The projects are offered exclusively as one package, while technical and legal due diligence remains site-specific.`,
+          )
+        : tr(language,
+            `Batteriespeicherprojekt in ${location} mit den vorhandenen Leistungs-, Kapazitäts- und Entwicklungsdaten.`,
+            `Battery storage project in ${location} based on the available power, capacity and development data.`,
+          ),
       metrics: compact([
+        { label: tr(language, 'Standorte', 'Sites'), value: portfolio ? String(totals.siteCount) : '' },
         { label: tr(language, 'Leistung', 'Power'), value: bessMw ? `${format.number(bessMw, 2)} MW` : '' },
         { label: tr(language, 'Kapazität', 'Capacity'), value: bessMwh ? `${format.number(bessMwh, 2)} MWh` : '' },
         { label: tr(language, 'Dauer', 'Duration'), value: duration ? `${format.number(duration, 1)} h` : '' },
         { label: tr(language, 'Investitionsvolumen', 'Investment volume'), value: investmentVolume ? format.money(investmentVolume) : '' },
         { label: tr(language, 'Kaufpreis', 'Purchase price'), value: purchasePrice ? format.money(purchasePrice) : '' },
       ]),
-      profile: commonProfile,
+      profile: compact([
+        ...commonProfile,
+        { label: tr(language, 'Verkaufsstruktur', 'Transaction structure'), value: portfolio ? tr(language, 'Paketverkauf', 'Portfolio sale') : '' },
+      ]),
       highlights: [
+        portfolio ? tr(language, `${totals.siteCount} Standorte in einem Verkaufsprozess`, `${totals.siteCount} sites in one transaction`) : '',
         stage ? tr(language, `Projektstatus: ${stage}`, `Project status: ${stage}`) : '',
         bessMw ? tr(language, `${format.number(bessMw, 2)} MW Speicherleistung`, `${format.number(bessMw, 2)} MW storage power`) : '',
         bessMwh ? tr(language, `${format.number(bessMwh, 2)} MWh Kapazität`, `${format.number(bessMwh, 2)} MWh capacity`) : '',
       ].filter(Boolean),
       showPvEconomics: false,
+      bessPortfolioDetails: portfolio ? {
+        sites: portfolio.sites,
+        siteCount: totals.siteCount,
+        totalMw: totals.mw,
+        totalMwh: totals.mwh,
+        averageDurationH: totals.durationH,
+      } : undefined,
     }
   }
 

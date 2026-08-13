@@ -89,6 +89,7 @@ export async function getAnalysisSourceData(projectId: string): Promise<Analysis
       pv_mwp: project.pv_mwp,
       bess_mw: project.bess_mw,
       bess_mwh: project.bess_mwh,
+      source_metadata: project.source_metadata && typeof project.source_metadata === 'object' ? project.source_metadata as Record<string, unknown> : null,
       dev_status: project.dev_status,
       created_at: project.created_at,
       last_activity_at: project.last_activity_at,
