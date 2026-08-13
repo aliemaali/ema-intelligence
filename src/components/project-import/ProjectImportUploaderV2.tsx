@@ -116,6 +116,7 @@ export function ProjectImportUploaderV2() {
   const [listReadFailed, setListReadFailed] = useState(false)
   const [locationCountry, setLocationCountry] = useState('Deutschland')
   const [message, setMessage] = useState('')
+  const [saveMessage, setSaveMessage] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const raw = (result?.raw_result ?? {}) as Record<string, any>
@@ -146,6 +147,7 @@ export function ProjectImportUploaderV2() {
     setProjectList([])
     setListReadFailed(false)
     setMessage('')
+    setSaveMessage('')
   }
 
   function changeMode(mode: ImportMode) {
@@ -228,11 +230,21 @@ export function ProjectImportUploaderV2() {
   function createProject(formData: FormData) {
     startTransition(async () => {
       try {
-        setMessage('Geprüfte Projektakte wird erstellt ...')
+        const pendingMessage = 'Geprüfte Projektakte wird erstellt ...'
+        setMessage(pendingMessage)
+        setSaveMessage(pendingMessage)
         const response = await createVerifiedProjectFromImport(formData)
-        if (response?.error) setMessage(`Fehler: ${response.error}`)
+        if (response?.error) {
+          const errorMessage = `Fehler: ${response.error}`
+          setMessage(errorMessage)
+          setSaveMessage(errorMessage)
+        }
       } catch (error) {
-        if (!(error as Error).message?.includes('NEXT_REDIRECT')) setMessage('Projekt konnte nicht erstellt werden.')
+        if (!(error as Error).message?.includes('NEXT_REDIRECT')) {
+          const errorMessage = 'Fehler: Projekt konnte nicht erstellt werden.'
+          setMessage(errorMessage)
+          setSaveMessage(errorMessage)
+        }
       }
     })
   }
@@ -356,6 +368,7 @@ export function ProjectImportUploaderV2() {
             <DataCenterImportPreview data={dataCenter} />
             <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/8 p-4"><input type="checkbox" name="confirmed" value="yes" required className="mt-1 h-5 w-5 accent-[#5CB800]" /><span className="text-sm font-bold leading-6 text-[#07142F]">Ich habe die Werte mit der Original-PDF geprüft. Das Rechenzentrum-Projekt darf angelegt werden.</span></label>
             <button type="submit" disabled={isPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">{isPending ? 'Projekt wird erstellt ...' : 'Geprüftes Rechenzentrum anlegen'}</button>
+            {saveMessage ? <p role="status" aria-live="polite" className={`mt-3 rounded-2xl border p-3 text-sm font-bold ${saveMessage.startsWith('Fehler:') ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-[#07142F]'}`}>{saveMessage}</p> : null}
           </form>
         ) : null}
 
@@ -383,6 +396,7 @@ export function ProjectImportUploaderV2() {
             {projectType === 'bess' && importedBessPortfolio ? <div className="mt-5"><BessPortfolioEditor initialPortfolio={importedBessPortfolio} /></div> : null}
             <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-[#5CB800]/25 bg-[#5CB800]/8 p-4"><input type="checkbox" name="confirmed" value="yes" required className="mt-1 h-5 w-5 accent-[#5CB800]" /><span className="text-sm font-bold leading-6 text-[#07142F]">Ich habe die Werte mit den Originalunterlagen geprüft. Das Projekt darf mit diesen Angaben angelegt werden.</span></label>
             <button type="submit" disabled={isPending} className="btn-primary mt-4 w-full justify-center py-3 disabled:opacity-50">{isPending ? 'Projekt wird erstellt ...' : 'Geprüftes Projekt anlegen'}</button>
+            {saveMessage ? <p role="status" aria-live="polite" className={`mt-3 rounded-2xl border p-3 text-sm font-bold ${saveMessage.startsWith('Fehler:') ? 'border-red-200 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-[#07142F]'}`}>{saveMessage}</p> : null}
           </form>
         ) : null}
 
