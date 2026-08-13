@@ -163,7 +163,10 @@ export async function createVerifiedProjectFromImport(formData: FormData) {
     data_center_grid_mw: type === 'rechenzentrum' ? dataCenterGridMw : null,
     data_center_grid_confirmed: type === 'rechenzentrum' ? dataCenterGridConfirmed : false,
     data_center_status: type === 'rechenzentrum' ? 'in_entwicklung' : null,
-    data_center_site_check: dataCenterSiteCheck,
+    // The database column is NOT NULL. For non-data-center projects the empty
+    // JSON object is the neutral value; sending null overrides the DB default
+    // and makes every PV/BESS/Hybrid import fail.
+    data_center_site_check: dataCenterSiteCheck ?? {},
     land_area_sqm: type === 'rechenzentrum' && siteAreaHectares !== null ? siteAreaHectares * 10_000 : null,
     transformer_status: type === 'rechenzentrum' ? getString(formData, 'hv_station_name') || null : null,
     feed_in_type: getString(formData, 'feed_in_type') || null,
