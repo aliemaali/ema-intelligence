@@ -35,6 +35,10 @@ export function safeLegalDocumentFilePart(value: string) {
   return normalized || 'Vertragspartner'
 }
 
+export function bilingualNdaFileName(company: string, agreementDate: string) {
+  return `Geheimhaltungsvereinbarung_${safeLegalDocumentFilePart(company)}_DE-EN_${agreementDate}.pdf`
+}
+
 type LegalLanguage = 'de' | 'en'
 
 export type LegalDocumentAssets = {
@@ -224,7 +228,7 @@ export function buildBilingualNdaPdf(data: BilingualNdaData, assets?: LegalDocum
     doc.setFontSize(7.1)
     doc.setTextColor(...muted)
     doc.text(isDe ? 'DEUTSCHE FASSUNG' : 'ENGLISH VERSION', 192, 24, { align: 'right' })
-    doc.text(`NDA · ${agreementDateText}`, 192, 30, { align: 'right' })
+    doc.text(`${isDe ? 'GEHEIMHALTUNGSVEREINBARUNG' : 'NON-DISCLOSURE AGREEMENT'} · ${agreementDateText}`, 192, 30, { align: 'right' })
     doc.setFont(fontFamily, 'bold')
     doc.setFontSize(7.2)
     doc.setTextColor(...green)
@@ -332,9 +336,9 @@ export function buildBilingualNdaPdf(data: BilingualNdaData, assets?: LegalDocum
 
   renderLanguage('de', true)
   renderLanguage('en', false)
-  addPageNumbers(doc, 'NDA', fontFamily)
+  addPageNumbers(doc, 'Geheimhaltungsvereinbarung', fontFamily)
   doc.setProperties({
-    title: `NDA – ${data.company} – DE/EN`,
+    title: `Geheimhaltungsvereinbarung - ${data.company} - DE/EN`,
     subject: 'Mutual Non-Disclosure Agreement / Gegenseitige Geheimhaltungsvereinbarung',
     author: EMA.company,
     creator: 'EMA Intelligence',
