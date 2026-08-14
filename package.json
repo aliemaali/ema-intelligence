@@ -12,6 +12,7 @@
     "test:finance": "esbuild src/lib/finance/calculate.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/finance.test.cjs && node --test .tmp/finance.test.cjs",
     "test:expose": "esbuild src/lib/expose/projectPresentation.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/expose.test.cjs && node --test .tmp/expose.test.cjs",
     "test:bess-import": "esbuild src/lib/projects/bessPortfolio.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/bess-portfolio.test.cjs && node --test .tmp/bess-portfolio.test.cjs",
+    "test:legal-documents": "esbuild src/lib/pdf/legalDocuments.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/legal-documents.test.cjs && node --test .tmp/legal-documents.test.cjs",
     "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts",
     "pl:render": "esbuild tools/renderProjektliste.ts --bundle --platform=node --target=node20 --outfile=.tmp/render.cjs && node .tmp/render.cjs",
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",

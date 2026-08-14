@@ -4,22 +4,23 @@ import { useMemo, useState } from 'react'
 import { addYears, format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Eye, FileSignature, Save, X } from 'lucide-react'
-import { jsPDF } from 'jspdf'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
+import { buildBilingualNdaPdf } from '@/lib/pdf/legalDocuments'
 import { createClient } from '@/lib/supabase/client'
+import { documentInvestorLabel, type DocumentInvestor } from '@/lib/templates/documentTypes'
 
 type FolderItem = { id: string; name: string }
-type Language = 'de' | 'en'
 type Duration = 1 | 2 | 3
 
-type Props = { userId: string; folders: FolderItem[] }
+type Props = { userId: string; folders: FolderItem[]; investors: DocumentInvestor[] }
 
 type FormState = {
-  language: Language
   company: string
   contactPerson: string
+  email: string
+  phone: string
   street: string
   postalCode: string
   city: string
@@ -27,37 +28,25 @@ type FormState = {
   representedBy: string
   signatory: string
   agreementDate: string
-  purpose: string
+  purposeDe: string
+  purposeEn: string
   duration: Duration
   folderId: string
-}
-
-const EMA = {
-  company: 'EMA Enterprise GmbH',
-  street: 'Gabriel-von-Seidl-Str. 57',
-  postalCode: '67550',
-  city: 'Worms',
-  country: 'Deutschland',
-  representedBy: 'Ali Ünlüer',
-}
-
-const defaultPurpose = {
-  de: 'Prüfung und Vorbereitung einer möglichen geschäftlichen Zusammenarbeit.',
-  en: 'Evaluation and preparation of a potential business cooperation.',
 }
 
 function safeFilePart(value: string) {
   return value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_').replace(/^_+|_+$/g, '') || 'Vertragspartner'
 }
 
-export function NdaGenerator({ userId, folders }: Props) {
+export function NdaGenerator({ userId, folders, investors }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [selectedInvestorId, setSelectedInvestorId] = useState('')
   const [form, setForm] = useState<FormState>({
-    language: 'de', company: '', contactPerson: '', street: '', postalCode: '', city: '', country: 'Deutschland',
-    representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purpose: '', duration: 3, folderId: '',
+    company: '', contactPerson: '', email: '', phone: '', street: '', postalCode: '', city: '', country: 'Deutschland',
+    representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purposeDe: '', purposeEn: '', duration: 3, folderId: '',
   })
 
   const expiryDate = useMemo(() => {
@@ -66,7 +55,21 @@ export function NdaGenerator({ userId, folders }: Props) {
   }, [form.agreementDate, form.duration])
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }))
-  const isDe = form.language === 'de'
+
+  const selectInvestor = (investorId: string) => {
+    setSelectedInvestorId(investorId)
+    const investor = investors.find((item) => item.id === investorId)
+    if (!investor) return
+    setForm((current) => ({
+      ...current,
+      company: investor.company,
+      contactPerson: investor.contactPerson,
+      email: investor.email,
+      phone: investor.phone,
+      city: investor.city,
+      country: investor.country || current.country,
+    }))
+  }
 
   const validate = () => {
     if (!form.company.trim()) return 'Bitte das Unternehmen eintragen.'
@@ -79,69 +82,25 @@ export function NdaGenerator({ userId, folders }: Props) {
   const buildPdf = () => {
     const error = validate()
     if (error) throw new Error(error)
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' })
-    const margin = 20
-    const width = 170
-    let y = 20
-    const agreementDate = new Date(`${form.agreementDate}T12:00:00`)
-    const dateText = isDe ? format(agreementDate, 'dd.MM.yyyy', { locale: de }) : format(agreementDate, 'MM/dd/yyyy')
-    const expiryText = expiryDate ? (isDe ? format(expiryDate, 'dd.MM.yyyy', { locale: de }) : format(expiryDate, 'MM/dd/yyyy')) : ''
-    const purpose = form.purpose.trim() || defaultPurpose[form.language]
-    const ensureSpace = (needed = 22) => { if (y + needed > 278) { doc.addPage(); y = 20 } }
-    const heading = (text: string) => { ensureSpace(18); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(31, 42, 68); doc.text(text, margin, y); y += 8 }
-    const paragraph = (text: string) => { doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(35, 43, 58); const lines = doc.splitTextToSize(text, width); ensureSpace(lines.length * 4.5 + 5); doc.text(lines, margin, y); y += lines.length * 4.5 + 5 }
-
-    doc.setFillColor(11, 22, 51); doc.rect(0, 0, 210, 34, 'F')
-    doc.setFillColor(92, 184, 0); doc.rect(0, 34, 210, 2.5, 'F')
-    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(18)
-    doc.text(isDe ? 'GEHEIMHALTUNGSVEREINBARUNG' : 'NON-DISCLOSURE AGREEMENT', margin, 18)
-    doc.setFontSize(9); doc.text(EMA.company, margin, 27); y = 48
-
-    paragraph(isDe ? `Diese gegenseitige Geheimhaltungsvereinbarung wird am ${dateText} geschlossen zwischen:` : `This mutual Non-Disclosure Agreement is entered into on ${dateText} by and between:`)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(EMA.company, margin, y); y += 5
-    paragraph(`${EMA.street}, ${EMA.postalCode} ${EMA.city}, ${EMA.country}\n${isDe ? 'vertreten durch' : 'represented by'} ${EMA.representedBy}`)
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(form.company, margin, y); y += 5
-    paragraph(`${form.street}, ${form.postalCode} ${form.city}, ${form.country}\n${isDe ? 'vertreten durch' : 'represented by'} ${form.representedBy}${form.contactPerson ? `\n${isDe ? 'Ansprechpartner' : 'Contact person'}: ${form.contactPerson}` : ''}`)
-
-    heading(isDe ? '1. Zweck' : '1. Purpose')
-    paragraph(isDe ? `Die Parteien beabsichtigen, vertrauliche Informationen ausschließlich zu folgendem Zweck auszutauschen: ${purpose}` : `The parties intend to exchange confidential information solely for the following purpose: ${purpose}`)
-    heading(isDe ? '2. Vertrauliche Informationen' : '2. Confidential Information')
-    paragraph(isDe ? 'Als vertraulich gelten alle mündlich, schriftlich, elektronisch oder in sonstiger Form offengelegten kaufmännischen, technischen, finanziellen, rechtlichen und projektbezogenen Informationen, sofern sie als vertraulich gekennzeichnet sind oder nach den Umständen als vertraulich anzusehen sind.' : 'Confidential Information means all commercial, technical, financial, legal and project-related information disclosed orally, in writing, electronically or in any other form, where such information is marked confidential or should reasonably be understood to be confidential under the circumstances.')
-    heading(isDe ? '3. Pflichten der Parteien' : '3. Obligations of the Parties')
-    paragraph(isDe ? 'Die empfangende Partei wird vertrauliche Informationen sorgfältig schützen, nur für den vereinbarten Zweck verwenden und ausschließlich solchen Beschäftigten, Beratern oder verbundenen Unternehmen zugänglich machen, die diese Informationen für den Zweck benötigen und zu entsprechender Vertraulichkeit verpflichtet sind.' : 'The receiving party shall protect Confidential Information with due care, use it only for the agreed purpose and disclose it only to employees, advisers or affiliated companies who need it for that purpose and are bound by appropriate confidentiality obligations.')
-    heading(isDe ? '4. Ausnahmen' : '4. Exclusions')
-    paragraph(isDe ? 'Die Verpflichtungen gelten nicht für Informationen, die nachweislich bereits öffentlich bekannt waren, ohne Vertragsverletzung öffentlich bekannt werden, der empfangenden Partei rechtmäßig bereits bekannt waren, rechtmäßig von Dritten erlangt wurden oder unabhängig entwickelt wurden. Gesetzlich zwingende Offenlegungen bleiben zulässig; die andere Partei ist, soweit rechtlich möglich, vorher zu informieren.' : 'The obligations do not apply to information demonstrably already public, becoming public without breach, lawfully known to the receiving party, lawfully obtained from a third party or independently developed. Disclosures required by law remain permitted; where legally possible, the other party shall be informed in advance.')
-    heading(isDe ? '5. Laufzeit und Vertraulichkeitsdauer' : '5. Term and Confidentiality Period')
-    paragraph(isDe ? `Diese Vereinbarung gilt ab dem ${dateText}. Die Verpflichtung zur Vertraulichkeit besteht für ${form.duration} ${form.duration === 1 ? 'Jahr' : 'Jahre'} und endet am ${expiryText}.` : `This Agreement is effective from ${dateText}. The confidentiality obligations remain in force for ${form.duration} ${form.duration === 1 ? 'year' : 'years'} and expire on ${expiryText}.`)
-    heading(isDe ? '6. Rückgabe und Löschung' : '6. Return and Deletion')
-    paragraph(isDe ? 'Auf schriftliche Aufforderung sind vertrauliche Informationen und angefertigte Kopien zurückzugeben oder zu löschen, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.' : 'Upon written request, Confidential Information and copies shall be returned or deleted, unless statutory retention obligations require otherwise.')
-    heading(isDe ? '7. Keine Rechteübertragung' : '7. No Transfer of Rights')
-    paragraph(isDe ? 'Durch diese Vereinbarung werden keine Lizenzen, Eigentumsrechte oder sonstigen Nutzungsrechte übertragen. Keine Partei ist zum Abschluss eines weiteren Geschäfts verpflichtet.' : 'This Agreement does not transfer any licence, ownership right or other right of use. Neither party is obliged to enter into any further transaction.')
-    heading(isDe ? '8. Schlussbestimmungen' : '8. Final Provisions')
-    paragraph(isDe ? 'Änderungen und Ergänzungen bedürfen der Textform. Sollte eine Bestimmung unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Es gilt deutsches Recht. Soweit gesetzlich zulässig, ist Gerichtsstand der Sitz der EMA Enterprise GmbH.' : 'Amendments must be made in text form. If any provision is invalid, the remaining provisions remain effective. German law applies. To the extent legally permitted, the venue shall be the registered office of EMA Enterprise GmbH.')
-
-    ensureSpace(45); y += 5; doc.setDrawColor(120); doc.line(margin, y + 18, 88, y + 18); doc.line(122, y + 18, 190, y + 18)
-    doc.setFontSize(8.5); doc.setTextColor(50); doc.text(`${EMA.company}\n${EMA.representedBy}`, margin, y + 24); doc.text(`${form.company}\n${form.signatory}`, 122, y + 24)
-    const pages = doc.getNumberOfPages(); for (let page = 1; page <= pages; page += 1) { doc.setPage(page); doc.setFontSize(7.5); doc.setTextColor(120); doc.text(`${EMA.company} · NDA · ${page}/${pages}`, 105, 290, { align: 'center' }) }
-    return doc
+    return buildBilingualNdaPdf(form)
   }
 
   const preview = () => { try { const doc = buildPdf(); const url = URL.createObjectURL(doc.output('blob')); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) } catch (error) { toast.error(error instanceof Error ? error.message : 'Vorschau konnte nicht erstellt werden.') } }
-  const save = async () => { setSaving(true); try { const doc = buildPdf(); const blob = doc.output('blob'); const fileName = `NDA_${safeFilePart(form.company)}_${form.language.toUpperCase()}_${form.agreementDate}.pdf`; const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `NDA – ${form.company} – ${form.language.toUpperCase()}`, category: 'nda', fileName, filePath: path, fileSizeBytes: blob.size, mimeType: 'application/pdf', folderId: form.folderId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success(isDe ? 'NDA wurde erstellt und gespeichert.' : 'NDA was created and saved.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
+  const save = async () => { setSaving(true); try { const doc = buildPdf(); const blob = doc.output('blob'); const fileName = `NDA_${safeFilePart(form.company)}_DE-EN_${form.agreementDate}.pdf`; const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `NDA – ${form.company} – DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: blob.size, mimeType: 'application/pdf', folderId: form.folderId || null, investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('Zweisprachige NDA wurde erstellt, gespeichert und zugeordnet.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
 
   return <>
-    <section className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#2F8A00]"><FileSignature className="h-6 w-6" /></span><div><h2 className="text-xl font-extrabold text-[#07142F]">NDA erstellen</h2><p className="mt-1 text-sm text-muted-foreground">EMA-Firmendaten werden automatisch eingesetzt.</p></div></div><button type="button" onClick={() => setOpen(true)} className="btn-primary shrink-0">NDA erstellen</button></div></section>
-    {open && <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-3 md:items-center"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl md:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Dokumenten-Generator</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">{isDe ? 'Geheimhaltungsvereinbarung (NDA)' : 'Non-Disclosure Agreement (NDA)'}</h2></div><button onClick={() => setOpen(false)} className="btn-icon"><X className="h-5 w-5" /></button></div>
-      <div className="mt-6 grid grid-cols-2 gap-3"><button type="button" onClick={() => update('language', 'de')} className={`rounded-2xl border px-4 py-3 font-extrabold ${form.language === 'de' ? 'border-[#5CB800] bg-[#5CB800]/10 text-[#2F8A00]' : 'border-slate-200 text-[#07142F]'}`}>🇩🇪 Deutsch</button><button type="button" onClick={() => update('language', 'en')} className={`rounded-2xl border px-4 py-3 font-extrabold ${form.language === 'en' ? 'border-[#5CB800] bg-[#5CB800]/10 text-[#2F8A00]' : 'border-slate-200 text-[#07142F]'}`}>🇬🇧 English</button></div>
-      <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">{isDe ? 'Absender' : 'Sender'}: {EMA.company}</div>
-      <h3 className="mt-7 text-sm font-extrabold uppercase tracking-[.12em] text-slate-500">{isDe ? 'Vertragspartner' : 'Contracting party'}</h3>
-      <div className="mt-3 grid gap-3 md:grid-cols-2"><input className="form-input md:col-span-2" value={form.company} onChange={(e) => update('company', e.target.value)} placeholder={isDe ? 'Unternehmen' : 'Company'} /><input className="form-input md:col-span-2" value={form.contactPerson} onChange={(e) => update('contactPerson', e.target.value)} placeholder={isDe ? 'Ansprechpartner' : 'Contact person'} /><input className="form-input md:col-span-2" value={form.street} onChange={(e) => update('street', e.target.value)} placeholder={isDe ? 'Straße' : 'Street'} /><input className="form-input" value={form.postalCode} onChange={(e) => update('postalCode', e.target.value)} placeholder={isDe ? 'PLZ' : 'Postal code'} /><input className="form-input" value={form.city} onChange={(e) => update('city', e.target.value)} placeholder={isDe ? 'Ort' : 'City'} /><input className="form-input" value={form.country} onChange={(e) => update('country', e.target.value)} placeholder={isDe ? 'Land' : 'Country'} /><input className="form-input" value={form.representedBy} onChange={(e) => update('representedBy', e.target.value)} placeholder={isDe ? 'Vertreten durch' : 'Represented by'} /><input className="form-input md:col-span-2" value={form.signatory} onChange={(e) => update('signatory', e.target.value)} placeholder={isDe ? 'Unterschriftsberechtigte Person' : 'Authorised signatory'} /></div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm font-bold text-[#07142F]">{isDe ? 'Datum' : 'Date'}<input type="date" className="form-input mt-1 w-full" value={form.agreementDate} onChange={(e) => update('agreementDate', e.target.value)} /></label><label className="text-sm font-bold text-[#07142F]">{isDe ? 'Dauer' : 'Duration'}<select className="form-input mt-1 w-full" value={form.duration} onChange={(e) => update('duration', Number(e.target.value) as Duration)}><option value={1}>1 {isDe ? 'Jahr' : 'year'}</option><option value={2}>2 {isDe ? 'Jahre' : 'years'}</option><option value={3}>3 {isDe ? 'Jahre' : 'years'}</option></select></label></div>
-      {expiryDate && <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">{isDe ? 'Ablaufdatum' : 'Expiry date'}: {isDe ? format(expiryDate, 'dd.MM.yyyy', { locale: de }) : format(expiryDate, 'MM/dd/yyyy')}</p>}
-      <textarea className="form-input mt-3 min-h-24 w-full" value={form.purpose} onChange={(e) => update('purpose', e.target.value)} placeholder={isDe ? 'Zweck / Projektbezug (optional)' : 'Purpose / Project reference (optional)'} />
-      <select className="form-input mt-3 w-full" value={form.folderId} onChange={(e) => update('folderId', e.target.value)}><option value="">{isDe ? 'Kein Ordner' : 'No folder'}</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select>
+    <section className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#2F8A00]"><FileSignature className="h-6 w-6" /></span><div><h2 className="text-xl font-extrabold text-[#07142F]">NDA erstellen</h2><p className="mt-1 text-sm text-muted-foreground">Investor auswählen und eine gemeinsame PDF auf Deutsch und Englisch erstellen.</p></div></div><button type="button" onClick={() => setOpen(true)} className="btn-primary shrink-0">NDA erstellen</button></div></section>
+    {open && <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-3 md:items-center"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl md:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Dokumenten-Generator</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">NDA · Deutsch &amp; English</h2></div><button onClick={() => setOpen(false)} className="btn-icon"><X className="h-5 w-5" /></button></div>
+      <div className="mt-5 rounded-2xl border border-[#5CB800]/30 bg-[#5CB800]/8 p-4"><label className="text-sm font-extrabold text-[#07142F]">Investor aus Liste auswählen<select className="form-input mt-2 w-full bg-white" value={selectedInvestorId} onChange={(e) => selectInvestor(e.target.value)}><option value="">Manuell eingeben / Manual entry</option>{investors.map((investor) => <option key={investor.id} value={investor.id}>{documentInvestorLabel(investor)}</option>)}</select></label><p className="mt-2 text-xs leading-5 text-slate-600">Firma, Ansprechpartner, Ort und Land werden übernommen. Fehlende rechtliche Angaben bitte unten ergänzen. Das gespeicherte Dokument wird automatisch dem Investor zugeordnet.</p></div>
+      <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Absender / Sender: EMA Enterprise GmbH</div>
+      <h3 className="mt-7 text-sm font-extrabold uppercase tracking-[.12em] text-slate-500">Vertragspartner / Contracting party</h3>
+      <div className="mt-3 grid gap-3 md:grid-cols-2"><input className="form-input md:col-span-2" value={form.company} onChange={(e) => update('company', e.target.value)} placeholder="Unternehmen / Company" /><input className="form-input md:col-span-2" value={form.contactPerson} onChange={(e) => update('contactPerson', e.target.value)} placeholder="Ansprechpartner / Contact person" /><input className="form-input" type="email" value={form.email} onChange={(e) => update('email', e.target.value)} placeholder="E-Mail" /><input className="form-input" type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="Telefon / Phone" /><input className="form-input md:col-span-2" value={form.street} onChange={(e) => update('street', e.target.value)} placeholder="Straße / Street" /><input className="form-input" value={form.postalCode} onChange={(e) => update('postalCode', e.target.value)} placeholder="PLZ / Postal code" /><input className="form-input" value={form.city} onChange={(e) => update('city', e.target.value)} placeholder="Ort / City" /><input className="form-input" value={form.country} onChange={(e) => update('country', e.target.value)} placeholder="Land / Country" /><input className="form-input" value={form.representedBy} onChange={(e) => update('representedBy', e.target.value)} placeholder="Vertreten durch / Represented by" /><input className="form-input md:col-span-2" value={form.signatory} onChange={(e) => update('signatory', e.target.value)} placeholder="Unterschriftsberechtigte Person / Authorised signatory" /></div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm font-bold text-[#07142F]">Datum / Date<input type="date" className="form-input mt-1 w-full" value={form.agreementDate} onChange={(e) => update('agreementDate', e.target.value)} /></label><label className="text-sm font-bold text-[#07142F]">Dauer / Duration<select className="form-input mt-1 w-full" value={form.duration} onChange={(e) => update('duration', Number(e.target.value) as Duration)}><option value={1}>1 Jahr / year</option><option value={2}>2 Jahre / years</option><option value={3}>3 Jahre / years</option></select></label></div>
+      {expiryDate && <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Ablaufdatum / Expiry date: {format(expiryDate, 'dd.MM.yyyy', { locale: de })}</p>}
+      <div className="mt-3 grid gap-3 md:grid-cols-2"><textarea className="form-input min-h-24 w-full" value={form.purposeDe} onChange={(e) => update('purposeDe', e.target.value)} placeholder="Zweck / Projektbezug auf Deutsch (optional)" /><textarea className="form-input min-h-24 w-full" value={form.purposeEn} onChange={(e) => update('purposeEn', e.target.value)} placeholder="Purpose / project reference in English (optional)" /></div>
+      <select className="form-input mt-3 w-full" value={form.folderId} onChange={(e) => update('folderId', e.target.value)}><option value="">Kein Ordner / No folder</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select>
       <p className="mt-4 text-xs leading-5 text-muted-foreground">Hinweis: Diese Vorlage ersetzt keine individuelle Rechtsberatung. Vor dem produktiven Einsatz sollte der Vertrag rechtlich geprüft werden.</p>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={preview} className="btn-secondary inline-flex items-center justify-center gap-2"><Eye className="h-4 w-4" />{isDe ? 'Vorschau öffnen' : 'Open preview'}</button><button type="button" onClick={save} disabled={saving} className="btn-primary inline-flex items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Wird gespeichert…' : isDe ? 'PDF erstellen und speichern' : 'Create and save PDF'}</button></div>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={preview} className="btn-secondary inline-flex items-center justify-center gap-2"><Eye className="h-4 w-4" />Vorschau öffnen</button><button type="button" onClick={save} disabled={saving} className="btn-primary inline-flex items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Wird gespeichert…' : 'DE/EN-PDF erstellen und speichern'}</button></div>
     </div></div>}
   </>
 }

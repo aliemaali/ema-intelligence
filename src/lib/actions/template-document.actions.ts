@@ -74,10 +74,21 @@ export async function deleteDocumentFolder(folderId: string) {
   return { success: true }
 }
 
-export async function createTemplateDocumentRecord(params: { displayName: string; category: string; fileName: string; filePath: string; fileSizeBytes: number; mimeType: string; folderId?: string | null }) {
+export async function createTemplateDocumentRecord(params: { displayName: string; category: string; fileName: string; filePath: string; fileSizeBytes: number; mimeType: string; folderId?: string | null; investorId?: string | null }) {
   const { supabase, userId } = await requireUser()
+  if (params.investorId) {
+    const { data: investor } = await (supabase as any).from('investors').select('id').eq('id', params.investorId).eq('user_id', userId).eq('is_active', true).maybeSingle()
+    if (!investor) return { error: 'Der ausgewählte Investor wurde nicht gefunden.' }
+  }
   const { data, error } = await (supabase as any).from('template_documents').insert({ user_id: userId, display_name: params.displayName, category: params.category, file_name: params.fileName, file_path: params.filePath, file_size_bytes: params.fileSizeBytes, mime_type: params.mimeType, folder_id: params.folderId ?? null }).select('id').single()
   if (error) return { error: error.message }
+  if (params.investorId) {
+    const { error: assignmentError } = await (supabase as any).from('document_assignments').insert({ document_id: data.id, user_id: userId, entity_type: 'investor', entity_id: params.investorId })
+    if (assignmentError) {
+      await (supabase as any).from('template_documents').delete().eq('id', data.id).eq('user_id', userId)
+      return { error: assignmentError.message }
+    }
+  }
   revalidateDocuments()
   return { success: true, id: data.id }
 }
