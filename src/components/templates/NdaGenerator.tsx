@@ -9,12 +9,11 @@ import { toast } from 'sonner'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
 import { buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, safeLegalDocumentFilePart, type LegalDocumentAssets } from '@/lib/pdf/legalDocuments'
 import { createClient } from '@/lib/supabase/client'
-import { documentInvestorLabel, type DocumentInvestor } from '@/lib/templates/documentTypes'
+import { documentInvestorLabel, NDA_DOCUMENT_FOLDER_NAME, type DocumentInvestor } from '@/lib/templates/documentTypes'
 
-type FolderItem = { id: string; name: string }
 type Duration = 1 | 2 | 3
 
-type Props = { userId: string; folders: FolderItem[]; investors: DocumentInvestor[] }
+type Props = { userId: string; investors: DocumentInvestor[] }
 
 type FormState = {
   company: string
@@ -31,7 +30,6 @@ type FormState = {
   purposeDe: string
   purposeEn: string
   duration: Duration
-  folderId: string
 }
 
 async function fetchDataUrl(path: string) {
@@ -58,7 +56,7 @@ async function fetchFontBase64(path: string) {
   return btoa(binary)
 }
 
-export function NdaGenerator({ userId, folders, investors }: Props) {
+export function NdaGenerator({ userId, investors }: Props) {
   const router = useRouter()
   const supabase = createClient()
   const [open, setOpen] = useState(false)
@@ -68,7 +66,7 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
   const [selectedInvestorId, setSelectedInvestorId] = useState('')
   const [form, setForm] = useState<FormState>({
     company: '', contactPerson: '', email: '', phone: '', street: '', postalCode: '', city: '', country: 'Deutschland',
-    representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purposeDe: DEFAULT_NDA_PURPOSE.de, purposeEn: DEFAULT_NDA_PURPOSE.en, duration: 3, folderId: '',
+    representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purposeDe: DEFAULT_NDA_PURPOSE.de, purposeEn: DEFAULT_NDA_PURPOSE.en, duration: 3,
   })
 
   useEffect(() => {
@@ -126,7 +124,7 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
   }
 
   const preview = () => { try { const doc = buildPdf(); const url = URL.createObjectURL(doc.output('blob')); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) } catch (error) { toast.error(error instanceof Error ? error.message : 'Vorschau konnte nicht erstellt werden.') } }
-  const save = async () => { setSaving(true); try { const doc = buildPdf(); const blob = doc.output('blob'); const fileName = `NDA_${safeLegalDocumentFilePart(form.company)}_DE-EN_${form.agreementDate}.pdf`; const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `NDA – ${form.company} – DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: blob.size, mimeType: 'application/pdf', folderId: form.folderId || null, investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('Zweisprachige NDA wurde erstellt, gespeichert und zugeordnet.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
+  const save = async () => { setSaving(true); try { const doc = buildPdf(); const blob = doc.output('blob'); const fileName = `NDA_${safeLegalDocumentFilePart(form.company)}_DE-EN_${form.agreementDate}.pdf`; const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `NDA – ${form.company} – DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: blob.size, mimeType: 'application/pdf', investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('Zweisprachige NDA wurde im Ordner „NDA“ gespeichert und zugeordnet.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
 
   return <>
     <section className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#2F8A00]"><FileSignature className="h-6 w-6" /></span><div><h2 className="text-xl font-extrabold text-[#07142F]">NDA erstellen</h2><p className="mt-1 text-sm text-muted-foreground">Investor auswählen und eine gemeinsame PDF auf Deutsch und Englisch erstellen.</p></div></div><button type="button" onClick={() => setOpen(true)} className="btn-primary shrink-0">NDA erstellen</button></div></section>
@@ -139,7 +137,7 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
       <div className="mt-3 grid gap-3 md:grid-cols-2"><label className="text-sm font-bold text-[#07142F]">Datum / Date<input type="date" className="form-input mt-1 w-full" value={form.agreementDate} onChange={(e) => update('agreementDate', e.target.value)} /></label><label className="text-sm font-bold text-[#07142F]">Dauer / Duration<select className="form-input mt-1 w-full" value={form.duration} onChange={(e) => update('duration', Number(e.target.value) as Duration)}><option value={1}>1 Jahr / year</option><option value={2}>2 Jahre / years</option><option value={3}>3 Jahre / years</option></select></label></div>
       {expiryDate && <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600">Ablaufdatum / Expiry date: {format(expiryDate, 'dd.MM.yyyy', { locale: de })}</p>}
       <div className="mt-3 grid gap-3 md:grid-cols-2"><textarea className="form-input min-h-24 w-full" value={form.purposeDe} onChange={(e) => update('purposeDe', e.target.value)} placeholder="Zweck / Projektbezug auf Deutsch (optional)" /><textarea className="form-input min-h-24 w-full" value={form.purposeEn} onChange={(e) => update('purposeEn', e.target.value)} placeholder="Purpose / project reference in English (optional)" /></div>
-      <select className="form-input mt-3 w-full" value={form.folderId} onChange={(e) => update('folderId', e.target.value)}><option value="">Kein Ordner / No folder</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select>
+      <p className="mt-3 rounded-xl border border-[#5CB800]/25 bg-[#5CB800]/8 px-4 py-3 text-sm font-bold text-[#1F2A44]">Speicherort: Dokumente / {NDA_DOCUMENT_FOLDER_NAME}</p>
       <p className="mt-4 text-xs leading-5 text-muted-foreground">Hinweis: Diese Vorlage ersetzt keine individuelle Rechtsberatung. Vor dem produktiven Einsatz sollte der Vertrag rechtlich geprüft werden.</p>
       {assetError && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{assetError}</p>}
       <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={preview} disabled={!assets} className="btn-secondary inline-flex items-center justify-center gap-2"><Eye className="h-4 w-4" />{assets ? 'Vorschau öffnen' : 'PDF wird vorbereitet…'}</button><button type="button" onClick={save} disabled={saving || !assets} className="btn-primary inline-flex items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Wird gespeichert…' : 'DE/EN-PDF erstellen und speichern'}</button></div>
