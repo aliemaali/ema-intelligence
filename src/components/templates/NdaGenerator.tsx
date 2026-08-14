@@ -7,7 +7,7 @@ import { Eye, FileSignature, Save, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
-import { buildBilingualNdaPdf } from '@/lib/pdf/legalDocuments'
+import { buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE } from '@/lib/pdf/legalDocuments'
 import { createClient } from '@/lib/supabase/client'
 import { documentInvestorLabel, type DocumentInvestor } from '@/lib/templates/documentTypes'
 
@@ -46,7 +46,7 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
   const [selectedInvestorId, setSelectedInvestorId] = useState('')
   const [form, setForm] = useState<FormState>({
     company: '', contactPerson: '', email: '', phone: '', street: '', postalCode: '', city: '', country: 'Deutschland',
-    representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purposeDe: '', purposeEn: '', duration: 3, folderId: '',
+    representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purposeDe: DEFAULT_NDA_PURPOSE.de, purposeEn: DEFAULT_NDA_PURPOSE.en, duration: 3, folderId: '',
   })
 
   const expiryDate = useMemo(() => {

@@ -12,6 +12,11 @@ const EMA = {
   representedBy: 'Ali Ünlüer',
 }
 
+export const DEFAULT_NDA_PURPOSE = {
+  de: 'Prüfung, Bewertung, Strukturierung und Vorbereitung einer möglichen geschäftlichen Zusammenarbeit, Investition, Vermittlung oder Akquisition im Zusammenhang mit Photovoltaik-, Batteriespeicher- (BESS) und Windenergieprojekten sowie den dazugehörigen Unternehmen, Vermögenswerten und Projektrechten.',
+  en: 'Review, evaluation, structuring and preparation of a potential business cooperation, investment, brokerage or acquisition relating to photovoltaic, battery energy storage system (BESS) and wind energy projects, including the associated companies, assets and project rights.',
+} as const
+
 type LegalLanguage = 'de' | 'en'
 
 export type BilingualNdaData = {
@@ -90,9 +95,7 @@ export function buildBilingualNdaPdf(data: BilingualNdaData) {
     let y = 20
     const agreementDateText = dateLabel(agreementDate, language)
     const expiryDateText = dateLabel(expiryDate, language)
-    const purpose = (isDe ? data.purposeDe : data.purposeEn).trim() || (isDe
-      ? 'Prüfung und Vorbereitung einer möglichen geschäftlichen Zusammenarbeit.'
-      : 'Evaluation and preparation of a potential business cooperation.')
+    const purpose = (isDe ? data.purposeDe : data.purposeEn).trim() || DEFAULT_NDA_PURPOSE[language]
     const ensureSpace = (needed = 22) => {
       if (y + needed > 278) {
         doc.addPage()
