@@ -23,6 +23,7 @@ type Tab = "details" | "projects";
 
 const EMPTY_FORM: InvestorFormInput = {
   company_name: "", contact_person: "", email: "", phone: "",
+  street_address: "", postal_code: "", location_city: "", location_country: "Deutschland",
   ticket_size_min_eur: null, ticket_size_max_eur: null,
   focus: "PV", status: "Neu", last_contact_at: null, next_contact_at: null, notes: "",
 };
@@ -37,7 +38,9 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
   const [activeTab, setActiveTab] = useState<Tab>("details");
   const [form, setForm] = useState<InvestorFormInput>(initial ? {
     company_name: initial.company_name, contact_person: initial.contact_person, email: initial.email,
-    phone: initial.phone, ticket_size_min_eur: initial.ticket_size_min_eur,
+    phone: initial.phone, street_address: initial.street_address, postal_code: initial.postal_code,
+    location_city: initial.location_city, location_country: initial.location_country,
+    ticket_size_min_eur: initial.ticket_size_min_eur,
     ticket_size_max_eur: initial.ticket_size_max_eur, focus: initial.focus, status: initial.status,
     last_contact_at: initial.last_contact_at, next_contact_at: initial.next_contact_at, notes: initial.notes,
   } : EMPTY_FORM);
@@ -110,6 +113,12 @@ export function InvestorFormModal({ initial, projects, onClose, onSaved }: Inves
             <Field label="Ansprechpartner *" full><input value={form.contact_person} onChange={(e) => update("contact_person", e.target.value)} className="input" /></Field>
             <Field label="E-Mail *"><input value={form.email} onChange={(e) => update("email", e.target.value)} className="input" /></Field>
             <Field label="Telefon"><input value={form.phone ?? ""} onChange={(e) => update("phone", e.target.value)} className="input" /></Field>
+            <div className="col-span-2 mt-1 border-t border-slate-100 pt-4 text-[11.5px] font-extrabold uppercase tracking-[0.12em] text-[#1F2A44]">Geschäftsanschrift</div>
+            <Field label="Straße & Hausnummer" full><input value={form.street_address ?? ""} onChange={(e) => update("street_address", e.target.value)} autoComplete="street-address" className="input" /></Field>
+            <Field label="PLZ"><input value={form.postal_code ?? ""} onChange={(e) => update("postal_code", e.target.value)} autoComplete="postal-code" className="input" /></Field>
+            <Field label="Ort"><input value={form.location_city ?? ""} onChange={(e) => update("location_city", e.target.value)} autoComplete="address-level2" className="input" /></Field>
+            <Field label="Land" full><input value={form.location_country ?? ""} onChange={(e) => update("location_country", e.target.value)} autoComplete="country-name" className="input" /></Field>
+            <div className="col-span-2 mt-1 border-t border-slate-100 pt-4 text-[11.5px] font-extrabold uppercase tracking-[0.12em] text-[#1F2A44]">Investitionsprofil</div>
             <Field label="Investitionsvolumen min. (EUR)"><input inputMode="numeric" value={formatInteger(form.ticket_size_min_eur)} onChange={(e) => update("ticket_size_min_eur", parseInteger(e.target.value))} className="input tabular-nums" /></Field>
             <Field label="Investitionsvolumen max. (EUR)"><input inputMode="numeric" value={formatInteger(form.ticket_size_max_eur)} onChange={(e) => update("ticket_size_max_eur", parseInteger(e.target.value))} className="input tabular-nums" /></Field>
             <Field label="Fokus"><select value={form.focus} onChange={(e) => update("focus", e.target.value as InvestorFocus)} className="input">{Object.entries(INVESTOR_FOCUS_LABELS).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></Field>

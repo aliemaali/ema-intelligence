@@ -4,6 +4,8 @@ export type DocumentInvestor = {
   contactPerson: string
   email: string
   phone: string
+  street: string
+  postalCode: string
   city: string
   country: string
 }
@@ -13,5 +15,5 @@ export function documentInvestorLabel(investor: DocumentInvestor) {
 }
 
 export function partialInvestorAddress(investor: DocumentInvestor) {
-  return [investor.city, investor.country].filter(Boolean).join(', ')
+  return [investor.street, [investor.postalCode, investor.city].filter(Boolean).join(' '), investor.country].filter(Boolean).join(', ')
 }
