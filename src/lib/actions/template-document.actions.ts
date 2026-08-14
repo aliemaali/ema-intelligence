@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { defaultDocumentFolderName } from '@/lib/templates/documentTypes'
 
 export type DocumentEntityType = 'partner' | 'investor' | 'project'
 
@@ -74,13 +75,66 @@ export async function deleteDocumentFolder(folderId: string) {
   return { success: true }
 }
 
+async function resolveTemplateDocumentFolderId(
+  supabase: any,
+  userId: string,
+  category: string,
+  requestedFolderId?: string | null,
+) {
+  if (requestedFolderId) {
+    const { data, error } = await supabase
+      .from('document_folders')
+      .select('id')
+      .eq('id', requestedFolderId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (error) return { error: error.message }
+    if (!data) return { error: 'Ordner nicht gefunden.' }
+    return { folderId: data.id as string }
+  }
+
+  const defaultFolderName = defaultDocumentFolderName(category)
+  if (!defaultFolderName) return { folderId: null }
+
+  const { data: existing, error: selectError } = await supabase
+    .from('document_folders')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('name', defaultFolderName)
+    .maybeSingle()
+  if (selectError) return { error: selectError.message }
+  if (existing) return { folderId: existing.id as string }
+
+  const { data: created, error: insertError } = await supabase
+    .from('document_folders')
+    .insert({ user_id: userId, name: defaultFolderName })
+    .select('id')
+    .single()
+  if (!insertError && created) return { folderId: created.id as string }
+
+  if (insertError?.code === '23505') {
+    const { data: concurrentFolder, error: retryError } = await supabase
+      .from('document_folders')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('name', defaultFolderName)
+      .single()
+    if (!retryError && concurrentFolder) return { folderId: concurrentFolder.id as string }
+    return { error: retryError?.message ?? insertError.message }
+  }
+
+  return { error: insertError?.message ?? 'NDA-Ordner konnte nicht erstellt werden.' }
+}
+
 export async function createTemplateDocumentRecord(params: { displayName: string; category: string; fileName: string; filePath: string; fileSizeBytes: number; mimeType: string; folderId?: string | null; investorId?: string | null }) {
   const { supabase, userId } = await requireUser()
   if (params.investorId) {
     const { data: investor } = await (supabase as any).from('investors').select('id').eq('id', params.investorId).eq('user_id', userId).eq('is_active', true).maybeSingle()
     if (!investor) return { error: 'Der ausgewählte Investor wurde nicht gefunden.' }
   }
-  const { data, error } = await (supabase as any).from('template_documents').insert({ user_id: userId, display_name: params.displayName, category: params.category, file_name: params.fileName, file_path: params.filePath, file_size_bytes: params.fileSizeBytes, mime_type: params.mimeType, folder_id: params.folderId ?? null }).select('id').single()
+  const resolvedFolder = await resolveTemplateDocumentFolderId(supabase, userId, params.category, params.folderId)
+  if (resolvedFolder.error) return { error: resolvedFolder.error }
+  const { data, error } = await (supabase as any).from('template_documents').insert({ user_id: userId, display_name: params.displayName, category: params.category, file_name: params.fileName, file_path: params.filePath, file_size_bytes: params.fileSizeBytes, mime_type: params.mimeType, folder_id: resolvedFolder.folderId }).select('id').single()
   if (error) return { error: error.message }
   if (params.investorId) {
     const { error: assignmentError } = await (supabase as any).from('document_assignments').insert({ document_id: data.id, user_id: userId, entity_type: 'investor', entity_id: params.investorId })
