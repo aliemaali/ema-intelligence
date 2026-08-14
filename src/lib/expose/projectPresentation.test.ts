@@ -110,6 +110,8 @@ describe('getExposePresentation language variants', () => {
     assert.match(html, /1\.000 <small>€\/kWp<\/small>/)
     assert.match(html, /0,096 <small>€\/kWh<\/small>/)
     assert.match(html, /11,1/)
+    assert.match(html, /CONFIDENTIAL · For the intended recipient only/)
+    assert.match(html, /No disclosure or reproduction without the prior written consent of EMA Enterprise GmbH/)
     assert.doesNotMatch(html, /Wirtschaftliche Kennzahlen/)
   })
 
@@ -139,6 +141,8 @@ describe('getExposePresentation language variants', () => {
     assert.match(html, /Portfolio- und Standortprüfung/)
     assert.match(html, /Bopfingen/)
     assert.match(html, /Kölsa/)
+    assert.match(html, /VERTRAULICH · Nur für den vorgesehenen Empfänger/)
+    assert.match(html, /Keine Weitergabe oder Vervielfältigung ohne vorherige schriftliche Zustimmung der EMA Enterprise GmbH/)
     assert.match(html, /Seite <span class="num">2<\/span> \/ 2/)
   })
 })

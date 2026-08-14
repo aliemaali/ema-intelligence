@@ -15,6 +15,7 @@ const E_GREEN = '#5CB800'
 const E_LIGHT = '#F4F6F8'
 const E_GREY = '#8A95A5'
 const E_BORDER = '#D8DEE6'
+const CAPEX_CONFIDENTIALITY = 'VERTRAULICH · Nur für den vorgesehenen Empfänger · Keine Weitergabe oder Vervielfältigung ohne vorherige schriftliche Zustimmung der EMA Enterprise GmbH.'
 
 interface CapexExposeProps {
   project: CapexProject
@@ -175,7 +176,10 @@ function PageFooter({ page }: { page: number }) {
       className="absolute flex justify-between pt-1 text-[7.5px]"
       style={{ bottom: '12mm', left: '20mm', right: '20mm', borderTop: `0.5px solid ${E_BORDER}`, color: E_GREY }}
     >
-      <span>EMA Enterprise GmbH · Worms, Deutschland · www.ema-enterprise.de</span>
+      <div style={{ maxWidth: '155mm' }}>
+        <div>EMA Enterprise GmbH · Worms, Deutschland · www.ema-enterprise.de</div>
+        <div className="mt-0.5 font-bold" style={{ color: E_NAVY }}>{CAPEX_CONFIDENTIALITY}</div>
+      </div>
       <span>Seite {page}</span>
     </div>
   )
@@ -309,9 +313,10 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
                 ))}
               </div>
             </div>
-            <div className="mt-8 text-[8px]" style={{ color: '#7E92AD' }}>
-              Vertraulich – ausschließlich zur Information potenzieller Investoren. Stand:{' '}
-              {new Date().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}.
+            <div className="mt-8 text-[8px] leading-relaxed" style={{ color: '#AFC0D5' }}>
+              <strong>VERTRAULICH</strong> · Nur für den vorgesehenen Empfänger · Keine Weitergabe
+              oder Vervielfältigung ohne vorherige schriftliche Zustimmung der EMA Enterprise GmbH.
+              {' '}Stand: {new Date().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}.
             </div>
           </div>
         </div>
@@ -501,7 +506,8 @@ body{font-family:Arial,Helvetica,sans-serif;background:#e9ecef;-webkit-print-col
               Wertpapieren dar. Alle Angaben beruhen auf aktuellen Planungsannahmen und
               Schätzungen; tatsächliche Ergebnisse können hiervon abweichen. EMA Enterprise GmbH
               übernimmt keine Gewähr für die Vollständigkeit oder Richtigkeit der dargestellten
-              Informationen.
+              Informationen. Das Dokument ist vertraulich und darf ohne vorherige schriftliche
+              Zustimmung der EMA Enterprise GmbH weder weitergegeben noch vervielfältigt werden.
             </p>
           </div>
           <PageFooter page={3} />
