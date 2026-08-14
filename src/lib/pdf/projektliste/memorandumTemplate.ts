@@ -76,8 +76,8 @@ function copy(language: MemorandumPdfData['language']) {
     tariff: en ? 'Feed-in tariff' : 'Vergütung',
     mapHint: en ? 'Location marker based on the project record' : 'Standortmarker auf Basis der Projektdaten',
     confidentiality: en
-      ? 'Confidential · solely for review by the named recipient · not a public offer'
-      : 'Vertraulich · ausschließlich zur Prüfung durch den benannten Empfänger · kein öffentliches Angebot',
+      ? 'CONFIDENTIAL · For the intended recipient only · No disclosure or reproduction without the prior written consent of EMA Enterprise GmbH'
+      : 'VERTRAULICH · Nur für den vorgesehenen Empfänger · Keine Weitergabe oder Vervielfältigung ohne vorherige schriftliche Zustimmung der EMA Enterprise GmbH',
     page: en ? 'Page' : 'Seite',
   };
 }
