@@ -1,13 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { addYears, format } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { Eye, FileSignature, Save, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
-import { buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE } from '@/lib/pdf/legalDocuments'
+import { buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, type LegalDocumentAssets } from '@/lib/pdf/legalDocuments'
 import { createClient } from '@/lib/supabase/client'
 import { documentInvestorLabel, type DocumentInvestor } from '@/lib/templates/documentTypes'
 
@@ -35,7 +35,31 @@ type FormState = {
 }
 
 function safeFilePart(value: string) {
-  return value.trim().replace(/[^a-zA-Z0-9äöüÄÖÜß_-]+/g, '_').replace(/^_+|_+$/g, '') || 'Vertragspartner'
+  return value.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || 'Vertragspartner'
+}
+
+async function fetchDataUrl(path: string) {
+  const response = await fetch(path)
+  if (!response.ok) throw new Error('EMA-Design konnte nicht geladen werden.')
+  const blob = await response.blob()
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('EMA-Design konnte nicht gelesen werden.'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function fetchFontBase64(path: string) {
+  const response = await fetch(path)
+  if (!response.ok) throw new Error('PDF-Schrift konnte nicht geladen werden.')
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  let binary = ''
+  const chunkSize = 32_768
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize))
+  }
+  return btoa(binary)
 }
 
 export function NdaGenerator({ userId, folders, investors }: Props) {
@@ -43,11 +67,30 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
   const supabase = createClient()
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [assets, setAssets] = useState<LegalDocumentAssets | null>(null)
+  const [assetError, setAssetError] = useState<string | null>(null)
   const [selectedInvestorId, setSelectedInvestorId] = useState('')
   const [form, setForm] = useState<FormState>({
     company: '', contactPerson: '', email: '', phone: '', street: '', postalCode: '', city: '', country: 'Deutschland',
     representedBy: '', signatory: '', agreementDate: format(new Date(), 'yyyy-MM-dd'), purposeDe: DEFAULT_NDA_PURPOSE.de, purposeEn: DEFAULT_NDA_PURPOSE.en, duration: 3, folderId: '',
   })
+
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      fetchDataUrl('/brand/ema-logo.png'),
+      fetchFontBase64('/fonts/inter/inter-latin-ext-400.ttf'),
+      fetchFontBase64('/fonts/inter/inter-latin-ext-600.ttf'),
+      fetchFontBase64('/fonts/inter/inter-latin-ext-700.ttf'),
+    ]).then(([logoDataUrl, regularFontBase64, semiBoldFontBase64, boldFontBase64]) => {
+      if (!active) return
+      setAssets({ logoDataUrl, regularFontBase64, semiBoldFontBase64, boldFontBase64 })
+    }).catch((error) => {
+      if (!active) return
+      setAssetError(error instanceof Error ? error.message : 'PDF-Design konnte nicht vorbereitet werden.')
+    })
+    return () => { active = false }
+  }, [])
 
   const expiryDate = useMemo(() => {
     const date = new Date(`${form.agreementDate}T12:00:00`)
@@ -84,7 +127,8 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
   const buildPdf = () => {
     const error = validate()
     if (error) throw new Error(error)
-    return buildBilingualNdaPdf(form)
+    if (!assets) throw new Error(assetError ?? 'PDF wird noch vorbereitet. Bitte kurz warten.')
+    return buildBilingualNdaPdf(form, assets)
   }
 
   const preview = () => { try { const doc = buildPdf(); const url = URL.createObjectURL(doc.output('blob')); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) } catch (error) { toast.error(error instanceof Error ? error.message : 'Vorschau konnte nicht erstellt werden.') } }
@@ -102,7 +146,8 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
       <div className="mt-3 grid gap-3 md:grid-cols-2"><textarea className="form-input min-h-24 w-full" value={form.purposeDe} onChange={(e) => update('purposeDe', e.target.value)} placeholder="Zweck / Projektbezug auf Deutsch (optional)" /><textarea className="form-input min-h-24 w-full" value={form.purposeEn} onChange={(e) => update('purposeEn', e.target.value)} placeholder="Purpose / project reference in English (optional)" /></div>
       <select className="form-input mt-3 w-full" value={form.folderId} onChange={(e) => update('folderId', e.target.value)}><option value="">Kein Ordner / No folder</option>{folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}</select>
       <p className="mt-4 text-xs leading-5 text-muted-foreground">Hinweis: Diese Vorlage ersetzt keine individuelle Rechtsberatung. Vor dem produktiven Einsatz sollte der Vertrag rechtlich geprüft werden.</p>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={preview} className="btn-secondary inline-flex items-center justify-center gap-2"><Eye className="h-4 w-4" />Vorschau öffnen</button><button type="button" onClick={save} disabled={saving} className="btn-primary inline-flex items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Wird gespeichert…' : 'DE/EN-PDF erstellen und speichern'}</button></div>
+      {assetError && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{assetError}</p>}
+      <div className="mt-6 grid gap-3 sm:grid-cols-2"><button type="button" onClick={preview} disabled={!assets} className="btn-secondary inline-flex items-center justify-center gap-2"><Eye className="h-4 w-4" />{assets ? 'Vorschau öffnen' : 'PDF wird vorbereitet…'}</button><button type="button" onClick={save} disabled={saving || !assets} className="btn-primary inline-flex items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Wird gespeichert…' : 'DE/EN-PDF erstellen und speichern'}</button></div>
     </div></div>}
   </>
 }

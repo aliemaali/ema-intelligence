@@ -19,6 +19,13 @@ export const DEFAULT_NDA_PURPOSE = {
 
 type LegalLanguage = 'de' | 'en'
 
+export type LegalDocumentAssets = {
+  logoDataUrl?: string
+  regularFontBase64?: string
+  semiBoldFontBase64?: string
+  boldFontBase64?: string
+}
+
 export type BilingualNdaData = {
   company: string
   contactPerson: string
@@ -71,116 +78,230 @@ function money(value: number, language: LegalLanguage) {
   }).format(value || 0)
 }
 
-function addPageNumbers(doc: jsPDF, label: string) {
+function configureDocumentFonts(doc: jsPDF, assets?: LegalDocumentAssets) {
+  if (!assets?.regularFontBase64 || !assets.semiBoldFontBase64 || !assets.boldFontBase64) return 'helvetica'
+
+  doc.addFileToVFS('Inter-Regular.ttf', assets.regularFontBase64)
+  doc.addFileToVFS('Inter-SemiBold.ttf', assets.semiBoldFontBase64)
+  doc.addFileToVFS('Inter-Bold.ttf', assets.boldFontBase64)
+  doc.addFont('Inter-Regular.ttf', 'Inter', 'normal')
+  doc.addFont('Inter-SemiBold.ttf', 'Inter', 'bold')
+  doc.addFont('Inter-Bold.ttf', 'Inter', 'bolditalic')
+  return 'Inter'
+}
+
+function addPageNumbers(doc: jsPDF, label: string, fontFamily = 'helvetica') {
   const pages = doc.getNumberOfPages()
   for (let page = 1; page <= pages; page += 1) {
     doc.setPage(page)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(120)
-    doc.text(`${EMA.company} · ${label} · DE/EN · ${page}/${pages}`, 105, 290, { align: 'center' })
+    doc.setDrawColor(226, 231, 238)
+    doc.setLineWidth(0.25)
+    doc.line(18, 281.5, 192, 281.5)
+    doc.setFont(fontFamily, 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(112, 121, 137)
+    doc.text(`${EMA.company} · ${label} · DE/EN`, 18, 288)
+    doc.text(`${page} / ${pages}`, 192, 288, { align: 'right' })
   }
 }
 
-export function buildBilingualNdaPdf(data: BilingualNdaData) {
+export function buildBilingualNdaPdf(data: BilingualNdaData, assets?: LegalDocumentAssets) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+  const fontFamily = configureDocumentFonts(doc, assets)
   const agreementDate = documentDate(data.agreementDate)
   const expiryDate = addYears(agreementDate, data.duration)
+
+  const navy: [number, number, number] = [31, 42, 68]
+  const deepNavy: [number, number, number] = [11, 22, 51]
+  const green: [number, number, number] = [92, 184, 0]
+  const body: [number, number, number] = [46, 55, 72]
+  const muted: [number, number, number] = [105, 116, 133]
+  const border: [number, number, number] = [222, 228, 236]
+  const panel: [number, number, number] = [247, 249, 252]
 
   const renderLanguage = (language: LegalLanguage, firstPage: boolean) => {
     if (!firstPage) doc.addPage()
     const isDe = language === 'de'
-    const margin = 20
-    const width = 170
-    let y = 20
+    const margin = 18
+    const width = 174
+    let y = 0
     const agreementDateText = dateLabel(agreementDate, language)
     const expiryDateText = dateLabel(expiryDate, language)
     const purpose = (isDe ? data.purposeDe : data.purposeEn).trim() || DEFAULT_NDA_PURPOSE[language]
+
+    const addLogo = (x: number, yPosition: number, logoWidth: number) => {
+      if (assets?.logoDataUrl) {
+        doc.addImage(assets.logoDataUrl, 'PNG', x, yPosition, logoWidth, logoWidth / 2.1548, 'EMA_LEGAL_LOGO', 'FAST')
+        return
+      }
+      doc.setFont(fontFamily, 'bold')
+      doc.setFontSize(14)
+      doc.setTextColor(...navy)
+      doc.text('EMA', x, yPosition + 6)
+      doc.setFontSize(6.5)
+      doc.setTextColor(...muted)
+      doc.text('ENTERPRISE GmbH', x, yPosition + 11)
+    }
+
+    const continuationHeader = () => {
+      addLogo(margin, 8.5, 33)
+      doc.setFont(fontFamily, 'bold')
+      doc.setFontSize(7.1)
+      doc.setTextColor(...navy)
+      doc.text(isDe ? 'GEHEIMHALTUNGSVEREINBARUNG' : 'NON-DISCLOSURE AGREEMENT', 192, 14, { align: 'right' })
+      doc.setFont(fontFamily, 'normal')
+      doc.setTextColor(...muted)
+      doc.text(isDe ? 'DEUTSCHE FASSUNG · FORTSETZUNG' : 'ENGLISH VERSION · CONTINUED', 192, 20, { align: 'right' })
+      doc.setDrawColor(...border)
+      doc.setLineWidth(0.35)
+      doc.line(margin, 29.5, 192, 29.5)
+      doc.setDrawColor(...green)
+      doc.setLineWidth(1.1)
+      doc.line(margin, 29.5, 48, 29.5)
+      y = 40
+    }
+
     const ensureSpace = (needed = 22) => {
-      if (y + needed > 278) {
+      if (y + needed > 274) {
         doc.addPage()
-        y = 20
+        continuationHeader()
       }
     }
-    const heading = (text: string) => {
-      ensureSpace(18)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(12)
-      doc.setTextColor(31, 42, 68)
-      doc.text(text, margin, y)
-      y += 8
-    }
-    const paragraph = (text: string) => {
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9.5)
-      doc.setTextColor(35, 43, 58)
-      const lines = doc.splitTextToSize(text, width)
-      ensureSpace(lines.length * 4.5 + 5)
-      doc.text(lines, margin, y)
-      y += lines.length * 4.5 + 5
-    }
-    const header = () => {
-      doc.setFillColor(11, 22, 51)
-      doc.rect(0, 0, 210, 34, 'F')
-      doc.setFillColor(92, 184, 0)
-      doc.rect(0, 34, 210, 2.5, 'F')
-      doc.setTextColor(255)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(18)
-      doc.text(isDe ? 'GEHEIMHALTUNGSVEREINBARUNG' : 'NON-DISCLOSURE AGREEMENT', margin, 18)
-      doc.setFontSize(8.5)
-      doc.text(isDe ? 'DEUTSCHE FASSUNG' : 'ENGLISH VERSION', 190, 18, { align: 'right' })
+
+    const section = (heading: string, text: string) => {
+      doc.setFont(fontFamily, 'normal')
       doc.setFontSize(9)
-      doc.text(EMA.company, margin, 27)
-      y = 48
+      const lines = doc.splitTextToSize(text, width - 11) as string[]
+      const requiredHeight = 11 + lines.length * 4.35 + 5
+      ensureSpace(requiredHeight)
+
+      const match = heading.match(/^(\d+)\.\s*(.*)$/)
+      const number = match?.[1] ?? ''
+      const title = match?.[2] ?? heading
+      doc.setFillColor(...navy)
+      doc.roundedRect(margin, y - 5.1, 7.4, 7.4, 2, 2, 'F')
+      doc.setFont(fontFamily, 'bold')
+      doc.setFontSize(7.3)
+      doc.setTextColor(255, 255, 255)
+      doc.text(number, margin + 3.7, y - 0.25, { align: 'center' })
+      doc.setFontSize(10.4)
+      doc.setTextColor(...navy)
+      doc.text(title, margin + 11, y)
+      y += 8
+      doc.setFont(fontFamily, 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...body)
+      doc.text(lines, margin + 11, y, { lineHeightFactor: 1.38 })
+      y += lines.length * 4.35 + 7
     }
 
-    header()
-    paragraph(isDe
-      ? `Diese gegenseitige Geheimhaltungsvereinbarung wird am ${agreementDateText} geschlossen zwischen:`
-      : `This mutual Non-Disclosure Agreement is entered into on ${agreementDateText} by and between:`)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.text(EMA.company, margin, y)
-    y += 5
-    paragraph(`${EMA.street}, ${EMA.postalCode} ${EMA.city}, ${isDe ? EMA.countryDe : EMA.countryEn}\n${isDe ? 'vertreten durch' : 'represented by'} ${EMA.representedBy}`)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(10)
-    doc.text(data.company, margin, y)
-    y += 5
-    paragraph(`${data.street}, ${data.postalCode} ${data.city}, ${data.country}\n${isDe ? 'vertreten durch' : 'represented by'} ${data.representedBy}${data.contactPerson ? `\n${isDe ? 'Ansprechpartner' : 'Contact person'}: ${data.contactPerson}` : ''}${data.email ? ` · ${data.email}` : ''}${data.phone ? ` · ${data.phone}` : ''}`)
+    addLogo(margin, 9, 43)
+    doc.setFillColor(239, 248, 231)
+    doc.roundedRect(157, 9.5, 35, 8, 4, 4, 'F')
+    doc.setFont(fontFamily, 'bold')
+    doc.setFontSize(6.6)
+    doc.setTextColor(67, 131, 10)
+    doc.text(isDe ? 'VERTRAULICH' : 'CONFIDENTIAL', 174.5, 14.6, { align: 'center' })
+    doc.setFont(fontFamily, 'normal')
+    doc.setFontSize(7.1)
+    doc.setTextColor(...muted)
+    doc.text(isDe ? 'DEUTSCHE FASSUNG' : 'ENGLISH VERSION', 192, 24, { align: 'right' })
+    doc.text(`NDA · ${agreementDateText}`, 192, 30, { align: 'right' })
+    doc.setFont(fontFamily, 'bold')
+    doc.setFontSize(7.2)
+    doc.setTextColor(...green)
+    doc.text(isDe ? 'LEGAL DOCUMENTS · GEGENSEITIGE VEREINBARUNG' : 'LEGAL DOCUMENTS · MUTUAL AGREEMENT', margin, 41)
+    doc.setFontSize(isDe ? 20 : 19)
+    doc.setTextColor(...deepNavy)
+    doc.text(isDe ? 'Geheimhaltungsvereinbarung' : 'Non-Disclosure Agreement', margin, 53)
+    doc.setFillColor(...green)
+    doc.rect(margin, 60, 22, 1.3, 'F')
+    doc.setDrawColor(...border)
+    doc.setLineWidth(0.35)
+    doc.line(43, 60.6, 192, 60.6)
+    doc.setFont(fontFamily, 'normal')
+    doc.setFontSize(8.6)
+    doc.setTextColor(...body)
+    doc.text(isDe
+      ? `Geschlossen am ${agreementDateText} zwischen den folgenden Parteien.`
+      : `Entered into on ${agreementDateText} by and between the following parties.`, margin, 71)
 
-    heading(isDe ? '1. Zweck' : '1. Purpose')
-    paragraph(isDe ? `Die Parteien beabsichtigen, vertrauliche Informationen ausschließlich zu folgendem Zweck auszutauschen: ${purpose}` : `The parties intend to exchange confidential information solely for the following purpose: ${purpose}`)
-    heading(isDe ? '2. Vertrauliche Informationen' : '2. Confidential Information')
-    paragraph(isDe ? 'Als vertraulich gelten alle mündlich, schriftlich, elektronisch oder in sonstiger Form offengelegten kaufmännischen, technischen, finanziellen, rechtlichen und projektbezogenen Informationen, sofern sie als vertraulich gekennzeichnet sind oder nach den Umständen als vertraulich anzusehen sind.' : 'Confidential Information means all commercial, technical, financial, legal and project-related information disclosed orally, in writing, electronically or in any other form, where such information is marked confidential or should reasonably be understood to be confidential under the circumstances.')
-    heading(isDe ? '3. Pflichten der Parteien' : '3. Obligations of the Parties')
-    paragraph(isDe ? 'Die empfangende Partei wird vertrauliche Informationen sorgfältig schützen, nur für den vereinbarten Zweck verwenden und ausschließlich solchen Beschäftigten, Beratern oder verbundenen Unternehmen zugänglich machen, die diese Informationen für den Zweck benötigen und zu entsprechender Vertraulichkeit verpflichtet sind.' : 'The receiving party shall protect Confidential Information with due care, use it only for the agreed purpose and disclose it only to employees, advisers or affiliated companies who need it for that purpose and are bound by appropriate confidentiality obligations.')
-    heading(isDe ? '4. Ausnahmen' : '4. Exclusions')
-    paragraph(isDe ? 'Die Verpflichtungen gelten nicht für Informationen, die nachweislich bereits öffentlich bekannt waren, ohne Vertragsverletzung öffentlich bekannt werden, der empfangenden Partei rechtmäßig bereits bekannt waren, rechtmäßig von Dritten erlangt wurden oder unabhängig entwickelt wurden. Gesetzlich zwingende Offenlegungen bleiben zulässig; die andere Partei ist, soweit rechtlich möglich, vorher zu informieren.' : 'The obligations do not apply to information demonstrably already public, becoming public without breach, lawfully known to the receiving party, lawfully obtained from a third party or independently developed. Disclosures required by law remain permitted; where legally possible, the other party shall be informed in advance.')
-    heading(isDe ? '5. Laufzeit und Vertraulichkeitsdauer' : '5. Term and Confidentiality Period')
-    paragraph(isDe ? `Diese Vereinbarung gilt ab dem ${agreementDateText}. Die Verpflichtung zur Vertraulichkeit besteht für ${data.duration} ${data.duration === 1 ? 'Jahr' : 'Jahre'} und endet am ${expiryDateText}.` : `This Agreement is effective from ${agreementDateText}. The confidentiality obligations remain in force for ${data.duration} ${data.duration === 1 ? 'year' : 'years'} and expire on ${expiryDateText}.`)
-    heading(isDe ? '6. Rückgabe und Löschung' : '6. Return and Deletion')
-    paragraph(isDe ? 'Auf schriftliche Aufforderung sind vertrauliche Informationen und angefertigte Kopien zurückzugeben oder zu löschen, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.' : 'Upon written request, Confidential Information and copies shall be returned or deleted, unless statutory retention obligations require otherwise.')
-    heading(isDe ? '7. Keine Rechteübertragung' : '7. No Transfer of Rights')
-    paragraph(isDe ? 'Durch diese Vereinbarung werden keine Lizenzen, Eigentumsrechte oder sonstigen Nutzungsrechte übertragen. Keine Partei ist zum Abschluss eines weiteren Geschäfts verpflichtet.' : 'This Agreement does not transfer any licence, ownership right or other right of use. Neither party is obliged to enter into any further transaction.')
-    heading(isDe ? '8. Schlussbestimmungen' : '8. Final Provisions')
-    paragraph(isDe ? 'Änderungen und Ergänzungen bedürfen der Textform. Sollte eine Bestimmung unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Es gilt deutsches Recht. Soweit gesetzlich zulässig, ist Gerichtsstand der Sitz der EMA Enterprise GmbH. Bei Widersprüchen zwischen den Sprachfassungen ist die deutsche Fassung maßgeblich.' : 'Amendments must be made in text form. If any provision is invalid, the remaining provisions remain effective. German law applies. To the extent legally permitted, the venue shall be the registered office of EMA Enterprise GmbH. In the event of inconsistencies between the language versions, the German version shall prevail.')
+    const partyCard = (x: number, label: string, company: string, addressLines: string[]) => {
+      const cardWidth = 84
+      const cardHeight = 42
+      doc.setFillColor(...panel)
+      doc.setDrawColor(...border)
+      doc.setLineWidth(0.25)
+      doc.roundedRect(x, 79, cardWidth, cardHeight, 2.8, 2.8, 'FD')
+      doc.setFillColor(...green)
+      doc.roundedRect(x, 79, 2.2, cardHeight, 1.1, 1.1, 'F')
+      doc.setFont(fontFamily, 'bold')
+      doc.setFontSize(6.6)
+      doc.setTextColor(...muted)
+      doc.text(label.toUpperCase(), x + 7, 87)
+      doc.setFontSize(9.2)
+      doc.setTextColor(...navy)
+      const companyLines = doc.splitTextToSize(company, cardWidth - 14) as string[]
+      doc.text(companyLines.slice(0, 2), x + 7, 94, { lineHeightFactor: 1.2 })
+      const detailY = 101 + Math.max(0, companyLines.slice(0, 2).length - 1) * 4
+      doc.setFont(fontFamily, 'normal')
+      doc.setFontSize(7.15)
+      doc.setTextColor(...body)
+      const details = doc.splitTextToSize(addressLines.filter(Boolean).join('\n'), cardWidth - 14) as string[]
+      doc.text(details.slice(0, 4), x + 7, detailY, { lineHeightFactor: 1.32 })
+    }
 
-    ensureSpace(45)
-    y += 5
-    doc.setDrawColor(120)
-    doc.line(margin, y + 18, 88, y + 18)
-    doc.line(122, y + 18, 190, y + 18)
-    doc.setFontSize(8.5)
-    doc.setTextColor(50)
-    doc.text(`${EMA.company}\n${EMA.representedBy}`, margin, y + 24)
-    doc.text(`${data.company}\n${data.signatory}`, 122, y + 24)
+    partyCard(margin, isDe ? 'Partei 01 · Offenlegende Partei' : 'Party 01 · Disclosing Party', EMA.company, [
+      `${EMA.street}, ${EMA.postalCode} ${EMA.city}`,
+      isDe ? EMA.countryDe : EMA.countryEn,
+      `${isDe ? 'Vertreten durch' : 'Represented by'} ${EMA.representedBy}`,
+    ])
+    partyCard(108, isDe ? 'Partei 02 · Vertragspartner' : 'Party 02 · Contracting Party', data.company, [
+      `${data.street}, ${data.postalCode} ${data.city}`,
+      data.country,
+      `${isDe ? 'Vertreten durch' : 'Represented by'} ${data.representedBy}`,
+      data.contactPerson ? `${isDe ? 'Kontakt' : 'Contact'}: ${data.contactPerson}` : '',
+      data.email,
+    ])
+    y = 137
+
+    section(isDe ? '1. Zweck' : '1. Purpose', isDe ? `Die Parteien beabsichtigen, vertrauliche Informationen ausschließlich zu folgendem Zweck auszutauschen: ${purpose}` : `The parties intend to exchange confidential information solely for the following purpose: ${purpose}`)
+    section(isDe ? '2. Vertrauliche Informationen' : '2. Confidential Information', isDe ? 'Als vertraulich gelten alle mündlich, schriftlich, elektronisch oder in sonstiger Form offengelegten kaufmännischen, technischen, finanziellen, rechtlichen und projektbezogenen Informationen, sofern sie als vertraulich gekennzeichnet sind oder nach den Umständen als vertraulich anzusehen sind.' : 'Confidential Information means all commercial, technical, financial, legal and project-related information disclosed orally, in writing, electronically or in any other form, where such information is marked confidential or should reasonably be understood to be confidential under the circumstances.')
+    section(isDe ? '3. Pflichten der Parteien' : '3. Obligations of the Parties', isDe ? 'Die empfangende Partei wird vertrauliche Informationen sorgfältig schützen, nur für den vereinbarten Zweck verwenden und ausschließlich solchen Beschäftigten, Beratern oder verbundenen Unternehmen zugänglich machen, die diese Informationen für den Zweck benötigen und zu entsprechender Vertraulichkeit verpflichtet sind.' : 'The receiving party shall protect Confidential Information with due care, use it only for the agreed purpose and disclose it only to employees, advisers or affiliated companies who need it for that purpose and are bound by appropriate confidentiality obligations.')
+    section(isDe ? '4. Ausnahmen' : '4. Exclusions', isDe ? 'Die Verpflichtungen gelten nicht für Informationen, die nachweislich bereits öffentlich bekannt waren, ohne Vertragsverletzung öffentlich bekannt werden, der empfangenden Partei rechtmäßig bereits bekannt waren, rechtmäßig von Dritten erlangt wurden oder unabhängig entwickelt wurden. Gesetzlich zwingende Offenlegungen bleiben zulässig; die andere Partei ist, soweit rechtlich möglich, vorher zu informieren.' : 'The obligations do not apply to information demonstrably already public, becoming public without breach, lawfully known to the receiving party, lawfully obtained from a third party or independently developed. Disclosures required by law remain permitted; where legally possible, the other party shall be informed in advance.')
+    section(isDe ? '5. Laufzeit und Vertraulichkeitsdauer' : '5. Term and Confidentiality Period', isDe ? `Diese Vereinbarung gilt ab dem ${agreementDateText}. Die Verpflichtung zur Vertraulichkeit besteht für ${data.duration} ${data.duration === 1 ? 'Jahr' : 'Jahre'} und endet am ${expiryDateText}.` : `This Agreement is effective from ${agreementDateText}. The confidentiality obligations remain in force for ${data.duration} ${data.duration === 1 ? 'year' : 'years'} and expire on ${expiryDateText}.`)
+    section(isDe ? '6. Rückgabe und Löschung' : '6. Return and Deletion', isDe ? 'Auf schriftliche Aufforderung sind vertrauliche Informationen und angefertigte Kopien zurückzugeben oder zu löschen, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.' : 'Upon written request, Confidential Information and copies shall be returned or deleted, unless statutory retention obligations require otherwise.')
+    section(isDe ? '7. Keine Rechteübertragung' : '7. No Transfer of Rights', isDe ? 'Durch diese Vereinbarung werden keine Lizenzen, Eigentumsrechte oder sonstigen Nutzungsrechte übertragen. Keine Partei ist zum Abschluss eines weiteren Geschäfts verpflichtet.' : 'This Agreement does not transfer any licence, ownership right or other right of use. Neither party is obliged to enter into any further transaction.')
+    section(isDe ? '8. Schlussbestimmungen' : '8. Final Provisions', isDe ? 'Änderungen und Ergänzungen bedürfen der Textform. Sollte eine Bestimmung unwirksam sein, bleibt die Wirksamkeit der übrigen Bestimmungen unberührt. Es gilt deutsches Recht. Soweit gesetzlich zulässig, ist Gerichtsstand der Sitz der EMA Enterprise GmbH. Bei Widersprüchen zwischen den Sprachfassungen ist die deutsche Fassung maßgeblich.' : 'Amendments must be made in text form. If any provision is invalid, the remaining provisions remain effective. German law applies. To the extent legally permitted, the venue shall be the registered office of EMA Enterprise GmbH. In the event of inconsistencies between the language versions, the German version shall prevail.')
+
+    ensureSpace(52)
+    y += 3
+    doc.setFillColor(...panel)
+    doc.setDrawColor(...border)
+    doc.roundedRect(margin, y, width, 43, 3, 3, 'FD')
+    doc.setFont(fontFamily, 'bold')
+    doc.setFontSize(7)
+    doc.setTextColor(...muted)
+    doc.text(isDe ? 'UNTERSCHRIFTEN' : 'SIGNATURES', margin + 7, y + 8)
+    doc.setDrawColor(159, 168, 183)
+    doc.setLineWidth(0.3)
+    doc.line(margin + 7, y + 25, 91, y + 25)
+    doc.line(119, y + 25, 185, y + 25)
+    doc.setFontSize(7.5)
+    doc.setTextColor(...body)
+    doc.text(`${EMA.company}\n${EMA.representedBy}`, margin + 7, y + 31, { lineHeightFactor: 1.3 })
+    doc.text(`${data.company}\n${data.signatory}`, 119, y + 31, { lineHeightFactor: 1.3 })
   }
 
   renderLanguage('de', true)
   renderLanguage('en', false)
-  addPageNumbers(doc, 'NDA')
+  addPageNumbers(doc, 'NDA', fontFamily)
+  doc.setProperties({
+    title: `NDA – ${data.company} – DE/EN`,
+    subject: 'Mutual Non-Disclosure Agreement / Gegenseitige Geheimhaltungsvereinbarung',
+    author: EMA.company,
+    creator: 'EMA Intelligence',
+  })
   return doc
 }
 
