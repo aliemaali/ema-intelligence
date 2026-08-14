@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildBilingualCommissionPdf, buildBilingualNdaPdf } from './legalDocuments'
+import { buildBilingualCommissionPdf, buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE } from './legalDocuments'
+
+test('standard NDA purpose explicitly covers PV, BESS and wind energy', () => {
+  assert.match(DEFAULT_NDA_PURPOSE.de, /Photovoltaik/)
+  assert.match(DEFAULT_NDA_PURPOSE.de, /BESS/)
+  assert.match(DEFAULT_NDA_PURPOSE.de, /Windenergie/)
+  assert.match(DEFAULT_NDA_PURPOSE.en, /photovoltaic/)
+  assert.match(DEFAULT_NDA_PURPOSE.en, /battery energy storage system \(BESS\)/)
+  assert.match(DEFAULT_NDA_PURPOSE.en, /wind energy/)
+})
 
 test('NDA contains complete German and English sections in one PDF', () => {
   const document = buildBilingualNdaPdf({
