@@ -15,7 +15,7 @@ export default async function InvestorDetailPage({ params }: { params: { id: str
   const [{ data: investor }, { data: projects }, { data: assignments }] = await Promise.all([
     supabase
       .from('investors')
-      .select('id, company_name, contact_person, position_title, email, phone, location_city, location_country, focus, status, notes, search_profile, profile_imported_at')
+      .select('id, company_name, contact_person, position_title, email, phone, street_address, postal_code, location_city, location_country, focus, status, notes, search_profile, profile_imported_at')
       .eq('id', params.id)
       .eq('user_id', user.id)
       .single(),
@@ -53,7 +53,7 @@ export default async function InvestorDetailPage({ params }: { params: { id: str
           <p><span className="font-bold text-[#1F2A44]">E-Mail:</span> {investor.email || '–'}</p>
           <p><span className="font-bold text-[#1F2A44]">Telefon:</span> {investor.phone || '–'}</p>
           <p><span className="font-bold text-[#1F2A44]">Position:</span> {investor.position_title || '–'}</p>
-          <p><span className="font-bold text-[#1F2A44]">Firmensitz:</span> {[investor.location_city, investor.location_country].filter(Boolean).join(', ') || '–'}</p>
+          <p className="sm:col-span-2"><span className="font-bold text-[#1F2A44]">Geschäftsanschrift:</span> {[investor.street_address, [investor.postal_code, investor.location_city].filter(Boolean).join(' '), investor.location_country].filter(Boolean).join(', ') || '–'}</p>
           <p><span className="font-bold text-[#1F2A44]">Fokus:</span> {investor.focus || '–'}</p>
           <p><span className="font-bold text-[#1F2A44]">Status:</span> {investor.status || '–'}</p>
         </div>

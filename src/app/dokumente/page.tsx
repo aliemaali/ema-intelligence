@@ -20,7 +20,7 @@ export default async function DokumentePage() {
     getDocumentFolders(),
     (supabase as any).from('document_assignments').select('document_id, entity_type, entity_id').eq('user_id', user.id),
     supabase.from('partners').select('id, full_name, company, category').eq('user_id', user.id).eq('is_active', true).order('company'),
-    supabase.from('investors').select('id, full_name, contact_person, company, company_name, email, phone, location_city, location_country, country').eq('user_id', user.id).eq('is_active', true).order('company_name'),
+    supabase.from('investors').select('id, full_name, contact_person, company, company_name, email, phone, street_address, postal_code, location_city, location_country, country').eq('user_id', user.id).eq('is_active', true).order('company_name'),
     supabase.from('projects').select('id, project_number, project_name, location_city').eq('user_id', user.id).eq('is_archived', false).order('project_name'),
   ])
 
@@ -32,6 +32,8 @@ export default async function DokumentePage() {
     contactPerson: item.contact_person || item.full_name || '',
     email: item.email || '',
     phone: item.phone || '',
+    street: item.street_address || '',
+    postalCode: item.postal_code || '',
     city: item.location_city || '',
     country: item.location_country || item.country || '',
   }))

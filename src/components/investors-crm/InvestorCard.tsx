@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, Landmark, Pencil, Trash2, Link2, Sun, Battery, FileText } from "lucide-react";
+import { Mail, Landmark, Pencil, Trash2, Link2, Sun, Battery, FileText, MapPin } from "lucide-react";
 import type { InvestorWithStats } from "@/types/investors";
 import { INVESTOR_STATUS_LABELS, INVESTOR_FOCUS_LABELS } from "@/types/investors";
 
@@ -33,6 +33,11 @@ export function InvestorCard({ investor, onOpen, onEdit, onDelete }: InvestorCar
   const investmentVolumeRange = investor.ticket_size_min_eur != null || investor.ticket_size_max_eur != null
     ? `${formatEur(investor.ticket_size_min_eur)} – ${formatEur(investor.ticket_size_max_eur)}`
     : "Investitionsvolumen offen";
+  const address = [
+    investor.street_address,
+    [investor.postal_code, investor.location_city].filter(Boolean).join(" "),
+    investor.location_country,
+  ].filter(Boolean).join(", ");
 
   return (
     <article className="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-shadow hover:shadow-md" style={{ borderLeft: `3px solid ${statusColor}` }}>
@@ -46,6 +51,7 @@ export function InvestorCard({ investor, onOpen, onEdit, onDelete }: InvestorCar
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-1.5"><span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10.5px] font-medium text-slate-600">{INVESTOR_FOCUS_LABELS[investor.focus]}</span><span className="text-[11.5px] text-slate-500">{investmentVolumeRange}</span></div>
         {investor.notes && <p className="mb-3 line-clamp-2 text-[12px] leading-snug text-slate-500">{investor.notes}</p>}
+        {address && <p className="mb-3 flex items-start gap-1.5 text-[11.5px] leading-snug text-slate-500"><MapPin size={13} className="mt-0.5 shrink-0 text-[#5CB800]" /><span className="line-clamp-2">{address}</span></p>}
         <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-[11.5px] text-slate-400"><span className="flex items-center gap-1"><Link2 size={12} />{investor.project_count} Projekt{investor.project_count === 1 ? "" : "e"}</span><span>{investor.email || "E-Mail offen"}</span></div>
       </button>
 

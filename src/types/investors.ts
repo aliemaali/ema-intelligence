@@ -86,6 +86,10 @@ export interface Investor {
   email: string;
   phone: string | null;
   position_title?: string | null;
+  street_address: string | null;
+  postal_code: string | null;
+  location_city: string | null;
+  location_country: string | null;
 
   ticket_size_min_eur: number | null;
   ticket_size_max_eur: number | null;
@@ -149,6 +153,10 @@ export interface InvestorFormInput {
   contact_person: string;
   email: string;
   phone?: string | null;
+  street_address?: string | null;
+  postal_code?: string | null;
+  location_city?: string | null;
+  location_country?: string | null;
   ticket_size_min_eur?: number | null;
   ticket_size_max_eur?: number | null;
   focus: InvestorFocus;
