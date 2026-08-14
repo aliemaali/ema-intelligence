@@ -22,6 +22,19 @@ export const NDA_CUSTOMER_PROTECTION = {
   en: 'The Contracting Party undertakes not to contact, directly or indirectly and for business purposes, any contacts introduced or disclosed to it by EMA Enterprise GmbH in connection with the Purpose - including in particular customers, project developers, landowners, business partners and other network partners - nor to initiate negotiations or enter into transactions with them by excluding or circumventing EMA Enterprise GmbH, without the prior written consent of EMA Enterprise GmbH. This obligation applies throughout the cooperation and for 24 months following its termination.\n\nFor each culpable breach of the foregoing obligations, the Contracting Party shall pay an appropriate contractual penalty. The amount shall be determined by EMA Enterprise GmbH in each individual case at its reasonable discretion and shall, in the event of a dispute, be subject to review by the competent court as to its reasonableness. The right to claim further damages remains unaffected; any contractual penalty paid shall be credited against any claim for damages.',
 } as const
 
+export function safeLegalDocumentFilePart(value: string) {
+  const normalized = value
+    .trim()
+    .replace(/[ßẞ]/g, (letter) => (letter === 'ß' ? 'ss' : 'SS'))
+    .replace(/[ıİ]/g, (letter) => (letter === 'ı' ? 'i' : 'I'))
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+
+  return normalized || 'Vertragspartner'
+}
+
 type LegalLanguage = 'de' | 'en'
 
 export type LegalDocumentAssets = {

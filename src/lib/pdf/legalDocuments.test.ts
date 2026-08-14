@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { buildBilingualCommissionPdf, buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, NDA_CUSTOMER_PROTECTION } from './legalDocuments'
+import { buildBilingualCommissionPdf, buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, NDA_CUSTOMER_PROTECTION, safeLegalDocumentFilePart } from './legalDocuments'
 
 const legalDocumentAssets = {
   logoDataUrl: `data:image/png;base64,${readFileSync('public/brand/ema-logo.png').toString('base64')}`,
@@ -34,6 +34,12 @@ test('NDA customer protection prohibits circumvention for 24 months in both lang
   assert.match(NDA_CUSTOMER_PROTECTION.en, /reasonable discretion/)
   assert.match(NDA_CUSTOMER_PROTECTION.en, /competent court/)
   assert.match(NDA_CUSTOMER_PROTECTION.en, /credited against any claim for damages/)
+})
+
+test('legal document filenames use storage-safe ASCII characters', () => {
+  assert.equal(safeLegalDocumentFilePart('PİXİS CAPITAL DANIŞMANLIK A.Ş.'), 'PIXIS_CAPITAL_DANISMANLIK_A_S')
+  assert.equal(safeLegalDocumentFilePart('Müller & Söhne GmbH'), 'Muller_Sohne_GmbH')
+  assert.match(safeLegalDocumentFilePart('Çağrı Öztürk – Solar'), /^[a-zA-Z0-9_-]+$/)
 })
 
 test('NDA contains complete German and English sections in one PDF', () => {
