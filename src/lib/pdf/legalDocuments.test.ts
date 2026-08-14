@@ -58,6 +58,28 @@ test('NDA contains complete German and English sections in one PDF', () => {
   assert.ok(document.output('arraybuffer').byteLength > 100_000)
 })
 
+test('NDA can be created without representative and signatory names', () => {
+  const document = buildBilingualNdaPdf({
+    company: 'Investor Test GmbH',
+    contactPerson: '',
+    email: 'office@example.com',
+    phone: '',
+    street: 'Musterstraße 1',
+    postalCode: '10115',
+    city: 'Berlin',
+    country: 'Deutschland',
+    representedBy: '',
+    signatory: '',
+    agreementDate: '2026-08-14',
+    purposeDe: '',
+    purposeEn: '',
+    duration: 3,
+  }, legalDocumentAssets)
+
+  assert.ok(document.getNumberOfPages() >= 4)
+  assert.ok(document.output('arraybuffer').byteLength > 100_000)
+})
+
 test('commission agreement contains German and English pages in one PDF', () => {
   const document = buildBilingualCommissionPdf({
     company: 'Investor Test GmbH',
