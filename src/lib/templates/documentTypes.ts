@@ -10,6 +10,12 @@ export type DocumentInvestor = {
   country: string
 }
 
+export const NDA_DOCUMENT_FOLDER_NAME = 'NDA'
+
+export function defaultDocumentFolderName(category: string) {
+  return category === 'nda' ? NDA_DOCUMENT_FOLDER_NAME : null
+}
+
 export function documentInvestorLabel(investor: DocumentInvestor) {
   return [investor.company, investor.contactPerson].filter(Boolean).join(' · ') || 'Investor'
 }

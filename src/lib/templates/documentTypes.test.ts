@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { partialInvestorAddress, type DocumentInvestor } from './documentTypes'
+import { defaultDocumentFolderName, NDA_DOCUMENT_FOLDER_NAME, partialInvestorAddress, type DocumentInvestor } from './documentTypes'
 
 const investor: DocumentInvestor = {
   id: 'investor-1',
@@ -26,4 +26,10 @@ test('document address omits empty address parts cleanly', () => {
     partialInvestorAddress({ ...investor, street: '', postalCode: '' }),
     'Beyoğlu / İstanbul, Türkiye',
   )
+})
+
+test('NDAs use their dedicated document folder by default', () => {
+  assert.equal(defaultDocumentFolderName('nda'), NDA_DOCUMENT_FOLDER_NAME)
+  assert.equal(NDA_DOCUMENT_FOLDER_NAME, 'NDA')
+  assert.equal(defaultDocumentFolderName('commission'), null)
 })
