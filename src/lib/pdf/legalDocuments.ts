@@ -264,7 +264,7 @@ export function buildBilingualNdaPdf(data: BilingualNdaData, assets?: LegalDocum
     partyCard(108, isDe ? 'Partei 02 · Vertragspartner' : 'Party 02 · Contracting Party', data.company, [
       `${data.street}, ${data.postalCode} ${data.city}`,
       data.country,
-      `${isDe ? 'Vertreten durch' : 'Represented by'} ${data.representedBy}`,
+      data.representedBy.trim() ? `${isDe ? 'Vertreten durch' : 'Represented by'} ${data.representedBy.trim()}` : '',
       data.contactPerson ? `${isDe ? 'Kontakt' : 'Contact'}: ${data.contactPerson}` : '',
       data.email,
     ])
@@ -289,12 +289,32 @@ export function buildBilingualNdaPdf(data: BilingualNdaData, assets?: LegalDocum
     doc.text(isDe ? 'UNTERSCHRIFTEN' : 'SIGNATURES', margin + 7, y + 8)
     doc.setDrawColor(159, 168, 183)
     doc.setLineWidth(0.3)
-    doc.line(margin + 7, y + 25, 91, y + 25)
-    doc.line(119, y + 25, 185, y + 25)
-    doc.setFontSize(7.5)
-    doc.setTextColor(...body)
-    doc.text(`${EMA.company}\n${EMA.representedBy}`, margin + 7, y + 31, { lineHeightFactor: 1.3 })
-    doc.text(`${data.company}\n${data.signatory}`, 119, y + 31, { lineHeightFactor: 1.3 })
+    doc.line(margin + 7, y + 21.5, 91, y + 21.5)
+    doc.line(119, y + 21.5, 185, y + 21.5)
+    doc.setFont(fontFamily, 'normal')
+    doc.setFontSize(5.7)
+    doc.setTextColor(...muted)
+    doc.text(isDe ? 'Unterschrift' : 'Signature', margin + 7, y + 25.5)
+    doc.text(isDe ? 'Unterschrift' : 'Signature', 119, y + 25.5)
+
+    const signatureParty = (x: number, company: string, signatory: string) => {
+      doc.setFont(fontFamily, 'bold')
+      doc.setFontSize(6.7)
+      doc.setTextColor(...navy)
+      const companyLines = doc.splitTextToSize(company, 66) as string[]
+      doc.text(companyLines.slice(0, 2), x, y + 31, { lineHeightFactor: 1.08 })
+      doc.setFont(fontFamily, signatory.trim() ? 'bold' : 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(...(signatory.trim() ? body : muted))
+      doc.text(signatory.trim() || (isDe ? 'Name und Funktion' : 'Name and title'), x, y + 38)
+      doc.setFont(fontFamily, 'bold')
+      doc.setFontSize(6)
+      doc.setTextColor(...muted)
+      doc.text(isDe ? 'Unterschriftsberechtigte Person' : 'Authorised signatory', x, y + 41.5)
+    }
+
+    signatureParty(margin + 7, EMA.company, EMA.representedBy)
+    signatureParty(119, data.company, data.signatory)
   }
 
   renderLanguage('de', true)
