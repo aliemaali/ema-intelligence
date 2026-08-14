@@ -7,7 +7,7 @@ import { Eye, FileSignature, Save, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
-import { buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, type LegalDocumentAssets } from '@/lib/pdf/legalDocuments'
+import { buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, safeLegalDocumentFilePart, type LegalDocumentAssets } from '@/lib/pdf/legalDocuments'
 import { createClient } from '@/lib/supabase/client'
 import { documentInvestorLabel, type DocumentInvestor } from '@/lib/templates/documentTypes'
 
@@ -32,10 +32,6 @@ type FormState = {
   purposeEn: string
   duration: Duration
   folderId: string
-}
-
-function safeFilePart(value: string) {
-  return value.trim().replace(/[^\p{L}\p{N}_-]+/gu, '_').replace(/^_+|_+$/g, '') || 'Vertragspartner'
 }
 
 async function fetchDataUrl(path: string) {
@@ -130,7 +126,7 @@ export function NdaGenerator({ userId, folders, investors }: Props) {
   }
 
   const preview = () => { try { const doc = buildPdf(); const url = URL.createObjectURL(doc.output('blob')); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) } catch (error) { toast.error(error instanceof Error ? error.message : 'Vorschau konnte nicht erstellt werden.') } }
-  const save = async () => { setSaving(true); try { const doc = buildPdf(); const blob = doc.output('blob'); const fileName = `NDA_${safeFilePart(form.company)}_DE-EN_${form.agreementDate}.pdf`; const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `NDA – ${form.company} – DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: blob.size, mimeType: 'application/pdf', folderId: form.folderId || null, investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('Zweisprachige NDA wurde erstellt, gespeichert und zugeordnet.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
+  const save = async () => { setSaving(true); try { const doc = buildPdf(); const blob = doc.output('blob'); const fileName = `NDA_${safeLegalDocumentFilePart(form.company)}_DE-EN_${form.agreementDate}.pdf`; const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `NDA – ${form.company} – DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: blob.size, mimeType: 'application/pdf', folderId: form.folderId || null, investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('Zweisprachige NDA wurde erstellt, gespeichert und zugeordnet.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
 
   return <>
     <section className="mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#2F8A00]"><FileSignature className="h-6 w-6" /></span><div><h2 className="text-xl font-extrabold text-[#07142F]">NDA erstellen</h2><p className="mt-1 text-sm text-muted-foreground">Investor auswählen und eine gemeinsame PDF auf Deutsch und Englisch erstellen.</p></div></div><button type="button" onClick={() => setOpen(true)} className="btn-primary shrink-0">NDA erstellen</button></div></section>
