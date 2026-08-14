@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { buildBilingualCommissionPdf, buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, NDA_CUSTOMER_PROTECTION, safeLegalDocumentFilePart } from './legalDocuments'
+import { bilingualNdaFileName, buildBilingualCommissionPdf, buildBilingualNdaPdf, DEFAULT_NDA_PURPOSE, NDA_CUSTOMER_PROTECTION, safeLegalDocumentFilePart } from './legalDocuments'
 
 const legalDocumentAssets = {
   logoDataUrl: `data:image/png;base64,${readFileSync('public/brand/ema-logo.png').toString('base64')}`,
@@ -40,6 +40,13 @@ test('legal document filenames use storage-safe ASCII characters', () => {
   assert.equal(safeLegalDocumentFilePart('PİXİS CAPITAL DANIŞMANLIK A.Ş.'), 'PIXIS_CAPITAL_DANISMANLIK_A_S')
   assert.equal(safeLegalDocumentFilePart('Müller & Söhne GmbH'), 'Muller_Sohne_GmbH')
   assert.match(safeLegalDocumentFilePart('Çağrı Öztürk – Solar'), /^[a-zA-Z0-9_-]+$/)
+})
+
+test('the NDA uses a descriptive filename instead of a browser token or abbreviation', () => {
+  assert.equal(
+    bilingualNdaFileName('PİXİS CAPITAL DANIŞMANLIK A.Ş.', '2026-08-17'),
+    'Geheimhaltungsvereinbarung_PIXIS_CAPITAL_DANISMANLIK_A_S_DE-EN_2026-08-17.pdf',
+  )
 })
 
 test('NDA contains complete German and English sections in one PDF', () => {
