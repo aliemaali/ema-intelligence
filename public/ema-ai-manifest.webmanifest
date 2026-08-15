@@ -1,0 +1,31 @@
+{
+  "name": "EMA AI",
+  "short_name": "EMA AI",
+  "description": "Die persönliche KI-Assistentin von EMA Intelligence",
+  "id": "/ema",
+  "start_url": "/ema",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F8FB",
+  "theme_color": "#07142F",
+  "icons": [
+    {
+      "src": "/icons/ema-ai-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/ema-ai-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "lang": "de"
+}

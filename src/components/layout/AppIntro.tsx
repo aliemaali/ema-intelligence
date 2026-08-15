@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { consumeDocumentViewerReturn } from '@/lib/ema/appIntroNavigation'
 
 const INTRO_VERSION = 'v6'
@@ -26,6 +27,8 @@ function getIntroStorageKey() {
 }
 
 export function AppIntro() {
+  const pathname = usePathname()
+  const isEmaStandalonePath = pathname === '/ema' || pathname.startsWith('/ema/')
   const [phase, setPhase] = useState<IntroPhase>('checking')
   const [useFallbackAnimation, setUseFallbackAnimation] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -63,6 +66,8 @@ export function AppIntro() {
   }, [])
 
   useEffect(() => {
+    if (isEmaStandalonePath) return
+
     const { isStandalone, storageKey } = getIntroStorageKey()
     isStandaloneRef.current = isStandalone
     storageKeyRef.current = storageKey
@@ -104,7 +109,7 @@ export function AppIntro() {
       window.removeEventListener('pageshow', syncIntroVisibility)
       if (exitTimerRef.current !== null) window.clearTimeout(exitTimerRef.current)
     }
-  }, [])
+  }, [isEmaStandalonePath])
 
   useEffect(() => {
     if (phase !== 'playing') return
@@ -133,7 +138,7 @@ export function AppIntro() {
     }
   }, [finishIntro, phase])
 
-  if (phase === 'done') return null
+  if (isEmaStandalonePath || phase === 'done') return null
 
   return (
     <div

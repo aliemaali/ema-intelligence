@@ -30,7 +30,7 @@ function getPasskeyErrorMessage(error: unknown) {
   return 'Die Passkey-Anmeldung konnte nicht gestartet werden.'
 }
 
-export function PasskeyLoginButton() {
+export function PasskeyLoginButton({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -42,7 +42,10 @@ export function PasskeyLoginButton() {
     }
 
     if (window.location.hostname !== CANONICAL_HOSTNAME) {
-      window.location.replace(CANONICAL_LOGIN_URL)
+      const destination = redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
+        ? `?redirectTo=${encodeURIComponent(redirectTo)}`
+        : ''
+      window.location.replace(`${CANONICAL_LOGIN_URL}${destination}`)
       return
     }
 
@@ -55,7 +58,10 @@ export function PasskeyLoginButton() {
 
       if (error) throw error
 
-      router.replace('/dashboard')
+      const destination = redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
+        ? redirectTo
+        : '/dashboard'
+      router.replace(destination)
       router.refresh()
     } catch (error) {
       console.error('Passkey login failed', error)
