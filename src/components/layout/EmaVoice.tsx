@@ -153,7 +153,7 @@ const DESTINATIONS: Destination[] = [
   { label: 'Einstellungen', href: '/settings' },
 ]
 
-export function EmaVoice({ userName }: { userName: string }) {
+export function EmaVoice({ userName, standalone = false }: { userName: string; standalone?: boolean }) {
   const router = useRouter()
   const pathname = usePathname()
   const realtimeActiveRef = useRef(false)
@@ -180,7 +180,7 @@ export function EmaVoice({ userName }: { userName: string }) {
 
   const [realtimePhase, setRealtimePhaseState] = useState<RealtimePhase>('idle')
   const [conversationActive, setConversationActive] = useState(false)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [workspaceOpen, setWorkspaceOpen] = useState(standalone)
   const [headerActionTarget, setHeaderActionTarget] = useState<HTMLElement | null>(null)
   const [visualResult, setVisualResult] = useState<ProjectVisualResult | null>(null)
 
@@ -726,6 +726,8 @@ export function EmaVoice({ userName }: { userName: string }) {
   }, [stopRealtime])
 
   useEffect(() => {
+    if (standalone) return
+
     let animationFrame = 0
 
     const syncHeaderActionTarget = () => {
@@ -745,7 +747,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       window.cancelAnimationFrame(animationFrame)
       observer.disconnect()
     }
-  }, [pathname])
+  }, [pathname, standalone])
 
   useEffect(() => {
     const warmupTimer = window.setTimeout(() => {
@@ -759,7 +761,7 @@ export function EmaVoice({ userName }: { userName: string }) {
   }, [startRealtime, stopRealtime])
 
   useEffect(() => {
-    if (!workspaceOpen) return
+    if (!workspaceOpen || standalone) return
     const previousOverflow = document.body.style.overflow
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closeWorkspace()
@@ -770,7 +772,7 @@ export function EmaVoice({ userName }: { userName: string }) {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [closeWorkspace, workspaceOpen])
+  }, [closeWorkspace, standalone, workspaceOpen])
 
   const speaking = realtimePhase === 'speaking'
   const ready = realtimePhase === 'ready'
@@ -778,7 +780,7 @@ export function EmaVoice({ userName }: { userName: string }) {
 
   return (
     <>
-      {headerActionTarget ? createPortal(
+      {!standalone && headerActionTarget ? createPortal(
         <button
           type="button"
           onClick={() => setWorkspaceOpen(true)}
@@ -803,8 +805,8 @@ export function EmaVoice({ userName }: { userName: string }) {
 
       {workspaceOpen ? (
         <section
-          role="dialog"
-          aria-modal="true"
+          role={standalone ? 'region' : 'dialog'}
+          aria-modal={standalone ? undefined : true}
           aria-label="EMA AI Arbeitsbereich"
           className="fixed inset-0 z-[100] overflow-y-auto bg-[#f6f8fb] text-[#07142F]"
         >
@@ -818,14 +820,16 @@ export function EmaVoice({ userName }: { userName: string }) {
                 <h1 className="text-lg font-extrabold tracking-tight md:text-xl">EMA AI</h1>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={closeWorkspace}
-              aria-label="EMA AI schließen"
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-[#07142F]/10 bg-white text-[#07142F] shadow-sm transition hover:border-[#63C800]/60 hover:bg-[#f4f8ef]"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            {!standalone ? (
+              <button
+                type="button"
+                onClick={closeWorkspace}
+                aria-label="EMA AI schließen"
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-[#07142F]/10 bg-white text-[#07142F] shadow-sm transition hover:border-[#63C800]/60 hover:bg-[#f4f8ef]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            ) : null}
           </header>
 
           <main className="relative mx-auto grid min-h-[calc(100dvh-5rem)] w-full max-w-[1500px] grid-cols-1 gap-7 px-5 py-7 md:px-10 lg:grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] lg:items-center lg:gap-12 lg:py-10">

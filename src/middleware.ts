@@ -31,6 +31,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/partner-submissions') || pathname.startsWith('/partner-management') ||
     pathname.startsWith('/investors') || pathname.startsWith('/tasks') ||
     pathname.startsWith('/settings') || pathname.startsWith('/ai') ||
+    pathname === '/ema' || pathname.startsWith('/ema/') ||
     pathname.startsWith('/expose') || pathname.startsWith('/capex')
 
   const isProtectedRoute = isInternalRoute || isPartnerRoute

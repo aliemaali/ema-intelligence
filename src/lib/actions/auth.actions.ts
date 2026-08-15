@@ -11,20 +11,32 @@ export async function login(formData: FormData) {
 
   const email    = formData.get('email') as string
   const password = formData.get('password') as string
+  const requestedRedirect = formData.get('redirectTo')
+  const redirectTo = typeof requestedRedirect === 'string'
+    && requestedRedirect.startsWith('/')
+    && !requestedRedirect.startsWith('//')
+      ? requestedRedirect
+      : '/dashboard'
+
+  const loginErrorUrl = (message: string) => {
+    const params = new URLSearchParams({ error: message })
+    if (redirectTo !== '/dashboard') params.set('redirectTo', redirectTo)
+    return `/login?${params.toString()}`
+  }
 
   if (!email || !password) {
-    return redirect('/login?error=Bitte%20alle%20Felder%20ausfüllen')
+    return redirect(loginErrorUrl('Bitte alle Felder ausfüllen'))
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-  console.error('SUPABASE LOGIN ERROR:', error)
-  return redirect(`/login?error=${encodeURIComponent(error.message)}`)
-}  
+    console.error('SUPABASE LOGIN ERROR:', error)
+    return redirect(loginErrorUrl(error.message))
+  }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(redirectTo)
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────

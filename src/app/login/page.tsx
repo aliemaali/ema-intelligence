@@ -35,7 +35,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         )}
 
-        <PasskeyLoginButton />
+        <PasskeyLoginButton redirectTo={searchParams.redirectTo} />
 
         <div className="my-5 flex items-center gap-3" aria-hidden="true">
           <div className="h-px flex-1 bg-border" />
