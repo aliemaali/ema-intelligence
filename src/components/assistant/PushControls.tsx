@@ -18,19 +18,40 @@ function withTimeout<T>(promise: PromiseLike<T>, ms: number, message: string): P
   ])
 }
 
-async function getRegistration() {
+async function getActiveRegistration(): Promise<ServiceWorkerRegistration> {
   const existing = await withTimeout(
     navigator.serviceWorker.getRegistration('/'),
     5000,
-    'Der EMA Service Worker konnte nicht gelesen werden. Bitte EMA vollständig schließen und erneut öffnen.',
+    'Der EMA Service Worker konnte nicht gelesen werden.',
   )
-  if (existing) return existing
 
-  return withTimeout(
+  const registration = existing ?? await withTimeout(
     navigator.serviceWorker.register('/sw.js', { scope: '/' }),
-    8000,
-    'Der EMA Service Worker antwortet nicht. Bitte EMA vollständig schließen und erneut öffnen.',
+    10000,
+    'Der EMA Service Worker konnte nicht registriert werden.',
   )
+
+  // A newly installed worker can be present but not yet active. PushManager.subscribe()
+  // rejects in that state on iOS with "requires an active service worker".
+  if (!registration.active) {
+    await withTimeout(
+      navigator.serviceWorker.ready,
+      15000,
+      'Der EMA Service Worker wird noch aktiviert. Bitte EMA kurz schließen, erneut öffnen und noch einmal versuchen.',
+    )
+  }
+
+  const ready = await withTimeout(
+    navigator.serviceWorker.ready,
+    10000,
+    'Der EMA Service Worker ist noch nicht bereit.',
+  )
+
+  if (!ready.active) {
+    throw new Error('Der EMA Service Worker ist noch nicht aktiv. Bitte EMA kurz schließen und erneut öffnen.')
+  }
+
+  return ready
 }
 
 export function PushControls() {
@@ -44,7 +65,7 @@ export function PushControls() {
     setSupported(canPush)
     if (!canPush) return
 
-    getRegistration()
+    getActiveRegistration()
       .then(registration => withTimeout(
         registration.pushManager.getSubscription(),
         5000,
@@ -53,7 +74,7 @@ export function PushControls() {
       .then(subscription => setActive(Boolean(subscription)))
       .catch(error => {
         console.error('EMA service worker registration failed', error)
-        setMessage('EMA konnte die iPhone-Erinnerungen noch nicht vorbereiten. Bitte die App einmal schließen und erneut öffnen.')
+        setMessage('EMA bereitet die iPhone-Erinnerungen vor. Falls die Aktivierung nicht klappt, App einmal schließen und erneut öffnen.')
       })
   }, [])
 
@@ -70,8 +91,8 @@ export function PushControls() {
       const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       if (!key) throw new Error('Push ist serverseitig noch nicht konfiguriert.')
 
-      setMessage('Service Worker wird geprüft …')
-      const registration = await getRegistration()
+      setMessage('Service Worker wird aktiviert …')
+      const registration = await getActiveRegistration()
 
       setMessage('Mitteilungsberechtigung wird geprüft …')
       let permission = Notification.permission
@@ -150,7 +171,7 @@ export function PushControls() {
     setMessage('Erinnerungen werden deaktiviert …')
     setBusy(true)
     try {
-      const registration = await getRegistration()
+      const registration = await getActiveRegistration()
       const subscription = await withTimeout(
         registration.pushManager.getSubscription(),
         5000,
