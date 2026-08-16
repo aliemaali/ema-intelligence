@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#F6F8FB",
-  "theme_color": "#07142F",
+  "background_color": "#171D33",
+  "theme_color": "#171D33",
   "icons": [
     {
       "src": "/icons/ema-ai-192.png",
