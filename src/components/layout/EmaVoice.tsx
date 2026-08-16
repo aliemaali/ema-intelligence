@@ -853,16 +853,16 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
           role={standalone ? 'region' : 'dialog'}
           aria-modal={standalone ? undefined : true}
           aria-label="EMA AI Arbeitsbereich"
-          className="fixed inset-0 z-[100] overflow-y-auto bg-[#f6f8fb] text-[#07142F]"
+          className="fixed inset-0 z-[100] overflow-y-auto bg-[#171D33] text-[#07142F]"
         >
-          <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(99,200,0,0.13),transparent_31%),radial-gradient(circle_at_84%_38%,rgba(29,78,216,0.10),transparent_34%)]" />
+          <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(38,51,81,0.92),rgba(23,29,51,0.38)_48%,transparent_76%)]" />
 
-          <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-[#07142F]/10 bg-white/[0.85] px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl md:px-10">
+          <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-white/10 bg-[#171D33]/[0.88] px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl md:px-10">
             <div className="flex items-center gap-3">
-              <Image src="/brand/ema-mark.png" alt="EMA Enterprise" width={506} height={247} className="h-auto w-16" priority />
+              <Image src="/brand/ema-mark-white.png" alt="EMA Enterprise" width={506} height={247} className="h-auto w-16" priority />
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[#63C800]">EMA Intelligence</p>
-                <h1 className="text-lg font-extrabold tracking-tight md:text-xl">EMA AI</h1>
+                <h1 className="text-lg font-extrabold tracking-tight text-white md:text-xl">EMA AI</h1>
               </div>
             </div>
             {!standalone ? (
@@ -892,7 +892,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
                 onClick={handleConversationToggle}
                 aria-label={conversationActive ? 'Gespräch mit EMA beenden' : 'Gespräch mit EMA starten'}
                 aria-pressed={conversationActive}
-                className={`mt-2 flex min-h-16 items-center gap-3 rounded-full px-8 text-base font-extrabold text-white shadow-[0_16px_34px_rgba(7,20,47,0.24)] transition active:scale-[0.97] ${conversationActive ? 'bg-[#b4232f] hover:bg-[#941d27]' : 'bg-[#07142F] hover:bg-[#10264f]'}`}
+                className={`mt-2 flex min-h-16 items-center gap-3 rounded-full px-8 text-base font-extrabold shadow-[0_16px_36px_rgba(0,0,0,0.34)] transition active:scale-[0.97] ${conversationActive ? 'bg-[#b4232f] text-white hover:bg-[#941d27]' : 'bg-white text-[#07142F] hover:bg-[#f2f5f9]'}`}
               >
                 <span className={`flex h-10 w-10 items-center justify-center rounded-full ${conversationActive ? 'bg-white/[0.16]' : 'bg-[#63C800]'}`}>
                   {conversationActive ? <PhoneOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}

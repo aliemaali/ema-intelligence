@@ -17,12 +17,12 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#07142F',
+  themeColor: '#171D33',
 }
 
 export default function EmaStandalonePage() {
   return (
-    <main className="min-h-dvh bg-[#f6f8fb]">
+    <main className="min-h-dvh bg-[#171D33]">
       <EmaVoiceGate standalone />
     </main>
   )
