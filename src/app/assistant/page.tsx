@@ -6,7 +6,7 @@ import { PushControls } from '@/components/assistant/PushControls'
 export const dynamic = 'force-dynamic'
 
 export default async function AssistantPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login?next=/assistant')
   const [{ data: memories }, { data: reminders }] = await Promise.all([
