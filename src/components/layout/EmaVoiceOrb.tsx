@@ -46,7 +46,7 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
       const height = canvas.clientHeight
       const centerX = width / 2
       const centerY = height / 2
-      const baseRadius = Math.min(width, height) * 0.32
+      const baseRadius = Math.min(width, height) * 0.34
       const currentPhase = phaseRef.current
       const active = currentPhase === 'listening' || currentPhase === 'speaking'
       const liveLevel = currentPhase === 'listening' ? inputLevelRef.current : outputLevelRef.current
@@ -55,13 +55,13 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
 
       context.clearRect(0, 0, width, height)
 
-      const breathe = 1 + Math.sin(now * 0.0014) * 0.018
+      const breathe = 1 + Math.sin(now * 0.00155) * 0.035
       const activity = active ? smoothedLevel : currentPhase === 'thinking' ? 0.1 : 0
-      const radius = baseRadius * (breathe + activity * 0.1)
+      const radius = baseRadius * (breathe + activity * 0.14)
 
       const aura = context.createRadialGradient(centerX, centerY, radius * 0.58, centerX, centerY, radius * 1.75)
-      aura.addColorStop(0, `rgba(99, 200, 0, ${0.17 + activity * 0.2})`)
-      aura.addColorStop(0.45, `rgba(59, 130, 246, ${0.09 + activity * 0.1})`)
+      aura.addColorStop(0, `rgba(99, 200, 0, ${0.22 + activity * 0.28})`)
+      aura.addColorStop(0.45, `rgba(59, 130, 246, ${0.12 + activity * 0.14})`)
       aura.addColorStop(1, 'rgba(7, 20, 47, 0)')
       context.fillStyle = aura
       context.beginPath()
@@ -126,12 +126,12 @@ export function EmaVoiceOrb({ phase, inputLevelRef, outputLevelRef }: EmaVoiceOr
         context.stroke()
       }
 
-      if (active) {
-        const pulse = (now * 0.00115) % 1
-        context.strokeStyle = `rgba(99,200,0,${(1 - pulse) * (0.1 + activity * 0.24)})`
-        context.lineWidth = 1.5
+      if (currentPhase !== 'error') {
+        const pulse = (now * (active ? 0.00135 : 0.0009)) % 1
+        context.strokeStyle = `rgba(99,200,0,${(1 - pulse) * (0.24 + activity * 0.4)})`
+        context.lineWidth = 2.25 + activity * 1.75
         context.beginPath()
-        context.arc(centerX, centerY, radius * (1.04 + pulse * 0.34), 0, TAU)
+        context.arc(centerX, centerY, radius * (1.05 + pulse * (active ? 0.42 : 0.28)), 0, TAU)
         context.stroke()
       }
 
