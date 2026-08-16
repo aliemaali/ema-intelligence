@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Archive,
+  BellRing,
   Bot,
   BriefcaseBusiness,
   Building2,
@@ -34,6 +35,7 @@ const MAIN_ITEMS = [
 ] as const
 
 const MORE_ITEMS = [
+  { label: 'Meine Assistenz', href: '/assistant', icon: BellRing },
   { label: 'Projektarchiv', href: '/projects/archive', icon: Archive },
   { label: 'Exposé', href: '/expose', icon: FileText },
   { label: 'Versandcenter', href: '/versandcenter', icon: Send },
