@@ -5,7 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
-import { Mic, PhoneOff, Sparkles, X } from 'lucide-react'
+import { Mic, PhoneOff, X } from 'lucide-react'
 import { EmaVoiceOrb } from './EmaVoiceOrb'
 
 type RealtimePhase = 'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking' | 'error'
@@ -83,16 +83,6 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
 }
 
 const REALTIME_IDLE_MS = 60 * 1000
-
-const REALTIME_STATUS: Record<RealtimePhase, string> = {
-  idle: 'Bereit, wenn du es bist',
-  connecting: 'EMA verbindet sich …',
-  ready: 'Sprich einfach los',
-  listening: 'Ich höre zu …',
-  thinking: 'EMA denkt nach …',
-  speaking: 'EMA antwortet …',
-  error: 'Verbindung nicht möglich',
-}
 
 function projectTypeLabel(type: string | null | undefined) {
   return type ? PROJECT_TYPE_LABELS[type] ?? type : '–'
@@ -177,6 +167,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
   const outputMeterRef = useRef<AudioMeter | null>(null)
   const inputLevelRef = useRef(0)
   const outputLevelRef = useRef(0)
+  const greetingPlayedRef = useRef(false)
 
   const [realtimePhase, setRealtimePhaseState] = useState<RealtimePhase>('idle')
   const [conversationActive, setConversationActive] = useState(false)
@@ -372,6 +363,26 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
   beginCaptureRef.current = () => {
     void beginCapture()
   }
+
+  const requestGreeting = useCallback((channel: RTCDataChannel) => {
+    if (greetingPlayedRef.current || channel.readyState !== 'open') return false
+
+    try {
+      channel.send(JSON.stringify({
+        type: 'response.create',
+        response: {
+          output_modalities: ['audio'],
+          instructions: `Begrüße den Nutzer freundlich und natürlich. Sage genau: „Hallo ${userName}, schön, dass du da bist. Wie kann ich dir helfen?“`,
+        },
+      }))
+      greetingPlayedRef.current = true
+      responseActiveRef.current = true
+      setRealtimePhase('thinking')
+      return true
+    } catch {
+      return false
+    }
+  }, [setRealtimePhase, userName])
 
   const handleRealtimeEvent = useCallback(async (channel: RTCDataChannel, event: RealtimeServerEvent) => {
     if (
@@ -611,7 +622,10 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
       }
 
       responseActiveRef.current = false
-      if (conversationActiveRef.current && phaseRef.current !== 'listening') setRealtimePhase('ready')
+      if (conversationActiveRef.current) {
+        if (phaseRef.current !== 'listening') setRealtimePhase('ready')
+        beginCaptureRef.current()
+      }
       return
     }
 
@@ -619,6 +633,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
       console.error('EMA Realtime event error:', event.error?.message ?? 'Unbekannter Fehler')
       responseActiveRef.current = false
       setRealtimePhase(conversationActiveRef.current ? 'ready' : 'error')
+      if (conversationActiveRef.current) beginCaptureRef.current()
     }
   }, [resetRealtimeIdleTimer, router, setRealtimePhase])
 
@@ -644,11 +659,36 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
       audio.setAttribute('playsinline', 'true')
       realtimeAudioRef.current = audio
 
+      // A direct tap on “Gespräch starten” unlocks audio playback on iOS.
+      // The remote stream is attached a moment later in peer.ontrack.
+      if (conversationActiveRef.current) void audio.play().catch(() => undefined)
+
+      const tryAutomaticGreeting = () => {
+        const channel = realtimeChannelRef.current
+        if (
+          !standalone
+          || greetingPlayedRef.current
+          || !audio.srcObject
+          || !channel
+          || channel.readyState !== 'open'
+        ) return
+
+        // Browsers that permit media autoplay hear the greeting immediately.
+        // On iOS, a blocked attempt is repeated after the first user tap.
+        void audio.play()
+          .then(() => { requestGreeting(channel) })
+          .catch(() => undefined)
+      }
+
       peer.ontrack = (event) => {
         const stream = event.streams[0] ?? null
         audio.srcObject = stream
         if (stream) startAudioMeter(stream, outputMeterRef, (level) => { outputLevelRef.current = level })
-        if (conversationActiveRef.current) void audio.play().catch(() => undefined)
+        if (conversationActiveRef.current) {
+          void audio.play().catch(() => undefined)
+        } else {
+          tryAutomaticGreeting()
+        }
       }
 
       const channel = peer.createDataChannel('oai-events')
@@ -659,7 +699,12 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
         realtimeActiveRef.current = true
         setRealtimePhase('ready')
         resetRealtimeIdleTimer()
-        if (conversationActiveRef.current) beginCaptureRef.current()
+        if (conversationActiveRef.current) {
+          const greetingStarted = requestGreeting(channel)
+          if (!greetingStarted && !responseActiveRef.current) beginCaptureRef.current()
+        } else {
+          tryAutomaticGreeting()
+        }
       })
 
       channel.addEventListener('message', (message) => {
@@ -699,7 +744,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
       stopRealtime()
       setRealtimePhase('error')
     }
-  }, [handleRealtimeEvent, resetRealtimeIdleTimer, setRealtimePhase, startAudioMeter, stopRealtime])
+  }, [handleRealtimeEvent, requestGreeting, resetRealtimeIdleTimer, setRealtimePhase, standalone, startAudioMeter, stopRealtime])
 
   const handleConversationToggle = useCallback(() => {
     triggerHaptic()
@@ -714,11 +759,12 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
     void realtimeAudioRef.current?.play().catch(() => undefined)
 
     if (realtimeActiveRef.current && realtimeChannelRef.current?.readyState === 'open') {
-      beginCaptureRef.current()
+      const greetingStarted = requestGreeting(realtimeChannelRef.current)
+      if (!greetingStarted && !responseActiveRef.current) beginCaptureRef.current()
     } else {
       void startRealtime()
     }
-  }, [startRealtime, stopRealtime])
+  }, [requestGreeting, startRealtime, stopRealtime])
 
   const closeWorkspace = useCallback(() => {
     if (conversationActiveRef.current) stopRealtime()
@@ -776,7 +822,6 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
 
   const speaking = realtimePhase === 'speaking'
   const ready = realtimePhase === 'ready'
-  const statusLabel = ready && !conversationActive ? 'Bereit, wenn du es bist' : REALTIME_STATUS[realtimePhase]
 
   return (
     <>
@@ -834,12 +879,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
 
           <main className="relative mx-auto grid min-h-[calc(100dvh-5rem)] w-full max-w-[1500px] grid-cols-1 gap-7 px-5 py-7 md:px-10 lg:grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] lg:items-center lg:gap-12 lg:py-10">
             <div className="flex min-h-[520px] flex-col items-center justify-center text-center lg:min-h-[680px]">
-              <div className="mb-1 inline-flex items-center gap-2 rounded-full border border-[#63C800]/25 bg-white/70 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#305f12] shadow-sm backdrop-blur">
-                <Sparkles className="h-4 w-4 text-[#63C800]" />
-                OpenAI Realtime verbunden
-              </div>
-
-              <div className="relative h-[300px] w-[300px] sm:h-[410px] sm:w-[410px]">
+              <div className="relative h-[330px] w-[330px] sm:h-[450px] sm:w-[450px]">
                 <EmaVoiceOrb
                   phase={realtimePhase}
                   inputLevelRef={inputLevelRef}
@@ -847,21 +887,12 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
                 />
               </div>
 
-              <div className="-mt-3 min-h-[76px]">
-                <p className="text-2xl font-extrabold tracking-tight sm:text-3xl">{statusLabel}</p>
-                <p className="mt-2 text-sm text-[#647089]">
-                  {conversationActive
-                    ? 'Sprich frei mit EMA. Nach einer Minute ohne Gespräch beendet sie die Sitzung automatisch.'
-                    : 'Starte den Sprachmodus und frage EMA nach Projekten, Zahlen oder Dokumenten.'}
-                </p>
-              </div>
-
               <button
                 type="button"
                 onClick={handleConversationToggle}
                 aria-label={conversationActive ? 'Gespräch mit EMA beenden' : 'Gespräch mit EMA starten'}
                 aria-pressed={conversationActive}
-                className={`mt-5 flex min-h-16 items-center gap-3 rounded-full px-8 text-base font-extrabold text-white shadow-[0_16px_34px_rgba(7,20,47,0.24)] transition active:scale-[0.97] ${conversationActive ? 'bg-[#b4232f] hover:bg-[#941d27]' : 'bg-[#07142F] hover:bg-[#10264f]'}`}
+                className={`mt-2 flex min-h-16 items-center gap-3 rounded-full px-8 text-base font-extrabold text-white shadow-[0_16px_34px_rgba(7,20,47,0.24)] transition active:scale-[0.97] ${conversationActive ? 'bg-[#b4232f] hover:bg-[#941d27]' : 'bg-[#07142F] hover:bg-[#10264f]'}`}
               >
                 <span className={`flex h-10 w-10 items-center justify-center rounded-full ${conversationActive ? 'bg-white/[0.16]' : 'bg-[#63C800]'}`}>
                   {conversationActive ? <PhoneOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
