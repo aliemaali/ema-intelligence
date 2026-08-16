@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { BellRing } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-function decodeKey(value: string) { const padding = '='.repeat((4 - value.length % 4) % 4); const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(base64), c => c.charCodeAt(0)) }
+function decodeKey(value: string): ArrayBuffer { const padding = '='.repeat((4 - value.length % 4) % 4); const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/'); const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0)); return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }
 export function PushControls() {
  const [supported,setSupported]=useState(false),[active,setActive]=useState(false),[message,setMessage]=useState('')
  useEffect(()=>{setSupported('serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window); navigator.serviceWorker?.ready.then(async r=>setActive(Boolean(await r.pushManager.getSubscription()))).catch(()=>undefined)},[])
