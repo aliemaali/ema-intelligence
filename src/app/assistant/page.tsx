@@ -16,9 +16,10 @@ export default async function AssistantPage() {
     supabase.from('ema_reminders').select('id,title,notes,due_at,completed_at,push_sent_at').order('due_at', { ascending: true }),
   ])
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 pb-28 md:p-8">
-      <Link href="/dashboard" className="inline-flex min-h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-        <ArrowLeft className="h-5 w-5" /> Zurück zum Dashboard
+    <main className="mx-auto max-w-5xl space-y-6 px-4 pb-28 pt-[calc(env(safe-area-inset-top)+1.25rem)] md:p-8">
+      <Link href="/dashboard" className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-extrabold text-[#07142F] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+        <ArrowLeft className="h-5 w-5 shrink-0" />
+        <span>Zurück zum Dashboard</span>
       </Link>
       <AssistantWorkspace initialMemories={memories ?? []} initialReminders={reminders ?? []} />
       <PushControls />
