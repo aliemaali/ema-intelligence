@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEmaVoiceUserName } from '@/lib/ema/voiceAccess'
+import { EMA_ASSISTANT_REALTIME_TOOLS, EMA_ASSISTANT_INSTRUCTIONS } from '@/lib/ema/assistantRealtimeTools'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       effort: 'medium',
     },
     output_modalities: ['audio'],
-    instructions: `${EMA_INSTRUCTIONS}\nDer aktuell eingeloggte Nutzer heißt ${emaVoiceUserName}. Sprich die Person bei passenden Gelegenheiten natürlich mit „${emaVoiceUserName}“ an.`,
+    instructions: `${EMA_INSTRUCTIONS}\nDer aktuell eingeloggte Nutzer heißt ${emaVoiceUserName}. Sprich die Person bei passenden Gelegenheiten natürlich mit „${emaVoiceUserName}“ an.${EMA_ASSISTANT_INSTRUCTIONS}`,
     tools: [
       {
         type: 'function',
@@ -326,6 +327,7 @@ export async function POST(request: NextRequest) {
           additionalProperties: false,
         },
       },
+      ...EMA_ASSISTANT_REALTIME_TOOLS,
     ],
     tool_choice: 'auto',
     audio: {

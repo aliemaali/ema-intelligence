@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Mic, PhoneOff, X } from 'lucide-react'
 import { EmaVoiceOrb } from './EmaVoiceOrb'
+import { dispatchEmaAssistantTool } from '@/lib/ema/assistantToolDispatcher'
 
 type RealtimePhase = 'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking' | 'error'
 
@@ -595,7 +596,8 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
               output = { success: false, error: 'EMA konnte die aktuellen EMA-Daten nicht lesen.' }
             }
           } else {
-            output = { success: false, error: 'Unbekanntes EMA-Werkzeug.' }
+            const assistantResult = functionCall.name ? await dispatchEmaAssistantTool(functionCall.name, args) : null
+            output = assistantResult ?? { success: false, error: 'Unbekanntes EMA-Werkzeug.' }
           }
 
           if (channel.readyState !== 'open') return
