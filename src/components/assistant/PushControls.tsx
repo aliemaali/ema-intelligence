@@ -11,16 +11,21 @@ function decodeKey(value: string): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, message: string): Promise<T> {
   return Promise.race([
-    promise,
+    Promise.resolve(promise),
     new Promise<T>((_, reject) => window.setTimeout(() => reject(new Error(message)), ms)),
   ])
 }
 
 async function getRegistration() {
-  const existing = await navigator.serviceWorker.getRegistration('/')
+  const existing = await withTimeout(
+    navigator.serviceWorker.getRegistration('/'),
+    5000,
+    'Der EMA Service Worker konnte nicht gelesen werden. Bitte EMA vollständig schließen und erneut öffnen.',
+  )
   if (existing) return existing
+
   return withTimeout(
     navigator.serviceWorker.register('/sw.js', { scope: '/' }),
     8000,
@@ -40,7 +45,12 @@ export function PushControls() {
     if (!canPush) return
 
     getRegistration()
-      .then(async registration => setActive(Boolean(await registration.pushManager.getSubscription())))
+      .then(registration => withTimeout(
+        registration.pushManager.getSubscription(),
+        5000,
+        'Die Push-Registrierung konnte nicht gelesen werden.',
+      ))
+      .then(subscription => setActive(Boolean(subscription)))
       .catch(error => {
         console.error('EMA service worker registration failed', error)
         setMessage('EMA konnte die iPhone-Erinnerungen noch nicht vorbereiten. Bitte die App einmal schließen und erneut öffnen.')
@@ -48,7 +58,8 @@ export function PushControls() {
   }, [])
 
   async function enable() {
-    setMessage('')
+    if (busy) return
+    setMessage('Push wird vorbereitet …')
     if (!supported) {
       setMessage('Push wird auf diesem Gerät nicht unterstützt. Öffne EMA auf dem iPhone über das Symbol auf dem Home-Bildschirm.')
       return
@@ -59,13 +70,18 @@ export function PushControls() {
       const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       if (!key) throw new Error('Push ist serverseitig noch nicht konfiguriert.')
 
+      setMessage('Service Worker wird geprüft …')
       const registration = await getRegistration()
 
-      const permission = await withTimeout(
-        Notification.requestPermission(),
-        12000,
-        'iOS hat die Mitteilungsabfrage nicht geöffnet. Bitte EMA als App vom Home-Bildschirm starten und erneut versuchen.',
-      )
+      setMessage('Mitteilungsberechtigung wird geprüft …')
+      let permission = Notification.permission
+      if (permission === 'default') {
+        permission = await withTimeout(
+          Notification.requestPermission(),
+          12000,
+          'iOS hat die Mitteilungsabfrage nicht geöffnet. Bitte EMA als App vom Home-Bildschirm starten und erneut versuchen.',
+        )
+      }
       if (permission !== 'granted') {
         setMessage(permission === 'denied'
           ? 'Mitteilungen sind für EMA blockiert. Bitte in den iPhone-Einstellungen unter Mitteilungen → EMA erlauben.'
@@ -73,37 +89,52 @@ export function PushControls() {
         return
       }
 
+      setMessage('iPhone wird für Push registriert …')
       let subscription = await withTimeout(
         registration.pushManager.getSubscription(),
-        8000,
+        5000,
         'Die vorhandene Push-Registrierung konnte nicht gelesen werden.',
       )
-      subscription ??= await withTimeout(
-        registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: decodeKey(key),
-        }),
-        15000,
-        'Das iPhone konnte die Push-Registrierung nicht abschließen. Bitte EMA schließen, erneut öffnen und noch einmal versuchen.',
-      )
+      if (!subscription) {
+        subscription = await withTimeout(
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: decodeKey(key),
+          }),
+          15000,
+          'Das iPhone konnte die Push-Registrierung nicht abschließen. Bitte EMA schließen, erneut öffnen und noch einmal versuchen.',
+        )
+      }
 
       const json = subscription.toJSON()
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+
+      setMessage('EMA-Anmeldung wird geprüft …')
+      const authResult = await withTimeout(
+        supabase.auth.getUser(),
+        8000,
+        'Die EMA-Anmeldung antwortet nicht. Bitte EMA neu öffnen und erneut anmelden.',
+      )
+      const user = authResult.data.user
       if (!user || !json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
         throw new Error('Push-Registrierung konnte nicht gespeichert werden.')
       }
 
-      const { error } = await supabase.from('ema_push_subscriptions').upsert({
-        user_id: user.id,
-        endpoint: json.endpoint,
-        p256dh: json.keys.p256dh,
-        auth_key: json.keys.auth,
-        device_label: navigator.userAgent.slice(0, 180),
-        last_seen_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,endpoint' })
+      setMessage('Push-Registrierung wird gespeichert …')
+      const saveResult = await withTimeout(
+        supabase.from('ema_push_subscriptions').upsert({
+          user_id: user.id,
+          endpoint: json.endpoint,
+          p256dh: json.keys.p256dh,
+          auth_key: json.keys.auth,
+          device_label: navigator.userAgent.slice(0, 180),
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,endpoint' }),
+        10000,
+        'Die Push-Registrierung konnte nicht in EMA gespeichert werden. Bitte erneut versuchen.',
+      )
 
-      if (error) throw error
+      if (saveResult.error) throw saveResult.error
       setActive(true)
       setMessage('Erinnerungen sind auf diesem Gerät aktiviert.')
     } catch (error) {
@@ -115,18 +146,28 @@ export function PushControls() {
   }
 
   async function disable() {
-    setMessage('')
+    if (busy) return
+    setMessage('Erinnerungen werden deaktiviert …')
     setBusy(true)
     try {
       const registration = await getRegistration()
-      const subscription = await registration.pushManager.getSubscription()
+      const subscription = await withTimeout(
+        registration.pushManager.getSubscription(),
+        5000,
+        'Die Push-Registrierung konnte nicht gelesen werden.',
+      )
       if (!subscription) {
         setActive(false)
+        setMessage('Erinnerungen sind auf diesem Gerät bereits deaktiviert.')
         return
       }
       const endpoint = subscription.endpoint
-      await subscription.unsubscribe()
-      await createClient().from('ema_push_subscriptions').delete().eq('endpoint', endpoint)
+      await withTimeout(subscription.unsubscribe(), 8000, 'Die Push-Registrierung konnte nicht entfernt werden.')
+      await withTimeout(
+        createClient().from('ema_push_subscriptions').delete().eq('endpoint', endpoint),
+        10000,
+        'Die Push-Registrierung konnte serverseitig nicht entfernt werden.',
+      )
       setActive(false)
       setMessage('Erinnerungen wurden auf diesem Gerät deaktiviert.')
     } catch (error) {
