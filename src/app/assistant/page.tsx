@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AssistantWorkspace } from '@/components/assistant/AssistantWorkspace'
-import { PushControls } from '@/components/assistant/PushControls'
+import { ReminderPushStatus } from '@/components/assistant/ReminderPushStatus'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +22,7 @@ export default async function AssistantPage() {
         <span>Zurück zum Dashboard</span>
       </Link>
       <AssistantWorkspace initialMemories={memories ?? []} initialReminders={reminders ?? []} />
-      <PushControls />
+      <ReminderPushStatus />
     </main>
   )
 }
