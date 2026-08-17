@@ -13,6 +13,7 @@
     "test:expose": "esbuild src/lib/expose/projectPresentation.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/expose.test.cjs && node --test .tmp/expose.test.cjs",
     "test:bess-import": "esbuild src/lib/projects/bessPortfolio.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/bess-portfolio.test.cjs && node --test .tmp/bess-portfolio.test.cjs",
     "test:legal-documents": "esbuild src/lib/pdf/legalDocuments.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/legal-documents.test.cjs && node --test .tmp/legal-documents.test.cjs",
+    "test:reminder-push-status": "esbuild src/lib/reminders/pushStatus.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/reminder-push-status.test.cjs && node --test .tmp/reminder-push-status.test.cjs",
     "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts",
     "pl:render": "esbuild tools/renderProjektliste.ts --bundle --platform=node --target=node20 --outfile=.tmp/render.cjs && node .tmp/render.cjs",
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
@@ -31,7 +32,6 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^0.414.0",
     "next": "14.2.5",
-    "next-pwa": "^5.6.0",
     "next-themes": "^0.3.0",
     "numeral": "^2.0.6",
     "pdf-parse": "^1.1.1",
@@ -43,6 +43,7 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.4.0",
     "tesseract.js": "^5.1.1",
+    "web-push": "^3.6.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -51,6 +52,7 @@
     "@types/numeral": "^2.0.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.19",
     "esbuild": "^0.25.0",
     "eslint": "^8.57.0",
