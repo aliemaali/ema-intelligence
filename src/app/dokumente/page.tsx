@@ -46,6 +46,13 @@ export default async function DokumentePage() {
 
   return (
     <main className="min-h-screen bg-[#F5F7F9] px-3 pb-20 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-8 md:py-8">
+      <style>{`
+        @media (max-width: 767px) {
+          .fixed.inset-0 .btn-icon { flex: 0 0 auto; position: sticky; top: 0; z-index: 2; background: white; }
+          .fixed.inset-0 .flex.items-start.justify-between > div:first-child { min-width: 0; }
+          .fixed.inset-0 .flex.items-start.justify-between h2 { overflow-wrap: anywhere; }
+        }
+      `}</style>
       <div className="mx-auto max-w-[1100px]">
         <div className="mb-6 flex items-center justify-between gap-4">
           <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>
