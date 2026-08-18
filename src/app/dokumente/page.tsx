@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { DocumentInvestor } from '@/lib/templates/documentTypes'
 
 export const metadata = { title: 'Dokumente' }
+export const dynamic = 'force-dynamic'
 
 export default async function DokumentePage() {
   const supabase = await createClient()
@@ -20,13 +21,17 @@ export default async function DokumentePage() {
     getDocumentFolders(),
     (supabase as any).from('document_assignments').select('document_id, entity_type, entity_id').eq('user_id', user.id),
     supabase.from('partners').select('id, full_name, company, category').eq('user_id', user.id).eq('is_active', true).order('company'),
-    supabase.from('investors').select('id, full_name, contact_person, company, company_name, email, phone, street_address, postal_code, location_city, location_country, country').eq('user_id', user.id).eq('is_active', true).order('company_name'),
+    // Investor CRM records are protected by RLS. New CRM investors can be owned via
+    // created_by rather than the legacy user_id column, so filtering by user_id here
+    // hid newly created investors from the document generators.
+    supabase.from('investors').select('id, full_name, contact_person, company, company_name, email, phone, street_address, postal_code, location_city, location_country, country, status, is_active').neq('status', 'Inaktiv').order('company_name'),
     supabase.from('projects').select('id, project_number, project_name, location_city').eq('user_id', user.id).eq('is_archived', false).order('project_name'),
   ])
 
+  const activeInvestorRows = (investorsResult.data ?? []).filter((item: any) => item.is_active !== false)
   const partners = (partnersResult.data ?? []).map((item: any) => ({ id: item.id, label: item.company || item.full_name || 'Partner', subtitle: [item.full_name, item.category].filter(Boolean).join(' · ') }))
-  const investors = (investorsResult.data ?? []).map((item: any) => ({ id: item.id, label: item.company_name || item.company || item.full_name || 'Investor', subtitle: item.contact_person || item.full_name || item.email }))
-  const documentInvestors: DocumentInvestor[] = (investorsResult.data ?? []).map((item: any) => ({
+  const investors = activeInvestorRows.map((item: any) => ({ id: item.id, label: item.company_name || item.company || item.full_name || 'Investor', subtitle: item.contact_person || item.full_name || item.email }))
+  const documentInvestors: DocumentInvestor[] = activeInvestorRows.map((item: any) => ({
     id: item.id,
     company: item.company_name || item.company || item.full_name || '',
     contactPerson: item.contact_person || item.full_name || '',
