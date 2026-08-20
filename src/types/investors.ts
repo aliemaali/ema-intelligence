@@ -81,6 +81,7 @@ export interface InvestorSearchProfile {
 
 export interface Investor {
   id: string;
+  is_active: boolean;
   company_name: string;
   contact_person: string;
   email: string;

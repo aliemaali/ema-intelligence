@@ -59,7 +59,7 @@ export function InvestorCard({ investor, onOpen, onEdit, onDelete }: InvestorCar
         <a href={`mailto:${investor.email}`} onClick={(event) => event.stopPropagation()} className="flex items-center justify-center gap-1 py-2.5 text-[11px] font-medium text-[#1B2C4E] hover:bg-slate-50"><Mail size={13} /> Mail</a>
         <a href={`/investors/${investor.id}`} onClick={(event) => event.stopPropagation()} className="flex items-center justify-center gap-1 border-l border-slate-100 py-2.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"><FileText size={13} /> Akte</a>
         <button onClick={(event) => { event.stopPropagation(); onEdit(investor); }} className="flex items-center justify-center gap-1 border-l border-slate-100 py-2.5 text-[11px] font-medium text-slate-500 hover:bg-slate-50"><Pencil size={13} /> Bearbeiten</button>
-        <button aria-label="Investor löschen" onClick={(event) => { event.stopPropagation(); onDelete(investor); }} className="flex items-center justify-center border-l border-slate-100 hover:bg-red-50"><Trash2 size={13} color="#C2410C" /></button>
+        <button aria-label="Investor archivieren" onClick={(event) => { event.stopPropagation(); onDelete(investor); }} className="flex items-center justify-center border-l border-slate-100 hover:bg-amber-50"><Trash2 size={13} color="#C2410C" /></button>
       </div>
     </article>
   );

@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Building2, FileText, Mail, Pencil, Phone, Plus, Search, UserRound, Users } from 'lucide-react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { Archive, Building2, FileText, Mail, Pencil, Phone, Plus, Search, UserRound, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { archiveContact } from '@/lib/actions/contact-archive.actions'
 
 interface Partner {
   id: string
@@ -25,9 +26,10 @@ export default function PartnersPage() {
   const [search, setSearch] = useState('')
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
+  const [archiving,startArchiving] = useTransition()
 
   async function loadPartners() {
-    const { data } = await supabase.from('partners').select('id, company, full_name, email, phone, category, notes').order('created_at', { ascending: false })
+    const { data } = await supabase.from('partners').select('id, company, full_name, email, phone, category, notes').eq('is_active',true).order('created_at', { ascending: false })
     setPartners((data ?? []) as Partner[])
   }
 
@@ -49,6 +51,14 @@ export default function PartnersPage() {
     setForm(emptyForm)
     setShowForm(false)
     await loadPartners()
+  }
+
+  function archivePartner(id:string) {
+    startArchiving(async () => {
+      const result = await archiveContact('partner',id)
+      if (!result.success) return alert(result.error)
+      setPartners((current) => current.filter((partner) => partner.id !== id))
+    })
   }
 
   const salesPartners = partners.filter((partner) => partner.category === 'Vertriebspartner').length
@@ -91,7 +101,7 @@ export default function PartnersPage() {
             <article key={partner.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1F2A44]/8"><Building2 className="h-5 w-5" /></span><div className="min-w-0"><h2 className="truncate font-extrabold text-[#07142F]">{partner.company || partner.full_name}</h2><span className="mt-1 inline-flex rounded-full bg-[#5CB800]/10 px-2.5 py-1 text-[10px] font-extrabold text-[#2F8A00]">{partner.category}</span></div></div>
               <div className="mt-5 space-y-2 text-sm text-slate-600"><p className="flex items-center gap-2"><UserRound className="h-4 w-4" />{partner.full_name}</p>{partner.email && <a className="flex items-center gap-2" href={`mailto:${partner.email}`}><Mail className="h-4 w-4" />{partner.email}</a>}{partner.phone && <a className="flex items-center gap-2" href={`tel:${partner.phone}`}><Phone className="h-4 w-4" />{partner.phone}</a>}</div>
-              <div className="mt-5 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4"><a href={`/partners/${partner.id}`} className="btn-secondary btn-sm justify-center"><Pencil className="h-4 w-4" /> Bearbeiten</a><a href={`/partners/${partner.id}`} className="btn-secondary btn-sm justify-center"><FileText className="h-4 w-4" /> Dokumente</a></div>
+              <div className="mt-5 grid grid-cols-3 gap-2 border-t border-slate-100 pt-4"><a href={`/partners/${partner.id}`} className="btn-secondary btn-sm justify-center"><Pencil className="h-4 w-4" /> Bearbeiten</a><a href={`/partners/${partner.id}`} className="btn-secondary btn-sm justify-center"><FileText className="h-4 w-4" /> Dokumente</a><button disabled={archiving} onClick={() => archivePartner(partner.id)} className="btn-secondary btn-sm justify-center text-amber-700" aria-label={`${partner.company || partner.full_name} archivieren`}><Archive className="h-4 w-4" /> Archiv</button></div>
             </article>
           ))}
         </div>

@@ -41,12 +41,12 @@ export function ConfirmDeleteDialog({
           <AlertCircle size={18} color="#C2410C" />
         </div>
         <h3 className="font-semibold text-[15px] text-slate-800 mb-1.5">
-          Investor löschen?
+          Investor archivieren?
         </h3>
         <p className="text-[12.5px] text-slate-500 leading-relaxed mb-5">
-          „{investor.company_name}“ wird dauerhaft entfernt, inklusive
-          Kontakthistorie, Notizen und Projektverknüpfungen. Diese Aktion kann
-          nicht rückgängig gemacht werden.
+          „{investor.company_name}“ wird aus der aktiven Investorenliste in das
+          Kontakte-Archiv verschoben. Alle Daten bleiben erhalten und können
+          später wiederhergestellt werden.
         </p>
         <div className="flex gap-2">
           <button
@@ -62,7 +62,7 @@ export function ConfirmDeleteDialog({
             className="flex-1 py-2.5 rounded-lg text-[13px] font-medium text-white disabled:opacity-60"
             style={{ background: "#C2410C" }}
           >
-            {isPending ? "Löscht…" : "Endgültig löschen"}
+            {isPending ? "Archiviert…" : "Ins Archiv"}
           </button>
         </div>
       </div>

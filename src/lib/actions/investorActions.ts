@@ -169,7 +169,7 @@ export async function updateInvestor(
 }
 
 // -----------------------------------------------------------------------------
-// deleteInvestor
+// deleteInvestor — verschiebt den Investor in das zentrale Kontakte-Archiv
 // -----------------------------------------------------------------------------
 
 export async function deleteInvestor(id: string): Promise<ActionResult<{ id: string }>> {
@@ -187,16 +187,18 @@ export async function deleteInvestor(id: string): Promise<ActionResult<{ id: str
     return { success: false, error: "Nicht authentifiziert. Bitte erneut anmelden." };
   }
 
-  // Hinweis: investor_contacts, investor_notes und investor_project_links
-  // werden per ON DELETE CASCADE im Schema automatisch mitgelöscht.
-  const { error } = await supabase.from("investors").delete().eq("id", id);
+  const { data,error } = await supabase.from("investors").update({ is_active:false,updated_at:new Date().toISOString() }).eq("id", id).eq("is_active",true).select("id").maybeSingle();
 
   if (error) {
     console.error("[deleteInvestor]", error);
-    return { success: false, error: "Investor konnte nicht gelöscht werden." };
+    return { success: false, error: "Investor konnte nicht archiviert werden." };
   }
 
+  if (!data) return { success:false,error:"Investor wurde nicht gefunden oder ist bereits archiviert." };
+
   revalidatePath(INVESTORS_PATH);
+  revalidatePath("/archive");
+  revalidatePath("/archive/contacts");
   return { success: true, data: { id } };
 }
 
@@ -210,7 +212,7 @@ export async function getInvestors(
 ): Promise<ActionResult<InvestorWithStats[]>> {
   const supabase = await createClient();
 
-  let query = supabase.from("investors_with_stats").select("*");
+  let query = supabase.from("investors_with_stats").select("*").eq("is_active",true);
 
   if (filters.search?.trim()) {
     const term = filters.search.trim();
@@ -271,7 +273,8 @@ export async function getInvestorDashboardKpis(): Promise<
 
   const { data, error } = await supabase
     .from("investors")
-    .select("status, ticket_size_max_eur, ticket_size_min_eur, last_contact_at");
+    .select("status, ticket_size_max_eur, ticket_size_min_eur, last_contact_at")
+    .eq("is_active",true);
 
   if (error) {
     console.error("[getInvestorDashboardKpis]", error);
