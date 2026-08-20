@@ -30,7 +30,7 @@ create table if not exists public.plaud_notes (
 alter table public.plaud_notes add column if not exists archived_at timestamptz;
 
 create index if not exists plaud_items_user_status_due_idx on public.plaud_items (user_id,status,due_at);
-create index if not exists plaud_notes_user_archive_idx on public.plaud_notes (user_id,archived_at);
+create index if not exists plaud_notes_user_archived_idx on public.plaud_notes (user_id,archived_at);
 
 alter table public.plaud_items enable row level security;
 alter table public.plaud_notes enable row level security;
