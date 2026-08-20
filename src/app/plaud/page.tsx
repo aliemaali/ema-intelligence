@@ -21,7 +21,7 @@ export default function PlaudPage() {
   const [pending, startTransition] = useTransition()
   const [suggestions, setSuggestions] = useState(initialSuggestions)
   const [stored, setStored] = useState<Stored[]>([])
-  const [title, setTitle] = useState(CURRENT_PLAUD_NOTE.defaultTitle)
+  const [title, setTitle] = useState<string>(CURRENT_PLAUD_NOTE.defaultTitle)
   const [editTitle, setEditTitle] = useState(false)
   const [message, setMessage] = useState('')
   const [preview, setPreview] = useState(false)
