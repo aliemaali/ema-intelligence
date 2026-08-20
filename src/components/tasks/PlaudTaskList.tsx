@@ -15,13 +15,17 @@ export type PlaudTaskItem = {
   status:'open'|'completed'
 }
 
-export function PlaudTaskList({ initialItems }:{ initialItems:PlaudTaskItem[] }) {
+export type PlaudTaskView = 'all'|'appointments'|'tasks'
+
+export function PlaudTaskList({ initialItems,view='all' }:{ initialItems:PlaudTaskItem[]; view?:PlaudTaskView }) {
   const router = useRouter()
   const [items,setItems] = useState(initialItems)
   const [pending,startTransition] = useTransition()
   const [message,setMessage] = useState('')
   const open = items.filter((item) => item.status === 'open')
   const completed = items.filter((item) => item.status === 'completed')
+  const sectionTitle = view === 'appointments' ? 'Termine' : view === 'tasks' ? 'Aufgaben' : 'Aufgaben und Termine'
+  const emptyText = view === 'appointments' ? 'Keine offenen Termine.' : view === 'tasks' ? 'Keine offenen Aufgaben.' : 'Keine offenen Einträge.'
 
   function complete(id:string) {
     startTransition(async () => {
@@ -51,7 +55,7 @@ export function PlaudTaskList({ initialItems }:{ initialItems:PlaudTaskItem[] })
 
   return <div className="space-y-6">
     {message && <div role="status" className="rounded-2xl bg-[#5CB800]/10 px-4 py-3 text-sm font-bold text-[#2F7D00]">{message}</div>}
-    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">Offen</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Aufgaben und Termine</h2></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-extrabold">{open.length}</span></div><div className="mt-5 space-y-3">{open.length ? open.map((item) => <TaskRow key={item.id} item={item} pending={pending} onComplete={complete} />) : <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">Keine offenen Einträge.</p>}</div></section>
+    <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">Offen</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">{sectionTitle}</h2></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-extrabold">{open.length}</span></div><div className="mt-5 space-y-3">{open.length ? open.map((item) => <TaskRow key={item.id} item={item} pending={pending} onComplete={complete} />) : <p className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">{emptyText}</p>}</div></section>
     {completed.length > 0 && <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex items-center justify-between"><h2 className="text-xl font-extrabold text-[#07142F]">Erledigt</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-extrabold">{completed.length}</span></div><div className="mt-4 space-y-3">{completed.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4"><div className="min-w-0"><p className="truncate font-bold text-slate-500 line-through">{item.title}</p><p className="mt-1 text-xs text-slate-400">{item.kind === 'appointment' ? 'Termin' : 'Aufgabe'} · erledigt</p></div><button disabled={pending} onClick={() => remove(item.id)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white text-red-600" aria-label={`„${item.title}“ löschen`}><Trash2 className="h-5 w-5" /></button></div>)}</div></section>}
     <div className="grid grid-cols-2 gap-3"><Link href="/plaud" className="rounded-2xl border bg-white px-4 py-3 text-center font-extrabold text-[#1F2A44]">Zu PLAUD</Link><Link href="/calendar" className="rounded-2xl bg-[#1F2A44] px-4 py-3 text-center font-extrabold text-white">Kalender öffnen</Link></div>
   </div>
