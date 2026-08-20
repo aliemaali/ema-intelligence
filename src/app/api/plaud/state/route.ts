@@ -1,0 +1,12 @@
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+
+export async function GET(){
+ const supabase=await createClient(); const {data:{user}}=await supabase.auth.getUser();
+ if(!user)return NextResponse.json({error:'unauthorized'},{status:401});
+ const [items,note]=await Promise.all([
+  supabase.from('plaud_items').select('id,external_id,kind,title,detail,source,status').eq('user_id',user.id).order('created_at',{ascending:true}),
+  supabase.from('plaud_notes').select('id,title,recorded_at').eq('user_id',user.id).eq('external_id','b843bb19f497c01e84080e8c13a71032').maybeSingle()
+ ]);
+ return NextResponse.json({items:items.data??[],note:note.data??null});
+}
