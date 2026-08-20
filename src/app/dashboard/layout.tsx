@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { AppShell } from '@/components/layout/AppShell'
+import { PlaudDashboardMount } from '@/components/dashboard/PlaudDashboardMount'
 
 /**
  * Layout for all authenticated routes.
@@ -38,7 +39,7 @@ export default async function AppLayout({
         avatarUrl: null,
       }}
     >
-      {children}
+      <PlaudDashboardMount>{children}</PlaudDashboardMount>
     </AppShell>
   )
 }
