@@ -2,41 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
-
-export type PlaudItemStatus = 'suggested' | 'open' | 'completed' | 'rejected'
-
-async function authDb() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Nicht angemeldet')
-  return { supabase, user }
-}
-
-export async function savePlaudItem(input: { externalId:string; kind:'task'|'appointment'; title:string; detail?:string; source?:string; status:PlaudItemStatus }) {
-  const { supabase, user } = await authDb()
-  const { error } = await supabase.from('plaud_items').upsert({ user_id:user.id, external_id:input.externalId, kind:input.kind, title:input.title, detail:input.detail ?? null, source:input.source ?? null, status:input.status, updated_at:new Date().toISOString() }, { onConflict:'user_id,external_id' })
-  if (error) throw error
-  revalidatePath('/plaud'); revalidatePath('/dashboard')
-}
-
-export async function completePlaudItem(id:string) {
-  const { supabase, user } = await authDb()
-  const { error } = await supabase.from('plaud_items').update({status:'completed',updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',user.id)
-  if (error) throw error
-  revalidatePath('/plaud'); revalidatePath('/dashboard')
-}
-
-export async function deletePlaudItem(id:string) {
-  const { supabase, user } = await authDb()
-  const { error } = await supabase.from('plaud_items').delete().eq('id',id).eq('user_id',user.id).eq('status','completed')
-  if (error) throw error
-  revalidatePath('/plaud'); revalidatePath('/dashboard')
-}
-
-export async function savePlaudNoteTitle(title:string) {
-  const clean=title.trim(); if(!clean) throw new Error('Titel darf nicht leer sein')
-  const { supabase, user } = await authDb()
-  const { error } = await supabase.from('plaud_notes').upsert({user_id:user.id,external_id:'b843bb19f497c01e84080e8c13a71032',title:clean,recorded_at:'2026-08-20T13:32:05+02:00',updated_at:new Date().toISOString()},{onConflict:'user_id,external_id'})
-  if(error) throw error
-  revalidatePath('/plaud'); revalidatePath('/dashboard')
-}
+export type PlaudItemStatus='suggested'|'open'|'completed'|'rejected'
+async function authDb(){const supabase=await createClient();const{data:{user}}=await supabase.auth.getUser();if(!user)throw new Error('Nicht angemeldet');return{supabase,user}}
+export async function savePlaudItem(input:{externalId:string;kind:'task'|'appointment';title:string;detail?:string;source?:string;status:PlaudItemStatus}){const{supabase,user}=await authDb();const{error}=await supabase.from('plaud_items').upsert({user_id:user.id,external_id:input.externalId,kind:input.kind,title:input.title,detail:input.detail??null,source:input.source??null,status:input.status,updated_at:new Date().toISOString()},{onConflict:'user_id,external_id'});if(error)throw error;revalidatePath('/plaud');revalidatePath('/dashboard')}
+export async function completePlaudItem(id:string){const{supabase,user}=await authDb();const{error}=await supabase.from('plaud_items').update({status:'completed',updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',user.id);if(error)throw error;revalidatePath('/plaud');revalidatePath('/dashboard')}
+export async function deletePlaudItem(id:string){const{supabase,user}=await authDb();const{error}=await supabase.from('plaud_items').delete().eq('id',id).eq('user_id',user.id).eq('status','completed');if(error)throw error;revalidatePath('/plaud');revalidatePath('/dashboard')}
+export async function savePlaudNoteTitle(title:string){const clean=title.trim();if(!clean)throw new Error('Titel darf nicht leer sein');const{supabase,user}=await authDb();const{error}=await supabase.from('plaud_notes').upsert({user_id:user.id,external_id:'b843bb19f497c01e84080e8c13a71032',title:clean,recorded_at:'2026-08-20T13:32:05+02:00',updated_at:new Date().toISOString()},{onConflict:'user_id,external_id'});if(error)throw error;revalidatePath('/plaud');revalidatePath('/dashboard')}
+export async function archivePlaudNote(){const{supabase,user}=await authDb();const{error}=await supabase.from('plaud_notes').update({archived_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('user_id',user.id).eq('external_id','b843bb19f497c01e84080e8c13a71032');if(error)throw error;revalidatePath('/plaud');revalidatePath('/dashboard')}
+export async function restorePlaudNote(){const{supabase,user}=await authDb();const{error}=await supabase.from('plaud_notes').update({archived_at:null,updated_at:new Date().toISOString()}).eq('user_id',user.id).eq('external_id','b843bb19f497c01e84080e8c13a71032');if(error)throw error;revalidatePath('/plaud');revalidatePath('/dashboard')}
