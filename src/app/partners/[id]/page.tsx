@@ -15,6 +15,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
     .select('id, company, full_name, email, phone, category, notes')
     .eq('id', params.id)
     .eq('user_id', user.id)
+    .eq('is_active', true)
     .single()
 
   if (!partner) notFound()
