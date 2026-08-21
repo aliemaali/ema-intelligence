@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowLeft, Mail, MessageCircle, Send, ShieldCheck } from 'lucide-react'
 import { redirect } from 'next/navigation'
@@ -88,15 +89,18 @@ export default async function VersandcenterPage() {
             Zurück zur Startseite
           </Link>
           <Link href="/dashboard" aria-label="EMA Startseite" className="hidden sm:block">
-            <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-12 w-auto object-contain" />
+            <img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-12 w-auto object-contain" />
           </Link>
         </div>
 
         <section className="relative overflow-hidden rounded-[2rem] bg-[#07142F] text-white shadow-[0_24px_70px_rgba(15,23,42,0.18)]">
-          <img
+          <Image
             src="/hero-dashboard.png"
             alt="Erneuerbare-Energien-Projekte"
-            className="absolute inset-0 h-full w-full object-cover"
+            fill
+            quality={95}
+            sizes="(max-width: 1100px) 100vw, 1100px"
+            className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/98 via-[#07142F]/80 to-[#07142F]/35" />
           <div className="relative px-6 py-8 md:px-10 md:py-10">

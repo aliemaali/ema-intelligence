@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowRight, Bell, CalendarDays, FileText, MapPin, Search, Sparkles } from 'lucide-react'
 import { getProjects } from '@/lib/actions/project.actions'
@@ -20,7 +21,7 @@ export default async function ExposePage() {
       <header className="border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:pb-5 md:pt-6">
         <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
           <Link href="/dashboard" aria-label="Zum Dashboard">
-            <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-16 w-auto object-contain md:h-20" />
+            <img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-16 w-auto object-contain md:h-20" />
           </Link>
           <div className="flex items-center gap-2">
             <button className="mobile-header-action hidden sm:flex" type="button" aria-label="Suche"><Search className="h-5 w-5" /></button>
@@ -33,7 +34,7 @@ export default async function ExposePage() {
       <main className="mx-auto w-full max-w-[1480px] space-y-8 px-3 pt-6 md:px-0 md:pt-8">
         <section className="relative overflow-hidden rounded-[2rem] bg-[#07142F] text-white shadow-[0_24px_70px_rgba(15,23,42,0.16)] md:rounded-[2.2rem]">
           <div className="relative min-h-[520px] md:min-h-[440px]">
-            <img src="/hero-dashboard.png" alt="Photovoltaik-Freiflächenanlage aus der Luft" className="absolute inset-0 h-full w-full object-cover object-center" />
+            <Image src="/hero-dashboard.png" alt="Photovoltaik-Freiflächenanlage aus der Luft" fill priority quality={95} sizes="(max-width: 1480px) 100vw, 1480px" className="object-cover object-center" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#07142F]/96 via-[#07142F]/66 to-[#07142F]/10" />
             <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/55 to-transparent" />
 

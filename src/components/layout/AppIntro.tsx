@@ -31,6 +31,7 @@ export function AppIntro() {
   const isEmaStandalonePath = pathname === '/ema' || pathname.startsWith('/ema/')
   const [phase, setPhase] = useState<IntroPhase>('checking')
   const [useFallbackAnimation, setUseFallbackAnimation] = useState(false)
+  const [shouldPlayVideo, setShouldPlayVideo] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const exitTimerRef = useRef<number | null>(null)
   const introTimerRef = useRef<number | null>(null)
@@ -69,6 +70,7 @@ export function AppIntro() {
     if (isEmaStandalonePath) return
 
     const { isStandalone, storageKey } = getIntroStorageKey()
+    setShouldPlayVideo(window.matchMedia('(max-width: 767px)').matches)
     isStandaloneRef.current = isStandalone
     storageKeyRef.current = storageKey
 
@@ -155,10 +157,10 @@ export function AppIntro() {
         <>
           <video
             ref={videoRef}
-            className={`h-full w-full object-cover transition-opacity duration-150 ${
+            className={`h-full w-full object-cover transition-opacity duration-150 md:hidden ${
               useFallbackAnimation ? 'opacity-0' : 'opacity-100'
             }`}
-            src={INTRO_VIDEO_URL}
+            src={shouldPlayVideo ? INTRO_VIDEO_URL : undefined}
             poster={INTRO_POSTER_URL}
             autoPlay
             muted
@@ -171,8 +173,36 @@ export function AppIntro() {
             }}
             onError={() => setUseFallbackAnimation(true)}
           />
+
+          <div className="absolute inset-0 hidden overflow-hidden md:block">
+            <Image
+              src="/hero-dashboard.png"
+              alt="Erneuerbare Energieprojekte"
+              fill
+              priority
+              quality={95}
+              sizes="100vw"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#07142F]/88 via-[#132060]/66 to-[#07142F]/30" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="ema-intro-fallback-content flex -translate-y-6 flex-col items-center">
+                <Image
+                  src="/brand/ema-mark-white.png"
+                  alt="EMA"
+                  width={506}
+                  height={247}
+                  priority
+                  className="w-64 drop-shadow-[0_12px_30px_rgba(0,0,0,0.34)]"
+                />
+                <p className="mt-6 text-4xl font-semibold tracking-[0.01em] text-white drop-shadow-lg">EMA Intelligence</p>
+                <span className="mt-5 h-1 w-16 rounded-full bg-[#72d400]" />
+              </div>
+            </div>
+          </div>
+
           {useFallbackAnimation ? (
-            <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center overflow-hidden md:hidden">
               <div className="ema-intro-fallback-beam absolute -left-1/2 top-[-20%] h-[145%] w-24 rotate-[18deg] bg-gradient-to-r from-transparent via-[#72d400]/70 to-transparent blur-xl" />
               <div className="ema-intro-fallback-content flex -translate-y-6 flex-col items-center">
                 <Image

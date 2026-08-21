@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { login } from '@/lib/actions/auth.actions'
 import { PasswordInput } from '@/components/auth/PasswordInput'
 import { PasskeyLoginButton } from '@/components/auth/PasskeyLoginButton'
@@ -11,15 +12,19 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   const error = searchParams.error
 
   return (
-    <div className="min-h-screen bg-white px-4 flex flex-col items-center justify-center">
-      <div className="w-full max-w-sm relative z-10">
-        <div className="text-center mb-10">
-          <img
-            src="/ema-logo.jpeg"
+    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(92,184,0,.12),transparent_34rem),radial-gradient(circle_at_bottom_right,rgba(19,32,96,.10),transparent_38rem),#f8fafc] px-4 py-8">
+      <div className="relative z-10 w-full max-w-md rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-[0_28px_90px_rgba(7,20,47,.13)] backdrop-blur-xl sm:p-9">
+        <div className="mb-8 text-center">
+          <Image
+            src="/brand/ema-logo.png"
             alt="EMA Enterprise GmbH"
-            className="mx-auto mb-5 h-24 w-auto object-contain sm:h-28"
+            width={696}
+            height={323}
+            priority
+            className="mx-auto mb-4 h-24 w-auto object-contain sm:h-28"
           />
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">
+          <p className="text-[11px] font-extrabold uppercase tracking-[.22em] text-[#5CB800]">EMA Enterprise</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em] text-[#07142F]">
             EMA Intelligence
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

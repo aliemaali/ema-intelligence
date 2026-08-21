@@ -30,7 +30,7 @@ export default function CustomerIntakePage() {
   return <div className="w-full max-w-full overflow-x-hidden pb-28">
     <header className="border-b border-slate-200 bg-white px-5 pb-6 pt-[calc(env(safe-area-inset-top)+1.5rem)] md:px-8 md:pb-7">
       <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
-        <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-20 w-auto object-contain md:h-24" />
+        <img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-20 w-auto object-contain md:h-24" />
         <div className="flex items-center gap-3">
           <Link href="/calendar" aria-label="Kalender" className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm"><CalendarDays className="h-6 w-6 text-[#07142F]" /></Link>
           <button type="button" aria-label="Benachrichtigungen" className="relative flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm"><Bell className="h-6 w-6 text-[#07142F]" /><span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-[#5CB800]" /></button>
