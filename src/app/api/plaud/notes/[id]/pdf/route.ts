@@ -58,6 +58,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         'Content-Disposition': `${download ? 'attachment' : 'inline'}; filename="${filename}"`,
         'Cache-Control': 'private, no-store, max-age=0',
         'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Content-Security-Policy': "frame-ancestors 'self'",
       },
     })
   } catch (pdfError) {
