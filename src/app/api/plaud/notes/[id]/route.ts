@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getPlaudTranslationStatus, hidePlaudTranslationProgress } from '@/lib/plaud/prepare-meeting'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,5 +13,11 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     .eq('id', params.id).eq('user_id', user.id).maybeSingle()
   if (error) return NextResponse.json({ error: 'PLAUD-Notiz konnte nicht geladen werden.' }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'PLAUD-Notiz wurde nicht gefunden.' }, { status: 404 })
-  return NextResponse.json({ note: data })
+  return NextResponse.json({
+    note: {
+      ...data,
+      transcript_de: hidePlaudTranslationProgress(data.transcript_de),
+      translation: getPlaudTranslationStatus(data.transcript_de),
+    },
+  })
 }

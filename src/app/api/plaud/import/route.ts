@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getPlaudRecording, resolvePlaudBlocks } from '@/lib/plaud/api'
-import { preparePlaudMeeting } from '@/lib/plaud/prepare-meeting'
+import {
+  analyzePlaudMeeting,
+  createPlaudTranslationProgress,
+  getPlaudTranslationStatus,
+  isGermanPlaudLanguage,
+} from '@/lib/plaud/prepare-meeting'
 import { getPlaudAccessToken } from '@/lib/plaud/session'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +29,17 @@ export async function POST(request: NextRequest) {
 
   const { data: existing } = await supabase.from('plaud_import_decisions')
     .select('decision').eq('user_id', user.id).eq('external_id', fileId).maybeSingle()
-  if (existing?.decision === 'imported') return NextResponse.json({ ok: true, alreadyImported: true })
+  if (existing?.decision === 'imported') {
+    const { data: note } = await supabase.from('plaud_notes')
+      .select('id,title,transcript_de').eq('user_id', user.id).eq('external_id', fileId).maybeSingle()
+    return NextResponse.json({
+      ok: true,
+      alreadyImported: true,
+      noteId: note?.id,
+      title: note?.title,
+      translation: getPlaudTranslationStatus(note?.transcript_de),
+    })
+  }
   if (existing?.decision === 'rejected') return NextResponse.json({ error: 'Diese Aufnahme wurde bereits abgelehnt.' }, { status: 409 })
 
   try {
@@ -36,33 +51,32 @@ export async function POST(request: NextRequest) {
       resolvePlaudBlocks(recording.note_list),
     ])
     if (!transcript) return NextResponse.json({ error: 'Für diese Aufnahme ist noch kein Transkript verfügbar.' }, { status: 409 })
-    const prepared = await preparePlaudMeeting({
-      userId: user.id,
-      title: recording.name || 'PLAUD-Aufnahme',
-      transcript,
-      notes,
-    })
+    const analyzed = await analyzePlaudMeeting(user.id, recording.name || 'PLAUD-Aufnahme', transcript, notes)
+    const sourceLanguage = analyzed.source_language.trim().toLowerCase() || 'und'
+    const transcriptDe = isGermanPlaudLanguage(sourceLanguage)
+      ? transcript
+      : createPlaudTranslationProgress(transcript)
     const recordedAt = recording.start_at || recording.created_at || new Date().toISOString()
     const now = new Date().toISOString()
-    const { error: noteError } = await supabase.from('plaud_notes').upsert({
+    const { data: note, error: noteError } = await supabase.from('plaud_notes').upsert({
       user_id: user.id,
       external_id: fileId,
-      title: prepared.titleDe,
+      title: analyzed.title_de.trim() || recording.name || 'PLAUD-Aufnahme',
       recorded_at: recordedAt,
       duration_ms: Number(recording.duration || 0),
-      source_language: prepared.sourceLanguage,
+      source_language: sourceLanguage,
       summary_original: notes || null,
-      summary_de: prepared.summaryDe,
+      summary_de: analyzed.summary_de.trim() || notes,
       transcript_original: transcript,
-      transcript_de: prepared.transcriptDe,
+      transcript_de: transcriptDe,
       imported_at: now,
       archived_at: null,
       updated_at: now,
-    }, { onConflict: 'user_id,external_id' })
+    }, { onConflict: 'user_id,external_id' }).select('id').single()
     if (noteError) throw noteError
 
-    if (prepared.suggestions.length) {
-      const rows = prepared.suggestions.map((item, index) => ({
+    if (analyzed.suggestions.length) {
+      const rows = analyzed.suggestions.slice(0, 20).map((item, index) => ({
         user_id: user.id,
         external_id: `${fileId}:${index + 1}`,
         note_external_id: fileId,
@@ -84,7 +98,13 @@ export async function POST(request: NextRequest) {
       decided_at: now,
     }, { onConflict: 'user_id,external_id' })
     if (decisionError) throw decisionError
-    return NextResponse.json({ ok: true, title: prepared.titleDe, suggestionCount: prepared.suggestions.length })
+    return NextResponse.json({
+      ok: true,
+      noteId: note.id,
+      title: analyzed.title_de.trim() || recording.name || 'PLAUD-Aufnahme',
+      suggestionCount: analyzed.suggestions.slice(0, 20).length,
+      translation: getPlaudTranslationStatus(transcriptDe),
+    })
   } catch (error) {
     console.error('PLAUD import failed:', error instanceof Error ? error.message : 'unknown error')
     return NextResponse.json({ error: error instanceof Error ? error.message : 'PLAUD-Aufnahme konnte nicht übernommen werden.' }, { status: 502 })
