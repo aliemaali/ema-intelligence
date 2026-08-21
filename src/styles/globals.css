@@ -109,7 +109,7 @@
 
 @layer components {
   .app-shell {
-    @apply flex h-screen overflow-hidden bg-transparent;
+    @apply mx-auto flex h-screen w-full max-w-[1480px] overflow-hidden bg-transparent;
   }
 
   .app-sidebar {
@@ -126,7 +126,7 @@
   }
 
   .app-header {
-    @apply flex items-center justify-between border-b border-border bg-white/95 px-5 md:hidden shrink-0;
+    @apply flex shrink-0 items-center justify-between border-b border-border bg-white/95 px-5 md:px-8;
     min-height: calc(var(--header-height) + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
     backdrop-filter: blur(18px);
@@ -142,19 +142,30 @@
     padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
   }
 
-  @media (min-width: 768px) {
-    .app-content { padding-bottom: 0; }
-  }
-
   .app-bottom-nav {
-    @apply fixed z-50 flex items-center justify-around bg-white/95 border border-border md:hidden;
-    left: 1rem;
-    right: 1rem;
+    @apply fixed z-50 flex items-center justify-around border border-border bg-white/95;
+    left: max(1rem, calc(50% - 28rem));
+    right: max(1rem, calc(50% - 28rem));
     bottom: calc(0.75rem + env(safe-area-inset-bottom));
     height: var(--bottom-nav-height);
     border-radius: 1.8rem;
     backdrop-filter: blur(18px);
     box-shadow: 0 18px 55px rgba(15, 23, 42, 0.13);
+  }
+
+  @media (min-width: 768px) {
+    .app-shell {
+      height: calc(100vh - 2rem);
+      margin-top: 1rem;
+      border: 1px solid rgba(220, 226, 235, 0.9);
+      border-radius: 2.25rem;
+      background: rgba(248, 250, 252, 0.78);
+      box-shadow: 0 30px 90px rgba(7, 20, 47, 0.12);
+    }
+
+    .app-header {
+      border-radius: 2.25rem 2.25rem 0 0;
+    }
   }
 
   .page-container {

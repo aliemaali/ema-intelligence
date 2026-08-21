@@ -31,7 +31,7 @@ export function Sidebar({ user }: SidebarProps) {
   return (
     <aside className="app-sidebar">
       <div className="px-5 py-6 border-b border-border">
-        <Link href="/dashboard" className="block"><img src="/ema-logo.jpeg" alt="EMA Enterprise" className="w-[150px] h-auto object-contain" /></Link>
+        <Link href="/dashboard" className="block"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="w-[150px] h-auto object-contain" /></Link>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

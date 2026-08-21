@@ -155,7 +155,7 @@ export default async function PartnerDashboardPage() {
     <main className="min-h-screen bg-[#F6F8FB] text-[#1F2A44]">
       <div className="mx-auto w-full max-w-[1500px] px-4 pb-12 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-8">
         <header className="flex items-center justify-between gap-4 py-3">
-          <div className="flex items-center gap-4"><img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-12 w-auto rounded-xl object-contain sm:h-14" /><div className="hidden sm:block"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">EMA Partner Portal</p><p className="text-sm font-semibold text-slate-500">{company || 'Projektpartner'}</p></div></div>
+          <div className="flex items-center gap-4"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-12 w-auto rounded-xl object-contain sm:h-14" /><div className="hidden sm:block"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#2F8A00]">EMA Partner Portal</p><p className="text-sm font-semibold text-slate-500">{company || 'Projektpartner'}</p></div></div>
           <PartnerSignOutButton />
         </header>
 

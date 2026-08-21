@@ -180,7 +180,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
     <div className="min-h-screen bg-[#edf1f4] pb-16 print:bg-white print:pb-0">
       <header className="print:hidden border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:py-4">
         <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
-          <Link href="/dashboard"><img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-14 w-auto" /></Link>
+          <Link href="/dashboard"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-14 w-auto" /></Link>
           <PrintButton data={pdfData} />
         </div>
       </header>
@@ -190,7 +190,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
 
       <article className="memorandum-page mx-auto w-full max-w-[900px] overflow-hidden bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:max-w-none print:shadow-none">
         <header className="flex items-start justify-between gap-6 pb-5">
-          <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain" />
+          <img src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain" />
           <div className="text-right">
             <h1 className="text-lg font-black tracking-[-.02em] sm:text-2xl">EXPOSÉ</h1>
             <p className="mt-2 text-[10px] font-extrabold uppercase tracking-[.06em] text-[#5CB800]">{String(project.project_number || '')}{project.project_number ? ' · ' : ''}{presentation.typeLabel}</p>
@@ -281,7 +281,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
       {presentation.bessPortfolioDetails && (
         <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
           <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-5">
-            <div className="flex items-center gap-4"><img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" /><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">BESS-Portfolio · Standortübersicht</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Ein Paket, vier Standortprüfungen</h2></div></div>
+            <div className="flex items-center gap-4"><img src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" /><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">BESS-Portfolio · Standortübersicht</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Ein Paket, vier Standortprüfungen</h2></div></div>
             <div className="text-right text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">{String(project.project_number || '')}<br />{dateLabel}</div>
           </header>
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -302,7 +302,7 @@ export default async function InvestmentMemorandumPage({ params }: { params: { i
         <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
           <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-5">
             <div className="flex items-center gap-4">
-              <img src="/ema-logo.jpeg" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" />
+              <img src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" />
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">Rechenzentrum · Standortdaten</p>
                 <h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Standortprüfung</h2>

@@ -19,7 +19,7 @@ export default async function NewPartnerProjectPage() {
           <Link href="/partner" className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-extrabold shadow-sm">
             <ArrowLeft className="h-4 w-4" /> Zurück
           </Link>
-          <img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-11 w-auto rounded-xl object-contain" />
+          <img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-11 w-auto rounded-xl object-contain" />
         </header>
 
         <section className="py-7">

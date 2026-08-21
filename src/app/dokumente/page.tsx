@@ -56,7 +56,7 @@ export default async function DokumentePage() {
       <div className="mx-auto max-w-[1100px]">
         <div className="mb-6 flex items-center justify-between gap-4">
           <Link href="/dashboard" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#07142F] shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>
-          <Link href="/dashboard"><img src="/ema-logo.jpeg" alt="EMA Enterprise" className="h-12 w-auto" /></Link>
+          <Link href="/dashboard"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-12 w-auto" /></Link>
         </div>
         <section className="mb-6 overflow-hidden rounded-[2rem] bg-[#0B1633] p-6 text-white shadow-[0_20px_55px_rgba(15,23,42,0.18)] md:p-8">
           <div className="flex items-start gap-4"><span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800] text-white"><FolderOpen className="h-7 w-7" /></span><div><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8ED640]">EMA Dokumentenzentrale</p><h1 className="mt-2 text-3xl font-extrabold tracking-[-0.04em] md:text-4xl">Dokumente</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/75 md:text-base">Dokumente erstellen, öffnen, in eigenen Ordnern organisieren und Partnern, Investoren oder Projekten zuordnen.</p></div></div>
