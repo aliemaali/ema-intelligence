@@ -23,15 +23,23 @@ export async function GET(request: NextRequest) {
     const query = new URL('https://graph.microsoft.com/v1.0/me/calendarView')
     query.searchParams.set('startDateTime', start)
     query.searchParams.set('endDateTime', end)
-    query.searchParams.set('$top', '75')
+    query.searchParams.set('$top', '250')
     query.searchParams.set('$orderby', 'start/dateTime')
     query.searchParams.set('$select', 'id,subject,start,end,location,attendees,isOnlineMeeting,onlineMeeting,webLink,bodyPreview')
 
-    const result = await graphFetch<{ value: any[] }>(accessToken, query.toString(), {
-      headers: { Prefer: 'outlook.timezone="Europe/Berlin"' },
-    })
+    const rawEvents: any[] = []
+    let nextPage: string | undefined = query.toString()
+    let pageCount = 0
+    while (nextPage && pageCount < 10) {
+      const result: { value: any[]; '@odata.nextLink'?: string } = await graphFetch(accessToken, nextPage, {
+        headers: { Prefer: 'outlook.timezone="Europe/Berlin"' },
+      })
+      rawEvents.push(...(result.value || []))
+      nextPage = result['@odata.nextLink']
+      pageCount += 1
+    }
 
-    const events = (result.value || []).map((event) => ({
+    const events = rawEvents.map((event) => ({
       id: event.id,
       title: event.subject || 'Termin',
       start: event.start?.dateTime || '',
@@ -76,6 +84,10 @@ export async function POST(request: NextRequest) {
     const notes = String(body.notes || '').trim()
     const description = [project ? `EMA-Projekt: ${project}` : '', notes].filter(Boolean).join('\n\n')
     const isOnlineMeeting = body.isOnlineMeeting !== false
+    const requestedReminder = Number(body.reminderMinutes)
+    const reminderMinutes = Number.isFinite(requestedReminder)
+      ? Math.min(Math.max(Math.round(requestedReminder), 0), 40320)
+      : null
 
     const eventPayload = {
       subject: title,
@@ -89,6 +101,10 @@ export async function POST(request: NextRequest) {
       })),
       allowNewTimeProposals: true,
       isOnlineMeeting,
+      ...(reminderMinutes !== null ? {
+        isReminderOn: reminderMinutes > 0,
+        reminderMinutesBeforeStart: reminderMinutes,
+      } : {}),
       ...(isOnlineMeeting ? { onlineMeetingProvider: 'teamsForBusiness' } : {}),
     }
 
