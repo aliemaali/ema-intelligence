@@ -1,10 +1,9 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { CURRENT_PLAUD_NOTE } from '@/lib/plaud/current-note'
 import { hidePlaudTranslationProgress } from '@/lib/plaud/prepare-meeting'
 import { buildPlaudNotePdf, safePlaudPdfFilename, type PlaudNotePdfAssets } from '@/lib/plaud/note-pdf'
+import { loadPlaudPdfAssets } from '@/lib/plaud/note-pdf-assets'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,14 +13,7 @@ let assetsCache: PlaudNotePdfAssets | null = null
 
 function pdfAssets() {
   if (assetsCache) return assetsCache
-  const root = process.cwd()
-  const readBase64 = (file: string) => fs.readFileSync(path.join(root, file)).toString('base64')
-  assetsCache = {
-    logoDataUrl: `data:image/png;base64,${readBase64('public/brand/ema-logo.png')}`,
-    regularFontBase64: readBase64('public/fonts/inter/inter-latin-ext-400.ttf'),
-    semiBoldFontBase64: readBase64('public/fonts/inter/inter-latin-ext-600.ttf'),
-    boldFontBase64: readBase64('public/fonts/inter/inter-latin-ext-700.ttf'),
-  }
+  assetsCache = loadPlaudPdfAssets()
   return assetsCache
 }
 
