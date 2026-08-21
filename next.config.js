@@ -7,6 +7,12 @@ const nextConfig = {
       bodySizeLimit: '8mb',
     },
     serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
+    outputFileTracingIncludes: {
+      '/api/plaud/notes/*/pdf': [
+        './public/brand/ema-logo.png',
+        './public/fonts/inter/*.ttf',
+      ],
+    },
   },
 
   images: {
