@@ -15,6 +15,7 @@
     "test:legal-documents": "esbuild src/lib/pdf/legalDocuments.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/legal-documents.test.cjs && node --test .tmp/legal-documents.test.cjs",
     "test:reminder-push-status": "esbuild src/lib/reminders/pushStatus.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/reminder-push-status.test.cjs && node --test .tmp/reminder-push-status.test.cjs",
     "test:plaud": "esbuild src/lib/plaud/prepare-meeting.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/plaud.test.cjs && node --test .tmp/plaud.test.cjs",
+    "test:plaud-pdf": "esbuild src/lib/plaud/note-pdf.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/plaud-pdf.test.cjs && node --test .tmp/plaud-pdf.test.cjs",
     "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts",
     "pl:render": "esbuild tools/renderProjektliste.ts --bundle --platform=node --target=node20 --outfile=.tmp/render.cjs && node .tmp/render.cjs",
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
