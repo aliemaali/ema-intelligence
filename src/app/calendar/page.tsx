@@ -11,7 +11,7 @@ export const metadata = {
 export default async function CalendarPage() {
   const supabase = await createClient()
   const [{ data:{ user } },projects] = await Promise.all([supabase.auth.getUser(),getProjects()])
-  const { data:plaudAppointments } = user ? await supabase.from('plaud_items').select('id,title,due_at').eq('user_id',user.id).eq('kind','appointment').eq('status','open').not('due_at','is',null).order('due_at',{ ascending:true }) : { data:[] }
+  const { data:plaudAppointments } = user ? await supabase.from('plaud_items').select('id,title,due_at').eq('team_shared',true).eq('kind','appointment').eq('status','open').not('due_at','is',null).order('due_at',{ ascending:true }) : { data:[] }
   const options = projects.map((project: any) => ({
     id: String(project.id),
     name: project.project_number
