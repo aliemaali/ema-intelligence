@@ -34,7 +34,7 @@ function SwipeProjectRow({ project, onRemoved }: { project: ProjectOption; onRem
   }
 
   async function removeProject() {
-    if (!window.confirm(`„${project.name}“ nur aus dem CAPEX-Rechner entfernen? Das eigentliche Projekt bleibt bestehen.`)) {
+    if (!window.confirm(`„${project.name}“ nur aus dem Rechner entfernen? Das eigentliche Projekt bleibt bestehen.`)) {
       setOffset(0)
       return
     }
@@ -56,7 +56,7 @@ function SwipeProjectRow({ project, onRemoved }: { project: ProjectOption; onRem
         onClick={removeProject}
         disabled={removing}
         className="absolute inset-y-0 right-0 flex w-24 items-center justify-center gap-1 bg-red-500 text-xs font-extrabold text-white disabled:opacity-60"
-        aria-label={`${project.name} aus CAPEX entfernen`}
+        aria-label={`${project.name} aus Rechner entfernen`}
       >
         <Trash2 className="h-5 w-5" />
         Löschen
@@ -99,9 +99,9 @@ export function CapexProjectPicker({ projects }: CapexProjectPickerProps) {
         </button>
 
         <section className="mb-6 rounded-[2rem] bg-[#1F2A44] px-6 py-7 text-white shadow-lg">
-          <h1 className="text-3xl font-extrabold tracking-tight">CAPEX Rechner</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">Rechner</h1>
           <p className="mt-3 max-w-xl text-base leading-7 text-slate-200">
-            Wähle das Projekt, für das du eine CAPEX-Kalkulation erstellen möchtest.
+            Wähle das Projekt, für das du eine Kalkulation erstellen möchtest.
           </p>
         </section>
 
