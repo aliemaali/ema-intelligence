@@ -5,7 +5,7 @@ import styles from './launcher.module.css'
 
 const officeUrl =
   process.env.NEXT_PUBLIC_EMA_OFFICE_URL ??
-  'https://ema-office-git-feat-sprint13-16-operati-67ab21-ema-intelligence.vercel.app'
+  'https://ema-office.vercel.app'
 
 export default async function AppsPage() {
   const supabase = await createClient()
