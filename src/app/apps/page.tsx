@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -20,11 +21,7 @@ export default async function AppsPage() {
       <div className={styles.landscape} aria-label="EMA Anwendungen">
         <div className={styles.referenceArtwork} aria-hidden="true" />
         <div className={styles.landscapeBrandPlate} aria-hidden="true">
-          <div className={styles.brandMark}>
-            <span className={styles.markStroke} />
-            <span className={`${styles.markStroke} ${styles.markStrokeCenter}`} />
-            <span className={styles.markStroke} />
-          </div>
+          <Image src="/brand/ema-mark-white.png" alt="" width={506} height={247} priority className={styles.brandLogo} />
         </div>
 
         <Link
@@ -41,11 +38,7 @@ export default async function AppsPage() {
 
       <div className={styles.portrait} aria-label="EMA Anwendungen">
         <div className={styles.portraitBackdrop} aria-hidden="true" />
-        <div className={styles.brandMark} aria-hidden="true">
-          <span className={styles.markStroke} />
-          <span className={`${styles.markStroke} ${styles.markStrokeCenter}`} />
-          <span className={styles.markStroke} />
-        </div>
+        <Image src="/brand/ema-mark-white.png" alt="" width={506} height={247} priority className={styles.brandLogo} />
 
         <div className={styles.portraitCards}>
           <Link
