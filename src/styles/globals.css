@@ -145,31 +145,12 @@
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 9px 24px rgba(0,0,0,0.16);
   }
 
-  .ema-brand-mark {
+  .ema-brand-logo {
     display: inline-flex;
-    width: 4.7rem;
-    height: 3rem;
-    flex: 0 0 4.7rem;
+    width: 5.2rem;
+    flex: 0 0 5.2rem;
     align-items: center;
-    justify-content: center;
-    gap: 0.14rem;
-    filter: drop-shadow(0 0 15px rgba(117, 238, 53, 0.28));
-  }
-
-  .ema-brand-stroke {
-    display: block;
-    width: 1.12rem;
-    height: 1.75rem;
-    transform: skewX(-28deg);
-    border-radius: 0.28rem;
-    background: linear-gradient(145deg, #9cff57, #58c80f);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.28), 0 0 17px rgba(117,238,53,0.34);
-  }
-
-  .ema-brand-stroke-center {
-    height: 2.65rem;
-    background: linear-gradient(160deg, #ffffff, #dce9f8);
-    box-shadow: inset 0 1px 0 #ffffff, 0 0 20px rgba(226,241,255,0.28);
+    filter: drop-shadow(0 0 9px rgba(255,255,255,.18)) drop-shadow(0 0 18px rgba(117,238,53,.28));
   }
 
   .app-content {
