@@ -26,6 +26,7 @@ export async function middleware(request: NextRequest) {
 
   const isPartnerRoute = pathname === '/partner' || pathname.startsWith('/partner/')
   const isInternalRoute =
+    pathname === '/apps' || pathname.startsWith('/apps/') ||
     pathname.startsWith('/dashboard') || pathname.startsWith('/projects') ||
     pathname.startsWith('/deals') || pathname.startsWith('/partners') ||
     pathname.startsWith('/partner-submissions') || pathname.startsWith('/partner-management') ||
@@ -62,7 +63,7 @@ export async function middleware(request: NextRequest) {
 
   if (user && isAuthRoute) {
     const url = request.nextUrl.clone()
-    url.pathname = isPartner ? '/partner' : '/dashboard'
+    url.pathname = isPartner ? '/partner' : '/apps'
     return NextResponse.redirect(url)
   }
 
@@ -75,14 +76,14 @@ export async function middleware(request: NextRequest) {
 
   if (user && !isPartner && isPartnerRoute) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/apps'
     url.search = ''
     return NextResponse.redirect(url)
   }
 
   if (pathname === '/') {
     const url = request.nextUrl.clone()
-    url.pathname = user ? (isPartner ? '/partner' : '/dashboard') : '/login'
+    url.pathname = user ? (isPartner ? '/partner' : '/apps') : '/login'
     return NextResponse.redirect(url)
   }
 
