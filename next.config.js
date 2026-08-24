@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
-const emaOfficeOrigin = process.env.EMA_OFFICE_ORIGIN ?? 'https://ema-office.vercel.app'\n\nconst nextConfig = {
+const emaOfficeOrigin = process.env.EMA_OFFICE_ORIGIN ?? 'https://ema-office.vercel.app'
+
+const nextConfig = {
   reactStrictMode: true,
 
   experimental: {
