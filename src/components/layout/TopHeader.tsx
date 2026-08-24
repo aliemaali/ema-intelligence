@@ -8,7 +8,11 @@ export function TopHeader() {
   return (
     <header className="app-header">
       <Link href="/apps" className="flex items-center gap-3" aria-label="EMA Startzentrale öffnen">
-        <span className="ema-header-mark" aria-hidden="true" />
+        <span className="ema-brand-mark" aria-hidden="true">
+          <span className="ema-brand-stroke ema-brand-stroke-left" />
+          <span className="ema-brand-stroke ema-brand-stroke-center" />
+          <span className="ema-brand-stroke ema-brand-stroke-right" />
+        </span>
         <span className="hidden text-lg font-extrabold tracking-tight text-white sm:block">EMA Intelligence</span>
       </Link>
 
