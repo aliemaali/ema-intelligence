@@ -861,11 +861,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
 
           <header className="sticky top-0 z-20 flex min-h-20 items-center justify-between border-b border-white/10 bg-[#171D33]/[0.88] px-5 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur-xl md:px-10">
             <div className="flex items-center gap-3">
-              <span className="ema-brand-mark" aria-hidden="true">
-                <span className="ema-brand-stroke ema-brand-stroke-left" />
-                <span className="ema-brand-stroke ema-brand-stroke-center" />
-                <span className="ema-brand-stroke ema-brand-stroke-right" />
-              </span>
+              <Image src="/brand/ema-mark-white.png" alt="EMA Enterprise" width={506} height={247} className="h-auto w-20 drop-shadow-[0_0_20px_rgba(117,238,53,.3)]" priority />
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.32em] text-[#63C800]">EMA Intelligence</p>
                 <h1 className="text-lg font-extrabold tracking-tight text-white md:text-xl">EMA AI</h1>
