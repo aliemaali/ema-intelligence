@@ -13,9 +13,15 @@ export function EmaVoiceGate({ standalone = false }: { standalone?: boolean }) {
   const { user, loading } = useAuth()
   const pathname = usePathname()
 
-  // The dedicated EMA AI route mounts its own full-screen voice workspace.
-  // Suppress the global header instance there so only one Realtime session exists.
-  if (!standalone && (pathname === '/ema' || pathname.startsWith('/ema/'))) return null
+  // The app launcher stays completely minimal. The dedicated EMA AI route
+  // mounts its own full-screen voice workspace.
+  if (
+    !standalone &&
+    (pathname === '/apps' || pathname.startsWith('/apps/') ||
+      pathname === '/ema' || pathname.startsWith('/ema/'))
+  ) {
+    return null
+  }
 
   if (loading || !user) return null
 

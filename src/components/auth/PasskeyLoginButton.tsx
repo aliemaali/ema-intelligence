@@ -60,7 +60,7 @@ export function PasskeyLoginButton({ redirectTo }: { redirectTo?: string }) {
 
       const destination = redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
         ? redirectTo
-        : '/dashboard'
+        : '/apps'
       router.replace(destination)
       router.refresh()
     } catch (error) {
