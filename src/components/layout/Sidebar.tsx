@@ -27,11 +27,12 @@ export function Sidebar({ user }: SidebarProps) {
   const agentActive = isActive('/ai-agent')
   const submissionsActive = isActive('/partner-submissions')
   const primaryItems = NAV_ITEMS.filter((item) => !['/tasks', '/data-sources'].includes(item.href))
+  const displayName = user.name.trim() === 'Ali Ünlü' ? 'Ali Ünlüer' : user.name
 
   return (
     <aside className="app-sidebar">
       <div className="px-5 py-6 border-b border-border">
-        <Link href="/apps" className="block" title="EMA Apps"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="w-[150px] h-auto object-contain" /></Link>
+        <Link href="/apps" className="block rounded-2xl border border-blue-300/15 bg-white/[.035] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06),0_0_28px_rgba(117,238,53,.08)]" title="EMA Apps"><img src="/brand/ema-mark-white.png" alt="EMA Enterprise" className="h-auto w-[150px] object-contain drop-shadow-[0_0_18px_rgba(117,238,53,.25)]" /></Link>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -74,8 +75,8 @@ export function Sidebar({ user }: SidebarProps) {
 
       <div className="border-t border-border p-3">
         <div className="flex items-center gap-3 px-2 py-2 rounded-md">
-          <div className="w-9 h-9 rounded-full bg-[#EEF2F7] flex items-center justify-center shrink-0">{user.avatarUrl ? <img src={user.avatarUrl} alt={user.name} className="w-9 h-9 rounded-full object-cover" /> : <span className="text-xs font-semibold text-[#132060]">{getInitials(user.name)}</span>}</div>
-          <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-foreground truncate">{user.name}</p><p className="text-xs text-muted-foreground truncate">Administrator</p></div>
+          <div className="w-9 h-9 rounded-full bg-[#EEF2F7] flex items-center justify-center shrink-0">{user.avatarUrl ? <img src={user.avatarUrl} alt={displayName} className="w-9 h-9 rounded-full object-cover" /> : <span className="text-xs font-semibold text-[#132060]">{getInitials(displayName)}</span>}</div>
+          <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-foreground truncate">{displayName}</p><p className="text-xs text-muted-foreground truncate">Administrator</p></div>
           <form action={logout}><button type="submit" title="Abmelden" className="btn-icon text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"><LogOut className="w-4 h-4" /></button></form>
         </div>
       </div>
