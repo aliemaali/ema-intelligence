@@ -19,6 +19,13 @@ export default async function AppsPage() {
     <main className={styles.launcher}>
       <div className={styles.landscape} aria-label="EMA Anwendungen">
         <div className={styles.referenceArtwork} aria-hidden="true" />
+        <div className={styles.landscapeBrandPlate} aria-hidden="true">
+          <div className={styles.brandMark}>
+            <span className={styles.markStroke} />
+            <span className={`${styles.markStroke} ${styles.markStrokeCenter}`} />
+            <span className={styles.markStroke} />
+          </div>
+        </div>
 
         <Link
           href="/dashboard"
@@ -34,7 +41,11 @@ export default async function AppsPage() {
 
       <div className={styles.portrait} aria-label="EMA Anwendungen">
         <div className={styles.portraitBackdrop} aria-hidden="true" />
-        <div className={styles.brandMark} aria-hidden="true" />
+        <div className={styles.brandMark} aria-hidden="true">
+          <span className={styles.markStroke} />
+          <span className={`${styles.markStroke} ${styles.markStrokeCenter}`} />
+          <span className={styles.markStroke} />
+        </div>
 
         <div className={styles.portraitCards}>
           <Link
