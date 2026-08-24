@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { Bell, FolderOpen } from 'lucide-react'
 import { MicrosoftTeamsIcon } from '@/components/microsoft/MicrosoftTeamsIcon'
@@ -8,15 +7,9 @@ import { MicrosoftTeamsIcon } from '@/components/microsoft/MicrosoftTeamsIcon'
 export function TopHeader() {
   return (
     <header className="app-header">
-      <Link href="/dashboard" className="flex items-center">
-        <Image
-          src="/brand/ema-logo.png"
-          alt="EMA Enterprise"
-          width={696}
-          height={323}
-          priority
-          className="h-12 w-auto object-contain md:h-14"
-        />
+      <Link href="/apps" className="flex items-center gap-3" aria-label="EMA Startzentrale öffnen">
+        <span className="ema-header-mark" aria-hidden="true" />
+        <span className="hidden text-lg font-extrabold tracking-tight text-white sm:block">EMA Intelligence</span>
       </Link>
 
       <div className="flex items-center gap-2">

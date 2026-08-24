@@ -6,29 +6,29 @@
 
 @layer base {
   :root {
-    --background:           220 40% 98%;
-    --foreground:           225 52% 10%;
-    --card:                 0 0% 100%;
-    --card-foreground:      225 52% 10%;
-    --popover:              0 0% 100%;
-    --popover-foreground:   225 52% 10%;
-    --primary:              231 67% 23%;
+    --background:           222 58% 7%;
+    --foreground:           214 45% 96%;
+    --card:                 220 48% 11%;
+    --card-foreground:      214 45% 96%;
+    --popover:              220 48% 10%;
+    --popover-foreground:   214 45% 96%;
+    --primary:              218 78% 58%;
     --primary-foreground:   0 0% 100%;
     --secondary:            92 100% 38%;
     --secondary-foreground: 0 0% 100%;
-    --muted:                220 24% 94%;
-    --muted-foreground:     220 14% 43%;
-    --accent:               218 38% 96%;
-    --accent-foreground:    225 52% 10%;
+    --muted:                220 35% 16%;
+    --muted-foreground:     217 19% 68%;
+    --accent:               218 43% 17%;
+    --accent-foreground:    214 45% 96%;
     --destructive:          0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border:               220 22% 89%;
-    --input:                220 22% 89%;
+    --border:               217 40% 23%;
+    --input:                217 40% 23%;
     --ring:                 92 100% 38%;
     --radius:               1.25rem;
-    --toast-bg:             hsl(0 0% 100%);
-    --toast-border:         hsl(220 22% 89%);
-    --toast-color:          hsl(225 52% 10%);
+    --toast-bg:             hsl(220 48% 10%);
+    --toast-border:         hsl(217 40% 23%);
+    --toast-color:          hsl(214 45% 96%);
     --sidebar-width:        272px;
     --sidebar-width-collapsed: 64px;
     --header-height:        92px;
@@ -76,9 +76,11 @@
   body {
     @apply bg-background text-foreground antialiased;
     background:
-      radial-gradient(circle at top left, rgba(92, 184, 0, 0.06), transparent 28rem),
-      radial-gradient(circle at top right, rgba(19, 32, 96, 0.06), transparent 30rem),
+      radial-gradient(circle at 7% 10%, rgba(117, 238, 53, 0.14), transparent 29rem),
+      radial-gradient(circle at 95% 12%, rgba(42, 103, 255, 0.20), transparent 34rem),
+      radial-gradient(circle at 54% 100%, rgba(31, 86, 215, 0.12), transparent 38rem),
       hsl(var(--background));
+    background-attachment: fixed;
     font-feature-settings: 'cv11', 'ss01';
     font-variation-settings: 'opsz' 32;
   }
@@ -109,15 +111,16 @@
 
 @layer components {
   .app-shell {
-    @apply mx-auto flex h-screen w-full max-w-[1480px] overflow-hidden bg-transparent;
+    @apply mx-auto flex h-screen w-full max-w-[1480px] overflow-hidden;
+    background: rgba(3, 14, 32, 0.72);
   }
 
   .app-sidebar {
     @apply hidden md:flex flex-col w-[var(--sidebar-width)] shrink-0 overflow-y-auto;
-    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92));
-    border-right: 1px solid rgba(220, 226, 235, 0.9);
-    box-shadow: 18px 0 45px rgba(15, 23, 42, 0.045);
-    backdrop-filter: blur(14px);
+    background: linear-gradient(180deg, rgba(6,19,43,0.98), rgba(4,14,32,0.96));
+    border-right: 1px solid rgba(99, 145, 232, 0.20);
+    box-shadow: 18px 0 55px rgba(0, 0, 0, 0.20), 5px 0 38px rgba(36, 92, 224, 0.08);
+    backdrop-filter: blur(22px);
     transition: width 0.2s ease;
   }
 
@@ -126,41 +129,60 @@
   }
 
   .app-header {
-    @apply flex shrink-0 items-center justify-between border-b border-border bg-white/95 px-5 md:px-8;
+    @apply flex shrink-0 items-center justify-between border-b px-5 md:px-8;
     min-height: calc(var(--header-height) + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+    background: linear-gradient(110deg, rgba(5,18,42,0.94), rgba(8,29,62,0.90));
+    border-color: rgba(91, 139, 225, 0.22);
+    backdrop-filter: blur(24px);
+    box-shadow: 0 14px 45px rgba(0, 0, 0, 0.20), 0 0 34px rgba(39, 91, 213, 0.07);
   }
 
   .mobile-header-action {
-    @apply inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-white text-[#07142F] shadow-sm transition-all active:scale-95;
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full border text-white shadow-sm transition-all active:scale-95;
+    border-color: rgba(126, 161, 229, 0.28);
+    background: linear-gradient(145deg, rgba(28,56,111,0.66), rgba(7,22,48,0.76));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 9px 24px rgba(0,0,0,0.16);
+  }
+
+  .ema-header-mark {
+    display: block;
+    width: 4.7rem;
+    height: 3.1rem;
+    background-image: url('/brand/ema-app-launcher-choice-one.webp');
+    background-repeat: no-repeat;
+    background-position: 50% 11.5%;
+    background-size: 2039% 1344%;
+    filter: drop-shadow(0 0 16px rgba(116, 235, 55, 0.12));
   }
 
   .app-content {
     @apply flex-1 overflow-y-auto;
+    background: linear-gradient(150deg, rgba(2,13,30,0.45), rgba(7,25,54,0.40));
     padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
   }
 
   .app-bottom-nav {
-    @apply fixed z-50 flex items-center justify-around border border-border bg-white/95;
+    @apply fixed z-50 flex items-center justify-around border;
     left: max(1rem, calc(50% - 28rem));
     right: max(1rem, calc(50% - 28rem));
     bottom: calc(0.75rem + env(safe-area-inset-bottom));
     height: var(--bottom-nav-height);
     border-radius: 1.8rem;
-    backdrop-filter: blur(18px);
-    box-shadow: 0 18px 55px rgba(15, 23, 42, 0.13);
+    border-color: rgba(95, 141, 225, 0.28);
+    background: rgba(5, 18, 41, 0.92);
+    backdrop-filter: blur(24px);
+    box-shadow: 0 18px 55px rgba(0,0,0,0.34), 0 0 36px rgba(39,91,213,0.12);
   }
 
   @media (min-width: 768px) {
-    .app-shell {
+      .app-shell {
       height: calc(100vh - 2rem);
       margin-top: 1rem;
-      border: 1px solid rgba(220, 226, 235, 0.9);
+      border: 1px solid rgba(94, 141, 228, 0.22);
       border-radius: 2.25rem;
-      background: rgba(248, 250, 252, 0.78);
-      box-shadow: 0 30px 90px rgba(7, 20, 47, 0.12);
+      background: rgba(3, 14, 32, 0.82);
+      box-shadow: 0 32px 100px rgba(0,0,0,0.42), 0 0 70px rgba(40,94,224,0.10);
     }
 
     .app-header {
@@ -183,7 +205,7 @@
   }
 
   .page-title {
-    @apply text-3xl md:text-4xl font-extrabold tracking-tight text-[#07142F];
+    @apply text-3xl md:text-4xl font-extrabold tracking-tight text-white;
     letter-spacing: -0.035em;
   }
 
@@ -195,16 +217,17 @@
   }
 
   .card {
-    @apply rounded-[1.35rem] border bg-white/95 text-card-foreground;
-    border-color: rgba(220, 226, 235, 0.86);
-    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.07);
-    backdrop-filter: blur(10px);
+    @apply rounded-[1.35rem] border text-card-foreground;
+    background: linear-gradient(145deg, rgba(20,43,82,0.84), rgba(7,23,49,0.94));
+    border-color: rgba(101, 149, 235, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.055), 0 20px 55px rgba(0,0,0,0.25), 0 0 28px rgba(36,91,220,0.055);
+    backdrop-filter: blur(18px);
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   }
 
   .card:hover {
-    border-color: rgba(92, 184, 0, 0.22);
-    box-shadow: 0 22px 62px rgba(15, 23, 42, 0.095);
+    border-color: rgba(117, 238, 53, 0.30);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 24px 64px rgba(0,0,0,0.30), 0 0 34px rgba(108,224,44,0.09);
   }
 
   .card-padded {
@@ -225,18 +248,18 @@
   }
 
   .nav-item {
-    @apply relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-[#07142F] transition-all duration-200;
+    @apply relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-300 transition-all duration-200;
   }
 
   .nav-item:hover {
-    background: linear-gradient(135deg, rgba(19,32,96,0.06), rgba(92,184,0,0.07));
+    background: linear-gradient(135deg, rgba(42,96,224,0.15), rgba(92,184,0,0.12));
     transform: translateX(2px);
   }
 
   .nav-item-active {
     @apply text-white shadow-sm;
-    background: linear-gradient(135deg, #132060, #1b2d78);
-    box-shadow: 0 12px 26px rgba(19, 32, 96, 0.23);
+    background: linear-gradient(135deg, rgba(32,79,188,0.82), rgba(16,53,126,0.90));
+    box-shadow: 0 12px 28px rgba(24,78,204,0.28), 0 0 28px rgba(65,112,231,0.14);
   }
 
   .nav-item-active::before {
@@ -270,12 +293,14 @@
   .btn-primary:active { transform: translateY(0); }
 
   .btn-secondary {
-    @apply btn bg-white text-[#132060] border border-border px-4 py-2.5;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
+    @apply btn text-white border px-4 py-2.5;
+    border-color: rgba(102,150,236,0.24);
+    background: linear-gradient(145deg, rgba(24,49,91,0.78), rgba(7,23,49,0.92));
+    box-shadow: 0 10px 24px rgba(0,0,0,0.18);
   }
 
   .btn-secondary:hover {
-    background: #F5F8FC;
+    background: linear-gradient(145deg, rgba(31,65,124,0.88), rgba(9,30,62,0.96));
     transform: translateY(-1px);
   }
 
@@ -292,8 +317,9 @@
   .btn-icon { @apply btn p-2; }
 
   .form-input {
-    @apply w-full rounded-2xl border border-input bg-white/95 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
-    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+    @apply w-full rounded-2xl border border-input px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+    background: rgba(4,17,38,0.78);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.24);
   }
 
   .form-input:focus {
@@ -322,7 +348,27 @@
 
   .premium-lift:hover {
     transform: translateY(-2px);
-    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.10);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.30), 0 0 32px rgba(51,101,225,0.10);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ema-glow-pulse {
+    animation: emaGlowPulse 5s ease-in-out infinite;
+  }
+
+  @keyframes emaGlowPulse {
+    0%, 100% { opacity: 0.55; transform: scale(0.98); }
+    50% { opacity: 0.9; transform: scale(1.03); }
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    background:
+      radial-gradient(circle at 8% 8%, rgba(117, 238, 53, 0.10), transparent 20rem),
+      radial-gradient(circle at 96% 12%, rgba(42, 103, 255, 0.15), transparent 24rem),
+      hsl(var(--background));
   }
 }
 
