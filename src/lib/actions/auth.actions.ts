@@ -16,11 +16,11 @@ export async function login(formData: FormData) {
     && requestedRedirect.startsWith('/')
     && !requestedRedirect.startsWith('//')
       ? requestedRedirect
-      : '/dashboard'
+      : '/apps'
 
   const loginErrorUrl = (message: string) => {
     const params = new URLSearchParams({ error: message })
-    if (redirectTo !== '/dashboard') params.set('redirectTo', redirectTo)
+    if (redirectTo !== '/apps') params.set('redirectTo', redirectTo)
     return `/login?${params.toString()}`
   }
 
