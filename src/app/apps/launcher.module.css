@@ -90,7 +90,6 @@
   opacity: 0.42;
 }
 
-.brandMark,
 .referenceCrop {
   background-image: url('/brand/ema-app-launcher-choice-one.webp');
   background-repeat: no-repeat;
@@ -100,11 +99,48 @@
   position: absolute;
   top: max(8.5dvh, 3rem);
   left: 50%;
-  width: clamp(70px, 18vw, 96px);
-  aspect-ratio: 1.35 / 1;
+  display: inline-flex;
+  width: clamp(82px, 20vw, 112px);
+  height: clamp(52px, 13vw, 70px);
   transform: translateX(-50%);
-  background-position: 50% 11.5%;
-  background-size: 2039% 1344%;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(3px, 0.8vw, 5px);
+  filter: drop-shadow(0 0 24px rgba(117, 238, 53, 0.35));
+}
+
+.markStroke {
+  display: block;
+  width: 24%;
+  height: 58%;
+  transform: skewX(-28deg);
+  border-radius: clamp(4px, 1vw, 7px);
+  background: linear-gradient(145deg, #a4ff5f, #58c80f);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 0 24px rgba(117,238,53,0.42);
+}
+
+.markStrokeCenter {
+  height: 92%;
+  background: linear-gradient(160deg, #ffffff, #dce9f8);
+  box-shadow: inset 0 1px 0 #ffffff, 0 0 25px rgba(227,241,255,0.34);
+}
+
+.landscapeBrandPlate {
+  position: absolute;
+  top: 4.2%;
+  left: 50%;
+  width: min(24vw, 360px);
+  height: min(17vw, 230px);
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, rgba(4,18,38,0.98) 0%, rgba(4,18,38,0.92) 38%, rgba(4,18,38,0) 72%);
+  pointer-events: none;
+}
+
+.landscapeBrandPlate .brandMark {
+  top: 50%;
+  width: clamp(82px, 7.5vw, 126px);
+  height: clamp(52px, 4.8vw, 78px);
+  transform: translate(-50%, -50%);
 }
 
 .portraitCards {
