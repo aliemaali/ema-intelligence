@@ -6,7 +6,6 @@ import { AuthProvider } from '@/lib/hooks/useAuth'
 import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
 import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
 import { EmaVoiceGate } from '@/components/layout/EmaVoiceGate'
-import { AppIntro } from '@/components/layout/AppIntro'
 import '@/styles/globals.css'
 
 const inter = Inter({
@@ -60,7 +59,6 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <AppIntro />
             {children}
             <EmaVoiceGate />
             <DashboardCalendarShortcut />
