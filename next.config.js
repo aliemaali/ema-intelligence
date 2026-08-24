@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const emaOfficeOrigin = process.env.EMA_OFFICE_ORIGIN ?? 'https://ema-office.vercel.app'
+
 const nextConfig = {
   reactStrictMode: true,
 
@@ -30,6 +32,19 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/office',
+        destination: `${emaOfficeOrigin}/office`,
+      },
+      {
+        source: '/office/:path*',
+        destination: `${emaOfficeOrigin}/office/:path*`,
+      },
+    ]
   },
 
   async headers() {

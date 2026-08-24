@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
   const isPartnerRoute = pathname === '/partner' || pathname.startsWith('/partner/')
   const isInternalRoute =
     pathname === '/apps' || pathname.startsWith('/apps/') ||
+    pathname === '/office' || pathname.startsWith('/office/') ||
     pathname.startsWith('/dashboard') || pathname.startsWith('/projects') ||
     pathname.startsWith('/deals') || pathname.startsWith('/partners') ||
     pathname.startsWith('/partner-submissions') || pathname.startsWith('/partner-management') ||

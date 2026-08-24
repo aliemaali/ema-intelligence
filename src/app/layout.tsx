@@ -15,6 +15,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  applicationName: 'EMA',
   title: {
     default:  'EMA Intelligence',
     template: '%s | EMA Intelligence',
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable:       true,
     statusBarStyle:'black-translucent',
-    title:         'EMA Intelligence',
+    title:         'EMA',
   },
 }
 
