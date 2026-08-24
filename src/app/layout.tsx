@@ -14,7 +14,8 @@ const inter = Inter({
   display: 'swap',
 })
 
-export const metadata: Metadata = {\n  applicationName: 'EMA',
+export const metadata: Metadata = {
+  applicationName: 'EMA',
   title: {
     default:  'EMA Intelligence',
     template: '%s | EMA Intelligence',
