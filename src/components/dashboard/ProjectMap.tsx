@@ -87,8 +87,8 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
   )
 
   return (
-    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-slate-200 bg-white shadow-[0_22px_70px_rgba(15,23,42,0.08)]">
-      <div className="absolute inset-x-4 top-4 z-20 overflow-x-auto rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="relative h-[430px] overflow-hidden rounded-[1.8rem] border border-blue-300/18 bg-gradient-to-br from-[#102b55] via-[#091f43] to-[#061832] shadow-[0_22px_70px_rgba(0,0,0,0.28),0_0_32px_rgba(40,94,224,.07)]">
+      <div className="absolute inset-x-4 top-4 z-20 overflow-x-auto rounded-2xl border border-blue-200/15 bg-[#071a38]/92 p-2 shadow-md backdrop-blur-xl [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex min-w-max items-center gap-2">
           {FILTERS.map((item) => {
             const count = item.value === 'all' ? locatedProjects.length : counts[item.value]
@@ -118,8 +118,8 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
           >
             <defs>
               <linearGradient id="germanyFill" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#FFFFFF" />
-                <stop offset="100%" stopColor="#EAF4E4" />
+                <stop offset="0%" stopColor="#17396D" />
+                <stop offset="100%" stopColor="#0B2749" />
               </linearGradient>
             </defs>
             {GermanyMap.locations.map((location) => (
@@ -127,7 +127,7 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
                 key={location.id}
                 d={location.path}
                 fill="url(#germanyFill)"
-                stroke="#CBD5E1"
+                stroke="#3F66A4"
                 strokeWidth="0.9"
                 vectorEffect="non-scaling-stroke"
               >
@@ -157,7 +157,7 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
       </div>
 
       {visibleProjects.length === 0 && (
-        <div className="pointer-events-none absolute inset-x-6 bottom-6 z-10 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 text-center text-sm font-bold text-slate-500 shadow-sm">
+        <div className="pointer-events-none absolute inset-x-6 bottom-6 z-10 rounded-2xl border border-blue-200/15 bg-[#071a38]/95 px-4 py-3 text-center text-sm font-bold text-slate-300 shadow-sm">
           Keine Projekte in dieser Kategorie.
         </div>
       )}
