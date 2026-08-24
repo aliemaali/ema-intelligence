@@ -1,12 +1,12 @@
 {
-  "name": "EMA Intelligence",
+  "name": "EMA Enterprise",
   "short_name": "EMA",
-  "description": "Deal-Management für PV & BESS Projekte",
-  "start_url": "/dashboard",
+  "description": "EMA Intelligence und EMA Office in einer gemeinsamen Business-App",
+  "start_url": "/apps",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FFFFFF",
-  "theme_color": "#5CB800",
+  "background_color": "#031122",
+  "theme_color": "#031122",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -23,7 +23,10 @@
   ],
   "categories": [
     "business",
-    "finance"
+    "finance",
+    "productivity"
   ],
-  "lang": "de"
+  "lang": "de",
+  "id": "/apps",
+  "scope": "/"
 }
