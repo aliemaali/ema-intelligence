@@ -221,15 +221,22 @@ export function ProjectMap({ projects }: { projects: ProjectMapItem[] }) {
                 href={`/projects/${project.id}/overview`}
                 title={`${project.project_name} · ${project.location_city ?? project.location_state ?? ''} · ${formatKwp(project.pv_mwp)}`}
                 aria-label={`${project.project_name} öffnen`}
-                className="absolute z-10 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-white transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+                className="group absolute z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 style={{
                   left: `${point.x}%`,
                   top: `${point.y}%`,
-                  backgroundColor: color,
-                  boxShadow: `0 0 0 6px ${color}33, 0 0 18px ${color}, 0 0 34px ${color}99, 0 10px 20px rgba(0,0,0,.34)`,
                 }}
               >
-                <span className="h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_10px_white]" />
+                <span
+                  aria-hidden="true"
+                  className="flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white transition-transform group-hover:scale-110 group-active:scale-95"
+                  style={{
+                    backgroundColor: color,
+                    boxShadow: `0 0 0 3px ${color}33, 0 0 9px ${color}, 0 0 16px ${color}88, 0 5px 10px rgba(0,0,0,.30)`,
+                  }}
+                >
+                  <span className="h-1 w-1 rounded-full bg-white shadow-[0_0_5px_white]" />
+                </span>
               </Link>
             )
           })}
