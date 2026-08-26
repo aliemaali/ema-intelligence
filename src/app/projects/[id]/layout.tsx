@@ -36,9 +36,12 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
 
   if (!project) notFound()
 
-  const tabs = project.project_type === 'rechenzentrum'
+  const baseTabs = project.project_type === 'rechenzentrum'
     ? [TABS[0], { key: 'site-check', label: 'Standortprüfung' }, ...TABS.slice(1)]
     : TABS
+  const tabs = project.project_type === 'bess'
+    ? [...baseTabs, { key: 'due-diligence', label: 'Due Diligence' }]
+    : baseTabs
 
   return (
     <div className="flex min-h-full flex-col">
@@ -48,52 +51,34 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
             <BackNavigation fallbackHref="/projects" label="Zurück" />
 
             <div className="flex items-center gap-2">
-              <Link
-                href={`/projects/${params.id}/edit`}
-                className="btn-secondary btn-sm gap-1.5"
-              >
+              <Link href={`/projects/${params.id}/edit`} className="btn-secondary btn-sm gap-1.5">
                 <Pencil className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Bearbeiten</span>
               </Link>
-              <ProjectActions
-                projectId={params.id}
-                projectName={project.project_name}
-              />
+              <ProjectActions projectId={params.id} projectName={project.project_name} />
             </div>
           </div>
 
           <div className="mb-4">
             <div className="mb-1.5 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                {project.project_number}
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{project.project_number}</span>
               <TypeBadge type={project.project_type} />
             </div>
-            <h1 className="text-lg font-semibold leading-tight text-foreground">
-              {project.project_name}
-            </h1>
+            <h1 className="text-lg font-semibold leading-tight text-foreground">{project.project_name}</h1>
             {(project.location_city || project.location_state) && (
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                📍 {[project.location_city, project.location_state].filter(Boolean).join(', ')}
-              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">📍 {[project.location_city, project.location_state].filter(Boolean).join(', ')}</p>
             )}
           </div>
 
           <div className="no-scrollbar -mb-px flex gap-0 overflow-x-auto">
             {tabs.map((tab) => (
-              <TabLinkClient
-                key={tab.key}
-                href={`/projects/${params.id}/${tab.key}`}
-                label={tab.label}
-              />
+              <TabLinkClient key={tab.key} href={`/projects/${params.id}/${tab.key}`} label={tab.label} />
             ))}
           </div>
         </div>
       </div>
 
-      <div className="page-container flex-1">
-        {children}
-      </div>
+      <div className="page-container flex-1">{children}</div>
     </div>
   )
 }
