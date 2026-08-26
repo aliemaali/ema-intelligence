@@ -22,7 +22,7 @@ export type DdFinding = {
   confidence: number
 }
 
-export type DdDecision = 'GO' | 'CONDITIONAL GO' | 'NO-GO'
+export type DdDecision = 'GO' | 'CONDITIONAL GO' | 'NO-GO' | 'INSUFFICIENT DATA'
 
 export type DdAssessment = {
   profile: DdProjectProfile
@@ -31,6 +31,7 @@ export type DdAssessment = {
   overallScore: number
   decision: DdDecision
   hardGateFailures: string[]
+  hardGateOpen: string[]
   criticalCount: number
   openCount: number
   verifiedCount: number
@@ -47,7 +48,7 @@ export function buildDdAssessment(profile: DdProjectProfile, findings: DdFinding
     status: 'open' as const,
     severity: check.hardGate ? 'high' as const : 'medium' as const,
     finding: 'Kein belastbarer Nachweis im geprüften Datenraum.',
-    consequence: check.hardGate ? 'RTB-/Investment-Freigabe kann dadurch blockiert sein.' : 'Prüfung ist unvollständig.',
+    consequence: check.hardGate ? 'RTB-/Investment-Freigabe kann ohne Nachweis nicht erteilt werden.' : 'Prüfung ist unvollständig.',
     requiredAction: 'Geeigneten Nachweis anfordern und fachlich prüfen.',
     sources: [],
     confidence: 1,
@@ -59,10 +60,17 @@ export function buildDdAssessment(profile: DdProjectProfile, findings: DdFinding
     return [lens, score]
   })) as Record<DdReviewLens, number>
 
-  const hardGateFailures = checks.filter(c => c.hardGate && byId.get(c.id)?.status !== 'verified').map(c => c.id)
-  const criticalHardGate = checks.some(c => c.hardGate && byId.get(c.id)?.status === 'critical')
+  const hardGateFailures = checks.filter(c => c.hardGate && byId.get(c.id)?.status === 'critical').map(c => c.id)
+  const hardGateOpen = checks.filter(c => c.hardGate && byId.get(c.id)?.status !== 'verified' && byId.get(c.id)?.status !== 'critical').map(c => c.id)
   const overallScore = Math.round((lensScores.engineering + lensScores.investor + lensScores.legal) / 3)
-  const decision: DdDecision = criticalHardGate || overallScore < 45 ? 'NO-GO' : hardGateFailures.length || overallScore < 80 ? 'CONDITIONAL GO' : 'GO'
+  const verifiedCount = complete.filter(f => f.status === 'verified').length
+  const evidenceCoverage = complete.length ? verifiedCount / complete.length : 0
+
+  let decision: DdDecision
+  if (hardGateFailures.length > 0) decision = 'NO-GO'
+  else if (hardGateOpen.length > 0 || evidenceCoverage < 0.6) decision = 'INSUFFICIENT DATA'
+  else if (complete.some(f => f.status === 'open') || overallScore < 80) decision = 'CONDITIONAL GO'
+  else decision = 'GO'
 
   return {
     profile,
@@ -71,8 +79,9 @@ export function buildDdAssessment(profile: DdProjectProfile, findings: DdFinding
     overallScore,
     decision,
     hardGateFailures,
+    hardGateOpen,
     criticalCount: complete.filter(f => f.status === 'critical').length,
     openCount: complete.filter(f => f.status === 'open').length,
-    verifiedCount: complete.filter(f => f.status === 'verified').length,
+    verifiedCount,
   }
 }
