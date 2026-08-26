@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ error: 'EMA AI ist noch nicht mit OpenAI verbunden.' }, { status: 503 })
 
   const body = await request.json().catch(() => ({}))
-  const projectId = typeof body.project_id === 'string' ? body.project_id : ''
+  const projectId = typeof body.project_id === 'string' ? body.project_id.trim() : ''
   const profile: DdProjectProfile | null = ['bess','pv','pv_bess'].includes(body.profile) ? body.profile : null
   if (!projectId || !profile) return NextResponse.json({ error: 'Projekt und Prüfprofil fehlen.' }, { status: 400 })
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   const checks = getProfessionalDdChecks(profile)
   const evidence = indexed.map((d: any) => ({ document_id: d.id, document_name: d.display_name, extracted: d.ai_extracted_data }))
   const schema = {
-    type:'object', properties:{ findings:{ type:'array', items:{ type:'object', properties:{ checkId:{type:'string'}, lens:{type:'string',enum:['engineering','investor','legal']}, status:{type:'string',enum:['verified','open','critical']}, severity:{type:'string',enum:['low','medium','high','critical']}, finding:{type:'string'}, consequence:{type:'string'}, requiredAction:{type:'string'}, confidence:{type:'number'}, sources:{type:'array',items:{type:'object',properties:{documentId:{type:'string'},documentName:{type:'string'},page:{type:['integer','null']},excerpt:{type:'string'}},required:['documentId','documentName','page','excerpt'],additionalProperties:false}}}, required:['checkId','lens','status','severity','finding','consequence','requiredAction','confidence','sources'], additionalProperties:false } } }, required:['findings'], additionalProperties:false
+    type:'object', properties:{ findings:{ type:'array', items:{ type:'object', properties:{ checkId:{type:'string',enum:checks.map(c=>c.id)}, lens:{type:'string',enum:['engineering','investor','legal']}, status:{type:'string',enum:['verified','open','critical']}, severity:{type:'string',enum:['low','medium','high','critical']}, finding:{type:'string'}, consequence:{type:'string'}, requiredAction:{type:'string'}, confidence:{type:'number',minimum:0,maximum:1}, sources:{type:'array',items:{type:'object',properties:{documentId:{type:'string'},documentName:{type:'string'},page:{type:['integer','null']},excerpt:{type:'string'}},required:['documentId','documentName','page','excerpt'],additionalProperties:false}}}, required:['checkId','lens','status','severity','finding','consequence','requiredAction','confidence','sources'], additionalProperties:false } } }, required:['findings'], additionalProperties:false
   }
 
   const response = await fetch(OPENAI_RESPONSES_URL, { method:'POST', headers:{ Authorization:`Bearer ${process.env.OPENAI_API_KEY}`,'Content-Type':'application/json','OpenAI-Safety-Identifier':safetyIdentifier(user.id)}, body:JSON.stringify({ model:MODEL, reasoning:{effort:'medium'}, store:false, max_output_tokens:7000, instructions:[
@@ -54,7 +54,16 @@ export async function POST(request: NextRequest) {
   if (!response.ok) return NextResponse.json({ error:'EMA konnte die Due Diligence nicht durchführen.' }, { status:502 })
   let payload:any; try { payload=JSON.parse(raw) } catch { return NextResponse.json({error:'Ungültige EMA-Antwort.'},{status:502}) }
   let parsed:any; try { parsed=JSON.parse(getOutputText(payload)) } catch { return NextResponse.json({error:'EMA erhielt keine strukturierte DD.'},{status:502}) }
-  const allowed = new Set(checks.map(c => c.id))
-  const findings = (Array.isArray(parsed.findings) ? parsed.findings : []).filter((f:any) => allowed.has(f.checkId)) as DdFinding[]
+
+  const checkMap = new Map(checks.map(c => [c.id, c]))
+  const documentMap = new Map(indexed.map((d:any) => [String(d.id), d.display_name]))
+  const findings: DdFinding[] = (Array.isArray(parsed.findings) ? parsed.findings : []).flatMap((f:any) => {
+    const check = checkMap.get(f.checkId)
+    if (!check) return []
+    const sources = (Array.isArray(f.sources) ? f.sources : []).filter((s:any) => documentMap.has(String(s.documentId))).map((s:any) => ({ ...s, documentName: documentMap.get(String(s.documentId)) || s.documentName }))
+    const status = (f.status === 'verified' || f.status === 'critical') && sources.length === 0 ? 'open' : f.status
+    return [{ ...f, lens: check.lens, status, sources } as DdFinding]
+  })
+
   return NextResponse.json({ assessment: buildDdAssessment(profile, findings), analyzed_documents:indexed.length })
 }
