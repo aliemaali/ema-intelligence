@@ -1,72 +1,46 @@
-import { evaluateBessDueDiligence } from '@/lib/due-diligence/bess'
-import { getEvidenceCoverage, mapDocumentsToBessEvidence } from '@/lib/due-diligence/evidence'
 import { getDocuments } from '@/lib/actions/document.actions'
+import { getProfessionalDdChecks, REVIEW_LENS_LABELS, type DdProjectProfile, type DdReviewLens } from '@/lib/due-diligence/profiles'
 
-export default async function DueDiligencePage({ params }: { params: Promise<{ id: string }> }) {
+const PROFILES: { key: DdProjectProfile; label: string; description: string }[] = [
+  { key: 'bess', label: 'BESS', description: 'Batteriespeicher' },
+  { key: 'pv', label: 'PV', description: 'Photovoltaik' },
+  { key: 'pv_bess', label: 'PV + BESS', description: 'Hybridprojekt' },
+]
+const LENSES: DdReviewLens[] = ['engineering','investor','legal']
+
+export default async function DueDiligencePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ profile?: string }> }) {
   const { id } = await params
+  const query = await searchParams
+  const profile: DdProjectProfile = query.profile === 'pv' || query.profile === 'pv_bess' ? query.profile : 'bess'
   const documents = await getDocuments(id)
-  const items = mapDocumentsToBessEvidence(documents)
-  const result = evaluateBessDueDiligence(items)
-  const coverage = getEvidenceCoverage(items)
-  const categories = Array.from(new Set(items.map(item => item.category)))
+  const checks = getProfessionalDdChecks(profile)
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-28">
       <header className="rounded-3xl border border-white/10 bg-slate-950 p-6 text-white shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-400">EMA AI · Investment Due Diligence</p>
-        <h1 className="mt-2 text-3xl font-bold">BESS Due Diligence</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300">EMA ordnet vorhandene Projektunterlagen möglichen Prüfpunkten zu. Ein gefundener Nachweis ist noch keine Verifizierung – erst die Inhaltsprüfung darf einen Punkt freigeben.</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-400">EMA AI · Professional Due Diligence</p>
+        <h1 className="mt-2 text-3xl font-bold">Projektprüfung</h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-300">Drei unabhängige Perspektiven: Engineering, Investor und Legal. Kritische Hard Gates können die Gesamtfreigabe blockieren.</p>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Metric label="Investment Readiness" value={`${result.readinessScore}%`} />
-        <Metric label="RTB Score" value={`${result.rtbScore}%`} />
-        <Metric label="Evidenz-Abdeckung" value={`${coverage.percent}%`} />
-        <Metric label="Hard Gates" value={result.hardGatesPassed ? 'Bestanden' : 'Offen'} />
-        <Metric label="Entscheidung" value={result.recommendation} />
-      </section>
-
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Datenraum & Evidenz-Mapping</h2>
-            <p className="mt-1 text-sm text-slate-600">{documents.length} Dokument{documents.length === 1 ? '' : 'e'} im Projektdatenraum · für {coverage.withEvidence} von {coverage.total} DD-Punkten wurden mögliche Nachweise erkannt.</p>
-          </div>
-          <a href={`/projects/${id}/documents`} className="inline-flex rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Datenraum öffnen</a>
+        <h2 className="text-lg font-bold text-slate-900">Was soll EMA prüfen?</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {PROFILES.map(option => <a key={option.key} href={`?profile=${option.key}`} className={`rounded-2xl border p-4 transition ${profile === option.key ? 'border-lime-500 bg-lime-50 ring-1 ring-lime-500' : 'hover:bg-slate-50'}`}><p className="font-bold text-slate-950">{option.label}</p><p className="mt-1 text-sm text-slate-500">{option.description}</p></a>)}
         </div>
       </section>
 
-      <section className="space-y-4">
-        {categories.map(category => (
-          <div key={category} className="rounded-3xl border bg-white p-5 shadow-sm">
-            <h2 className="font-bold text-slate-900">{category}</h2>
-            <div className="mt-3 divide-y">
-              {items.filter(item => item.category === category).map(item => (
-                <div key={item.id} className="flex items-start justify-between gap-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{item.label}</p>
-                    <p className="mt-1 text-xs text-slate-500">{item.hardGate ? 'Hard Gate · ' : ''}Gewichtung {item.weight}</p>
-                    {item.evidence && <p className="mt-2 text-xs font-semibold text-emerald-700">{item.evidence}</p>}
-                    {item.source && <p className="mt-1 text-xs text-slate-500">Quelle: {item.source}</p>}
-                  </div>
-                  <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${item.source ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-                    {item.source ? 'Prüfung nötig' : 'Nachweis fehlt'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+      <section className="grid gap-3 sm:grid-cols-3">
+        {LENSES.map(lens => <div key={lens} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{REVIEW_LENS_LABELS[lens]}</p><p className="mt-2 text-2xl font-bold text-slate-950">Offen</p><p className="mt-1 text-xs text-slate-500">{checks.filter(c => c.lens === lens).length} Prüfpunkte</p></div>)}
       </section>
 
-      <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
-        <h2 className="font-bold text-amber-950">EMA AI Fazit</h2>
-        <p className="mt-2 text-sm text-amber-900">Noch keine Investitionsfreigabe. EMA hat mögliche Evidenz erkannt, wertet Dateinamen aber ausdrücklich nicht als Beweis. Der nächste Schritt ist die serverseitige Inhaltsprüfung der zugeordneten Dokumente mit Quellenbezug und Widerspruchserkennung.</p>
+      <section className="rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold text-slate-900">Datenraum</h2><p className="mt-1 text-sm text-slate-600">{documents.length} Dokument{documents.length === 1 ? '' : 'e'} verfügbar. Inhalte werden erst nach belastbarer Prüfung als Evidenz gewertet.</p></div><a href={`/projects/${id}/documents`} className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white">Datenraum öffnen</a></div>
       </section>
+
+      {LENSES.map(lens => <section key={lens} className="rounded-3xl border bg-white p-5 shadow-sm"><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold text-slate-900">{REVIEW_LENS_LABELS[lens]}</h2><span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Prüfung offen</span></div><div className="mt-3 divide-y">{checks.filter(c => c.lens === lens).map(check => <div key={check.id} className="flex items-start justify-between gap-4 py-3"><div><p className="text-sm font-medium text-slate-900">{check.label}</p><p className="mt-1 text-xs text-slate-500">{check.category}{check.hardGate ? ' · Hard Gate' : ''}</p></div><span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Nicht geprüft</span></div>)}</div></section>)}
+
+      <section className="rounded-3xl border border-amber-200 bg-amber-50 p-5"><h2 className="font-bold text-amber-950">Prüfstandard</h2><p className="mt-2 text-sm text-amber-900">EMA trennt technische, wirtschaftliche und rechtliche Befunde. Ein hoher Score in einem Bereich kann ein kritisches Hard Gate in einem anderen Bereich nicht ausgleichen. Die Legal Review ist eine automatisierte Vorprüfung und ersetzt keine individuelle Rechtsberatung; technische Feststellungen ersetzen keine erforderliche Fachplanung oder Vor-Ort-Prüfung.</p></section>
     </main>
   )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-950">{value}</p></div>
 }
