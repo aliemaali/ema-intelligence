@@ -22,6 +22,8 @@ const TABS = [
   { key: 'analysis', label: 'Analyse' },
 ]
 
+const DUE_DILIGENCE_PROJECT_TYPES = new Set(['bess', 'pv_freiflaeche', 'pv_dach', 'hybrid'])
+
 export default async function ProjectLayout({ children, params }: ProjectLayoutProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -39,7 +41,7 @@ export default async function ProjectLayout({ children, params }: ProjectLayoutP
   const baseTabs = project.project_type === 'rechenzentrum'
     ? [TABS[0], { key: 'site-check', label: 'Standortprüfung' }, ...TABS.slice(1)]
     : TABS
-  const tabs = project.project_type === 'bess'
+  const tabs = DUE_DILIGENCE_PROJECT_TYPES.has(project.project_type)
     ? [...baseTabs, { key: 'due-diligence', label: 'Due Diligence' }]
     : baseTabs
 
