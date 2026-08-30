@@ -44,7 +44,7 @@ export function InvestorCard({ investor, onOpen, onEdit, onDelete }: InvestorCar
       <button type="button" className="flex-1 p-4 text-left" onClick={() => onOpen(investor.id)}>
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2.5">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1B2C4E]/[0.08]"><FocusIcon size={16} color="#1B2C4E" strokeWidth={2} /></div>
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#75EE35]/20 bg-[#75EE35]/10 shadow-[0_0_22px_rgba(117,238,53,.12)]"><FocusIcon size={18} color="#75EE35" strokeWidth={2.2} /></div>
             <div className="min-w-0"><div className="truncate text-[14px] font-semibold leading-snug text-slate-800">{investor.company_name}</div>{investor.contact_person && <div className="truncate text-[12px] text-slate-500">{investor.contact_person}</div>}</div>
           </div>
           <span className="shrink-0 rounded-md px-2 py-0.5 text-[10.5px] font-medium" style={{ background: `${statusColor}18`, color: statusColor }}>{INVESTOR_STATUS_LABELS[investor.status]}</span>
