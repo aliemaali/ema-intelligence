@@ -1,5 +1,6 @@
 import { getProjects } from '@/lib/actions/project.actions'
 import { EmaCalendar } from '@/components/calendar/EmaCalendar'
+import { UpcomingMonthEvents } from '@/components/calendar/UpcomingMonthEvents'
 import { TopHeader } from '@/components/layout/TopHeader'
 import { createClient } from '@/lib/supabase/server'
 
@@ -18,11 +19,15 @@ export default async function CalendarPage() {
       ? `${project.project_number} – ${project.project_name}`
       : project.project_name ?? 'Unbenanntes Projekt',
   }))
+  const appointments = (plaudAppointments ?? []) as Array<{id:string;title:string;due_at:string}>
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1]">
       <TopHeader />
-      <EmaCalendar projects={options} plaudAppointments={(plaudAppointments ?? []) as Array<{id:string;title:string;due_at:string}>} />
+      <EmaCalendar projects={options} plaudAppointments={appointments} />
+      <div className="page-container pb-8 pt-0">
+        <UpcomingMonthEvents plaudAppointments={appointments} />
+      </div>
     </div>
   )
 }
