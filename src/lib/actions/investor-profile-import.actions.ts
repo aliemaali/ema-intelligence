@@ -1,6 +1,6 @@
 'use server'
 
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/types/investors'
@@ -255,9 +255,9 @@ export async function importInvestorProfilePdf(
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const storagePath = `${user.id}/investor/${investor.id}/${randomUUID()}-${safeName}`
+  const storagePath = `${user.id}/contacts/investor/${investor.id}/${randomUUID()}-${safeName}`
   const { error: uploadError } = await supabase.storage
-    .from('contact-documents')
+    .from('ema-dms')
     .upload(storagePath, Buffer.from(bytes), { contentType: 'application/pdf', upsert: false })
 
   if (uploadError) {
@@ -266,22 +266,37 @@ export async function importInvestorProfilePdf(
     return { success: false, error: 'Das PDF konnte nicht in der Investorenakte gespeichert werden.' }
   }
 
-  const { error: documentError } = await supabase
-    .from('contact_documents')
+  const { data: document, error: documentError } = await (supabase as any)
+    .from('documents')
     .insert({
       user_id: user.id,
-      entity_type: 'investor',
-      entity_id: investor.id,
-      document_type: PROFILE_DOCUMENT_TYPE,
+      project_id: null,
+      document_type: 'sonstiges',
+      display_name: file.name.replace(/\.[^.]+$/, ''),
       file_name: file.name,
-      storage_path: storagePath,
+      file_path: storagePath,
+      storage_bucket: 'ema-dms',
       mime_type: 'application/pdf',
-      size_bytes: file.size,
+      file_size_bytes: file.size,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+      source_app: 'ema_intelligence',
+      source_kind: 'contact',
+      notes: PROFILE_DOCUMENT_TYPE,
     })
+    .select('id')
+    .single()
 
-  if (documentError) {
+  if (documentError || !document) {
     console.error('[importInvestorProfilePdf:document]', documentError)
-    await supabase.storage.from('contact-documents').remove([storagePath])
+    await supabase.storage.from('ema-dms').remove([storagePath])
+    await supabase.from('investors').delete().eq('id', investor.id)
+    return { success: false, error: 'Die PDF-Datei konnte nicht mit dem Investor verknüpft werden.' }
+  }
+
+  const { error: linkError } = await (supabase as any).from('dms_document_links').insert({ document_id: document.id, user_id: user.id, entity_type: 'investor', entity_id: investor.id })
+  if (linkError) {
+    await (supabase as any).from('documents').delete().eq('id', document.id).eq('user_id', user.id)
+    await supabase.storage.from('ema-dms').remove([storagePath])
     await supabase.from('investors').delete().eq('id', investor.id)
     return { success: false, error: 'Die PDF-Datei konnte nicht mit dem Investor verknüpft werden.' }
   }

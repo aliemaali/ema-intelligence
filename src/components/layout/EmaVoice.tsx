@@ -134,7 +134,7 @@ const DESTINATIONS: Destination[] = [
   { label: 'Investoren', href: '/investors' },
   { label: 'Partner', href: '/partners' },
   { label: 'Partner-Einreichungen', href: '/partner-submissions' },
-  { label: 'Dokumente', href: '/dokumente' },
+  { label: 'EMA DMS', href: '/dms' },
   { label: 'Kalender', href: '/calendar' },
   { label: 'CAPEX', href: '/capex' },
   { label: 'Deals', href: '/deals' },

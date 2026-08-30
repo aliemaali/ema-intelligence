@@ -19,7 +19,7 @@ const EMA_NAVIGATION_PATHS = [
   '/investors',
   '/partners',
   '/partner-submissions',
-  '/dokumente',
+  '/dms',
   '/calendar',
   '/capex',
   '/deals',

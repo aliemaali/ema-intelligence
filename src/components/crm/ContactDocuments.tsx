@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Download, FileText, Trash2, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -8,7 +8,8 @@ interface ContactDocument {
   id: string
   document_type: string
   file_name: string
-  storage_path: string
+  file_path: string
+  storage_bucket: string
   created_at: string
 }
 
@@ -27,21 +28,20 @@ const STATUS_LABELS: Record<ChecklistStatus, string> = {
 }
 
 export function ContactDocuments({ entityType, entityId, documentTypes }: ContactDocumentsProps) {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [documents, setDocuments] = useState<ContactDocument[]>([])
   const [statuses, setStatuses] = useState<Record<string, ChecklistStatus>>({})
   const [documentType, setDocumentType] = useState(documentTypes[0])
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function loadData() {
-    const [{ data, error: loadError }, { data: checklist, error: checklistError }] = await Promise.all([
+  const loadData = useCallback(async () => {
+    const [{ data: links, error: linkError }, { data: checklist, error: checklistError }] = await Promise.all([
       supabase
-        .from('contact_documents')
-        .select('id, document_type, file_name, storage_path, created_at')
+        .from('dms_document_links' as any)
+        .select('document_id')
         .eq('entity_type', entityType)
-        .eq('entity_id', entityId)
-        .order('created_at', { ascending: false }),
+        .eq('entity_id', entityId),
       supabase
         .from('contact_document_checklists')
         .select('document_type, status')
@@ -49,12 +49,20 @@ export function ContactDocuments({ entityType, entityId, documentTypes }: Contac
         .eq('entity_id', entityId),
     ])
 
-    if (loadError || checklistError) {
-      setError(loadError?.message ?? checklistError?.message ?? 'Daten konnten nicht geladen werden')
+    if (linkError || checklistError) {
+      setError(linkError?.message ?? checklistError?.message ?? 'Daten konnten nicht geladen werden')
       return
     }
 
-    const loadedDocuments = (data ?? []) as ContactDocument[]
+    const documentIds = (links ?? []).map((link: any) => link.document_id)
+    const { data, error: loadError } = documentIds.length
+      ? await (supabase as any).from('documents').select('id, notes, file_name, file_path, storage_bucket, created_at').in('id', documentIds).eq('is_archived', false).order('created_at', { ascending: false })
+      : { data: [], error: null }
+    if (loadError) {
+      setError(loadError.message)
+      return
+    }
+    const loadedDocuments = (data ?? []).map((document: any) => ({ ...document, document_type: document.notes || 'Sonstiges' })) as ContactDocument[]
     setDocuments(loadedDocuments)
 
     const next: Record<string, ChecklistStatus> = {}
@@ -65,11 +73,11 @@ export function ContactDocuments({ entityType, entityId, documentTypes }: Contac
       next[item.document_type] = item.status as ChecklistStatus
     })
     setStatuses(next)
-  }
+  }, [documentTypes, entityId, entityType, supabase])
 
   useEffect(() => {
-    loadData()
-  }, [entityType, entityId])
+    void loadData()
+  }, [loadData])
 
   const relevantTypes = useMemo(() => documentTypes.filter((type) => type !== 'Sonstiges'), [documentTypes])
   const requiredTypes = relevantTypes.filter((type) => statuses[type] !== 'nicht_erforderlich')
@@ -106,9 +114,20 @@ export function ContactDocuments({ entityType, entityId, documentTypes }: Contac
       return
     }
 
+    const hashBytes = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
+    const sha256 = Array.from(new Uint8Array(hashBytes)).map((value) => value.toString(16).padStart(2, '0')).join('')
+    const { data: duplicate } = await (supabase as any).from('documents').select('id').eq('user_id', user.id).eq('sha256', sha256).eq('is_archived', false).limit(1).maybeSingle()
+    if (duplicate) {
+      const { error: duplicateLinkError } = await (supabase as any).from('dms_document_links').insert({ document_id: duplicate.id, user_id: user.id, entity_type: entityType, entity_id: entityId })
+      if (duplicateLinkError && duplicateLinkError.code !== '23505') setError(duplicateLinkError.message)
+      else await loadData()
+      setUploading(false)
+      return
+    }
+
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const storagePath = `${user.id}/${entityType}/${entityId}/${crypto.randomUUID()}-${safeName}`
-    const { error: uploadError } = await supabase.storage.from('contact-documents').upload(storagePath, file, { upsert: false })
+    const storagePath = `${user.id}/contacts/${entityType}/${entityId}/${crypto.randomUUID()}-${safeName}`
+    const { error: uploadError } = await supabase.storage.from('ema-dms').upload(storagePath, file, { contentType: file.type || 'application/octet-stream', upsert: false })
 
     if (uploadError) {
       setError(uploadError.message)
@@ -116,20 +135,34 @@ export function ContactDocuments({ entityType, entityId, documentTypes }: Contac
       return
     }
 
-    const { error: insertError } = await supabase.from('contact_documents').insert({
+    const { data: document, error: insertError } = await (supabase as any).from('documents').insert({
       user_id: user.id,
-      entity_type: entityType,
-      entity_id: entityId,
-      document_type: documentType,
+      project_id: null,
+      document_type: 'sonstiges',
+      display_name: file.name.replace(/\.[^.]+$/, ''),
       file_name: file.name,
-      storage_path: storagePath,
+      file_path: storagePath,
+      storage_bucket: 'ema-dms',
       mime_type: file.type || null,
-      size_bytes: file.size,
-    })
+      file_size_bytes: file.size,
+      sha256,
+      source_app: 'ema_intelligence',
+      source_kind: 'contact',
+      notes: documentType,
+    }).select('id').single()
 
-    if (insertError) {
-      await supabase.storage.from('contact-documents').remove([storagePath])
-      setError(insertError.message)
+    if (insertError || !document) {
+      await supabase.storage.from('ema-dms').remove([storagePath])
+      setError(insertError?.message ?? 'Dokument konnte nicht registriert werden.')
+      setUploading(false)
+      return
+    }
+
+    const { error: linkInsertError } = await (supabase as any).from('dms_document_links').insert({ document_id: document.id, user_id: user.id, entity_type: entityType, entity_id: entityId })
+    if (linkInsertError) {
+      await (supabase as any).from('documents').delete().eq('id', document.id).eq('user_id', user.id)
+      await supabase.storage.from('ema-dms').remove([storagePath])
+      setError(linkInsertError.message)
       setUploading(false)
       return
     }
@@ -148,16 +181,14 @@ export function ContactDocuments({ entityType, entityId, documentTypes }: Contac
   }
 
   async function openDocument(document: ContactDocument) {
-    const { data, error: signedError } = await supabase.storage.from('contact-documents').createSignedUrl(document.storage_path, 60)
+    const { data, error: signedError } = await supabase.storage.from(document.storage_bucket).createSignedUrl(document.file_path, 60)
     if (signedError || !data?.signedUrl) return setError(signedError?.message ?? 'Dokument konnte nicht geöffnet werden')
     window.location.href = data.signedUrl
   }
 
   async function deleteDocument(document: ContactDocument) {
-    if (!window.confirm(`Dokument „${document.file_name}“ wirklich löschen?`)) return
-    const { error: storageError } = await supabase.storage.from('contact-documents').remove([document.storage_path])
-    if (storageError) return setError(storageError.message)
-    const { error: deleteError } = await supabase.from('contact_documents').delete().eq('id', document.id)
+    if (!window.confirm(`Dokument „${document.file_name}“ in den DMS-Papierkorb verschieben?`)) return
+    const { error: deleteError } = await (supabase as any).from('documents').update({ is_archived: true }).eq('id', document.id)
     if (deleteError) return setError(deleteError.message)
     await loadData()
   }

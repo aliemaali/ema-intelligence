@@ -24,7 +24,7 @@ export function TopHeader() {
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#5CB800]" />
         </Link>
-        <Link href="/dokumente" className="mobile-header-action" title="Dokumente" aria-label="Dokumente öffnen">
+        <Link href="/dms" className="mobile-header-action" title="EMA DMS" aria-label="EMA DMS öffnen">
           <FolderOpen className="h-5 w-5" />
         </Link>
       </div>
