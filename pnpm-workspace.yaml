@@ -1,6 +1,0 @@
-allowBuilds:
-  core-js: true
-  esbuild: true
-  supabase: true
-  tesseract.js: true
-  unrs-resolver: true
