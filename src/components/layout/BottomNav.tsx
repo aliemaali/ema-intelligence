@@ -27,7 +27,6 @@ const MORE_GROUPS = [
       { label: 'Aufgaben', href: '/tasks', icon: CheckSquare },
       { label: 'Kalender', href: '/calendar', icon: CalendarDays },
       { label: 'Microsoft 365', href: '/microsoft', icon: Mail },
-      { label: 'Dokumente', href: '/dokumente', icon: FileText },
       { label: 'Versandcenter', href: '/versandcenter', icon: Send },
     ],
   },

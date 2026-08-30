@@ -15,13 +15,14 @@ async function requireUser() {
 }
 
 function revalidateDocuments() {
+  revalidatePath('/dms')
   revalidatePath('/dokumente')
   revalidatePath('/musterformulare')
 }
 
 export async function getTemplateDocuments() {
   const { supabase, userId } = await requireUser()
-  const { data, error } = await (supabase as any).from('template_documents').select('*').eq('user_id', userId).eq('is_archived', false).order('created_at', { ascending: false })
+  const { data, error } = await (supabase as any).from('documents').select('*').eq('user_id', userId).eq('source_kind', 'template').eq('is_archived', false).order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
   return data ?? []
 }
@@ -49,7 +50,7 @@ export async function moveDocumentToFolder(documentId: string, folderId: string 
     const { data: folder } = await (supabase as any).from('document_folders').select('id').eq('id', folderId).eq('user_id', userId).single()
     if (!folder) return { error: 'Ordner nicht gefunden.' }
   }
-  const { error } = await (supabase as any).from('template_documents').update({ folder_id: folderId }).eq('id', documentId).eq('user_id', userId)
+  const { error } = await (supabase as any).from('documents').update({ folder_id: folderId }).eq('id', documentId).eq('user_id', userId)
   if (error) return { error: error.message }
   revalidateDocuments()
   return { success: true }
@@ -60,7 +61,7 @@ export async function renameTemplateDocument(documentId: string, displayName: st
   if (!cleanName) return { error: 'Bitte einen Dokumentnamen eingeben.' }
   if (cleanName.length > 160) return { error: 'Der Dokumentname darf maximal 160 Zeichen lang sein.' }
   const { supabase, userId } = await requireUser()
-  const { error } = await (supabase as any).from('template_documents').update({ display_name: cleanName }).eq('id', documentId).eq('user_id', userId)
+  const { error } = await (supabase as any).from('documents').update({ display_name: cleanName }).eq('id', documentId).eq('user_id', userId)
   if (error) return { error: error.message }
   revalidateDocuments()
   return { success: true }
@@ -68,7 +69,7 @@ export async function renameTemplateDocument(documentId: string, displayName: st
 
 export async function deleteDocumentFolder(folderId: string) {
   const { supabase, userId } = await requireUser()
-  await (supabase as any).from('template_documents').update({ folder_id: null }).eq('folder_id', folderId).eq('user_id', userId)
+  await (supabase as any).from('documents').update({ folder_id: null }).eq('folder_id', folderId).eq('user_id', userId)
   const { error } = await (supabase as any).from('document_folders').delete().eq('id', folderId).eq('user_id', userId)
   if (error) return { error: error.message }
   revalidateDocuments()
@@ -134,12 +135,26 @@ export async function createTemplateDocumentRecord(params: { displayName: string
   }
   const resolvedFolder = await resolveTemplateDocumentFolderId(supabase, userId, params.category, params.folderId)
   if (resolvedFolder.error) return { error: resolvedFolder.error }
-  const { data, error } = await (supabase as any).from('template_documents').insert({ user_id: userId, display_name: params.displayName, category: params.category, file_name: params.fileName, file_path: params.filePath, file_size_bytes: params.fileSizeBytes, mime_type: params.mimeType, folder_id: resolvedFolder.folderId }).select('id').single()
+  const { data, error } = await (supabase as any).from('documents').insert({
+    user_id: userId,
+    project_id: null,
+    document_type: params.category === 'nda' ? 'nda' : 'sonstiges',
+    display_name: params.displayName,
+    file_name: params.fileName,
+    file_path: params.filePath,
+    file_size_bytes: params.fileSizeBytes,
+    mime_type: params.mimeType,
+    folder_id: resolvedFolder.folderId,
+    storage_bucket: 'template-documents',
+    source_app: 'ema_intelligence',
+    source_kind: 'template',
+    analysis_status: 'not_started',
+  }).select('id').single()
   if (error) return { error: error.message }
   if (params.investorId) {
-    const { error: assignmentError } = await (supabase as any).from('document_assignments').insert({ document_id: data.id, user_id: userId, entity_type: 'investor', entity_id: params.investorId })
+    const { error: assignmentError } = await (supabase as any).from('dms_document_links').insert({ document_id: data.id, user_id: userId, entity_type: 'investor', entity_id: params.investorId })
     if (assignmentError) {
-      await (supabase as any).from('template_documents').delete().eq('id', data.id).eq('user_id', userId)
+      await (supabase as any).from('documents').delete().eq('id', data.id).eq('user_id', userId)
       return { error: assignmentError.message }
     }
   }
@@ -157,13 +172,13 @@ export async function getTemplateDocumentUrl(filePath: string) {
 
 export async function saveDocumentAssignments(params: { documentId: string; assignments: Array<{ entityType: DocumentEntityType; entityId: string }> }) {
   const { supabase, userId } = await requireUser()
-  const { data: document } = await supabase.from('template_documents').select('id').eq('id', params.documentId).eq('user_id', userId).single()
+  const { data: document } = await (supabase as any).from('documents').select('id').eq('id', params.documentId).eq('user_id', userId).single()
   if (!document) return { error: 'Dokument nicht gefunden.' }
   const uniqueAssignments = Array.from(new Map(params.assignments.map((item) => [`${item.entityType}:${item.entityId}`, item])).values())
-  const { error: deleteError } = await (supabase as any).from('document_assignments').delete().eq('document_id', params.documentId).eq('user_id', userId)
+  const { error: deleteError } = await (supabase as any).from('dms_document_links').delete().eq('document_id', params.documentId).eq('user_id', userId)
   if (deleteError) return { error: deleteError.message }
   if (uniqueAssignments.length > 0) {
-    const { error: insertError } = await (supabase as any).from('document_assignments').insert(uniqueAssignments.map((item) => ({ document_id: params.documentId, user_id: userId, entity_type: item.entityType, entity_id: item.entityId })))
+    const { error: insertError } = await (supabase as any).from('dms_document_links').insert(uniqueAssignments.map((item) => ({ document_id: params.documentId, user_id: userId, entity_type: item.entityType, entity_id: item.entityId })))
     if (insertError) return { error: insertError.message }
   }
   revalidateDocuments()
@@ -172,7 +187,7 @@ export async function saveDocumentAssignments(params: { documentId: string; assi
 
 export async function archiveTemplateDocument(id: string) {
   const { supabase, userId } = await requireUser()
-  const { error } = await supabase.from('template_documents').update({ is_archived: true } as never).eq('id', id).eq('user_id', userId)
+  const { error } = await (supabase as any).from('documents').update({ is_archived: true }).eq('id', id).eq('user_id', userId)
   if (error) return { error: error.message }
   revalidateDocuments()
   return { success: true }

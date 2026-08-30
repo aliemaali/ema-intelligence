@@ -12,12 +12,13 @@ const MAX_PDF_BYTES = 10 * 1024 * 1024
 
 type DocumentRow = {
   id: string
-  project_id: string
+  project_id: string | null
   user_id: string
   display_name: string
   file_name: string
   file_path: string
   external_provider: string | null
+  storage_bucket: string | null
   file_size_bytes: number | null
   mime_type: string | null
   ai_analyzed: boolean | null
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('documents')
-    .select('id, project_id, user_id, display_name, file_name, file_path, external_provider, file_size_bytes, mime_type, ai_analyzed, ai_extracted_data, is_archived')
+    .select('id, project_id, user_id, display_name, file_name, file_path, external_provider, storage_bucket, file_size_bytes, mime_type, ai_analyzed, ai_extracted_data, is_archived')
     .eq('id', documentId)
     .eq('user_id', user.id)
     .eq('is_archived', false)
@@ -194,9 +195,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Dieses PDF ist für die EMA-Indexierung zu groß.' }, { status: 413 })
   }
 
-  const documentBucket = document.external_provider === 'project-imports'
-    ? 'project-imports'
-    : 'project-documents'
+  const documentBucket = document.storage_bucket
+    || (document.external_provider === 'project-imports' ? 'project-imports' : 'project-documents')
   const { data: fileBlob, error: downloadError } = await supabase.storage
     .from(documentBucket)
     .download(document.file_path)
@@ -296,6 +296,8 @@ export async function POST(request: NextRequest) {
       ai_analyzed: true,
       ai_extracted_data: extractedData,
       ai_analyzed_at: analyzedAt,
+      analysis_status: 'completed',
+      analysis_error: null,
     } as never)
     .eq('id', document.id)
     .eq('user_id', user.id)

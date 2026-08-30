@@ -16,6 +16,7 @@
     "test:reminder-push-status": "esbuild src/lib/reminders/pushStatus.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/reminder-push-status.test.cjs && node --test .tmp/reminder-push-status.test.cjs",
     "test:plaud": "esbuild src/lib/plaud/prepare-meeting.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/plaud.test.cjs && node --test .tmp/plaud.test.cjs",
     "test:plaud-pdf": "esbuild src/lib/plaud/note-pdf.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/plaud-pdf.test.cjs && node --test .tmp/plaud-pdf.test.cjs",
+    "test:dms-dd": "node -e \"require('esbuild').buildSync({entryPoints:['src/lib/due-diligence/analysis.test.ts'],bundle:true,platform:'node',format:'cjs',outfile:'.tmp/dms-dd.test.cjs'})\" && node --test .tmp/dms-dd.test.cjs",
     "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts",
     "pl:render": "esbuild tools/renderProjektliste.ts --bundle --platform=node --target=node20 --outfile=.tmp/render.cjs && node .tmp/render.cjs",
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
@@ -30,6 +31,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.1.3",
+    "fflate": "0.8.3",
     "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.414.0",
@@ -45,6 +47,7 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.4.0",
     "tesseract.js": "^5.1.1",
+    "tus-js-client": "4.3.1",
     "web-push": "^3.6.7",
     "zod": "^3.23.8"
   },
