@@ -7,7 +7,17 @@ export async function requestPushPermission() {
   return Notification.requestPermission()
 }
 
-export async function getPushRegistration() {
+export async function registerEmaPushWorker() {
   if (!isPushSupported()) return null
+  await navigator.serviceWorker.register('/ema-push-sw.js')
   return navigator.serviceWorker.ready
+}
+
+export async function subscribeToEmaPush(applicationServerKey: Uint8Array) {
+  const registration = await registerEmaPushWorker()
+  if (!registration) return null
+  return registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: applicationServerKey as BufferSource,
+  })
 }
