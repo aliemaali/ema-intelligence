@@ -29,7 +29,7 @@ export default async function InvestorsPage() {
   }))
 
   return (
-    <div className="min-h-screen w-full" style={{ background: '#F4F6F9' }}>
+    <div className="min-h-screen w-full bg-transparent text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
         {!investorsResult.success && (
           <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-[13px] text-red-700">
