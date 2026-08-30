@@ -23,7 +23,6 @@ const EMA_NAVIGATION_PATHS = [
   '/calendar',
   '/capex',
   '/deals',
-  '/acquisition',
   '/ai',
   '/microsoft',
   '/settings',

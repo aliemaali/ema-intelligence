@@ -7,7 +7,7 @@ import {
   Archive, BellRing, Bot, BriefcaseBusiness, Building2, Calculator,
   CalendarDays, CheckSquare, ChevronRight, ClipboardPenLine, FileText,
   FolderOpen, Handshake, Inbox, LayoutDashboard, LogOut, Mail,
-  MoreHorizontal, Send, Settings, Target, Users, X,
+  MoreHorizontal, Send, Settings, Users, X,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -45,7 +45,6 @@ const MORE_GROUPS = [
   {
     label: 'Werkzeuge',
     items: [
-      { label: 'Akquise', href: '/acquisition', icon: Target },
       { label: 'Rechner', href: '/capex', icon: Calculator },
       { label: 'Archiv', href: '/archive', icon: Archive },
       { label: 'Einstellungen', href: '/settings', icon: Settings },

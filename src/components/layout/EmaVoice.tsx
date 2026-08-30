@@ -138,7 +138,6 @@ const DESTINATIONS: Destination[] = [
   { label: 'Kalender', href: '/calendar' },
   { label: 'CAPEX', href: '/capex' },
   { label: 'Deals', href: '/deals' },
-  { label: 'Akquise', href: '/acquisition' },
   { label: 'EMA AI', href: '/ai' },
   { label: 'Microsoft 365', href: '/microsoft' },
   { label: 'Einstellungen', href: '/settings' },
