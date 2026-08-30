@@ -374,3 +374,259 @@
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
 }
+
+/* EMA Intelligence · visual parity with EMA Office */
+:root {
+  --intel-panel-rgb: 91, 137, 255;
+  --intel-glass-text: #f7faff;
+  --intel-glass-muted: #aebbd0;
+  --intel-glass-border: rgba(255, 255, 255, .11);
+  --intel-glass-bg:
+    radial-gradient(circle at 12% 0%, rgba(var(--panel-rgb, var(--intel-panel-rgb)), .20), transparent 42%),
+    linear-gradient(145deg, rgba(13, 38, 74, .88), rgba(6, 22, 48, .94) 62%, rgba(3, 14, 32, .98));
+  --intel-glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .07),
+    0 22px 56px rgba(0, 0, 0, .22),
+    0 0 34px rgba(var(--panel-rgb, var(--intel-panel-rgb)), .07);
+}
+
+/* Shared premium surfaces */
+.card,
+.card-padded,
+.stat-card {
+  --panel-rgb: var(--intel-panel-rgb);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--intel-glass-text);
+  border-color: var(--intel-glass-border);
+  background: var(--intel-glass-bg);
+  box-shadow: var(--intel-glass-shadow);
+  backdrop-filter: blur(24px) saturate(125%);
+  -webkit-backdrop-filter: blur(24px) saturate(125%);
+  color-scheme: dark;
+}
+
+.card::after,
+.card-padded::after,
+.stat-card::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255, 255, 255, .055), transparent 28%, transparent 72%, rgba(var(--panel-rgb), .045));
+}
+
+.grid > :is(.card, .card-padded, .stat-card):nth-child(4n + 1) { --panel-rgb: 117, 238, 53; }
+.grid > :is(.card, .card-padded, .stat-card):nth-child(4n + 2) { --panel-rgb: 91, 137, 255; }
+.grid > :is(.card, .card-padded, .stat-card):nth-child(4n + 3) { --panel-rgb: 65, 224, 207; }
+.grid > :is(.card, .card-padded, .stat-card):nth-child(4n + 4) { --panel-rgb: 157, 113, 255; }
+
+.card:hover,
+.card-padded:hover,
+.stat-card:hover {
+  border-color: rgba(var(--panel-rgb), .34);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .09),
+    0 28px 64px rgba(0, 0, 0, .27),
+    0 0 40px rgba(var(--panel-rgb), .12);
+}
+
+/* Remove the remaining light legacy islands inside the application */
+.app-content [style*="#F4F6F9"],
+.app-content [style*="#f4f6f9"] {
+  background: transparent !important;
+}
+
+.app-content :where([class~="bg-white"], [class*="bg-white/"]),
+.fixed :where([class~="bg-white"], [class*="bg-white/"]) {
+  color: var(--intel-glass-text);
+  border-color: var(--intel-glass-border) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(91, 137, 255, .14), transparent 44%),
+    linear-gradient(145deg, rgba(13, 38, 74, .94), rgba(4, 18, 40, .98)) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055), 0 18px 48px rgba(0, 0, 0, .20);
+  color-scheme: dark;
+}
+
+.app-content :where([class~="bg-slate-50"], [class~="bg-slate-100"]),
+.fixed :where([class~="bg-slate-50"], [class~="bg-slate-100"]) {
+  color: var(--intel-glass-text);
+  background: rgba(255, 255, 255, .055) !important;
+}
+
+.app-content [class~="hover:bg-slate-50"]:hover,
+.fixed [class~="hover:bg-slate-50"]:hover,
+.app-content [class~="hover:bg-slate-100"]:hover,
+.fixed [class~="hover:bg-slate-100"]:hover {
+  background: rgba(91, 137, 255, .11) !important;
+}
+
+.app-content :where([class~="border-slate-100"], [class~="border-slate-200"], [class~="border-blue-100"]),
+.fixed :where([class~="border-slate-100"], [class~="border-slate-200"], [class~="border-blue-100"]) {
+  border-color: rgba(255, 255, 255, .09) !important;
+}
+
+/* Consistent typography on formerly light pages */
+.app-content :where([class~="text-[#07142F]"], [class~="text-[#1B2C4E]"], [class~="text-[#1F2A44]"], [class~="text-slate-900"], [class~="text-slate-800"]),
+.fixed :where([class~="text-[#07142F]"], [class~="text-[#1B2C4E]"], [class~="text-[#1F2A44]"], [class~="text-slate-900"], [class~="text-slate-800"]) {
+  color: #fff !important;
+}
+
+.app-content :where([class~="text-slate-700"], [class~="text-slate-600"]),
+.fixed :where([class~="text-slate-700"], [class~="text-slate-600"]) {
+  color: #d8e2f2 !important;
+}
+
+.app-content :where([class~="text-slate-500"], [class~="text-slate-400"]),
+.fixed :where([class~="text-slate-500"], [class~="text-slate-400"]) {
+  color: var(--intel-glass-muted) !important;
+}
+
+/* Forms and filters */
+.app-content :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.fixed :where(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]) {
+  color: #f7faff !important;
+  -webkit-text-fill-color: #f7faff !important;
+  caret-color: #91f15e;
+  border-color: rgba(255, 255, 255, .12) !important;
+  background: rgba(2, 14, 32, .76) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .20);
+  color-scheme: dark;
+}
+
+.app-content :where(input, textarea)::placeholder,
+.fixed :where(input, textarea)::placeholder {
+  color: #74849d !important;
+  -webkit-text-fill-color: #74849d !important;
+  opacity: 1;
+}
+
+.app-content :where(input, select, textarea):focus,
+.fixed :where(input, select, textarea):focus {
+  border-color: rgba(117, 238, 53, .56) !important;
+  background: rgba(4, 20, 43, .96) !important;
+  box-shadow: 0 0 0 4px rgba(117, 238, 53, .11), 0 0 24px rgba(117, 238, 53, .07) !important;
+}
+
+.app-content option,
+.fixed option {
+  color: #f7faff;
+  background: #091c3b;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #75ee35;
+}
+
+/* Modals, drawers and confirmations */
+.fixed [class~="sm:bg-black/40"],
+.fixed [class~="bg-black/40"],
+.fixed [class~="bg-black/45"] {
+  background: rgba(1, 7, 19, .72) !important;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+
+.fixed [class~="shadow-2xl"] {
+  border: 1px solid rgba(255, 255, 255, .11);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, .48), 0 0 48px rgba(91, 137, 255, .09) !important;
+}
+
+/* Buttons and interactive rows */
+.app-content :where(.btn-secondary, [class~="border-slate-200"]):is(button, a),
+.fixed :where([class~="border-slate-200"]):is(button, a) {
+  color: #eaf1fc !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .045)),
+    rgba(7, 27, 57, .84) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 10px 26px rgba(0, 0, 0, .14);
+}
+
+.app-content :where(.btn-secondary, [class~="border-slate-200"]):is(button, a):hover,
+.fixed :where([class~="border-slate-200"]):is(button, a):hover {
+  color: #fff !important;
+  border-color: rgba(117, 238, 53, .28) !important;
+  background:
+    linear-gradient(145deg, rgba(117, 238, 53, .12), rgba(255, 255, 255, .045)),
+    rgba(7, 27, 57, .94) !important;
+}
+
+.btn-primary,
+.app-content :is(button, a)[class~="bg-[#5CB800]"],
+.fixed :is(button, a)[class~="bg-[#5CB800]"] {
+  color: #07142f !important;
+  background: linear-gradient(145deg, #a0f772, #69d232 72%) !important;
+  box-shadow: 0 12px 30px rgba(83, 190, 38, .22);
+}
+
+.badge,
+.app-content [class~="rounded-full"][class*="bg-[#5CB800]"] {
+  color: #a8f67d;
+  border-color: rgba(117, 238, 53, .20);
+  background: rgba(117, 238, 53, .10) !important;
+}
+
+/* Error and warning surfaces keep their meaning in dark mode */
+.app-content [class~="bg-red-50"],
+.fixed [class~="bg-red-50"] {
+  color: #ffb1bd;
+  border-color: rgba(255, 107, 128, .24) !important;
+  background: rgba(116, 24, 42, .24) !important;
+}
+
+.app-content [class~="bg-amber-50"],
+.fixed [class~="bg-amber-50"] {
+  color: #ffda8c;
+  background: rgba(129, 84, 16, .20) !important;
+}
+
+/* White report, memorandum and PDF canvases remain printable */
+:where(.pdf-page, .pdf-preview, .document-preview, .memorandum-preview, .a4-page, [data-pdf-page], [data-document-preview]),
+:where(.pdf-page, .pdf-preview, .document-preview, .memorandum-preview, .a4-page, [data-pdf-page], [data-document-preview]) * {
+  color-scheme: light;
+}
+
+:where(.pdf-page, .pdf-preview, .document-preview, .memorandum-preview, .a4-page, [data-pdf-page], [data-document-preview]) :where([class~="bg-white"], [class*="bg-white/"]) {
+  color: #182033;
+  border-color: #e4e7ef !important;
+  background: #fff !important;
+  box-shadow: none;
+}
+
+@media (max-width: 767px) {
+  .card,
+  .card-padded,
+  .stat-card,
+  .app-content :where([class~="bg-white"], [class*="bg-white/"]) {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, .06),
+      0 16px 38px rgba(0, 0, 0, .19),
+      0 0 24px rgba(var(--panel-rgb, var(--intel-panel-rgb)), .05);
+  }
+}
+
+@media print {
+  body,
+  .app-content {
+    color: #182033;
+    background: #fff !important;
+  }
+
+  .card,
+  .card-padded,
+  .stat-card,
+  .app-content :where([class~="bg-white"], [class*="bg-white/"]) {
+    color: #182033;
+    border-color: #e4e7ef !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    color-scheme: light;
+  }
+}
+
