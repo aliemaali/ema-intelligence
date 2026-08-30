@@ -46,7 +46,6 @@ const MORE_GROUPS = [
     label: 'Werkzeuge',
     items: [
       { label: 'Akquise', href: '/acquisition', icon: Target },
-      { label: 'KI-Agent', href: '/ai-agent', icon: Bot },
       { label: 'Rechner', href: '/capex', icon: Calculator },
       { label: 'Archiv', href: '/archive', icon: Archive },
       { label: 'Einstellungen', href: '/settings', icon: Settings },

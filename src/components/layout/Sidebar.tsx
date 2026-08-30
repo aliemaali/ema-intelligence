@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FolderOpen, Handshake, Users,
   Building2, Sparkles, Settings, Calculator,
-  LogOut, ChevronRight, UploadCloud, Target, Bot, Inbox,
+  LogOut, ChevronRight, UploadCloud, Target, Inbox,
 } from 'lucide-react'
 import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
@@ -17,14 +17,13 @@ interface SidebarProps {
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard, FolderOpen, Handshake, Users, Building2,
-  Sparkles, Settings, Calculator, UploadCloud, Target, Bot,
+  Sparkles, Settings, Calculator, UploadCloud, Target,
 }
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
   const isActive = (href: string) => href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
   const acquisitionActive = isActive('/acquisition')
-  const agentActive = isActive('/ai-agent')
   const submissionsActive = isActive('/partner-submissions')
   const primaryItems = NAV_ITEMS.filter((item) => !['/tasks', '/data-sources'].includes(item.href))
   const displayName = user.name.trim() === 'Ali Ünlü' ? 'Ali Ünlüer' : user.name
@@ -61,7 +60,6 @@ export function Sidebar({ user }: SidebarProps) {
         <div className="pt-4 mt-4 border-t border-border">
           <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60">Wachstum</p>
           <Link href="/acquisition" className={cn('nav-item group', acquisitionActive && 'nav-item-active')}><Target className={cn('w-5 h-5 shrink-0 transition-colors', acquisitionActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} /><span className="truncate">Akquise</span>{acquisitionActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}</Link>
-          <Link href="/ai-agent" className={cn('nav-item group', agentActive && 'nav-item-active')}><Bot className={cn('w-5 h-5 shrink-0 transition-colors', agentActive ? 'text-white' : 'text-[#132060]/80 group-hover:text-[#132060]')} /><span className="truncate">KI-Agent</span>{agentActive && <ChevronRight className="w-4 h-4 ml-auto text-white/80" />}</Link>
         </div>
 
         <div className="pt-4 mt-4 border-t border-border">
