@@ -156,15 +156,15 @@ export default async function DashboardPage() {
       <section className="relative isolate min-h-[31rem] overflow-hidden border-b border-blue-300/15 bg-[#06152f] md:min-h-[25rem] md:rounded-b-[2.4rem]">
         <div className="absolute inset-0">
           <Image
-            src="/hero-dashboard.png"
-            alt="Erneuerbare Energieprojekte"
+            src="/hero-dashboard-enterprise.jpg"
+            alt="EMA Enterprise Portfolio aus BESS, Photovoltaik, Windkraft und Rechenzentrum"
             fill
             priority
             quality={95}
             sizes="(max-width: 1480px) 100vw, 1480px"
-            className="object-cover opacity-55 saturate-[.85]"
+            className="object-cover object-[52%_34%] opacity-90 saturate-[1.02] md:object-[50%_32%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#020b1d]/98 via-[#071a38]/88 to-[#102c62]/62" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#020b1d]/90 via-[#071a38]/60 to-[#102c62]/20" />
           <div className="ema-glow-pulse absolute -left-16 top-1/3 h-64 w-64 rounded-full bg-[#77ed3b]/20 blur-[85px]" />
           <div className="ema-glow-pulse absolute -right-12 top-8 h-72 w-72 rounded-full bg-blue-500/24 blur-[95px]" />
         </div>
