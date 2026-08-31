@@ -731,6 +731,41 @@ input[type="radio"] {
   border-radius: 8px;
 }
 
+.nda-generator-form {
+  --dms-panel-rgb: 117, 238, 53;
+}
+
+.nda-subpanel {
+  color: #e9f1fc;
+  border: 1px solid rgba(117, 238, 53, .16);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(117, 238, 53, .10), transparent 48%),
+    rgba(255, 255, 255, .045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .045);
+}
+
+.nda-generator-form :is(input, select, textarea) {
+  color: #f7faff !important;
+  border-color: rgba(255, 255, 255, .12) !important;
+  background: rgba(2, 14, 32, .68) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .035);
+  color-scheme: dark;
+}
+
+.nda-generator-form :is(input, textarea)::placeholder {
+  color: #8f9db4 !important;
+  opacity: 1;
+}
+
+.nda-generator-form :is(input, select, textarea):focus {
+  border-color: rgba(142, 238, 81, .58) !important;
+  box-shadow: 0 0 0 3px rgba(117, 238, 53, .10);
+}
+
+.nda-generator-form label {
+  color: #f7faff !important;
+}
+
 @media (max-width: 767px) {
   .dms-premium {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom));
