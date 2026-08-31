@@ -103,15 +103,15 @@ export function PasskeyManager() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+      <section className="premium-surface rounded-2xl border p-5 sm:p-6" style={{ '--premium-rgb': '65, 224, 207' } as React.CSSProperties}>
         <div className="flex items-start gap-4">
           <div className="rounded-xl bg-[#5CB800]/10 p-3 text-[#5CB800]">
             <Fingerprint className="h-6 w-6" aria-hidden="true" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-[#1F2A44]">Face ID & Passkeys</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            <h2 className="text-lg font-extrabold text-white">Face ID & Passkeys</h2>
+            <p className="premium-muted mt-1 text-sm leading-6">
               Melde dich auf unterstützten Geräten ohne Passwort an. Auf dem iPhone wird dafür Face ID verwendet.
               Biometrische Daten verlassen dein Gerät nicht.
             </p>
@@ -133,11 +133,11 @@ export function PasskeyManager() {
         </div>
       </section>
 
-      <section className="rounded-2xl border bg-white p-5 shadow-sm sm:p-6">
+      <section className="premium-surface rounded-2xl border p-5 sm:p-6" style={{ '--premium-rgb': '91, 137, 255' } as React.CSSProperties}>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-[#1F2A44]">Registrierte Geräte</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className="text-lg font-extrabold text-white">Registrierte Geräte</h2>
+            <p className="premium-muted mt-1 text-sm">
               Verwalte die Geräte und Passwortmanager, auf denen ein EMA-Passkey gespeichert ist.
             </p>
           </div>
@@ -146,7 +146,7 @@ export function PasskeyManager() {
             type="button"
             onClick={() => void loadPasskeys()}
             disabled={loading}
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-white text-[#1F2A44] hover:bg-muted disabled:opacity-50"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[.055] text-white hover:bg-white/10 disabled:opacity-50"
             aria-label="Passkeys aktualisieren"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
@@ -155,15 +155,15 @@ export function PasskeyManager() {
 
         <div className="mt-5">
           {loading ? (
-            <div className="flex min-h-28 items-center justify-center text-muted-foreground">
+            <div className="premium-muted flex min-h-28 items-center justify-center">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
               Passkeys werden geladen…
             </div>
           ) : passkeys.length === 0 ? (
             <div className="rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center">
               <ShieldCheck className="mx-auto h-8 w-8 text-muted-foreground" aria-hidden="true" />
-              <p className="mt-3 font-medium text-[#1F2A44]">Noch kein Passkey eingerichtet</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-3 font-medium text-white">Noch kein Passkey eingerichtet</p>
+              <p className="premium-muted mt-1 text-sm">
                 Richte oben deinen ersten Passkey ein. Der bisherige Passwort-Login bleibt verfügbar.
               </p>
             </div>
@@ -179,10 +179,10 @@ export function PasskeyManager() {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-[#1F2A44]">
+                    <p className="truncate font-medium text-white">
                       {passkey.friendly_name || 'Passkey'}
                     </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="premium-muted mt-0.5 text-xs">
                       Erstellt: {formatDate(passkey.created_at)} · Zuletzt verwendet: {formatDate(passkey.last_used_at)}
                     </p>
                   </div>
@@ -207,7 +207,7 @@ export function PasskeyManager() {
         </div>
       </section>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <div className="premium-warning rounded-xl border px-4 py-3 text-sm">
         Entferne deinen letzten Passkey nur, wenn du dein EMA-Passwort noch kennst. Der Passwort-Login bleibt während der Testphase bewusst aktiv.
       </div>
     </div>

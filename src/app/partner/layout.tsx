@@ -1,6 +1,6 @@
 export default function PartnerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-white [&_main]:!bg-white">
+    <div className="premium-page min-h-screen">
       {children}
     </div>
   )

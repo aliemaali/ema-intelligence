@@ -178,7 +178,7 @@ export default async function InvestmentMemorandumPage(props: { params: Promise<
   const hasSecondPage = Boolean(presentation.dataCenterDetails || presentation.bessPortfolioDetails)
 
   return (
-    <div className="min-h-screen bg-[#edf1f4] pb-16 print:bg-white print:pb-0">
+    <div className="premium-page min-h-screen pb-16 print:bg-white print:pb-0">
       <header className="print:hidden border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:py-4">
         <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
           <Link href="/dashboard"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-14 w-auto" /></Link>
@@ -189,7 +189,7 @@ export default async function InvestmentMemorandumPage(props: { params: Promise<
         <Link href="/expose" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>
       </div>
 
-      <article className="memorandum-page mx-auto w-full max-w-[900px] overflow-hidden bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:max-w-none print:shadow-none">
+      <article className="premium-document memorandum-page mx-auto w-full max-w-[900px] overflow-hidden bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:max-w-none print:shadow-none">
         <header className="flex items-start justify-between gap-6 pb-5">
           <img src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" className="h-16 w-auto object-contain" />
           <div className="text-right">
@@ -280,7 +280,7 @@ export default async function InvestmentMemorandumPage(props: { params: Promise<
       </article>
 
       {presentation.bessPortfolioDetails && (
-        <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
+        <article className="premium-document memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
           <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-5">
             <div className="flex items-center gap-4"><img src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" /><div><p className="text-xs font-extrabold uppercase tracking-[.16em] text-[#5CB800]">BESS-Portfolio · Standortübersicht</p><h2 className="mt-1 text-2xl font-black tracking-[-.03em]">Ein Paket, vier Standortprüfungen</h2></div></div>
             <div className="text-right text-[10px] font-bold uppercase tracking-[.08em] text-slate-500">{String(project.project_number || '')}<br />{dateLabel}</div>
@@ -300,7 +300,7 @@ export default async function InvestmentMemorandumPage(props: { params: Promise<
       )}
 
       {presentation.dataCenterDetails && (
-        <article className="memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
+        <article className="premium-document memorandum-page mx-auto mt-8 w-full max-w-[900px] bg-white px-5 py-5 font-sans text-[#0B1633] shadow-[0_24px_70px_rgba(15,23,42,.16)] sm:px-7 sm:py-7 print:mt-0 print:max-w-none print:break-before-page print:shadow-none">
           <header className="flex items-start justify-between gap-6 border-b border-slate-200 pb-5">
             <div className="flex items-center gap-4">
               <img src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" className="h-12 w-auto object-contain" />

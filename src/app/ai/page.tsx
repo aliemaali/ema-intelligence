@@ -49,7 +49,7 @@ export default async function EmaAiPage() {
   })
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC]">
+    <div className="premium-page min-h-screen">
       <EmaAiAssistantV2 projects={aiProjects} />
     </div>
   )

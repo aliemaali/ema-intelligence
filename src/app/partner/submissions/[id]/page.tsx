@@ -33,7 +33,7 @@ export default async function PartnerSubmissionDetailPage(props: { params: Promi
   const editable = EDITABLE_STATUSES.has(submission.status)
 
   return (
-    <main className="min-h-screen bg-white text-[#1F2A44]">
+    <main className="premium-page min-h-screen text-white">
       <div className="mx-auto w-full max-w-3xl px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6">
         <header className="flex items-center justify-between gap-4 py-3">
           <Link href="/partner" className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-extrabold shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>

@@ -42,14 +42,14 @@ export function MfaChallenge({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <div className="w-full max-w-md rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-[0_28px_90px_rgba(7,20,47,.13)] sm:p-9">
+    <div className="premium-surface w-full max-w-md rounded-[2rem] border p-6 sm:p-9" style={{ '--premium-rgb': '117, 238, 53' } as React.CSSProperties}>
       <div className="text-center">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#5CB800]">
           <ShieldCheck className="h-8 w-8" />
         </span>
         <p className="mt-5 text-[11px] font-extrabold uppercase tracking-[.22em] text-[#5CB800]">EMA Sicherheit</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-[#07142F]">Anmeldung bestätigen</h1>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Gib den aktuellen Code aus deiner Authenticator-App ein.</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-white">Anmeldung bestätigen</h1>
+        <p className="premium-muted mt-2 text-sm leading-relaxed">Gib den aktuellen Code aus deiner Authenticator-App ein.</p>
       </div>
 
       {loading ? (

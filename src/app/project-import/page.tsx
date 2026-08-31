@@ -14,7 +14,7 @@ const steps = [
 
 export default function ProjectImportPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1]">
+    <div className="premium-page min-h-screen">
       <TopHeader />
 
       <div className="page-container space-y-4 py-6 md:space-y-8 md:py-8">

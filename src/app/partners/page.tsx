@@ -65,7 +65,7 @@ export default function PartnersPage() {
   const partnersWithEmail = partners.filter((partner) => Boolean(partner.email)).length
 
   return (
-    <div className="min-h-screen w-full bg-[#F4F6F9]">
+    <div className="premium-page min-h-screen w-full">
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><h1 className="text-3xl font-extrabold tracking-tight text-[#07142F]">Partner</h1><p className="mt-1 text-sm text-muted-foreground">Partnerverwaltung für Vertrieb und Projektentwicklung</p></div>
