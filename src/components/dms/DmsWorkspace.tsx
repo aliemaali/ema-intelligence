@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import {
   archiveDmsDocument, createDmsFolder, findDmsDuplicate,
-  getDmsDocumentUrl, registerDmsUpload,
+  registerDmsUpload,
 } from '@/lib/actions/dms.actions'
 import type { DmsDataRoom, DmsDocument, DmsFolder, DmsProjectOption } from '@/lib/dms/types'
 
@@ -175,12 +175,6 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
     }
   }
 
-  async function openDocument(id: string) {
-    const result = await getDmsDocumentUrl(id)
-    if (result.error || !result.url) return toast.error(result.error ?? 'Dokument konnte nicht geöffnet werden.')
-    window.open(result.url, '_blank', 'noopener,noreferrer')
-  }
-
   async function archiveDocument(id: string) {
     if (!window.confirm('Dokument in den DMS-Papierkorb verschieben?')) return
     const result = await archiveDmsDocument(id)
@@ -201,7 +195,7 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
 
   return (
     <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <aside className="rounded-[1.7rem] border border-white/10 bg-[#071a32]/90 p-4 text-white shadow-[0_20px_55px_rgba(0,0,0,.25)] backdrop-blur-xl">
+      <aside className="dms-sidebar rounded-[1.7rem] border border-white/10 bg-[#071a32]/90 p-4 text-white shadow-[0_20px_55px_rgba(0,0,0,.25)] backdrop-blur-xl">
         <p className="px-2 text-[10px] font-extrabold uppercase tracking-[.18em] text-[#8eee51]">Ablage</p>
         <div className="mt-2 space-y-1">
           <button type="button" onClick={() => setFolderId('all')} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold ${folderId === 'all' ? 'bg-[#5CB800] text-white' : 'text-slate-200 hover:bg-white/5'}`}><Folder className="h-4 w-4" /> Alle Dokumente</button>
@@ -215,7 +209,7 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
       </aside>
 
       <section className="min-w-0 space-y-4">
-        <div className="rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
+        <div className="dms-panel rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-sm md:p-5">
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_180px]">
             <label className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-3 text-sm font-medium text-[#07142F] outline-none focus:border-[#5CB800]" placeholder="Dokumente durchsuchen …" /></label>
             <select value={projectId} onChange={(event) => setProjectId(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-[#07142F]"><option value="">Keinem Projekt zuordnen</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.label}</option>)}</select>
@@ -226,11 +220,11 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
           <p className="mt-2 text-center text-xs text-slate-500">PDF, Office-Dateien, Bilder und ZIP · maximal 50 MB je Datei · größere Uploads werden automatisch fortgesetzt</p>
         </div>
 
-        {dataRooms.length > 0 && folderId === 'data-rooms' && <div className="grid gap-3 sm:grid-cols-2">{dataRooms.map((room) => <div key={room.id} className="rounded-2xl border border-blue-100 bg-[#071a32] p-4 text-white shadow-sm"><div className="flex items-start justify-between gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#5CB800]/15 text-[#8eee51]"><ShieldCheck className="h-5 w-5" /></span><span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-300">{room.status}</span></div><h3 className="mt-4 truncate font-extrabold">{room.name}</h3><p className="mt-1 text-xs text-slate-400">{room.file_count} Dateien · {bytesLabel(room.total_uncompressed_bytes)}</p><a href={`/dms/data-rooms/${room.id}`} className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold">DD öffnen <ChevronRight className="h-4 w-4" /></a></div>)}</div>}
+        {dataRooms.length > 0 && folderId === 'data-rooms' && <div className="grid gap-3 sm:grid-cols-2">{dataRooms.map((room) => <div key={room.id} className="dms-data-room-card rounded-2xl border border-blue-100 bg-[#071a32] p-4 text-white shadow-sm"><div className="flex items-start justify-between gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#5CB800]/15 text-[#8eee51]"><ShieldCheck className="h-5 w-5" /></span><span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-slate-300">{room.status}</span></div><h3 className="mt-4 truncate font-extrabold">{room.name}</h3><p className="mt-1 text-xs text-slate-400">{room.file_count} Dateien · {bytesLabel(room.total_uncompressed_bytes)}</p><a href={`/dms/data-rooms/${room.id}`} className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold">DD öffnen <ChevronRight className="h-4 w-4" /></a></div>)}</div>}
 
-        <div className="overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 md:px-5"><div><h2 className="font-extrabold text-[#07142F]">Zentrale Dokumente</h2><p className="mt-0.5 text-xs text-slate-500">Eine Datei, überall verfügbar</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-600">{filtered.length}</span></div>
-          {filtered.length === 0 ? <div className="px-5 py-14 text-center"><FileSearch className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-3 font-extrabold text-[#07142F]">Noch keine passenden Dokumente</h3><p className="mt-1 text-sm text-slate-500">Lade ein Dokument oder einen vollständigen Datenraum hoch.</p></div> : <div className="divide-y divide-slate-100">{filtered.map((document) => <div key={document.id} className="flex items-center gap-3 px-4 py-3.5 md:px-5"><span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${document.is_data_room_archive ? 'bg-violet-50 text-violet-700' : 'bg-emerald-50 text-emerald-700'}`}>{document.is_data_room_archive ? <FileArchive className="h-5 w-5" /> : <FileText className="h-5 w-5" />}</span><button type="button" onClick={() => void openDocument(document.id)} className="min-w-0 flex-1 text-left"><p className="truncate text-sm font-extrabold text-[#07142F]">{document.display_name}</p><p className="mt-1 truncate text-xs text-slate-500">{bytesLabel(document.file_size_bytes)} · {document.source_app === 'ema_office' ? 'EMA Office' : document.source_kind === 'template' ? 'Vorlage' : 'EMA Intelligence'}</p></button>{document.ai_analyzed && <span className="hidden rounded-full bg-[#5CB800]/10 px-2.5 py-1 text-[10px] font-extrabold text-[#3f8500] sm:inline">EMA gelesen</span>}<button type="button" onClick={() => void archiveDocument(document.id)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Dokument archivieren"><Archive className="h-4 w-4" /></button></div>)}</div>}
+        <div className="dms-panel dms-document-list overflow-hidden rounded-[1.7rem] border border-slate-200 bg-white shadow-sm">
+          <div className="dms-list-header flex items-center justify-between border-b border-slate-100 px-4 py-4 md:px-5"><div><h2 className="font-extrabold text-[#07142F]">Zentrale Dokumente</h2><p className="mt-0.5 text-xs text-slate-500">Eine Datei, überall verfügbar</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-extrabold text-slate-600">{filtered.length}</span></div>
+          {filtered.length === 0 ? <div className="px-5 py-14 text-center"><FileSearch className="mx-auto h-10 w-10 text-slate-300" /><h3 className="mt-3 font-extrabold text-[#07142F]">Noch keine passenden Dokumente</h3><p className="mt-1 text-sm text-slate-500">Lade ein Dokument oder einen vollständigen Datenraum hoch.</p></div> : <div className="divide-y divide-white/10">{filtered.map((document) => <div key={document.id} className="dms-document-row flex items-center gap-3 px-4 py-3.5 md:px-5"><span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${document.is_data_room_archive ? 'bg-violet-400/15 text-violet-200' : 'bg-emerald-400/15 text-emerald-200'}`}>{document.is_data_room_archive ? <FileArchive className="h-5 w-5" /> : <FileText className="h-5 w-5" />}</span><a href={`/api/dms/documents/${document.id}/open`} target="_blank" rel="noopener noreferrer" className="min-w-0 flex-1 text-left"><p className="truncate text-sm font-extrabold text-white">{document.display_name}</p><p className="mt-1 truncate text-xs text-slate-400">{bytesLabel(document.file_size_bytes)} · {document.source_app === 'ema_office' ? 'EMA Office' : document.source_kind === 'template' ? 'Vorlage' : 'EMA Intelligence'}</p></a>{document.ai_analyzed && <span className="hidden rounded-full bg-[#5CB800]/10 px-2.5 py-1 text-[10px] font-extrabold text-[#8eee51] sm:inline">EMA gelesen</span>}<button type="button" onClick={() => void archiveDocument(document.id)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-red-400/10 hover:text-red-300" aria-label="Dokument archivieren"><Archive className="h-4 w-4" /></button></div>)}</div>}
         </div>
       </section>
     </div>
