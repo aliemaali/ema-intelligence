@@ -7,7 +7,7 @@ export default async function CapexIndexPage() {
   const projects = await getProjectOptions()
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white">
+    <div className="premium-page min-h-screen">
       <TopHeader />
       <CapexProjectPicker projects={projects} />
     </div>

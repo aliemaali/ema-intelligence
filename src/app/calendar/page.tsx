@@ -22,7 +22,7 @@ export default async function CalendarPage() {
   const appointments = (plaudAppointments ?? []) as Array<{id:string;title:string;due_at:string}>
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f7f9fc] via-white to-[#f4f8f1]">
+    <div className="premium-page min-h-screen">
       <TopHeader />
       <EmaCalendar projects={options} plaudAppointments={appointments} />
       <div className="page-container pb-8 pt-0">

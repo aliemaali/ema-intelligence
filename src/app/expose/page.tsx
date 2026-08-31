@@ -17,7 +17,7 @@ export default async function ExposePage() {
   const projects = await getProjects()
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] pb-28">
+    <div className="premium-page min-h-screen pb-28">
       <header className="border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:pb-5 md:pt-6">
         <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
           <Link href="/dashboard" aria-label="Zum Dashboard">

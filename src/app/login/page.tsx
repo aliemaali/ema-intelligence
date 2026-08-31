@@ -15,8 +15,8 @@ export default async function LoginPage(props: LoginPageProps) {
   const error = searchParams.error
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,rgba(92,184,0,.12),transparent_34rem),radial-gradient(circle_at_bottom_right,rgba(19,32,96,.10),transparent_38rem),#f8fafc] px-4 py-8">
-      <div className="relative z-10 w-full max-w-md rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-[0_28px_90px_rgba(7,20,47,.13)] backdrop-blur-xl sm:p-9">
+    <div className="premium-page flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="premium-surface relative z-10 w-full max-w-md rounded-[2rem] border p-6 sm:p-9" style={{ '--premium-rgb': '117, 238, 53' } as React.CSSProperties}>
         <div className="mb-8 text-center">
           <Image
             src="/brand/ema-logo.png"
@@ -27,10 +27,10 @@ export default async function LoginPage(props: LoginPageProps) {
             className="mx-auto mb-4 h-24 w-auto object-contain sm:h-28"
           />
           <p className="text-[11px] font-extrabold uppercase tracking-[.22em] text-[#5CB800]">EMA Enterprise</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em] text-[#07142F]">
+          <h1 className="mt-2 text-3xl font-extrabold tracking-[-.04em] text-white">
             EMA Intelligence
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="premium-muted mt-1 text-sm">
             EMA Enterprise GmbH
           </p>
         </div>
@@ -47,7 +47,7 @@ export default async function LoginPage(props: LoginPageProps) {
 
         <div className="my-5 flex items-center gap-3" aria-hidden="true">
           <div className="h-px flex-1 bg-border" />
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="premium-muted text-xs font-medium uppercase tracking-wide">
             oder mit Passwort
           </span>
           <div className="h-px flex-1 bg-border" />
@@ -90,7 +90,7 @@ export default async function LoginPage(props: LoginPageProps) {
 
         <AppInstallButtons />
 
-        <p className="mt-10 text-center text-xs text-muted-foreground">
+        <p className="premium-muted mt-10 text-center text-xs">
           © {new Date().getFullYear()} EMA Enterprise GmbH
         </p>
       </div>

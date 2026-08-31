@@ -74,7 +74,7 @@ export default async function CapexProjectPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#f5f9f2] via-[#f7f9fc] to-white">
+    <div className="premium-page min-h-screen">
       <TopHeader />
       <main className="px-4 pb-28 pt-6">
         <div className="mx-auto w-full max-w-5xl">

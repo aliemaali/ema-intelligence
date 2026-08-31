@@ -77,7 +77,7 @@ export default async function VersandcenterPage() {
   const recipientOptions = [...investorRecipients, ...partnerRecipients]
 
   return (
-    <main className="min-h-screen bg-[#F5F7F9] px-3 pb-28 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-8 md:py-8">
+    <main className="premium-page min-h-screen px-3 pb-28 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:px-8 md:py-8">
       <div className="mx-auto max-w-[1100px] space-y-5 md:space-y-6">
         <div className="flex items-center justify-between">
           <Link

@@ -99,37 +99,37 @@ export function MfaManager() {
   }
 
   return (
-    <section className="rounded-[1.6rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+    <section className="premium-surface rounded-[1.6rem] border p-5 sm:p-6" style={{ '--premium-rgb': '117, 238, 53' } as React.CSSProperties}>
       <div className="flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#5CB800]">
           <ShieldCheck className="h-6 w-6" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-[#1F2A44]">Zwei-Faktor-Schutz</h2>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <h2 className="text-lg font-extrabold text-white">Zwei-Faktor-Schutz</h2>
+          <p className="premium-muted mt-1 text-sm leading-relaxed">
             Kostenlos mit einer Authenticator-App. Nach der Aktivierung reicht ein Passwort allein nicht mehr aus.
           </p>
         </div>
       </div>
 
       {loading ? (
-        <div className="mt-5 flex items-center gap-2 text-sm text-slate-500">
+        <div className="premium-muted mt-5 flex items-center gap-2 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" /> Sicherheitsstatus wird geladen …
         </div>
       ) : factors.length > 0 ? (
         <div className="mt-5 space-y-3">
           {factors.map((factor) => (
-            <div key={factor.id} className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3">
-              <Smartphone className="h-5 w-5 shrink-0 text-emerald-700" />
+            <div key={factor.id} className="premium-success flex items-center gap-3 rounded-2xl border px-4 py-3">
+              <Smartphone className="h-5 w-5 shrink-0" />
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-emerald-950">{factor.friendly_name || 'Authenticator-App'}</p>
-                <p className="text-xs text-emerald-800">Aktiv und bei jeder Passwort-Anmeldung erforderlich</p>
+                <p className="font-semibold text-white">{factor.friendly_name || 'Authenticator-App'}</p>
+                <p className="text-xs text-[#b9f99a]">Aktiv und bei jeder Passwort-Anmeldung erforderlich</p>
               </div>
               <button
                 type="button"
                 onClick={() => void removeFactor(factor.id)}
                 disabled={working}
-                className="rounded-xl p-2 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+                className="rounded-xl p-2 text-[#b9f99a] hover:bg-white/10 disabled:opacity-50"
                 aria-label="Authenticator entfernen"
               >
                 <Trash2 className="h-5 w-5" />
@@ -138,8 +138,8 @@ export function MfaManager() {
           ))}
         </div>
       ) : enrollment ? (
-        <form onSubmit={verifyEnrollment} className="mt-5 space-y-4 rounded-2xl border border-[#5CB800]/30 bg-slate-50 p-4 sm:p-5">
-          <p className="font-semibold text-[#1F2A44]">QR-Code mit deiner Authenticator-App scannen</p>
+        <form onSubmit={verifyEnrollment} className="mt-5 space-y-4 rounded-2xl border border-[#75ee35]/25 bg-white/[.045] p-4 sm:p-5">
+          <p className="font-semibold text-white">QR-Code mit deiner Authenticator-App scannen</p>
           <Image
             src={qrCodeSource(enrollment.qrCode)}
             alt="QR-Code für den EMA Zwei-Faktor-Schutz"
@@ -148,12 +148,12 @@ export function MfaManager() {
             unoptimized
             className="mx-auto h-48 w-48 rounded-xl bg-white p-2"
           />
-          <details className="text-sm text-slate-600">
+          <details className="premium-muted text-sm">
             <summary className="cursor-pointer font-medium">Schlüssel manuell eingeben</summary>
-            <code className="mt-2 block break-all rounded-lg bg-white p-3 text-xs">{enrollment.secret}</code>
+            <code className="mt-2 block break-all rounded-lg border border-white/10 bg-[#020e20]/70 p-3 text-xs text-slate-100">{enrollment.secret}</code>
           </details>
           <label className="block">
-            <span className="text-sm font-semibold text-[#1F2A44]">Sechsstelliger Bestätigungscode</span>
+            <span className="text-sm font-semibold text-white">Sechsstelliger Bestätigungscode</span>
             <input
               value={code}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
