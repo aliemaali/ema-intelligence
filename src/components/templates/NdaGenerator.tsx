@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { addYears, format } from 'date-fns'
 import { de } from 'date-fns/locale'
-import { Eye, FileSignature, Save, Share2, X } from 'lucide-react'
+import { Eye, Save, Share2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { createTemplateDocumentRecord } from '@/lib/actions/template-document.actions'
@@ -56,10 +56,9 @@ async function fetchFontBase64(path: string) {
   return btoa(binary)
 }
 
-export function NdaGenerator({ userId, investors }: Props) {
+export function NdaGeneratorForm({ userId, investors }: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [assets, setAssets] = useState<LegalDocumentAssets | null>(null)
   const [assetError, setAssetError] = useState<string | null>(null)
@@ -140,11 +139,9 @@ export function NdaGenerator({ userId, investors }: Props) {
 
   const preview = () => { try { const { file } = buildNamedPdfFile(); const url = URL.createObjectURL(file); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000) } catch (error) { toast.error(error instanceof Error ? error.message : 'Vorschau konnte nicht erstellt werden.') } }
   const share = async () => { try { const { file } = buildNamedPdfFile(); if (typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare({ files: [file] }))) { await navigator.share({ title: 'Geheimhaltungsvereinbarung', files: [file] }); return } downloadNamedFile(file) } catch (error) { if (error instanceof DOMException && error.name === 'AbortError') return; toast.error(error instanceof Error ? error.message : 'Dokument konnte nicht geteilt werden.') } }
-  const save = async () => { setSaving(true); try { const { fileName, file } = buildNamedPdfFile(); const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, file, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `Geheimhaltungsvereinbarung - ${form.company} - DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: file.size, mimeType: 'application/pdf', investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('Geheimhaltungsvereinbarung wurde im Ordner „NDA“ gespeichert und zugeordnet.'); setOpen(false); router.refresh() } catch (error) { toast.error(error instanceof Error ? error.message : 'Geheimhaltungsvereinbarung konnte nicht erstellt werden.') } finally { setSaving(false) } }
+  const save = async () => { setSaving(true); try { const { fileName, file } = buildNamedPdfFile(); const path = `${userId}/${Date.now()}_${fileName}`; const { error } = await supabase.storage.from('template-documents').upload(path, file, { contentType: 'application/pdf', cacheControl: '3600', upsert: false }); if (error) throw error; const result = await createTemplateDocumentRecord({ displayName: `Geheimhaltungsvereinbarung - ${form.company} - DE/EN`, category: 'nda', fileName, filePath: path, fileSizeBytes: file.size, mimeType: 'application/pdf', investorId: selectedInvestorId || null }); if (result.error) { await supabase.storage.from('template-documents').remove([path]); throw new Error(result.error) } toast.success('NDA wurde gespeichert und zugeordnet.'); router.push('/dms') } catch (error) { toast.error(error instanceof Error ? error.message : 'NDA konnte nicht erstellt werden.') } finally { setSaving(false) } }
 
-  return <>
-    <section className="dms-generator-card mb-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-7"><div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#8eee51]"><FileSignature className="h-6 w-6" /></span><div><h2 className="text-xl font-extrabold text-white">Geheimhaltungsvereinbarung erstellen</h2><p className="mt-1 text-sm text-slate-300">Investor auswählen und eine gemeinsame PDF auf Deutsch und Englisch erstellen.</p></div></div><button type="button" onClick={() => setOpen(true)} className="btn-primary shrink-0">Vereinbarung erstellen</button></div></section>
-    {open && <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-3 md:items-center"><div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl md:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Dokumenten-Generator</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Geheimhaltungsvereinbarung · DE/EN</h2></div><button onClick={() => setOpen(false)} className="btn-icon"><X className="h-5 w-5" /></button></div>
+  return <section className="rounded-[2rem] border border-white/10 bg-white p-5 shadow-2xl md:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Dokumenten-Generator</p><h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">NDA · DE/EN</h2></div></div>
       <div className="mt-5 rounded-2xl border border-[#5CB800]/30 bg-[#5CB800]/8 p-4"><label className="text-sm font-extrabold text-[#07142F]">Investor aus Liste auswählen<select className="form-input mt-2 w-full bg-white" value={selectedInvestorId} onChange={(e) => selectInvestor(e.target.value)}><option value="">Manuell eingeben / Manual entry</option>{investors.map((investor) => <option key={investor.id} value={investor.id}>{documentInvestorLabel(investor)}</option>)}</select></label><p className="mt-2 text-xs leading-5 text-slate-600">Firma, Ansprechpartner und vollständige Geschäftsanschrift werden übernommen. Vertretungs- und Unterschriftsangaben sind optional und können später vom Vertragspartner ergänzt werden. Das gespeicherte Dokument wird automatisch dem Investor zugeordnet.</p></div>
       <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">Absender / Sender: EMA Enterprise GmbH</div>
       <h3 className="mt-7 text-sm font-extrabold uppercase tracking-[.12em] text-slate-500">Vertragspartner / Contracting party</h3>
@@ -157,6 +154,5 @@ export function NdaGenerator({ userId, investors }: Props) {
       <p className="mt-4 text-xs leading-5 text-muted-foreground">Hinweis: Diese Vorlage ersetzt keine individuelle Rechtsberatung. Vor dem produktiven Einsatz sollte der Vertrag rechtlich geprüft werden.</p>
       {assetError && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{assetError}</p>}
       <div className="mt-6 grid gap-3 sm:grid-cols-3"><button type="button" onClick={preview} disabled={!assets} className="btn-secondary inline-flex items-center justify-center gap-2"><Eye className="h-4 w-4" />{assets ? 'Vorschau' : 'PDF wird vorbereitet…'}</button><button type="button" onClick={share} disabled={!assets} className="btn-secondary inline-flex items-center justify-center gap-2"><Share2 className="h-4 w-4" />Teilen</button><button type="button" onClick={save} disabled={saving || !assets} className="btn-primary inline-flex items-center justify-center gap-2"><Save className="h-4 w-4" />{saving ? 'Wird gespeichert…' : 'Erstellen & speichern'}</button></div>
-    </div></div>}
-  </>
+  </section>
 }
