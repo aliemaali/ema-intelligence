@@ -27,7 +27,7 @@ async function requireUser() {
 }
 
 function revalidateDms() {
-  revalidatePath('/dms')
+  revalidatePath('/dms', 'layout')
   revalidatePath('/dokumente')
 }
 
@@ -158,9 +158,61 @@ export async function createDmsFolder(name: string, parentId?: string | null) {
 }
 
 export async function archiveDmsDocument(documentId: string) {
+  if (!z.string().uuid().safeParse(documentId).success) return { error: 'Ungültiges Dokument.' }
   const { supabase, user } = await requireUser()
-  const { error } = await (supabase as any).from('documents').update({ is_archived: true }).eq('id', documentId).eq('user_id', user.id)
+  const { data, error } = await (supabase as any).from('documents').update({ is_archived: true }).eq('id', documentId).eq('user_id', user.id).select('id').maybeSingle()
   if (error) return { error: error.message }
+  if (!data) return { error: 'Dokument nicht gefunden.' }
+  revalidateDms()
+  return { success: true }
+}
+
+export async function moveDmsDocument(documentId: string, folderId: string | null) {
+  if (!z.string().uuid().safeParse(documentId).success) return { error: 'Ungültiges Dokument.' }
+  if (folderId && !z.string().uuid().safeParse(folderId).success) return { error: 'Ungültiger Zielordner.' }
+
+  const { supabase, user } = await requireUser()
+  if (folderId) {
+    const { data: folder, error: folderError } = await (supabase as any)
+      .from('document_folders')
+      .select('id')
+      .eq('id', folderId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (folderError) return { error: folderError.message }
+    if (!folder) return { error: 'Ordner nicht gefunden.' }
+  }
+
+  const { data, error } = await (supabase as any)
+    .from('documents')
+    .update({ folder_id: folderId })
+    .eq('id', documentId)
+    .eq('user_id', user.id)
+    .eq('is_archived', false)
+    .select('id')
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (!data) return { error: 'Dokument nicht gefunden.' }
+  revalidateDms()
+  return { success: true }
+}
+
+export async function renameDmsDocument(documentId: string, displayName: string) {
+  if (!z.string().uuid().safeParse(documentId).success) return { error: 'Ungültiges Dokument.' }
+  const parsedName = z.string().trim().min(1, 'Bitte einen Dokumentnamen eingeben.').max(160, 'Der Dokumentname darf maximal 160 Zeichen lang sein.').safeParse(displayName)
+  if (!parsedName.success) return { error: parsedName.error.issues[0]?.message ?? 'Ungültiger Dokumentname.' }
+
+  const { supabase, user } = await requireUser()
+  const { data, error } = await (supabase as any)
+    .from('documents')
+    .update({ display_name: parsedName.data })
+    .eq('id', documentId)
+    .eq('user_id', user.id)
+    .eq('is_archived', false)
+    .select('id')
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (!data) return { error: 'Dokument nicht gefunden.' }
   revalidateDms()
   return { success: true }
 }
