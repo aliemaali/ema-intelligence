@@ -42,7 +42,7 @@ export function AdditionalDocumentGenerators({ userId, folders, investors }: Pro
 }
 
 function GeneratorCard({ title, description, onClick }: { title: string; description: string; onClick: () => void }) {
-  return <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#2F8A00]"><FileText className="h-6 w-6" /></span><div className="min-w-0 flex-1"><h2 className="text-lg font-extrabold text-[#07142F]">{title}</h2><p className="mt-1 text-sm leading-5 text-muted-foreground">{description}</p><button type="button" onClick={onClick} className="btn-primary mt-4">Erstellen</button></div></div></section>
+  return <section className="dms-generator-card rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#5CB800]/12 text-[#8eee51]"><FileText className="h-6 w-6" /></span><div className="min-w-0 flex-1"><h2 className="text-lg font-extrabold text-white">{title}</h2><p className="mt-1 text-sm leading-5 text-slate-300">{description}</p><button type="button" onClick={onClick} className="btn-primary mt-4">Erstellen</button></div></div></section>
 }
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {

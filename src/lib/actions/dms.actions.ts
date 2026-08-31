@@ -157,21 +157,6 @@ export async function createDmsFolder(name: string, parentId?: string | null) {
   return { success: true }
 }
 
-export async function getDmsDocumentUrl(documentId: string) {
-  const { supabase, user } = await requireUser()
-  const { data: document, error } = await (supabase as any)
-    .from('documents')
-    .select('storage_bucket, file_path')
-    .eq('id', documentId)
-    .eq('user_id', user.id)
-    .eq('is_archived', false)
-    .maybeSingle()
-  if (error || !document) return { error: 'Dokument nicht gefunden.' }
-  const { data, error: signedError } = await supabase.storage.from(document.storage_bucket).createSignedUrl(document.file_path, 3600)
-  if (signedError || !data?.signedUrl) return { error: signedError?.message ?? 'Dokument konnte nicht geöffnet werden.' }
-  return { url: data.signedUrl }
-}
-
 export async function archiveDmsDocument(documentId: string) {
   const { supabase, user } = await requireUser()
   const { error } = await (supabase as any).from('documents').update({ is_archived: true }).eq('id', documentId).eq('user_id', user.id)
