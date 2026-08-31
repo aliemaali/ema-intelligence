@@ -25,6 +25,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isPartnerRoute = pathname === '/partner' || pathname.startsWith('/partner/')
+  const isMfaRoute = pathname === '/mfa'
   const isInternalRoute =
     pathname === '/apps' || pathname.startsWith('/apps/') ||
     pathname === '/office' || pathname.startsWith('/office/') ||
@@ -36,7 +37,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/ema' || pathname.startsWith('/ema/') ||
     pathname.startsWith('/expose') || pathname.startsWith('/capex')
 
-  const isProtectedRoute = isInternalRoute || isPartnerRoute
+  const isProtectedRoute = isInternalRoute || isPartnerRoute || isMfaRoute
   const isAuthRoute = pathname.startsWith('/login')
 
   if (!user && isProtectedRoute) {
@@ -60,6 +61,25 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/login'
     url.search = '?error=account_disabled'
     return NextResponse.redirect(url)
+  }
+
+  if (user) {
+    const { data: assurance } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    const requiresMfa = assurance?.nextLevel === 'aal2' && assurance.currentLevel !== 'aal2'
+
+    if (requiresMfa && isProtectedRoute && !isMfaRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/mfa'
+      url.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(url)
+    }
+
+    if (!requiresMfa && isMfaRoute) {
+      const url = request.nextUrl.clone()
+      url.pathname = isPartner ? '/partner' : '/apps'
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
   }
 
   if (user && isAuthRoute) {

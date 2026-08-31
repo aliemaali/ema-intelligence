@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
 const DOCUMENT_FIELDS = 'id, project_id, user_id, document_type, display_name, file_name, file_path, file_size_bytes, mime_type, storage_bucket, source_app, source_kind, source_record_id, sha256, folder_id, is_data_room_archive, ai_analyzed, analysis_status, is_archived, created_at'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-export default async function DmsFolderPage({ params }: { params: { id: string } }) {
+export default async function DmsFolderPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirectTo=/dms/folders/${encodeURIComponent(params.id)}`)

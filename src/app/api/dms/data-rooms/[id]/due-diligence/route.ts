@@ -110,7 +110,8 @@ function buildReportPdf(name: string, assessment: ReturnType<typeof buildDdAsses
   return new Uint8Array(pdf.output('arraybuffer'))
 }
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Nicht angemeldet.' }, { status: 401 })

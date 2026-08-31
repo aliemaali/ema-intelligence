@@ -5,7 +5,8 @@ import { PlaudTaskList, type PlaudTaskItem, type PlaudTaskView } from '@/compone
 
 export const metadata = { title:'Aufgaben' }
 
-export default async function TasksPage({ searchParams }:{ searchParams?:{ view?:string } }) {
+export default async function TasksPage(props:{ searchParams?: Promise<{ view?:string }> }) {
+  const searchParams = await props.searchParams;
   const view:PlaudTaskView = searchParams?.view === 'appointments' ? 'appointments' : searchParams?.view === 'tasks' ? 'tasks' : 'all'
   const supabase = await createClient()
   const { data:{ user } } = await supabase.auth.getUser()

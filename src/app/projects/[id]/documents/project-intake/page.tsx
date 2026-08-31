@@ -15,7 +15,8 @@ function projectTypeLabel(value: unknown) {
   return labels[String(value)] ?? display(value)
 }
 
-export default async function ProjectIntakeDocument({ params }: { params: { id: string } }) {
+export default async function ProjectIntakeDocument(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

@@ -4,10 +4,11 @@ import { getActivityLog } from '@/lib/actions/project.actions'
 import { ActivityFeed, AddActivityNote } from '@/components/projects/ActivityFeed'
 
 interface ActivityTabProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default async function ActivityTab({ params }: ActivityTabProps) {
+export default async function ActivityTab(props: ActivityTabProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

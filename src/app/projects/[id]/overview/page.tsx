@@ -13,9 +13,10 @@ import { formatProjectCountryLabel } from '@/lib/projects/location'
 import type { ProjectCustomerIntake } from '@/lib/projects/master-data'
 import { calculateBessPortfolioTotals, portfolioFromSourceMetadata } from '@/lib/projects/bessPortfolio'
 
-interface OverviewTabProps { params: { id: string } }
+interface OverviewTabProps { params: Promise<{ id: string }> }
 
-export default async function OverviewTab({ params }: OverviewTabProps) {
+export default async function OverviewTab(props: OverviewTabProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

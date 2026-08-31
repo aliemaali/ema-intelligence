@@ -32,7 +32,8 @@ function ProjectPowerIcon({ type }: { type?: string | null }) {
   return <Zap className="h-4 w-4 shrink-0 text-[#5CB800]" />
 }
 
-export default async function CountryProjectsPage({ params }: { params: { country: string } }) {
+export default async function CountryProjectsPage(props: { params: Promise<{ country: string }> }) {
+  const params = await props.params;
   const country = decodeURIComponent(params.country)
   const projects = (await getProjects({})).filter((project: any) => String(project.location_country ?? 'Ohne Länderzuordnung') === country)
   const supabase = await createClient()

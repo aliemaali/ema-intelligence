@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/server'
 import { PartnerDetailClient } from '@/components/crm/PartnerDetailClient'
 import { ContactDocuments } from '@/components/crm/ContactDocuments'
 
-export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
+export default async function PartnerDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

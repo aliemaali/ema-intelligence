@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 import { PasskeyManager } from '@/components/auth/PasskeyManager'
+import { MfaManager } from '@/components/auth/MfaManager'
 
 export default function SecuritySettingsPage() {
   return (
@@ -30,7 +31,10 @@ export default function SecuritySettingsPage() {
           </div>
         </header>
 
-        <PasskeyManager />
+        <div className="space-y-5">
+          <MfaManager />
+          <PasskeyManager />
+        </div>
       </div>
     </main>
   )

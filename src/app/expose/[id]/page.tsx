@@ -98,7 +98,8 @@ async function loadProjectData(projectId: string) {
   )
 }
 
-export default async function InvestmentMemorandumPage({ params }: { params: { id: string } }) {
+export default async function InvestmentMemorandumPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const project = await loadProjectData(params.id)
   if (!project) notFound()
 
@@ -363,5 +364,5 @@ function MiniMetric({ label, value, suffix = '' }: { label: string; value: numbe
 }
 
 function SiteRow({ label, value, warning = false }: { label: string; value: string; warning?: boolean }) {
-  return <div className="grid grid-cols-[70px_1fr] gap-2 border-t border-slate-100 pt-2"><span className="text-slate-500">{label}</span><strong className={`text-right ${warning && (!value || /nicht|offen|unbekannt/i.test(value)) ? 'text-amber-700' : 'text-[#0B1633]'}`}>{value || 'Nicht bekannt'}</strong></div>
+  return <div className="grid grid-cols-[70px_1fr] gap-2 border-t border-slate-100 pt-2"><span className="text-slate-500">{label}</span><strong className={`text-right ${warning && (!value || /nicht|offen|unbekannt/i.test(value)) ? 'text-amber-700' : 'text-[#0B1633]'}`}>{value || 'Nicht bekannt'}</strong></div>;
 }

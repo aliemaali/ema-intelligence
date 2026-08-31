@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 
-interface Props { params: { id: string } }
+interface Props { params: Promise<{ id: string }> }
 
-export default function ProjectRootPage({ params }: Props) {
+export default async function ProjectRootPage(props: Props) {
+  const params = await props.params;
   redirect(`/projects/${params.id}/overview`)
 }

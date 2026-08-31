@@ -11,10 +11,11 @@ import { CityStateAutoFill } from '@/components/projects/CityStateAutoFill'
 export const metadata = { title: 'Projekt bearbeiten' }
 
 interface EditPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default async function EditProjectPage({ params }: EditPageProps) {
+export default async function EditProjectPage(props: EditPageProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

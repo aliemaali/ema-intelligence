@@ -17,7 +17,7 @@ export function PartnerPasswordField() {
           name="password"
           type={visible ? 'text' : 'password'}
           required
-          minLength={6}
+          minLength={12}
           autoComplete="new-password"
           className={`${controlClassName} pl-11 pr-12`}
         />
@@ -30,7 +30,7 @@ export function PartnerPasswordField() {
           {visible ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
         </button>
       </div>
-      <span className="mt-1 block text-xs text-slate-500">Mindestens 6 Zeichen</span>
+      <span className="mt-1 block text-xs text-slate-500">Mindestens 12 Zeichen</span>
     </label>
   )
 }

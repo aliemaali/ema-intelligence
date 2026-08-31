@@ -4,12 +4,13 @@ import { getLatestAnalysis } from '@/lib/actions/analysis.actions'
 import { AnalysisClient } from '@/components/analysis/AnalysisClient'
 
 interface AnalysisPageProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export const metadata = { title: 'KI-Projektanalyse' }
 
-export default async function AnalysisPage({ params }: AnalysisPageProps) {
+export default async function AnalysisPage(props: AnalysisPageProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

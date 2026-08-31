@@ -11,7 +11,8 @@ function display(value: unknown, suffix = '') {
   return `${String(value)}${suffix}`
 }
 
-export default async function CustomerIntakeDocument({ params }: { params: { id: string } }) {
+export default async function CustomerIntakeDocument(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

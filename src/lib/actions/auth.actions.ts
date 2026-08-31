@@ -79,8 +79,8 @@ export async function updatePassword(formData: FormData) {
     return { error: 'Passwörter stimmen nicht überein' }
   }
 
-  if (password.length < 8) {
-    return { error: 'Passwort muss mindestens 8 Zeichen lang sein' }
+  if (password.length < 12) {
+    return { error: 'Passwort muss mindestens 12 Zeichen lang sein' }
   }
 
   const { error } = await supabase.auth.updateUser({ password })

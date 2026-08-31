@@ -7,7 +7,8 @@ import { DeliveryHistoryCard } from '@/components/dispatch/DeliveryHistoryCard'
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Versandhistorie' }
 
-export default async function DispatchHistoryPage({ searchParams }: { searchParams: { q?: string; channel?: string } }) {
+export default async function DispatchHistoryPage(props: { searchParams: Promise<{ q?: string; channel?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
