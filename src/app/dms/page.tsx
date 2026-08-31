@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Bot, Database, FileArchive, Files } from 'lucide-react'
 import { DmsWorkspace } from '@/components/dms/DmsWorkspace'
-import { NdaGenerator } from '@/components/templates/NdaGenerator'
+import { NdaGeneratorCard } from '@/components/templates/NdaGeneratorCard'
 import { AdditionalDocumentGenerators } from '@/components/templates/AdditionalDocumentGenerators'
 import { createClient } from '@/lib/supabase/server'
 import type { DmsDataRoom, DmsDocument, DmsFolder, DmsProjectOption } from '@/lib/dms/types'
@@ -62,7 +62,7 @@ export default async function DmsPage() {
           </div>
         </header>
 
-        <section className="dms-section mb-5 rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-sm md:p-5"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8eee51]">Dokumente erstellen</p><div className="flex flex-wrap gap-3"><NdaGenerator userId={user.id} investors={documentInvestors} /><AdditionalDocumentGenerators userId={user.id} folders={(foldersResult.data ?? []) as any} investors={documentInvestors} /></div></section>
+        <section className="dms-section mb-5 rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-sm md:p-5"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8eee51]">Dokumente erstellen</p><div className="flex flex-wrap gap-3"><NdaGeneratorCard /><AdditionalDocumentGenerators userId={user.id} folders={(foldersResult.data ?? []) as any} investors={documentInvestors} /></div></section>
         <DmsWorkspace userId={user.id} documents={documents} folders={(foldersResult.data ?? []) as DmsFolder[]} dataRooms={dataRooms} projects={projects} />
       </div>
     </main>
