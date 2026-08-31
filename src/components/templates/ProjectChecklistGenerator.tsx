@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { AcroFormCheckBox, AcroFormComboBox, AcroFormRadioButton, AcroFormTextField, jsPDF } from 'jspdf'
-import { BatteryCharging, Download, PanelsTopLeft, Share2, X } from 'lucide-react'
+import { BatteryCharging, Download, Eye, PanelsTopLeft, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { clearDocumentViewerMarker, markDocumentViewerOpen } from '@/lib/ema/appIntroNavigation'
 
 type ChecklistType = 'pv' | 'bess'
-type Props = { onClose: () => void }
 type TextRow = { label: string; name: string; value?: string; multiline?: boolean; kind?: 'text' }
 type SelectRow = { label: string; name: string; kind: 'select'; options: string[] }
 type StatusRow = { label: string; name: string; kind: 'status' }
@@ -610,11 +609,11 @@ async function loadHeroDataUrl() {
   }
 }
 
-export function ProjectChecklistGenerator({ onClose }: Props) {
+export function ProjectChecklistGenerator() {
   const [type, setType] = useState<ChecklistType>('pv')
   const [assets, setAssets] = useState<{ logoDataUrl: string; heroDataUrl: string } | null>(null)
   const [assetError, setAssetError] = useState<string | null>(null)
-  const [workingAction, setWorkingAction] = useState<'download' | 'share' | null>(null)
+  const [workingAction, setWorkingAction] = useState<'preview' | 'download' | 'share' | null>(null)
 
   useEffect(() => {
     let active = true
@@ -640,6 +639,24 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
     const doc = createChecklistPdf(type, assets.logoDataUrl, assets.heroDataUrl)
     const filename = 'Checkliste ' + type.toUpperCase() + '.pdf'
     return { blob: doc.output('blob'), filename }
+  }
+
+  const preview = () => {
+    if (workingAction) return
+    setWorkingAction('preview')
+
+    try {
+      const { blob } = preparePdf()
+      const blobUrl = URL.createObjectURL(blob)
+      markDocumentViewerOpen()
+      window.open(blobUrl, '_blank', 'noopener,noreferrer')
+      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Vorschau konnte nicht erstellt werden.')
+    } finally {
+      setWorkingAction(null)
+      window.setTimeout(clearDocumentViewerMarker, 1500)
+    }
   }
 
   const download = () => {
@@ -696,19 +713,15 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/50 p-3 md:items-center">
-      <div className="w-full max-w-2xl rounded-[2rem] bg-white p-5 shadow-2xl md:p-7">
+    <section className="dms-panel nda-generator-form rounded-[2rem] border border-white/10 p-5 shadow-2xl md:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#2F8A00]">Meine Dokumente</p>
-            <h2 className="mt-1 text-2xl font-extrabold text-[#07142F]">Blanko-Projektcheckliste</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
+            <p className="text-xs font-extrabold uppercase tracking-[.12em] text-[#8eee51]">Dokumenten-Generator</p>
+            <h2 className="mt-1 text-2xl font-extrabold text-white">Blanko-Projektcheckliste</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
               Projektart auswählen und die kompakte PDF zum digitalen Ausfüllen herunterladen.
             </p>
           </div>
-          <button type="button" onClick={onClose} className="btn-icon" aria-label="Schließen">
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
@@ -749,7 +762,16 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
           </p>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <button
+            type="button"
+            onClick={preview}
+            disabled={!assets || Boolean(workingAction)}
+            className="btn-secondary inline-flex w-full items-center justify-center gap-2"
+          >
+            <Eye className="h-4 w-4" />
+            {workingAction === 'preview' ? 'Vorschau wird erstellt…' : 'Vorschau'}
+          </button>
           <button
             type="button"
             onClick={share}
@@ -773,7 +795,6 @@ export function ProjectChecklistGenerator({ onClose }: Props) {
             {workingAction === 'download' ? 'PDF wird erstellt…' : 'PDF herunterladen'}
           </button>
         </div>
-      </div>
-    </div>
+    </section>
   )
 }

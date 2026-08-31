@@ -7,7 +7,6 @@ import { NdaGeneratorCard } from '@/components/templates/NdaGeneratorCard'
 import { AdditionalDocumentGenerators } from '@/components/templates/AdditionalDocumentGenerators'
 import { createClient } from '@/lib/supabase/server'
 import type { DmsDataRoom, DmsDocument, DmsFolder, DmsProjectOption } from '@/lib/dms/types'
-import type { DocumentInvestor } from '@/lib/templates/documentTypes'
 
 export const metadata = { title: 'EMA DMS' }
 export const dynamic = 'force-dynamic'
@@ -17,12 +16,11 @@ export default async function DmsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login?redirectTo=/dms')
 
-  const [documentsResult, foldersResult, dataRoomsResult, projectsResult, investorsResult] = await Promise.all([
+  const [documentsResult, foldersResult, dataRoomsResult, projectsResult] = await Promise.all([
     (supabase as any).from('documents').select('id, project_id, user_id, document_type, display_name, file_name, file_path, file_size_bytes, mime_type, storage_bucket, source_app, source_kind, source_record_id, sha256, folder_id, is_data_room_archive, ai_analyzed, analysis_status, is_archived, created_at').eq('user_id', user.id).eq('is_archived', false).order('created_at', { ascending: false }),
     (supabase as any).from('document_folders').select('id, name, parent_id').eq('user_id', user.id).order('name'),
     (supabase as any).from('dms_data_rooms').select('id, project_id, archive_document_id, name, project_profile, status, file_count, total_uncompressed_bytes, error_message, created_at').eq('user_id', user.id).order('created_at', { ascending: false }),
     supabase.from('projects').select('id, project_name, project_number, project_type').eq('user_id', user.id).eq('is_archived', false).order('project_name'),
-    supabase.from('investors').select('id, full_name, contact_person, company, company_name, email, phone, street_address, postal_code, location_city, location_country, country, status, is_active').eq('user_id', user.id).neq('status', 'Inaktiv').order('company_name'),
   ])
 
   const documents = (documentsResult.data ?? []) as DmsDocument[]
@@ -32,18 +30,6 @@ export default async function DmsPage() {
     label: project.project_name || project.project_number || 'Projekt',
     projectType: project.project_type || 'sonstiges',
   }))
-  const documentInvestors: DocumentInvestor[] = (investorsResult.data ?? []).filter((investor: any) => investor.is_active !== false).map((investor: any) => ({
-    id: investor.id,
-    company: investor.company_name || investor.company || investor.full_name || '',
-    contactPerson: investor.contact_person || investor.full_name || '',
-    email: investor.email || '',
-    phone: investor.phone || '',
-    street: investor.street_address || '',
-    postalCode: investor.postal_code || '',
-    city: investor.location_city || '',
-    country: investor.location_country || investor.country || '',
-  }))
-
   return (
     <main className="dms-premium min-h-screen px-3 pb-10 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-7 md:py-7">
       <div className="mx-auto max-w-[1380px]">
@@ -62,7 +48,7 @@ export default async function DmsPage() {
           </div>
         </header>
 
-        <section className="dms-section mb-5 rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-sm md:p-5"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8eee51]">Dokumente erstellen</p><div className="flex flex-wrap gap-3"><NdaGeneratorCard /><AdditionalDocumentGenerators userId={user.id} folders={(foldersResult.data ?? []) as any} investors={documentInvestors} /></div></section>
+        <section className="dms-section mb-5 rounded-[1.7rem] border border-slate-200 bg-white p-4 shadow-sm md:p-5"><p className="mb-3 text-[10px] font-extrabold uppercase tracking-[.16em] text-[#8eee51]">Dokumente erstellen</p><div className="flex flex-wrap gap-3"><NdaGeneratorCard /><AdditionalDocumentGenerators /></div></section>
         <DmsWorkspace userId={user.id} documents={documents} folders={(foldersResult.data ?? []) as DmsFolder[]} dataRooms={dataRooms} projects={projects} />
       </div>
     </main>
