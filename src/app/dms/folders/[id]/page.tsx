@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, Folder, Inbox } from 'lucide-react'
+import { ArrowLeft, Files, Folder, Inbox } from 'lucide-react'
 import { DmsDocumentList } from '@/components/dms/DmsDocumentList'
 import { createClient } from '@/lib/supabase/server'
 import type { DmsDocument, DmsFolder } from '@/lib/dms/types'
@@ -17,7 +17,8 @@ export default async function DmsFolderPage({ params }: { params: { id: string }
   if (!user) redirect(`/login?redirectTo=/dms/folders/${encodeURIComponent(params.id)}`)
 
   const isUnassigned = params.id === 'unassigned'
-  if (!isUnassigned && !UUID_PATTERN.test(params.id)) notFound()
+  const isAll = params.id === 'all'
+  if (!isUnassigned && !isAll && !UUID_PATTERN.test(params.id)) notFound()
 
   const documentsQuery = (supabase as any)
     .from('documents')
@@ -27,19 +28,19 @@ export default async function DmsFolderPage({ params }: { params: { id: string }
     .order('created_at', { ascending: false })
 
   const [documentsResult, foldersResult, folderResult] = await Promise.all([
-    isUnassigned ? documentsQuery.is('folder_id', null) : documentsQuery.eq('folder_id', params.id),
+    isAll ? documentsQuery : isUnassigned ? documentsQuery.is('folder_id', null) : documentsQuery.eq('folder_id', params.id),
     (supabase as any).from('document_folders').select('id, name, parent_id').eq('user_id', user.id).order('name'),
-    isUnassigned
+    isUnassigned || isAll
       ? Promise.resolve({ data: null, error: null })
       : (supabase as any).from('document_folders').select('id, name, parent_id').eq('id', params.id).eq('user_id', user.id).maybeSingle(),
   ])
 
   if (documentsResult.error || foldersResult.error || folderResult.error) throw new Error(documentsResult.error?.message ?? foldersResult.error?.message ?? folderResult.error?.message ?? 'Ordner konnte nicht geladen werden.')
-  if (!isUnassigned && !folderResult.data) notFound()
+  if (!isUnassigned && !isAll && !folderResult.data) notFound()
 
   const documents = (documentsResult.data ?? []) as DmsDocument[]
   const folders = (foldersResult.data ?? []) as DmsFolder[]
-  const title = isUnassigned ? 'Ohne Ordner' : String(folderResult.data.name)
+  const title = isAll ? 'Alle Dokumente' : isUnassigned ? 'Ohne Ordner' : String(folderResult.data.name)
 
   return (
     <main className="dms-premium min-h-screen px-3 pb-10 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-7 md:py-7">
@@ -50,7 +51,7 @@ export default async function DmsFolderPage({ params }: { params: { id: string }
             <Link href="/apps" aria-label="EMA Startzentrale"><Image src="/brand/ema-mark-white.png" alt="EMA" width={506} height={247} className="h-auto w-24" /></Link>
           </div>
           <div className="mt-6 flex items-start gap-4">
-            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${isUnassigned ? 'bg-amber-400/15 text-amber-200' : 'bg-[#5CB800]/15 text-[#8eee51]'}`}>{isUnassigned ? <Inbox className="h-7 w-7" /> : <Folder className="h-7 w-7" />}</span>
+            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${isUnassigned ? 'bg-amber-400/15 text-amber-200' : 'bg-[#5CB800]/15 text-[#8eee51]'}`}>{isAll ? <Files className="h-7 w-7" /> : isUnassigned ? <Inbox className="h-7 w-7" /> : <Folder className="h-7 w-7" />}</span>
             <div className="min-w-0">
               <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#8eee51]">EMA DMS · Ordner</p>
               <h1 className="mt-1 break-words text-3xl font-extrabold md:text-4xl">{title}</h1>
@@ -63,9 +64,9 @@ export default async function DmsFolderPage({ params }: { params: { id: string }
           documents={documents}
           folders={folders}
           heading={title}
-          description={isUnassigned ? 'Noch nicht einsortierte Dokumente' : 'Dokumente in diesem Ordner'}
-          emptyTitle="Dieser Ordner ist leer"
-          emptyText="Verschiebe ein Dokument über das Aktionsmenü in diesen Ordner."
+          description={isAll ? 'Ordnerübergreifende Übersicht' : isUnassigned ? 'Noch nicht einsortierte Dokumente' : 'Dokumente in diesem Ordner'}
+          emptyTitle={isAll ? 'Noch keine Dokumente vorhanden' : 'Dieser Ordner ist leer'}
+          emptyText={isAll ? 'Lade dein erstes Dokument im EMA DMS hoch.' : 'Verschiebe ein Dokument über das Aktionsmenü in diesen Ordner.'}
         />
       </div>
     </main>
