@@ -88,7 +88,11 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
     }
     return counts
   }, [documents])
-  const unassignedCount = documents.filter((document) => !document.folder_id).length
+  const unassignedDocuments = useMemo(
+    () => documents.filter((document) => !document.folder_id),
+    [documents],
+  )
+  const unassignedCount = unassignedDocuments.length
 
   async function uploadOne(original: File) {
     if (original.size <= 0 || original.size > MAX_UPLOAD_BYTES) throw new Error(`${original.name}: maximal 50 MB pro Datei.`)
@@ -186,7 +190,7 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          <Link href="/dms" className="dms-folder-tile group flex aspect-square min-h-36 flex-col justify-between rounded-2xl border border-white/10 bg-white/[.045] p-4 text-white hover:border-[#8eee51]/40 hover:bg-white/[.075]">
+          <Link href="/dms/folders/all" className="dms-folder-tile group flex aspect-square min-h-36 flex-col justify-between rounded-2xl border border-white/10 bg-white/[.045] p-4 text-white hover:border-[#8eee51]/40 hover:bg-white/[.075]">
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#5CB800]/15 text-[#8eee51]"><Files className="h-5 w-5" /></span>
             <span><strong className="block text-sm font-extrabold">Alle Dokumente</strong><small className="mt-1 block text-xs text-slate-400">{documents.length} Dateien</small></span>
           </Link>
@@ -221,7 +225,14 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
         </section>
       )}
 
-      <DmsDocumentList documents={documents} folders={folders} />
+      <DmsDocumentList
+        documents={unassignedDocuments}
+        folders={folders}
+        heading="Noch nicht einsortiert"
+        description="Nur Dokumente ohne Ordner"
+        emptyTitle="Alles ist aufgeräumt"
+        emptyText="Alle Dokumente befinden sich bereits in einem Ordner."
+      />
     </div>
   )
 }
