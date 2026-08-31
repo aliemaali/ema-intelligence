@@ -10,7 +10,7 @@ import { BackNavigation } from '@/components/navigation/BackNavigation'
 
 interface ProjectLayoutProps {
   children: React.ReactNode
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 const TABS = [
@@ -22,7 +22,13 @@ const TABS = [
   { key: 'analysis', label: 'Analyse' },
 ]
 
-export default async function ProjectLayout({ children, params }: ProjectLayoutProps) {
+export default async function ProjectLayout(props: ProjectLayoutProps) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

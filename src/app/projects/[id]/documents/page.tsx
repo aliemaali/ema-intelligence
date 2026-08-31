@@ -8,7 +8,7 @@ import { ProjectDocumentChecklist } from '@/components/projects/ProjectDocumentC
 import { ProjectOutputCenter } from '@/components/projects/ProjectOutputCenter'
 import type { ProjectGeneratedOutput } from '@/lib/projects/master-data'
 
-interface DocumentsTabProps { params: { id: string } }
+interface DocumentsTabProps { params: Promise<{ id: string }> }
 
 const ROOF_ITEMS = [
   { type: 'expose', label: 'Exposé' },
@@ -26,24 +26,25 @@ const DEFAULT_ITEMS = [
 ]
 
 function normalize(value: string | null | undefined) {
-  return (value ?? '').toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+  return (value ?? '').toLocaleLowerCase('de-DE').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
 function autoDetected(type: string, documents: Array<{ document_type?: string | null; display_name?: string | null; file_name?: string | null }>) {
   return documents.some((document) => {
     const documentType = normalize(document.document_type)
     const text = `${normalize(document.display_name)} ${normalize(document.file_name)}`
-    if (type === 'expose') return documentType === 'expose' || /\bexpose\b|projekt expos/.test(text)
-    if (type === 'pvsol') return documentType === 'pvsol' || /pv sol|pvsol|ertragsprognose/.test(text)
-    if (type === 'netzanschluss') return documentType === 'netzanschluss' || /netzanschluss|nvp|netzverknupfung/.test(text)
-    if (type === 'pachtvertrag') return documentType === 'pachtvertrag' || /pachtvertrag|pacht vereinbarung/.test(text)
-    if (type === 'lageplan') return documentType === 'lageplan' || /lageplan/.test(text)
-    if (type === 'genehmigung') return documentType === 'genehmigung' || /genehmigung|baugenehmigung/.test(text)
+    if (type === 'expose') return documentType === 'expose' || /\bexpose\b|projekt expos/.test(text);
+    if (type === 'pvsol') return documentType === 'pvsol' || /pv sol|pvsol|ertragsprognose/.test(text);
+    if (type === 'netzanschluss') return documentType === 'netzanschluss' || /netzanschluss|nvp|netzverknupfung/.test(text);
+    if (type === 'pachtvertrag') return documentType === 'pachtvertrag' || /pachtvertrag|pacht vereinbarung/.test(text);
+    if (type === 'lageplan') return documentType === 'lageplan' || /lageplan/.test(text);
+    if (type === 'genehmigung') return documentType === 'genehmigung' || /genehmigung|baugenehmigung/.test(text);
     return documentType === type
-  })
+  });
 }
 
-export default async function DocumentsTab({ params }: DocumentsTabProps) {
+export default async function DocumentsTab(props: DocumentsTabProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

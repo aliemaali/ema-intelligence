@@ -4,7 +4,7 @@ import { graphFetch } from '@/lib/microsoft/graph'
 import { getMicrosoftAccessToken } from '@/lib/microsoft/session'
 
 type RouteContext = {
-  params: { contactId: string }
+  params: Promise<{ contactId: string }>
 }
 
 type ContactUpdateInput = {
@@ -48,7 +48,8 @@ async function accessTokenForCurrentUser() {
   return { accessToken }
 }
 
-export async function PATCH(request: Request, { params }: RouteContext) {
+export async function PATCH(request: Request, props: RouteContext) {
+  const params = await props.params;
   try {
     const session = await accessTokenForCurrentUser()
     if ('error' in session) return session.error
@@ -100,7 +101,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteContext) {
+export async function DELETE(_request: Request, props: RouteContext) {
+  const params = await props.params;
   try {
     const session = await accessTokenForCurrentUser()
     if ('error' in session) return session.error

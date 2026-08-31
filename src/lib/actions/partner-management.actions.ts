@@ -55,7 +55,7 @@ export async function createPartnerAccount(formData: FormData) {
   const role = normalizeManagedRole(formData.get('role'))
 
   if (!email || !fullName || !password) throw new Error('Name, E-Mail und Passwort sind Pflichtfelder.')
-  if (password.length < 6) throw new Error('Das Passwort muss mindestens 6 Zeichen lang sein.')
+  if (password.length < 12) throw new Error('Das Passwort muss mindestens 12 Zeichen lang sein.')
 
   const admin = getAdminClient()
   const metadata = { full_name: fullName, company, phone, role }

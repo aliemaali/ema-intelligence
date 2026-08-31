@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { EmptyState } from '@/components/ui'
 import { linkInvestorToProject } from '@/lib/actions/project-investor.actions'
@@ -8,7 +9,7 @@ import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
 import { mergeProjectEconomicSources, resolvePvEconomics } from '@/lib/projects/pv-units'
 
 interface InvestorsTabProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 const COUNTRY_CODES: Record<string, string> = {
@@ -50,7 +51,8 @@ function formatTariff(value: unknown) {
     : `${formatNumber(number, 3)} €/kWh`
 }
 
-export default async function InvestorsTab({ params }: InvestorsTabProps) {
+export default async function InvestorsTab(props: InvestorsTabProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -162,7 +164,7 @@ export default async function InvestorsTab({ params }: InvestorsTabProps) {
             ) : (
               <p className="mt-4 rounded-xl bg-muted px-3 py-3 text-sm text-muted-foreground">Alle vorhandenen Investoren sind bereits verknüpft oder es wurde noch kein Investor angelegt.</p>
             )}
-            <a href="/investors" className="btn-secondary mt-3 flex w-full justify-center">Investoren verwalten</a>
+            <Link href="/investors" className="btn-secondary mt-3 flex w-full justify-center">Investoren verwalten</Link>
           </div>
         </details>
       </div>

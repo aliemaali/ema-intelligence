@@ -42,9 +42,10 @@ function adminClient() {
   })
 }
 
-function clearLegacyCookie() {
+async function clearLegacyCookie() {
   try {
-    cookies().set(MICROSOFT_REFRESH_COOKIE, '', {
+    const cookieStore = await cookies()
+    cookieStore.set(MICROSOFT_REFRESH_COOKIE, '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -72,7 +73,8 @@ async function loadConnection(userId: string) {
 }
 
 async function migrateLegacyCookie(userId: string) {
-  const legacyToken = cookies().get(MICROSOFT_REFRESH_COOKIE)?.value
+  const cookieStore = await cookies()
+  const legacyToken = cookieStore.get(MICROSOFT_REFRESH_COOKIE)?.value
   if (!legacyToken) return null
 
   try {
@@ -80,7 +82,7 @@ async function migrateLegacyCookie(userId: string) {
     await saveMicrosoftConnection(userId, refreshToken)
     return loadConnection(userId)
   } catch {
-    clearLegacyCookie()
+    await clearLegacyCookie()
     return null
   }
 }
@@ -108,7 +110,7 @@ export async function saveMicrosoftConnection(
     .upsert(payload, { onConflict: 'user_id' })
 
   if (error) throw new Error(`Microsoft-Verbindung konnte nicht gespeichert werden: ${error.message}`)
-  clearLegacyCookie()
+  await clearLegacyCookie()
 }
 
 export async function updateMicrosoftProfile(userId: string, profile: MicrosoftProfile) {
@@ -131,7 +133,7 @@ export async function disconnectMicrosoftConnection(userId: string) {
     .eq('user_id', userId)
 
   if (error) throw new Error(`Microsoft-Verbindung konnte nicht getrennt werden: ${error.message}`)
-  clearLegacyCookie()
+  await clearLegacyCookie()
 }
 
 export async function getMicrosoftAccessToken(userId: string) {

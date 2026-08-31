@@ -4,10 +4,11 @@ import { getDealForProject } from '@/lib/actions/deal.actions'
 import { DealForm } from '@/components/deals/DealForm'
 
 interface DealTabProps {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default async function DealTab({ params }: DealTabProps) {
+export default async function DealTab(props: DealTabProps) {
+  const params = await props.params;
   let project: any
 
   try {

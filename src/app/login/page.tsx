@@ -4,11 +4,14 @@ import { PasswordInput } from '@/components/auth/PasswordInput'
 import { PasskeyLoginButton } from '@/components/auth/PasskeyLoginButton'
 import { AppInstallButtons } from '@/components/pwa/AppInstallButtons'
 
+export const dynamic = 'force-dynamic'
+
 interface LoginPageProps {
-  searchParams: { error?: string; redirectTo?: string }
+  searchParams: Promise<{ error?: string; redirectTo?: string }>
 }
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
+export default async function LoginPage(props: LoginPageProps) {
+  const searchParams = await props.searchParams;
   const error = searchParams.error
 
   return (

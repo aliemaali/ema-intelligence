@@ -33,7 +33,8 @@ function RoleSelect({ defaultValue = 'sales_partner' }: { defaultValue?: string 
   )
 }
 
-export default async function PartnerManagementPage({ searchParams }: { searchParams?: { saved?: string } }) {
+export default async function PartnerManagementPage(props: { searchParams?: Promise<{ saved?: string }> }) {
+  const searchParams = await props.searchParams;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

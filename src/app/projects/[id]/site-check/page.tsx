@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getProject } from '@/lib/actions/project.actions'
 import { DataCenterSiteCheckEditor } from '@/components/projects/DataCenterSiteCheckEditor'
 
-interface SiteCheckPageProps { params: { id: string } }
+interface SiteCheckPageProps { params: Promise<{ id: string }> }
 
-export default async function SiteCheckPage({ params }: SiteCheckPageProps) {
+export default async function SiteCheckPage(props: SiteCheckPageProps) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

@@ -4,3 +4,6 @@ allowBuilds:
   supabase: true
   tesseract.js: true
   unrs-resolver: true
+
+overrides:
+  postcss: 8.5.26

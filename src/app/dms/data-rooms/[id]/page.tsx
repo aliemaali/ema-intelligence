@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/server'
 export const metadata = { title: 'EMA DD-Datenraum' }
 export const dynamic = 'force-dynamic'
 
-export default async function DataRoomPage({ params }: { params: { id: string } }) {
+export default async function DataRoomPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect(`/login?redirectTo=/dms/data-rooms/${params.id}`)

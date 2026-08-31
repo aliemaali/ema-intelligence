@@ -1,6 +1,22 @@
 /** @type {import('next').NextConfig} */
 const emaOfficeOrigin = process.env.EMA_OFFICE_ORIGIN ?? 'https://ema-office.vercel.app'
 
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://unpkg.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://unpkg.com",
+  "connect-src 'self' https: wss:",
+  "media-src 'self' blob: https:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  'upgrade-insecure-requests',
+].join('; ')
+
 const nextConfig = {
   reactStrictMode: true,
 
@@ -8,13 +24,15 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '8mb',
     },
-    serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
-    outputFileTracingIncludes: {
-      '/api/plaud/notes/*/pdf': [
-        './public/brand/ema-logo.png',
-        './public/fonts/inter/*.ttf',
-      ],
-    },
+  },
+
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
+
+  outputFileTracingIncludes: {
+    '/api/plaud/notes/*/pdf': [
+      './public/brand/ema-logo.png',
+      './public/fonts/inter/*.ttf',
+    ],
   },
 
   images: {
@@ -55,6 +73,9 @@ const nextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+          { key: 'Permissions-Policy', value: 'camera=(), geolocation=(), microphone=(self), payment=(), usb=()' },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
         ],
       },
       {

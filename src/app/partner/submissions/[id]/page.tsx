@@ -8,7 +8,8 @@ export const metadata = { title: 'Projektstatus' }
 
 const EDITABLE_STATUSES = new Set(['eingereicht', 'in_pruefung', 'rueckfrage'])
 
-export default async function PartnerSubmissionDetailPage({ params }: { params: { id: string } }) {
+export default async function PartnerSubmissionDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

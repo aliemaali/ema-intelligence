@@ -7,7 +7,8 @@ import { InvestorProjectAssignments } from '@/components/investors-crm/InvestorP
 import { InvestorSearchProfileSummary } from '@/components/investors-crm/InvestorSearchProfileSummary'
 import type { InvestorSearchProfile } from '@/types/investors'
 
-export default async function InvestorDetailPage({ params }: { params: { id: string } }) {
+export default async function InvestorDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

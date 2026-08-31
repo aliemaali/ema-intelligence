@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { ProjectStatus } from '@/lib/types/database.types'
 
 export const metadata = { title: 'Projekte' }
-interface ProjectsPageProps { searchParams: { type?: string; group?: string; status?: string; q?: string; view?: string } }
+interface ProjectsPageProps { searchParams: Promise<{ type?: string; group?: string; status?: string; q?: string; view?: string }> }
 
 function fallbackImage(type?: string | null) {
   if (type === 'pv_dach') return '/project-dach.svg'
@@ -32,7 +32,8 @@ function projectPower(project: any) {
 }
 function stageLabel(stage?: string | null) { return stage === 'rtb' ? 'RTB' : 'In Planung' }
 
-export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
+export default async function ProjectsPage(props: ProjectsPageProps) {
+  const searchParams = await props.searchParams;
   const [allProjects, listResult] = await Promise.all([
     getProjects({ status: searchParams.status as ProjectStatus | undefined }),
     createClient().then((supabase) => supabase.from('country_project_lists').select('country, project_count, created_at').order('created_at', { ascending: false })),
