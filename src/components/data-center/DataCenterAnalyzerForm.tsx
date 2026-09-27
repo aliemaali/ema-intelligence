@@ -62,18 +62,18 @@ const labelClass = 'block text-xs font-bold uppercase tracking-[0.08em] text-sla
 const years = Array.from({ length: 12 }, (_, index) => String(new Date().getFullYear() + index))
 
 const riskOptions = [
-  ['grey', 'Keine ausreichenden Daten / No sufficient data'],
-  ['green', 'Kein relevantes Problem identifiziert / Green'],
-  ['orange', 'Weitere Prüfung notwendig / Orange'],
-  ['red', 'Kritisches Risiko identifiziert / Red'],
+  ['grey', 'Keine ausreichenden Daten'],
+  ['green', 'Kein relevantes Problem identifiziert'],
+  ['orange', 'Weitere Prüfung notwendig'],
+  ['red', 'Kritisches Risiko identifiziert'],
 ] as const
 
 const riskFields = [
-  ['riskFlood', 'Hochwasser / Flood'], ['riskHeavyRain', 'Starkregen / Heavy rain'],
-  ['riskWaterProtection', 'Wasserschutz / Water protection'], ['riskNatureProtection', 'Naturschutz / Nature protection'],
-  ['riskResidentialNoise', 'Wohnbebauung & Lärm'], ['riskContamination', 'Altlasten / Contamination'],
-  ['riskAccess', 'Zufahrt / Access'], ['riskAirport', 'Flughafen / Flight corridors'],
-  ['riskExpansion', 'Erweiterung / Expansion'],
+  ['riskFlood', 'Hochwasser', 'Hochwasser / Flood'], ['riskHeavyRain', 'Starkregen', 'Starkregen / Heavy rain'],
+  ['riskWaterProtection', 'Wasserschutz', 'Wasserschutz / Water protection'], ['riskNatureProtection', 'Naturschutz', 'Naturschutz / Nature protection'],
+  ['riskResidentialNoise', 'Wohnbebauung und Lärm', 'Wohnbebauung und Lärm / Residential areas and noise'], ['riskContamination', 'Altlasten', 'Altlasten / Contamination'],
+  ['riskAccess', 'Zufahrt', 'Zufahrt / Access'], ['riskAirport', 'Flughafen und Flugkorridore', 'Flughafen und Flugkorridore / Airport and flight corridors'],
+  ['riskExpansion', 'Erweiterungsmöglichkeiten', 'Erweiterung / Expansion'],
 ] as const
 
 const projectModelInfo: Record<string, string> = {
@@ -187,6 +187,15 @@ function formatEur(value: number | null) {
   return value === null ? '—' : value.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 }
 
+function importValueInGerman(value: string) {
+  const translations: Record<string, string> = {
+    yes: 'Ja', no: 'Nein', unknown: 'Nicht bekannt', verify: 'Zu prüfen', planned: 'In Planung',
+    in_preparation: 'In Vorbereitung', commercial: 'Gewerbegebiet', industrial: 'Industriegebiet',
+    agricultural: 'Landwirtschaftlich', mixed: 'Mischgebiet', special: 'Sondergebiet',
+  }
+  return translations[value] ?? value
+}
+
 function documentTypeFor(value: string): DocumentType {
   const mapping: Record<string, DocumentType> = {
     site_plan: 'lageplan', expose: 'expose', grid_request: 'netzanschluss', grid_confirmation: 'netzanschluss', grid_agreement: 'netzanschluss',
@@ -288,7 +297,7 @@ export function DataCenterAnalyzerForm() {
         carriers: currentFormValue('carriers'), routeDiversityStatus, offtakerStatus,
         offtakerName: currentFormValue('offtakerName'), projectModel, purchasePriceMode: purchaseMode,
         totalPurchasePrice: totalPrice ?? asNumber('totalPurchasePrice'), pricePerMw: pricePerMw ?? asNumber('pricePerMw'),
-        referenceCapacity, risks: riskFields.map(([name, label]) => ({ label, value: riskValues[name] ?? 'grey' })),
+        referenceCapacity, risks: riskFields.map(([name, , pdfLabel]) => ({ label: pdfLabel, value: riskValues[name] ?? 'grey' })),
       })
       toast.success('Projektanalyse wurde als bilinguale PDF erstellt.')
     } catch {
@@ -410,16 +419,16 @@ export function DataCenterAnalyzerForm() {
 
   return (
     <div className="w-full max-w-full touch-pan-y overflow-x-hidden pb-8">
-      <section className="relative min-h-[280px] overflow-hidden border-b border-[#31517c]/55 bg-[#04142d] md:min-h-[335px]">
+      <section className="relative min-h-[360px] overflow-hidden border-b border-[#31517c]/55 bg-[#04142d] md:min-h-[380px]">
         <div className="absolute inset-0 bg-[url('/hero-datacenter.webp')] bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#020d21]/95 via-[#03152f]/78 to-[#03152f]/20" />
-        <div className="relative mx-auto flex min-h-[280px] max-w-[1480px] flex-col justify-end px-5 pb-8 pt-16 md:min-h-[335px] md:px-8 md:pb-10">
-          <Link href="/apps" className="absolute left-5 top-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/15 bg-[#04142d]/70 px-3 text-xs font-bold text-slate-200 backdrop-blur transition hover:border-[#83e637]/60 md:left-8">
-            <ArrowLeft className="h-4 w-4 text-[#83e637]" /> EMA APPS
+        <div className="relative mx-auto flex min-h-[360px] max-w-[1480px] flex-col justify-end px-5 pb-8 md:min-h-[380px] md:px-8 md:pb-10" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 5.25rem)' }}>
+          <Link href="/apps" className="absolute left-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/25 bg-[#04142d]/90 px-4 text-xs font-extrabold text-white shadow-lg backdrop-blur transition hover:border-[#83e637]/70 md:left-8" style={{ top: 'calc(env(safe-area-inset-top) + 0.75rem)' }}>
+            <ArrowLeft className="h-4 w-4 text-[#83e637]" /> ZUR HAUPTSEITE
           </Link>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#83e637]">EMA Intelligence</p>
-          <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-[-0.045em] text-white md:text-5xl">EMA DATA CENTER ANALYZER</h1>
-          <p className="mt-2 text-sm font-medium text-slate-300 md:text-base">Data Center Site &amp; Project Intelligence</p>
+          <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-[-0.045em] text-white md:text-5xl">EMA RECHENZENTRUM-ANALYSE</h1>
+          <p className="mt-2 text-sm font-medium text-slate-300 md:text-base">Standort- und Projektprüfung für Rechenzentren</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <Link href="/projects?view=all&type=rechenzentrum" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-[#071a38]/80 px-4 text-xs font-extrabold text-white backdrop-blur transition hover:border-[#83e637]/60">
               <HardDrive className="h-4 w-4 text-[#83e637]" /> PROJEKTE
@@ -441,24 +450,24 @@ export function DataCenterAnalyzerForm() {
       <form ref={formRef} onSubmit={submit} className="page-container w-full min-w-0 max-w-full overflow-x-hidden !pt-5">
         {completedFactSheet && <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#72d82c]/35 bg-[#123820]/60 p-3 text-xs text-emerald-100"><FileText className="h-4 w-4 shrink-0 text-[#83e637]" /><span className="min-w-0 flex-1 truncate">Ausgefüllter Fragebogen: {completedFactSheet.name}</span><span className="rounded-full bg-[#83e637]/15 px-2 py-1 font-bold text-[#9bed61]">ANGEGEBEN</span></div>}
         <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
-          <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Grid</span><strong className="mt-1 block text-lg text-white">{formatMw(gridMw)}</strong></div>
-          <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">IT · PUE {pue.toFixed(2)}</span><strong className="mt-1 block text-lg text-white">{formatMw(itCapacity)}</strong></div>
+          <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Netzleistung</span><strong className="mt-1 block text-lg text-white">{formatMw(gridMw)}</strong></div>
+          <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">IT-Leistung · PUE {pue.toFixed(2)}</span><strong className="mt-1 block text-lg text-white">{formatMw(itCapacity)}</strong></div>
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Kritisch</span><strong className={`mt-1 block text-lg ${criticalCount ? 'text-rose-400' : 'text-[#83e637]'}`}>{criticalCount}</strong></div>
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Zu prüfen</span><strong className="mt-1 block text-lg text-amber-300">{verifyCount}</strong></div>
         </div>
 
         <div className="grid min-w-0 max-w-full items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="min-w-0 max-w-full space-y-3">
-            <FormCard icon={MapPin} title="LOCATION / STANDORT" subtitle="Adresse, Grundstück und exakte Projektposition" open>
+            <FormCard icon={MapPin} title="STANDORT" subtitle="Adresse, Grundstück und exakte Projektposition" open>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Projektname / Project name" wide><input name="projectName" required className={fieldClass} placeholder="z. B. Data Center Chemnitz" /></Field>
-                <Field label="Adresse / Address" wide>
+                <Field label="Projektname" wide><input name="projectName" required className={fieldClass} placeholder="z. B. Rechenzentrum Chemnitz" /></Field>
+                <Field label="Adresse" wide>
                   <AddressSearch value={location.address} onChange={(address) => setLocation((current) => ({ ...current, address }))} onSelect={(suggestion) => setLocation({ ...suggestion })} />
                 </Field>
-                <Field label="Grundstücksgröße / Site area"><input name="siteAreaSqm" type="number" min="0" step="1" className={fieldClass} placeholder="m²" /></Field>
-                <Field label="Flurstück / Parcel"><input name="parcel" className={fieldClass} /></Field>
-                <Field label="Eigentümer / Owner"><input name="owner" className={fieldClass} /></Field>
-                <Field label="Land / Country"><select name="country" value={location.country} onChange={(event) => setLocation((current) => ({ ...current, country: event.target.value }))} className={fieldClass}><option>Deutschland</option></select></Field>
+                <Field label="Grundstücksgröße"><input name="siteAreaSqm" type="number" min="0" step="1" className={fieldClass} placeholder="m²" /></Field>
+                <Field label="Flurstück"><input name="parcel" className={fieldClass} /></Field>
+                <Field label="Eigentümer"><input name="owner" className={fieldClass} /></Field>
+                <Field label="Land"><select name="country" value={location.country} onChange={(event) => setLocation((current) => ({ ...current, country: event.target.value }))} className={fieldClass}><option>Deutschland</option></select></Field>
               </div>
               {(['street', 'houseNumber', 'postalCode', 'city', 'municipality', 'district', 'state'] as const).map((key) => <input key={key} type="hidden" name={key} value={location[key]} />)}
               <input type="hidden" name="latitude" value={location.latitude || ''} />
@@ -468,83 +477,83 @@ export function DataCenterAnalyzerForm() {
               </div>
             </FormCard>
 
-            <FormCard icon={Zap} title="GRID CONNECTION / NETZANSCHLUSS" subtitle="Leistung, Netzebene, Übergabepunkt und belastbarer Status" open>
+            <FormCard icon={Zap} title="NETZANSCHLUSS" subtitle="Leistung, Netzebene, Übergabepunkt und belastbarer Status" open>
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Netzanschlussleistung / Grid capacity"><div className="relative"><input name="gridCapacityMw" type="number" min="0" step="0.01" value={gridMw ?? ''} onChange={(event) => setGridMw(event.target.value ? Number(event.target.value) : null)} className={`${fieldClass} pr-14`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">MW</span></div></Field>
-                <SelectField name="gridStatus" label="Netzstatus / Grid status" defaultValue="indicated" onChange={setGridStatus}>
-                  <option value="indicated">nur angegeben / indicated</option><option value="requested">angefragt / requested</option><option value="grid_study_ongoing">Netzprüfung läuft / grid study ongoing</option><option value="generally_feasible">grundsätzlich möglich / generally feasible</option><option value="confirmed_in_writing">schriftlich bestätigt / confirmed in writing</option><option value="contractually_secured">vertraglich gesichert / contractually secured</option>
+                <Field label="Netzanschlussleistung"><div className="relative"><input name="gridCapacityMw" type="number" min="0" step="0.01" value={gridMw ?? ''} onChange={(event) => setGridMw(event.target.value ? Number(event.target.value) : null)} className={`${fieldClass} pr-14`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">MW</span></div></Field>
+                <SelectField name="gridStatus" label="Netzstatus" defaultValue="indicated" onChange={setGridStatus}>
+                  <option value="indicated">nur angegeben</option><option value="requested">angefragt</option><option value="grid_study_ongoing">Netzprüfung läuft</option><option value="generally_feasible">grundsätzlich möglich</option><option value="confirmed_in_writing">schriftlich bestätigt</option><option value="contractually_secured">vertraglich gesichert</option>
                 </SelectField>
-                <Field label="Netzbetreiber / Grid operator"><input name="gridOperator" className={fieldClass} /></Field>
-                <SelectField name="voltageLevel" label="Netzebene / Voltage level" defaultValue=""><option value="">Nicht bekannt / Unknown</option><option value="10_kv">10 kV</option><option value="20_kv">20 kV</option><option value="30_kv">30 kV</option><option value="110_kv">110 kV</option><option value="220_kv">220 kV</option><option value="380_kv">380 kV</option></SelectField>
-                <Field label="Übergabepunkt / Point of connection"><input name="pointOfConnection" className={fieldClass} /></Field>
-                <SelectField name="availableFrom" label="Verfügbar ab / Available from" defaultValue=""><option value="">Nicht bekannt / Unknown</option><option value="immediate">Sofort / Immediate</option>{years.map((year) => <option key={year}>{year}</option>)}</SelectField>
+                <Field label="Netzbetreiber"><input name="gridOperator" className={fieldClass} /></Field>
+                <SelectField name="voltageLevel" label="Netzebene" defaultValue=""><option value="">Nicht bekannt</option><option value="10_kv">10 kV</option><option value="20_kv">20 kV</option><option value="30_kv">30 kV</option><option value="110_kv">110 kV</option><option value="220_kv">220 kV</option><option value="380_kv">380 kV</option></SelectField>
+                <Field label="Übergabepunkt"><input name="pointOfConnection" className={fieldClass} /></Field>
+                <SelectField name="availableFrom" label="Verfügbar ab" defaultValue=""><option value="">Nicht bekannt</option><option value="immediate">Sofort</option>{years.map((year) => <option key={year}>{year}</option>)}</SelectField>
               </div>
               <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-5 text-amber-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" /><span>Eine Statusauswahl ersetzt keinen geprüften Nachweis. Die Netzleistung bleibt bis zur Dokumentenprüfung <strong>NICHT BESTÄTIGT</strong>.</span></div>
             </FormCard>
 
-            <FormCard icon={ServerCog} title="ESTIMATED IT CAPACITY" subtitle="Screening-Schätzung auf Basis von Grid Capacity und PUE">
+            <FormCard icon={ServerCog} title="GESCHÄTZTE IT-LEISTUNG" subtitle="Vorprüfung auf Basis der Netzleistung und des PUE-Werts">
               <div className="grid gap-4 md:grid-cols-[1fr_180px]">
-                <div className="rounded-2xl border border-[#3971a8]/55 bg-[#071b3c] p-4"><span className="text-[10px] font-bold uppercase tracking-widest text-[#7fd632]">Geschätzte IT-Leistung</span><strong className="mt-2 block text-3xl text-white">{formatMw(itCapacity)}</strong><small className="mt-2 block text-slate-400">Screening estimate – not technical design.</small></div>
+                <div className="rounded-2xl border border-[#3971a8]/55 bg-[#071b3c] p-4"><span className="text-[10px] font-bold uppercase tracking-widest text-[#7fd632]">Geschätzte IT-Leistung</span><strong className="mt-2 block text-3xl text-white">{formatMw(itCapacity)}</strong><small className="mt-2 block text-slate-400">Vorläufige Schätzung – keine technische Auslegung.</small></div>
                 <SelectField name="pue" label="PUE-Annahme" defaultValue="1.25" onChange={(value) => setPue(Number(value))}><option value="1.2">1.20</option><option value="1.25">1.25</option><option value="1.3">1.30</option></SelectField>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">{[1.2, 1.25, 1.3].map((value) => <div key={value} className="rounded-xl border border-[#31517c]/45 bg-[#061832] p-3 text-center"><small className="text-slate-500">PUE {value.toFixed(2)}</small><strong className="mt-1 block text-sm text-white">{formatMw(gridMw ? gridMw / value : null)}</strong></div>)}</div>
             </FormCard>
 
-            <FormCard icon={Building2} title="PLANNING / BAURECHT" subtitle="Planungsstand und konkrete Data-Center-Nutzung">
+            <FormCard icon={Building2} title="BAURECHT" subtitle="Planungsstand und konkrete Rechenzentrumsnutzung">
               <div className="grid gap-4 md:grid-cols-2">
-                <SelectField name="planningStatus" label="Baurechtsstatus / Planning status" defaultValue="" onChange={setPlanningStatus}><option value="">Noch nicht geprüft / Not assessed</option><option value="development_plan_review">B-Plan wird geprüft</option><option value="commercial_area_indicated">Gewerbegebiet angegeben</option><option value="industrial_area_indicated">Industriegebiet angegeben</option><option value="section_34">§34 BauGB angegeben</option><option value="section_35">§35 BauGB angegeben</option><option value="preliminary_permit_requested">Bauvorbescheid beantragt</option><option value="preliminary_permit_issued">Bauvorbescheid erteilt</option><option value="building_permit_requested">Baugenehmigung beantragt</option><option value="building_permit_issued">Baugenehmigung erteilt</option><option value="planning_conflict">Baurechtlicher Konflikt erkannt</option></SelectField>
-                <SelectField name="dataCenterUseStatus" label="Data-Center-Nutzung / Use" defaultValue="unknown" onChange={setDataCenterUseStatus}><option value="unknown">Nicht geprüft / Unknown</option><option value="indicated">Nur angegeben / Indicated</option><option value="partially_verified">Teilweise bestätigt / Partially verified</option><option value="confirmed">Schriftlich bestätigt / Confirmed</option><option value="not_permitted">Nicht zulässig / Not permitted</option></SelectField>
+                <SelectField name="planningStatus" label="Baurechtsstatus" defaultValue="" onChange={setPlanningStatus}><option value="">Noch nicht geprüft</option><option value="development_plan_review">B-Plan wird geprüft</option><option value="commercial_area_indicated">Gewerbegebiet angegeben</option><option value="industrial_area_indicated">Industriegebiet angegeben</option><option value="section_34">§34 BauGB angegeben</option><option value="section_35">§35 BauGB angegeben</option><option value="preliminary_permit_requested">Bauvorbescheid beantragt</option><option value="preliminary_permit_issued">Bauvorbescheid erteilt</option><option value="building_permit_requested">Baugenehmigung beantragt</option><option value="building_permit_issued">Baugenehmigung erteilt</option><option value="planning_conflict">Baurechtlicher Konflikt erkannt</option></SelectField>
+                <SelectField name="dataCenterUseStatus" label="Rechenzentrumsnutzung" defaultValue="unknown" onChange={setDataCenterUseStatus}><option value="unknown">Nicht geprüft</option><option value="indicated">Nur angegeben</option><option value="partially_verified">Teilweise bestätigt</option><option value="confirmed">Schriftlich bestätigt</option><option value="not_permitted">Nicht zulässig</option></SelectField>
               </div>
               {['commercial_area_indicated', 'industrial_area_indicated'].includes(planningStatus) && <p className="mt-3 rounded-xl border border-amber-400/25 bg-amber-500/10 p-3 text-xs text-amber-100">Gewerbe- oder Industriegebiet bedeutet nicht automatisch, dass ein Rechenzentrum genehmigt ist.</p>}
             </FormCard>
 
-            <FormCard icon={Network} title="CONNECTIVITY / GLASFASER" subtitle="Carrier, Verfügbarkeit und physische Trassenredundanz">
+            <FormCard icon={Network} title="GLASFASER UND KONNEKTIVITÄT" subtitle="Carrier, Verfügbarkeit und physische Trassenredundanz">
               <div className="grid gap-4 md:grid-cols-2">
-                <SelectField name="connectivityStatus" label="Glasfaserstatus / Fiber status" defaultValue="unknown"><option value="unknown">Nicht geprüft / Unknown</option><option value="indicated">Verfügbarkeit angegeben / Indicated</option><option value="available">Am Standort verfügbar / Available</option><option value="planned">In Planung / Planned</option><option value="not_available">Nicht verfügbar / Not available</option></SelectField>
-                <SelectField name="routeDiversityStatus" label="Trassenredundanz / Route diversity" defaultValue="unknown" onChange={setRouteDiversityStatus}><option value="unknown">Nicht geprüft / Unknown</option><option value="indicated">Nur angegeben / Indicated</option><option value="under_review">In Prüfung / Under review</option><option value="confirmed">Dokumentiert / Confirmed</option><option value="not_available">Nicht verfügbar / Not available</option></SelectField>
-                <Field label="Bekannte Carrier / Known carriers" wide><input name="carriers" className={fieldClass} placeholder="Carrier durch Komma trennen" /></Field>
+                <SelectField name="connectivityStatus" label="Glasfaserstatus" defaultValue="unknown"><option value="unknown">Nicht geprüft</option><option value="indicated">Verfügbarkeit angegeben</option><option value="available">Am Standort verfügbar</option><option value="planned">In Planung</option><option value="not_available">Nicht verfügbar</option></SelectField>
+                <SelectField name="routeDiversityStatus" label="Trassenredundanz" defaultValue="unknown" onChange={setRouteDiversityStatus}><option value="unknown">Nicht geprüft</option><option value="indicated">Nur angegeben</option><option value="under_review">In Prüfung</option><option value="confirmed">Dokumentiert</option><option value="not_available">Nicht verfügbar</option></SelectField>
+                <Field label="Bekannte Carrier" wide><input name="carriers" className={fieldClass} placeholder="Carrier durch Komma trennen" /></Field>
               </div>
             </FormCard>
 
-            <FormCard icon={ShieldAlert} title="SITE RISKS / STANDORTRISIKEN" subtitle="Keine Daten werden als kein Risiko interpretiert">
+            <FormCard icon={ShieldAlert} title="STANDORTRISIKEN" subtitle="Fehlende Daten werden niemals als Risikofreiheit gewertet">
               <div className="grid gap-4 md:grid-cols-2">
                 {riskFields.map(([name, label]) => <SelectField key={name} name={name} label={label} defaultValue="grey" onChange={(value) => updateRisk(name, value)}>{riskOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</SelectField>)}
-                <Field label="Hinweise / Notes" wide><textarea name="riskNotes" rows={3} className={`${fieldClass} resize-y`} /></Field>
+                <Field label="Hinweise" wide><textarea name="riskNotes" rows={3} className={`${fieldClass} resize-y`} /></Field>
               </div>
             </FormCard>
 
-            <FormCard icon={UserRound} title="OFFTAKER" subtitle="Prozessstand, Kapazität und Vertragsstatus">
+            <FormCard icon={UserRound} title="OFFTAKER / ABNEHMER" subtitle="Prozessstand, Kapazität und Vertragsstatus">
               <div className="grid gap-4 md:grid-cols-2">
-                <SelectField name="offtakerStatus" label="Offtaker-Status" defaultValue="none" onChange={setOfftakerStatus}><option value="none">keiner / None</option><option value="searching">wird gesucht / Searching</option><option value="initial_contact">Erstkontakt / Initial contact</option><option value="nda">NDA</option><option value="interest">Interesse / Interest</option><option value="loi">LOI</option><option value="hot">HoT / Term sheet</option><option value="binding_contract">verbindlicher Vertrag / Binding contract</option></SelectField>
-                <Field label="Offtaker Name"><input name="offtakerName" className={fieldClass} /></Field>
-                <Field label="Angefragte Leistung / Requested capacity"><div className="relative"><input name="requestedCapacityMw" type="number" min="0" step="0.01" className={`${fieldClass} pr-14`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">MW</span></div></Field>
-                <SelectField name="contractTerm" label="Vertragslaufzeit / Contract term" defaultValue=""><option value="">Nicht festgelegt</option><option value="12_months">12 Monate</option><option value="24_months">24 Monate</option><option value="36_months">36 Monate</option><option value="60_months">5 Jahre</option><option value="120_months">10 Jahre</option><option value="180_months">15 Jahre</option><option value="240_months">20 Jahre</option></SelectField>
-                <SelectField name="plannedStart" label="Geplanter Start / Planned start" defaultValue=""><option value="">Nicht bekannt</option>{years.map((year) => <option key={year}>{year}</option>)}</SelectField>
+                <SelectField name="offtakerStatus" label="Offtaker-Status" defaultValue="none" onChange={setOfftakerStatus}><option value="none">Keiner</option><option value="searching">Wird gesucht</option><option value="initial_contact">Erstkontakt</option><option value="nda">NDA</option><option value="interest">Interesse</option><option value="loi">LOI</option><option value="hot">HoT / Eckpunktepapier</option><option value="binding_contract">Verbindlicher Vertrag</option></SelectField>
+                <Field label="Name des Offtakers"><input name="offtakerName" className={fieldClass} /></Field>
+                <Field label="Angefragte Leistung"><div className="relative"><input name="requestedCapacityMw" type="number" min="0" step="0.01" className={`${fieldClass} pr-14`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">MW</span></div></Field>
+                <SelectField name="contractTerm" label="Vertragslaufzeit" defaultValue=""><option value="">Nicht festgelegt</option><option value="12_months">12 Monate</option><option value="24_months">24 Monate</option><option value="36_months">36 Monate</option><option value="60_months">5 Jahre</option><option value="120_months">10 Jahre</option><option value="180_months">15 Jahre</option><option value="240_months">20 Jahre</option></SelectField>
+                <SelectField name="plannedStart" label="Geplanter Start" defaultValue=""><option value="">Nicht bekannt</option>{years.map((year) => <option key={year}>{year}</option>)}</SelectField>
               </div>
               {['loi', 'hot'].includes(offtakerStatus) && <p className="mt-3 rounded-xl border border-amber-400/25 bg-amber-500/10 p-3 text-xs text-amber-100">LOI und HoT sind kein verbindlicher Offtake-Vertrag.</p>}
             </FormCard>
 
-            <FormCard icon={HardDrive} title="PROJECT MODEL / PROJEKTMODELL" subtitle="Angebotenes Entwicklungs- und Übergabemodell">
-              <SelectField name="projectModel" label="Projektmodell / Project model" defaultValue="greenfield" onChange={setProjectModel}><option value="greenfield">Greenfield</option><option value="existing_building">Bestandsgebäude / Existing building</option><option value="brownfield_conversion">Brownfield conversion</option><option value="shell">Shell</option><option value="powered_shell">Powered shell</option><option value="turnkey">Turnkey / Colocation facility</option></SelectField>
+            <FormCard icon={HardDrive} title="PROJEKTMODELL" subtitle="Angebotenes Entwicklungs- und Übergabemodell">
+              <SelectField name="projectModel" label="Projektmodell" defaultValue="greenfield" onChange={setProjectModel}><option value="greenfield">Greenfield / Neuentwicklung</option><option value="existing_building">Bestandsgebäude</option><option value="brownfield_conversion">Brownfield-Umnutzung</option><option value="shell">Gebäudehülle</option><option value="powered_shell">Stromerschlossene Gebäudehülle</option><option value="turnkey">Schlüsselfertige Colocation-Anlage</option></SelectField>
               <p className="mt-3 rounded-xl border border-[#31517c]/45 bg-[#061832] p-3 text-xs leading-5 text-slate-300">{projectModelInfo[projectModel]}</p>
             </FormCard>
 
-            <FormCard icon={WalletCards} title="PROJECT PURCHASE PRICE / PROJEKTKAUFPREIS" subtitle="Projektpreis – ausdrücklich kein CAPEX">
+            <FormCard icon={WalletCards} title="PROJEKTKAUFPREIS" subtitle="Projektpreis – ausdrücklich kein CAPEX">
               <div className="grid gap-4 md:grid-cols-2">
-                <SelectField name="purchasePriceMode" label="Preisart / Price mode" defaultValue="total" onChange={setPurchaseMode}><option value="total">Gesamtkaufpreis / Total purchase price</option><option value="per_mw">Preis pro MW / Price per MW</option></SelectField>
-                {purchaseMode === 'total' ? <Field label="Gesamtkaufpreis / Total"><div className="relative"><input name="totalPurchasePrice" type="number" min="0" step="1" value={totalPrice ?? ''} onChange={(event) => setTotalPrice(event.target.value ? Number(event.target.value) : null)} className={`${fieldClass} pr-14`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">EUR</span></div></Field> : <>
-                  <Field label="Preis pro MW / Price per MW"><div className="relative"><input name="pricePerMw" type="number" min="0" step="1" value={pricePerMw ?? ''} onChange={(event) => setPricePerMw(event.target.value ? Number(event.target.value) : null)} className={`${fieldClass} pr-20`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">EUR/MW</span></div></Field>
-                  <SelectField name="referenceCapacity" label="Bezugsgröße / Reference capacity" defaultValue="" onChange={setReferenceCapacity}><option value="">Zwingend auswählen / Required</option><option value="grid">GRID MW / Netzanschlussleistung</option><option value="it">IT MW / geschätzte IT-Leistung</option></SelectField>
+                <SelectField name="purchasePriceMode" label="Preisart" defaultValue="total" onChange={setPurchaseMode}><option value="total">Gesamtkaufpreis</option><option value="per_mw">Preis pro MW</option></SelectField>
+                {purchaseMode === 'total' ? <Field label="Gesamtkaufpreis"><div className="relative"><input name="totalPurchasePrice" type="number" min="0" step="1" value={totalPrice ?? ''} onChange={(event) => setTotalPrice(event.target.value ? Number(event.target.value) : null)} className={`${fieldClass} pr-14`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">EUR</span></div></Field> : <>
+                  <Field label="Preis pro MW"><div className="relative"><input name="pricePerMw" type="number" min="0" step="1" value={pricePerMw ?? ''} onChange={(event) => setPricePerMw(event.target.value ? Number(event.target.value) : null)} className={`${fieldClass} pr-20`} /><span className="absolute right-3 top-[27px] text-xs text-slate-400">EUR/MW</span></div></Field>
+                  <SelectField name="referenceCapacity" label="Bezugsgröße" defaultValue="" onChange={setReferenceCapacity}><option value="">Zwingend auswählen</option><option value="grid">Netzanschlussleistung in MW</option><option value="it">Geschätzte IT-Leistung in MW</option></SelectField>
                 </>}
               </div>
-              <div className="mt-4 rounded-2xl border border-[#69c91e]/35 bg-gradient-to-br from-[#163820]/65 to-[#07251e]/75 p-4"><span className="text-[10px] font-extrabold uppercase tracking-widest text-[#83e637]">Project purchase price</span><strong className="mt-2 block text-2xl text-white">{formatEur(purchasePrice)}</strong><small className="mt-2 block text-slate-300">{purchaseMode === 'per_mw' ? `Bezugsgröße: ${referenceCapacity === 'grid' ? formatMw(gridMw) + ' GRID' : referenceCapacity === 'it' ? formatMw(itCapacity) + ' IT · ESTIMATED' : 'nicht gewählt'}` : 'Gesamtpreis / Total price'} · Kein CAPEX</small></div>
+              <div className="mt-4 rounded-2xl border border-[#69c91e]/35 bg-gradient-to-br from-[#163820]/65 to-[#07251e]/75 p-4"><span className="text-[10px] font-extrabold uppercase tracking-widest text-[#83e637]">Projektkaufpreis</span><strong className="mt-2 block text-2xl text-white">{formatEur(purchasePrice)}</strong><small className="mt-2 block text-slate-300">{purchaseMode === 'per_mw' ? `Bezugsgröße: ${referenceCapacity === 'grid' ? formatMw(gridMw) + ' Netzleistung' : referenceCapacity === 'it' ? formatMw(itCapacity) + ' geschätzte IT-Leistung' : 'nicht gewählt'}` : 'Gesamtkaufpreis'} · Kein CAPEX</small></div>
             </FormCard>
 
-            <FormCard icon={FileText} title="DOCUMENTS / DOKUMENTE" subtitle="Optionale Unterlagen dem neuen Projekt zuordnen">
+            <FormCard icon={FileText} title="DOKUMENTE" subtitle="Optionale Unterlagen dem neuen Projekt zuordnen">
               <div className="grid gap-4 md:grid-cols-2">
-                <SelectField name="documentSubtype" label="Dokumenttyp / Document type" defaultValue="other"><option value="site_plan">Lageplan / Site plan</option><option value="land_register">Grundbuch / Land register</option><option value="expose">Exposé</option><option value="grid_request">Netzanschlussanfrage</option><option value="grid_confirmation">Netzanschlussbestätigung</option><option value="grid_agreement">Netzanschlussvertrag</option><option value="development_plan">B-Plan / Development plan</option><option value="preliminary_permit">Bauvorbescheid</option><option value="building_permit">Baugenehmigung</option><option value="fiber_information">Fiber-/Carrier-Unterlagen</option><option value="offtaker_nda">Offtaker NDA</option><option value="offtaker_loi">Offtaker LOI</option><option value="hot">HoT / Term sheet</option><option value="offtaker_agreement">Offtaker agreement</option><option value="other">Sonstige / Other</option></SelectField>
-                <Field label="Dateien / Files"><label className="mt-2 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#4b73a5] bg-[#061a38] px-3 text-sm font-bold text-slate-200 transition hover:border-[#83e637]"><Upload className="h-4 w-4 text-[#83e637]" /> Unterlagen auswählen<input name="documents" type="file" multiple className="hidden" /></label></Field>
-                <Field label="Zusätzliche Hinweise / Notes" wide><textarea name="notes" rows={4} className={`${fieldClass} resize-y`} /></Field>
+                <SelectField name="documentSubtype" label="Dokumenttyp" defaultValue="other"><option value="site_plan">Lageplan</option><option value="land_register">Grundbuch</option><option value="expose">Exposé</option><option value="grid_request">Netzanschlussanfrage</option><option value="grid_confirmation">Netzanschlussbestätigung</option><option value="grid_agreement">Netzanschlussvertrag</option><option value="development_plan">B-Plan</option><option value="preliminary_permit">Bauvorbescheid</option><option value="building_permit">Baugenehmigung</option><option value="fiber_information">Glasfaser-/Carrier-Unterlagen</option><option value="offtaker_nda">Offtaker-NDA</option><option value="offtaker_loi">Offtaker-LOI</option><option value="hot">HoT / Eckpunktepapier</option><option value="offtaker_agreement">Offtaker-Vertrag</option><option value="other">Sonstige Unterlagen</option></SelectField>
+                <Field label="Dateien"><label className="mt-2 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#4b73a5] bg-[#061a38] px-3 text-sm font-bold text-slate-200 transition hover:border-[#83e637]"><Upload className="h-4 w-4 text-[#83e637]" /> Unterlagen auswählen<input name="documents" type="file" multiple className="hidden" /></label></Field>
+                <Field label="Zusätzliche Hinweise" wide><textarea name="notes" rows={4} className={`${fieldClass} resize-y`} /></Field>
               </div>
               <p className="mt-3 text-xs leading-5 text-slate-400">Hochgeladene Unterlagen werden nicht automatisch als bestätigt behandelt. Maximal 20 MB pro Datei.</p>
             </FormCard>
@@ -552,12 +561,12 @@ export function DataCenterAnalyzerForm() {
 
           <aside className="space-y-3 xl:sticky xl:top-5">
             <div className="rounded-[1.35rem] border border-[#31517c]/60 bg-gradient-to-br from-[#0a244b] to-[#04142f] p-5 shadow-2xl">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#83e637]">EMA Project Assessment</p>
-              <h2 className="mt-2 text-2xl font-black text-white">{criticalCount ? 'CRITICAL' : gridMw && location.address ? 'DEVELOPMENT' : 'EARLY STAGE'}</h2>
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#83e637]">EMA Projektbewertung</p>
+              <h2 className="mt-2 text-2xl font-black text-white">{criticalCount ? 'KRITISCH' : gridMw && location.address ? 'ENTWICKLUNG' : 'FRÜHPHASE'}</h2>
               <div className="mt-5 space-y-2">
-                <div className="flex items-center justify-between rounded-xl border border-[#31517c]/45 bg-[#061832] p-3"><span className="text-xs text-slate-400">Grid Capacity</span><strong className="text-sm text-white">{formatMw(gridMw)}</strong></div>
-                <div className="flex items-center justify-between rounded-xl border border-[#31517c]/45 bg-[#061832] p-3"><span className="text-xs text-slate-400">Estimated IT</span><strong className="text-sm text-white">{formatMw(itCapacity)}</strong></div>
-                <div className="flex items-center justify-between rounded-xl border border-[#31517c]/45 bg-[#061832] p-3"><span className="text-xs text-slate-400">Purchase Price</span><strong className="text-sm text-white">{formatEur(purchasePrice)}</strong></div>
+                <div className="flex items-center justify-between rounded-xl border border-[#31517c]/45 bg-[#061832] p-3"><span className="text-xs text-slate-400">Netzleistung</span><strong className="text-sm text-white">{formatMw(gridMw)}</strong></div>
+                <div className="flex items-center justify-between rounded-xl border border-[#31517c]/45 bg-[#061832] p-3"><span className="text-xs text-slate-400">Geschätzte IT-Leistung</span><strong className="text-sm text-white">{formatMw(itCapacity)}</strong></div>
+                <div className="flex items-center justify-between rounded-xl border border-[#31517c]/45 bg-[#061832] p-3"><span className="text-xs text-slate-400">Projektkaufpreis</span><strong className="text-sm text-white">{formatEur(purchasePrice)}</strong></div>
               </div>
               <div className="mt-5 space-y-2 text-xs">
                 <div className="flex items-start gap-2 rounded-xl border border-rose-400/25 bg-rose-500/10 p-3 text-rose-100"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" /><span><strong className="block">{criticalCount} KRITISCH</strong>{!gridMw ? 'Netzanschlussleistung fehlt.' : !['confirmed_in_writing', 'contractually_secured'].includes(gridStatus) ? 'Netzleistung ist nicht bestätigt.' : 'Kritische Punkte aus Eingaben prüfen.'}</span></div>
@@ -565,7 +574,7 @@ export function DataCenterAnalyzerForm() {
                 <div className="flex items-start gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-emerald-100"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#83e637]" /><span><strong className="block">STATUSLOGIK AKTIV</strong>Keine Eingabe wird ohne Nachweis als verifiziert gespeichert.</span></div>
               </div>
               <button type="submit" disabled={pending} className="mt-5 inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#62c700] to-[#7dde22] px-5 py-3.5 text-sm font-black text-[#06142d] shadow-[0_12px_32px_rgba(102,204,25,.25)] transition hover:brightness-105 disabled:cursor-wait disabled:opacity-60">
-                <Save className="h-4 w-4" /> {pending ? 'PROJEKT WIRD GESPEICHERT …' : 'SAVE PROJECT / PROJEKT SPEICHERN'}
+                <Save className="h-4 w-4" /> {pending ? 'PROJEKT WIRD GESPEICHERT …' : 'PROJEKT SPEICHERN'}
               </button>
               <p className="mt-3 text-center text-[11px] leading-4 text-slate-400">Speicherort: <strong className="text-slate-200">EMA Intelligence → Projekte → Rechenzentren</strong>. Danach öffnet sich die vollständige Projektakte.</p>
             </div>
@@ -579,20 +588,20 @@ export function DataCenterAnalyzerForm() {
             <div className="flex items-start gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#83e637]">Vorschau · nicht bestätigt</p>
-                <h2 id="fact-sheet-preview-title" className="mt-2 text-xl font-black text-white">CREATE NEW DATA CENTER PROJECT</h2>
+                <h2 id="fact-sheet-preview-title" className="mt-2 text-xl font-black text-white">NEUES RECHENZENTRUM-PROJEKT ANLEGEN</h2>
                 <p className="mt-1 text-xs leading-5 text-slate-400">EMA übernimmt die erkannten Angaben erst nach deiner Bestätigung und markiert sie als angegeben, nicht als verifiziert.</p>
               </div>
               <button type="button" onClick={() => setImportPreview(null)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#31517c] text-slate-300" aria-label="Vorschau schließen"><X className="h-4 w-4" /></button>
             </div>
             <dl className="mt-5 grid gap-2 sm:grid-cols-2">
               {[
-                ['Projekt / Project', importPreview.projectName], ['Standort / Location', importPreview.address || importPreview.city],
-                ['Netzleistung / Grid', importPreview.availablePowerMw === null ? '' : `${importPreview.availablePowerMw} MW`],
-                ['Netzbetreiber / Operator', importPreview.gridOperator], ['Baurecht / Planning', importPreview.zoningPlanStatus],
-                ['Data-Center-Nutzung', importPreview.dataCenterPermitted], ['Glasfaser / Fiber', importPreview.fiberStatus],
-                ['Carrier / Provider', importPreview.fiberProvider], ['Kontakt / Contact', importPreview.contactName],
-                ['Unternehmen / Company', importPreview.contactCompany],
-              ].map(([label, value]) => <div key={label} className="rounded-xl border border-[#31517c]/55 bg-[#04142f] p-3"><dt className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</dt><dd className="mt-1 text-sm font-semibold text-white">{value || 'NICHT VERFÜGBAR'}</dd></div>)}
+                ['Projekt', importPreview.projectName], ['Standort', importPreview.address || importPreview.city],
+                ['Netzleistung', importPreview.availablePowerMw === null ? '' : `${importPreview.availablePowerMw} MW`],
+                ['Netzbetreiber', importPreview.gridOperator], ['Baurecht', importPreview.zoningPlanStatus],
+                ['Rechenzentrumsnutzung', importPreview.dataCenterPermitted], ['Glasfaser', importPreview.fiberStatus],
+                ['Carrier', importPreview.fiberProvider], ['Kontakt', importPreview.contactName],
+                ['Unternehmen', importPreview.contactCompany],
+              ].map(([label, value]) => <div key={label} className="rounded-xl border border-[#31517c]/55 bg-[#04142f] p-3"><dt className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</dt><dd className="mt-1 text-sm font-semibold text-white">{value ? importValueInGerman(String(value)) : 'NICHT VERFÜGBAR'}</dd></div>)}
             </dl>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
               <button type="button" onClick={() => setImportPreview(null)} className="min-h-12 rounded-xl border border-[#31517c] px-4 text-xs font-extrabold text-slate-200">ABBRECHEN</button>

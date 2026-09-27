@@ -20,7 +20,7 @@ export default async function AppsPage() {
       <a href={officeUrl} className={`${styles.card} ${styles.office}`} aria-label="EMA Office öffnen"><span className={styles.visual}><Building2 /></span><strong>EMA Office</strong><small>Unternehmenssteuerung</small></a>
       <Link href="/dms" className={`${styles.card} ${styles.dms}`} aria-label="EMA DMS öffnen"><span className={styles.visual}><Files /></span><strong>EMA DMS</strong><small>Dokumente & Datenräume</small></Link>
       <Link href="/ema" className={`${styles.card} ${styles.ai}`} aria-label="EMA AI Sprachassistent öffnen"><span className={styles.visual}><AudioWaveform /></span><strong>EMA AI</strong><small>Sprachassistent</small></Link>
-      <Link href="/data-center" className={`${styles.card} ${styles.dataCenter}`} aria-label="EMA Data Center öffnen"><span className={styles.visual}><ServerCog /></span><strong>EMA Data Center</strong><small>Standort & Projektprüfung</small></Link>
+      <Link href="/data-center" className={`${styles.card} ${styles.dataCenter}`} aria-label="EMA Rechenzentrum öffnen"><span className={styles.visual}><ServerCog /></span><strong>EMA Rechenzentrum</strong><small>Standort & Projektprüfung</small></Link>
     </section>
   </main>
 }
