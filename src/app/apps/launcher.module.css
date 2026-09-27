@@ -61,7 +61,7 @@
   display: grid;
   width: min(92vw, 1240px);
   transform: translateX(-50%);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: clamp(12px, 1.7vw, 24px);
 }
 
@@ -96,10 +96,12 @@
 .office { background: radial-gradient(circle at 50% 35%, rgba(52, 96, 244, .32), transparent 36%), rgba(8, 28, 65, .77); border-color: rgba(87, 126, 255, .42); }
 .dms { background: radial-gradient(circle at 50% 35%, rgba(26, 203, 180, .26), transparent 36%), rgba(5, 37, 57, .78); border-color: rgba(55, 226, 193, .4); }
 .ai { background: radial-gradient(circle at 50% 35%, rgba(138, 74, 255, .32), transparent 36%), rgba(17, 23, 69, .78); border-color: rgba(140, 99, 255, .44); }
+.dataCenter { background: radial-gradient(circle at 50% 35%, rgba(43, 173, 255, .3), transparent 36%), rgba(4, 31, 61, .8); border-color: rgba(72, 190, 255, .46); }
 .intelligence::after { background: #6fe832; }
 .office::after { background: #3067ff; }
 .dms::after { background: #19c9ae; }
 .ai::after { background: #824cff; }
+.dataCenter::after { background: #25b9ff; }
 
 .visual {
   position: absolute;
@@ -122,6 +124,7 @@
 .office .visual { color: #70a3ff; }
 .dms .visual { color: #5ce5cd; }
 .ai .visual { color: #b79aff; }
+.dataCenter .visual { color: #73d7ff; }
 .card strong { position: relative; z-index: 1; font-size: clamp(15px, 1.5vw, 24px); font-weight: 800; letter-spacing: -.03em; }
 .card small { position: relative; z-index: 1; margin-top: 5px; color: rgba(226, 235, 247, .66); font-size: clamp(9px, .78vw, 12px); font-weight: 700; }
 
@@ -129,6 +132,7 @@
   .brand { top: max(7.5dvh, 3rem); }
   .grid { top: 21dvh; width: min(92vw, 760px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: min(3vw, 20px); }
   .card { aspect-ratio: 1 / 1.03; }
+  .dataCenter { grid-column: 1 / -1; width: calc(50% - 10px); justify-self: center; }
 }
 
 @media (max-width: 430px) {
