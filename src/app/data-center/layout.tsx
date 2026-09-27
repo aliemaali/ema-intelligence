@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import { AppShell } from '@/components/layout/AppShell'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function DataCenterLayout({ children }: { children: React.ReactNode }) {
@@ -7,20 +6,5 @@ export default async function DataCenterLayout({ children }: { children: React.R
   const { data: { user }, error } = await supabase.auth.getUser()
   if (error || !user) redirect('/login?redirectTo=/data-center')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, email, company, avatar_url')
-    .eq('id', user.id)
-    .single()
-
-  return (
-    <AppShell user={{
-      name: profile?.full_name ?? 'Ali Ünlü',
-      email: profile?.email ?? user.email ?? '',
-      company: profile?.company ?? 'EMA Enterprise GmbH',
-      avatarUrl: profile?.avatar_url ?? null,
-    }}>
-      {children}
-    </AppShell>
-  )
+  return <main className="min-h-screen min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#031126]">{children}</main>
 }

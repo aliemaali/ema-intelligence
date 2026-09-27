@@ -4,12 +4,15 @@ import Link from 'next/link'
 import { FormEvent, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  ArrowLeft,
   Building2,
   CheckCircle2,
   ChevronDown,
   CircleAlert,
+  Download,
   FileText,
   HardDrive,
+  Loader2,
   MapPin,
   Network,
   Save,
@@ -18,11 +21,15 @@ import {
   Upload,
   UserRound,
   WalletCards,
+  X,
   Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createDataCenterAnalyzerProject } from '@/lib/actions/data-center-analyzer.actions'
+import { prepareDataCenterImport } from '@/lib/actions/data-center-import.actions'
 import { createDocumentRecord } from '@/lib/actions/document.actions'
+import { uploadProjectImportFiles } from '@/lib/actions/project-import.actions'
+import type { DataCenterImport } from '@/lib/ai/data-center-import'
 import { createClient } from '@/lib/supabase/client'
 import type { DocumentType } from '@/lib/types/database.types'
 import { DataCenterLocationMap } from './DataCenterLocationMap'
@@ -59,6 +66,14 @@ const riskOptions = [
   ['green', 'Kein relevantes Problem identifiziert / Green'],
   ['orange', 'Weitere Prüfung notwendig / Orange'],
   ['red', 'Kritisches Risiko identifiziert / Red'],
+] as const
+
+const riskFields = [
+  ['riskFlood', 'Hochwasser / Flood'], ['riskHeavyRain', 'Starkregen / Heavy rain'],
+  ['riskWaterProtection', 'Wasserschutz / Water protection'], ['riskNatureProtection', 'Naturschutz / Nature protection'],
+  ['riskResidentialNoise', 'Wohnbebauung & Lärm'], ['riskContamination', 'Altlasten / Contamination'],
+  ['riskAccess', 'Zufahrt / Access'], ['riskAirport', 'Flughafen / Flight corridors'],
+  ['riskExpansion', 'Erweiterung / Expansion'],
 ] as const
 
 const projectModelInfo: Record<string, string> = {
@@ -183,7 +198,12 @@ function documentTypeFor(value: string): DocumentType {
 export function DataCenterAnalyzerForm() {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
+  const completedFactSheetRef = useRef<HTMLInputElement>(null)
   const [pending, startTransition] = useTransition()
+  const [pdfBusy, setPdfBusy] = useState<'fact-sheet' | 'assessment' | null>(null)
+  const [importBusy, setImportBusy] = useState(false)
+  const [completedFactSheet, setCompletedFactSheet] = useState<File | null>(null)
+  const [importPreview, setImportPreview] = useState<DataCenterImport | null>(null)
   const [location, setLocation] = useState<LocationState>(emptyLocation)
   const [gridMw, setGridMw] = useState<number | null>(null)
   const [gridStatus, setGridStatus] = useState('indicated')
@@ -221,12 +241,126 @@ export function DataCenterAnalyzerForm() {
 
   const updateRisk = (key: string, value: string) => setRiskValues((current) => ({ ...current, [key]: value }))
 
+  const currentFormValue = (name: string) => {
+    const form = formRef.current
+    if (!form) return ''
+    const value = new FormData(form).get(name)
+    return typeof value === 'string' ? value : ''
+  }
+
+  const setNativeField = (name: string, value: string | number | null) => {
+    if (value === null || value === '') return
+    const field = formRef.current?.elements.namedItem(name)
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement) {
+      field.value = String(value)
+    }
+  }
+
+  const downloadFactSheet = async () => {
+    setPdfBusy('fact-sheet')
+    try {
+      const { downloadDataCenterFactSheetPdf } = await import('@/lib/pdf/dataCenterPdfs')
+      downloadDataCenterFactSheetPdf()
+      toast.success('Bilingualer Entwickler-Fragebogen wurde erstellt.')
+    } catch {
+      toast.error('Der Fragebogen konnte nicht erstellt werden.')
+    } finally {
+      setPdfBusy(null)
+    }
+  }
+
+  const downloadAssessment = async () => {
+    setPdfBusy('assessment')
+    try {
+      const { downloadDataCenterAssessmentPdf } = await import('@/lib/pdf/dataCenterPdfs')
+      const asNumber = (name: string) => {
+        const value = currentFormValue(name)
+        const number = Number(value)
+        return value && Number.isFinite(number) ? number : null
+      }
+      await downloadDataCenterAssessmentPdf({
+        projectName: currentFormValue('projectName'), address: location.address, city: location.city, state: location.state,
+        latitude: location.latitude || null, longitude: location.longitude || null,
+        gridCapacityMw: gridMw, gridStatus, gridOperator: currentFormValue('gridOperator'),
+        voltageLevel: currentFormValue('voltageLevel'), pointOfConnection: currentFormValue('pointOfConnection'),
+        availableFrom: currentFormValue('availableFrom'), pue, planningStatus,
+        dataCenterUseStatus, connectivityStatus: currentFormValue('connectivityStatus'),
+        carriers: currentFormValue('carriers'), routeDiversityStatus, offtakerStatus,
+        offtakerName: currentFormValue('offtakerName'), projectModel, purchasePriceMode: purchaseMode,
+        totalPurchasePrice: totalPrice ?? asNumber('totalPurchasePrice'), pricePerMw: pricePerMw ?? asNumber('pricePerMw'),
+        referenceCapacity, risks: riskFields.map(([name, label]) => ({ label, value: riskValues[name] ?? 'grey' })),
+      })
+      toast.success('Projektanalyse wurde als bilinguale PDF erstellt.')
+    } catch {
+      toast.error('Die Projektanalyse konnte nicht erstellt werden.')
+    } finally {
+      setPdfBusy(null)
+    }
+  }
+
+  const readCompletedFactSheet = async (file: File) => {
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Bitte eine PDF-Datei auswählen.')
+      return
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('Die PDF darf maximal 20 MB groß sein.')
+      return
+    }
+    setImportBusy(true)
+    setCompletedFactSheet(file)
+    try {
+      const uploadData = new FormData()
+      uploadData.append('files', file)
+      const uploaded = await uploadProjectImportFiles(uploadData)
+      if (uploaded.error || !uploaded.importId) throw new Error(uploaded.error ?? 'Import fehlgeschlagen.')
+      const extracted = await prepareDataCenterImport(uploaded.importId)
+      if (!('data' in extracted) || !extracted.data) throw new Error(extracted.error ?? 'Keine Daten erkannt.')
+      setImportPreview(extracted.data)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Der ausgefüllte Fragebogen konnte nicht gelesen werden.')
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
+  const applyImportPreview = () => {
+    if (!importPreview) return
+    const coordinates = importPreview.coordinates.match(/(-?\d+(?:[.,]\d+)?)\D+(-?\d+(?:[.,]\d+)?)/)
+    const latitude = coordinates ? Number(coordinates[1].replace(',', '.')) : 0
+    const longitude = coordinates ? Number(coordinates[2].replace(',', '.')) : 0
+    setLocation((current) => ({
+      ...current, address: importPreview.address || current.address, city: importPreview.city || current.city,
+      district: importPreview.district || current.district, state: importPreview.state || current.state,
+      latitude: Number.isFinite(latitude) ? latitude : current.latitude, longitude: Number.isFinite(longitude) ? longitude : current.longitude,
+    }))
+    if (importPreview.availablePowerMw !== null) setGridMw(importPreview.availablePowerMw)
+    setNativeField('projectName', importPreview.projectName)
+    setNativeField('gridOperator', importPreview.gridOperator)
+    setNativeField('carriers', importPreview.fiberProvider)
+    setNativeField('siteAreaSqm', importPreview.landAreaHa === null ? null : importPreview.landAreaHa * 10_000)
+    setNativeField('notes', importPreview.additionalNotes || importPreview.planningNotes)
+    if (importPreview.zoningPlanStatus === 'yes') {
+      setPlanningStatus('development_plan_review')
+      setNativeField('planningStatus', 'development_plan_review')
+    }
+    if (importPreview.dataCenterPermitted === 'yes') {
+      setDataCenterUseStatus('indicated')
+      setNativeField('dataCenterUseStatus', 'indicated')
+    }
+    const connectivity = importPreview.fiberStatus === 'yes' ? 'indicated' : importPreview.fiberStatus === 'planned' ? 'planned' : 'unknown'
+    setNativeField('connectivityStatus', connectivity)
+    setImportPreview(null)
+    toast.success('Erkannte Daten wurden als ungeprüfte Angaben übernommen.')
+  }
+
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const form = formRef.current
     if (!form) return
     const completeData = new FormData(form)
     const files = completeData.getAll('documents').filter((value): value is File => value instanceof File && value.size > 0)
+    if (completedFactSheet) files.push(completedFactSheet)
     const documentSubtype = String(completeData.get('documentSubtype') ?? 'other')
     completeData.delete('documents')
     completeData.delete('documentSubtype')
@@ -279,7 +413,10 @@ export function DataCenterAnalyzerForm() {
       <section className="relative min-h-[280px] overflow-hidden border-b border-[#31517c]/55 bg-[#04142d] md:min-h-[335px]">
         <div className="absolute inset-0 bg-[url('/hero-datacenter.webp')] bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#020d21]/95 via-[#03152f]/78 to-[#03152f]/20" />
-        <div className="relative mx-auto flex min-h-[280px] max-w-[1480px] flex-col justify-end px-5 pb-8 pt-7 md:min-h-[335px] md:px-8 md:pb-10">
+        <div className="relative mx-auto flex min-h-[280px] max-w-[1480px] flex-col justify-end px-5 pb-8 pt-16 md:min-h-[335px] md:px-8 md:pb-10">
+          <Link href="/apps" className="absolute left-5 top-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/15 bg-[#04142d]/70 px-3 text-xs font-bold text-slate-200 backdrop-blur transition hover:border-[#83e637]/60 md:left-8">
+            <ArrowLeft className="h-4 w-4 text-[#83e637]" /> EMA APPS
+          </Link>
           <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#83e637]">EMA Intelligence</p>
           <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-[-0.045em] text-white md:text-5xl">EMA DATA CENTER ANALYZER</h1>
           <p className="mt-2 text-sm font-medium text-slate-300 md:text-base">Data Center Site &amp; Project Intelligence</p>
@@ -287,11 +424,22 @@ export function DataCenterAnalyzerForm() {
             <Link href="/projects?view=all&type=rechenzentrum" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-[#071a38]/80 px-4 text-xs font-extrabold text-white backdrop-blur transition hover:border-[#83e637]/60">
               <HardDrive className="h-4 w-4 text-[#83e637]" /> PROJEKTE
             </Link>
+            <button type="button" onClick={downloadFactSheet} disabled={pdfBusy !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-[#071a38]/80 px-4 text-xs font-extrabold text-white backdrop-blur transition hover:border-[#83e637]/60 disabled:opacity-60">
+              {pdfBusy === 'fact-sheet' ? <Loader2 className="h-4 w-4 animate-spin text-[#83e637]" /> : <Download className="h-4 w-4 text-[#83e637]" />} FRAGEBOGEN PDF
+            </button>
+            <button type="button" onClick={() => completedFactSheetRef.current?.click()} disabled={importBusy} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-[#071a38]/80 px-4 text-xs font-extrabold text-white backdrop-blur transition hover:border-[#83e637]/60 disabled:opacity-60">
+              {importBusy ? <Loader2 className="h-4 w-4 animate-spin text-[#83e637]" /> : <Upload className="h-4 w-4 text-[#83e637]" />} AUSGEFÜLLTE PDF HOCHLADEN
+            </button>
+            <button type="button" onClick={downloadAssessment} disabled={pdfBusy !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#72d82c] px-4 text-xs font-black text-[#06142d] transition hover:brightness-105 disabled:opacity-60">
+              {pdfBusy === 'assessment' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} ANALYSE PDF
+            </button>
+            <input ref={completedFactSheetRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void readCompletedFactSheet(file); event.currentTarget.value = '' }} />
           </div>
         </div>
       </section>
 
       <form ref={formRef} onSubmit={submit} className="page-container w-full min-w-0 max-w-full overflow-x-hidden !pt-5">
+        {completedFactSheet && <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#72d82c]/35 bg-[#123820]/60 p-3 text-xs text-emerald-100"><FileText className="h-4 w-4 shrink-0 text-[#83e637]" /><span className="min-w-0 flex-1 truncate">Ausgefüllter Fragebogen: {completedFactSheet.name}</span><span className="rounded-full bg-[#83e637]/15 px-2 py-1 font-bold text-[#9bed61]">ANGEGEBEN</span></div>}
         <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Grid</span><strong className="mt-1 block text-lg text-white">{formatMw(gridMw)}</strong></div>
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">IT · PUE {pue.toFixed(2)}</span><strong className="mt-1 block text-lg text-white">{formatMw(itCapacity)}</strong></div>
@@ -360,9 +508,7 @@ export function DataCenterAnalyzerForm() {
 
             <FormCard icon={ShieldAlert} title="SITE RISKS / STANDORTRISIKEN" subtitle="Keine Daten werden als kein Risiko interpretiert">
               <div className="grid gap-4 md:grid-cols-2">
-                {[
-                  ['riskFlood', 'Hochwasser / Flood'], ['riskHeavyRain', 'Starkregen / Heavy rain'], ['riskWaterProtection', 'Wasserschutz / Water protection'], ['riskNatureProtection', 'Naturschutz / Nature protection'], ['riskResidentialNoise', 'Wohnbebauung & Lärm'], ['riskContamination', 'Altlasten / Contamination'], ['riskAccess', 'Zufahrt / Access'], ['riskAirport', 'Flughafen / Flight corridors'], ['riskExpansion', 'Erweiterung / Expansion'],
-                ].map(([name, label]) => <SelectField key={name} name={name} label={label} defaultValue="grey" onChange={(value) => updateRisk(name, value)}>{riskOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</SelectField>)}
+                {riskFields.map(([name, label]) => <SelectField key={name} name={name} label={label} defaultValue="grey" onChange={(value) => updateRisk(name, value)}>{riskOptions.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</SelectField>)}
                 <Field label="Hinweise / Notes" wide><textarea name="riskNotes" rows={3} className={`${fieldClass} resize-y`} /></Field>
               </div>
             </FormCard>
@@ -421,10 +567,40 @@ export function DataCenterAnalyzerForm() {
               <button type="submit" disabled={pending} className="mt-5 inline-flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#62c700] to-[#7dde22] px-5 py-3.5 text-sm font-black text-[#06142d] shadow-[0_12px_32px_rgba(102,204,25,.25)] transition hover:brightness-105 disabled:cursor-wait disabled:opacity-60">
                 <Save className="h-4 w-4" /> {pending ? 'PROJEKT WIRD GESPEICHERT …' : 'SAVE PROJECT / PROJEKT SPEICHERN'}
               </button>
+              <p className="mt-3 text-center text-[11px] leading-4 text-slate-400">Speicherort: <strong className="text-slate-200">EMA Intelligence → Projekte → Rechenzentren</strong>. Danach öffnet sich die vollständige Projektakte.</p>
             </div>
           </aside>
         </div>
       </form>
+
+      {importPreview && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[#010817]/85 p-0 backdrop-blur-sm md:items-center md:p-6" role="dialog" aria-modal="true" aria-labelledby="fact-sheet-preview-title">
+          <div className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-t-[1.75rem] border border-[#31517c] bg-[#061832] p-5 shadow-2xl md:rounded-[1.75rem] md:p-6">
+            <div className="flex items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#83e637]">Vorschau · nicht bestätigt</p>
+                <h2 id="fact-sheet-preview-title" className="mt-2 text-xl font-black text-white">CREATE NEW DATA CENTER PROJECT</h2>
+                <p className="mt-1 text-xs leading-5 text-slate-400">EMA übernimmt die erkannten Angaben erst nach deiner Bestätigung und markiert sie als angegeben, nicht als verifiziert.</p>
+              </div>
+              <button type="button" onClick={() => setImportPreview(null)} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-[#31517c] text-slate-300" aria-label="Vorschau schließen"><X className="h-4 w-4" /></button>
+            </div>
+            <dl className="mt-5 grid gap-2 sm:grid-cols-2">
+              {[
+                ['Projekt / Project', importPreview.projectName], ['Standort / Location', importPreview.address || importPreview.city],
+                ['Netzleistung / Grid', importPreview.availablePowerMw === null ? '' : `${importPreview.availablePowerMw} MW`],
+                ['Netzbetreiber / Operator', importPreview.gridOperator], ['Baurecht / Planning', importPreview.zoningPlanStatus],
+                ['Data-Center-Nutzung', importPreview.dataCenterPermitted], ['Glasfaser / Fiber', importPreview.fiberStatus],
+                ['Carrier / Provider', importPreview.fiberProvider], ['Kontakt / Contact', importPreview.contactName],
+                ['Unternehmen / Company', importPreview.contactCompany],
+              ].map(([label, value]) => <div key={label} className="rounded-xl border border-[#31517c]/55 bg-[#04142f] p-3"><dt className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</dt><dd className="mt-1 text-sm font-semibold text-white">{value || 'NICHT VERFÜGBAR'}</dd></div>)}
+            </dl>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={() => setImportPreview(null)} className="min-h-12 rounded-xl border border-[#31517c] px-4 text-xs font-extrabold text-slate-200">ABBRECHEN</button>
+              <button type="button" onClick={applyImportPreview} className="min-h-12 rounded-xl bg-[#72d82c] px-4 text-xs font-black text-[#06142d]">ANGABEN ÜBERNEHMEN</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
