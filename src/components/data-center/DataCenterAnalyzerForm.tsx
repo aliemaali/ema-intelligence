@@ -1,7 +1,5 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import Image from 'next/image'
 import Link from 'next/link'
 import { FormEvent, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -27,11 +25,7 @@ import { createDataCenterAnalyzerProject } from '@/lib/actions/data-center-analy
 import { createDocumentRecord } from '@/lib/actions/document.actions'
 import { createClient } from '@/lib/supabase/client'
 import type { DocumentType } from '@/lib/types/database.types'
-
-const PartnerLocationMap = dynamic(
-  () => import('@/components/partner/PartnerLocationMap').then((module) => module.PartnerLocationMap),
-  { ssr: false },
-)
+import { DataCenterLocationMap } from './DataCenterLocationMap'
 
 type AddressSuggestion = {
   label: string
@@ -55,7 +49,7 @@ const emptyLocation: LocationState = {
   district: '', state: '', country: 'Deutschland', latitude: 0, longitude: 0,
 }
 
-const fieldClass = 'mt-2 min-h-12 w-full rounded-xl border border-[#31517c]/80 bg-[#061a38] px-3 py-2.5 text-sm text-white shadow-inner outline-none transition placeholder:text-slate-500 focus:border-[#73d72d] focus:ring-2 focus:ring-[#73d72d]/15'
+const fieldClass = 'mt-2 min-h-12 w-full min-w-0 max-w-full rounded-xl border border-[#31517c]/80 bg-[#061a38] px-3 py-2.5 text-sm text-white shadow-inner outline-none transition placeholder:text-slate-500 focus:border-[#73d72d] focus:ring-2 focus:ring-[#73d72d]/15'
 const labelClass = 'block text-xs font-bold uppercase tracking-[0.08em] text-slate-300'
 
 const years = Array.from({ length: 12 }, (_, index) => String(new Date().getFullYear() + index))
@@ -90,7 +84,7 @@ function FormCard({
   open?: boolean
 }) {
   return (
-    <details open={open} className="group overflow-hidden rounded-[1.35rem] border border-[#31517c]/55 bg-gradient-to-br from-[#0a244b]/95 to-[#04142f]/95 shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_18px_46px_rgba(0,0,0,.22)]">
+    <details open={open} className="group min-w-0 max-w-full overflow-hidden rounded-[1.35rem] border border-[#31517c]/55 bg-gradient-to-br from-[#0a244b]/95 to-[#04142f]/95 shadow-[inset_0_1px_0_rgba(255,255,255,.04),0_18px_46px_rgba(0,0,0,.22)]">
       <summary className="flex min-h-[78px] cursor-pointer list-none items-center gap-3 px-4 py-3.5 md:px-5">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-[#42699d]/60 bg-gradient-to-br from-[#153a70] to-[#071a39] text-[#83e637] shadow-[0_0_24px_rgba(57,123,226,.12)]">
           <Icon className="h-5 w-5" />
@@ -108,7 +102,7 @@ function FormCard({
 
 function Field({ label, origin = 'EINGABE', children, wide = false }: { label: string; origin?: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <label className={wide ? 'block md:col-span-2' : 'block'}>
+    <label className={wide ? 'block min-w-0 max-w-full md:col-span-2' : 'block min-w-0 max-w-full'}>
       <span className={labelClass}>{label}<span className="ml-2 rounded-full bg-[#12365f] px-2 py-0.5 text-[8px] tracking-[0.12em] text-slate-400">{origin}</span></span>
       {children}
     </label>
@@ -281,12 +275,11 @@ export function DataCenterAnalyzerForm() {
   }
 
   return (
-    <div className="pb-8">
+    <div className="w-full max-w-full touch-pan-y overflow-x-hidden pb-8">
       <section className="relative min-h-[280px] overflow-hidden border-b border-[#31517c]/55 bg-[#04142d] md:min-h-[335px]">
         <div className="absolute inset-0 bg-[url('/hero-datacenter.webp')] bg-cover bg-center" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#020d21]/95 via-[#03152f]/78 to-[#03152f]/20" />
         <div className="relative mx-auto flex min-h-[280px] max-w-[1480px] flex-col justify-end px-5 pb-8 pt-7 md:min-h-[335px] md:px-8 md:pb-10">
-          <Image src="/brand/ema-mark-white.png" alt="EMA" width={506} height={247} className="mb-5 h-auto w-24 object-contain drop-shadow-[0_0_18px_rgba(126,233,54,.28)]" priority />
           <p className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#83e637]">EMA Intelligence</p>
           <h1 className="mt-2 max-w-3xl text-3xl font-black tracking-[-0.045em] text-white md:text-5xl">EMA DATA CENTER ANALYZER</h1>
           <p className="mt-2 text-sm font-medium text-slate-300 md:text-base">Data Center Site &amp; Project Intelligence</p>
@@ -298,7 +291,7 @@ export function DataCenterAnalyzerForm() {
         </div>
       </section>
 
-      <form ref={formRef} onSubmit={submit} className="page-container !pt-5">
+      <form ref={formRef} onSubmit={submit} className="page-container w-full min-w-0 max-w-full overflow-x-hidden !pt-5">
         <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Grid</span><strong className="mt-1 block text-lg text-white">{formatMw(gridMw)}</strong></div>
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">IT · PUE {pue.toFixed(2)}</span><strong className="mt-1 block text-lg text-white">{formatMw(itCapacity)}</strong></div>
@@ -306,8 +299,8 @@ export function DataCenterAnalyzerForm() {
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Zu prüfen</span><strong className="mt-1 block text-lg text-amber-300">{verifyCount}</strong></div>
         </div>
 
-        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <div className="space-y-3">
+        <div className="grid min-w-0 max-w-full items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="min-w-0 max-w-full space-y-3">
             <FormCard icon={MapPin} title="LOCATION / STANDORT" subtitle="Adresse, Grundstück und exakte Projektposition" open>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Projektname / Project name" wide><input name="projectName" required className={fieldClass} placeholder="z. B. Data Center Chemnitz" /></Field>
@@ -322,8 +315,8 @@ export function DataCenterAnalyzerForm() {
               {(['street', 'houseNumber', 'postalCode', 'city', 'municipality', 'district', 'state'] as const).map((key) => <input key={key} type="hidden" name={key} value={location[key]} />)}
               <input type="hidden" name="latitude" value={location.latitude || ''} />
               <input type="hidden" name="longitude" value={location.longitude || ''} />
-              <div className="mt-4 overflow-hidden rounded-2xl border border-[#31517c]/55 bg-white/95 p-1">
-                <PartnerLocationMap value={location.latitude && location.longitude ? { lat: location.latitude, lng: location.longitude } : null} city={location.city} state={location.state} onChange={(position) => setLocation((current) => ({ ...current, latitude: position.lat, longitude: position.lng }))} />
+              <div className="mt-4 min-w-0 max-w-full overflow-hidden rounded-2xl">
+                <DataCenterLocationMap latitude={location.latitude || null} longitude={location.longitude || null} label={location.address} />
               </div>
             </FormCard>
 
