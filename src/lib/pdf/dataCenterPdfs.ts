@@ -187,12 +187,9 @@ export async function buildDataCenterFactSheetPdf() {
   addTextField(doc, 'city', 'Ort / City', 15, y)
   addTextField(doc, 'state', 'Bundesland / State', 111, y)
   y += 14
-  addTextField(doc, 'site_area', 'Grundstuecksgroesse m2 / Site area sqm', 15, y)
-  addTextField(doc, 'parcel', 'Flurstueck / Parcel number', 111, y)
-  y += 14
-  addTextField(doc, 'owner', 'Eigentuemer / Owner', 15, y, 180)
+  addTextField(doc, 'site_area', 'Grundstuecksgroesse m2 / Site area sqm (optional)', 15, y, 180)
 
-  y = drawSection(doc, 'B. NETZANSCHLUSS / GRID CONNECTION', y + 16)
+  y = drawSection(doc, 'B. NETZANSCHLUSS / GRID CONNECTION', y + 15)
   addTextField(doc, 'grid_capacity_mw', 'Netzanschlussleistung MW / Grid capacity MW', 15, y)
   addTextField(doc, 'grid_operator', 'Netzbetreiber / Grid operator', 111, y)
   y += 14

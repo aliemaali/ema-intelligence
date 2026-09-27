@@ -59,12 +59,10 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/login')
 
-  const projectName = text(formData, 'projectName')
-  if (!projectName) return { error: 'Bitte einen Projektnamen eingeben.' }
-
   const address = text(formData, 'address')
   const city = text(formData, 'city')
   if (!address && !city) return { error: 'Bitte einen Standort auswählen oder eingeben.' }
+  const projectName = text(formData, 'projectName') || `Rechenzentrum ${city || address}`
 
   const gridCapacityMw = nullableNumber(formData, 'gridCapacityMw')
   const pue = nullableNumber(formData, 'pue') ?? 1.25
@@ -106,7 +104,6 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
   if (text(formData, 'dataCenterUseStatus') !== 'confirmed') toVerify.push('Data-Center-Nutzung baurechtlich bestätigen')
   if (text(formData, 'routeDiversityStatus') !== 'confirmed') toVerify.push('Physische Glasfaserredundanz bestätigen')
   if (offtakerStatus !== 'binding_contract') toVerify.push('Verbindlichen Offtake-Vertrag prüfen')
-  if (!text(formData, 'owner')) toVerify.push('Grundstückssicherung prüfen')
   for (const [key, value] of Object.entries(risks)) {
     if (value === 'red') critical.push(`Standortrisiko: ${key}`)
     if (value === 'orange') toVerify.push(`Standortrisiko prüfen: ${key}`)
@@ -120,8 +117,6 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
     postalCode: text(formData, 'postalCode'),
     municipality: text(formData, 'municipality'),
     district: text(formData, 'district'),
-    parcel: text(formData, 'parcel'),
-    owner: text(formData, 'owner'),
     siteAreaHectares: nullableNumber(formData, 'siteAreaSqm') !== null
       ? Number(nullableNumber(formData, 'siteAreaSqm')) / 10_000
       : undefined,
