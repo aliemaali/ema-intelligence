@@ -28,6 +28,7 @@ export async function middleware(request: NextRequest) {
   const isMfaRoute = pathname === '/mfa'
   const isInternalRoute =
     pathname === '/apps' || pathname.startsWith('/apps/') ||
+    pathname === '/data-center' || pathname.startsWith('/data-center/') ||
     pathname === '/office' || pathname.startsWith('/office/') ||
     pathname.startsWith('/dashboard') || pathname.startsWith('/projects') ||
     pathname.startsWith('/deals') || pathname.startsWith('/partners') ||
