@@ -299,20 +299,21 @@ export function DataCenterAnalyzerForm() {
     }
   }
 
-  const readCompletedFactSheet = async (file: File, attachAsFactSheet = true) => {
-    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+  const readCompletedFactSheet = async (input: File | File[], attachAsFactSheet = true) => {
+    const files = Array.isArray(input) ? input : [input]
+    if (!files.length || files.some((file) => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'))) {
       toast.error('Bitte eine PDF-Datei auswählen.')
       return
     }
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error('Die PDF darf maximal 20 MB groß sein.')
+    if (files.some((file) => file.size > 20 * 1024 * 1024)) {
+      toast.error('Jede PDF darf maximal 20 MB groß sein.')
       return
     }
     setImportBusy(true)
-    if (attachAsFactSheet) setCompletedFactSheet(file)
+    if (attachAsFactSheet) setCompletedFactSheet(files[0])
     try {
       const uploadData = new FormData()
-      uploadData.append('files', file)
+      files.forEach((file) => uploadData.append('files', file))
       const uploaded = await uploadProjectImportFiles(uploadData)
       if (uploaded.error || !uploaded.importId) throw new Error(uploaded.error ?? 'Import fehlgeschlagen.')
       const extracted = await prepareDataCenterImport(uploaded.importId)
@@ -567,12 +568,12 @@ export function DataCenterAnalyzerForm() {
               <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#4b73a5] bg-[#061a38] px-4 text-center transition hover:border-[#83e637]">
                 {importBusy ? <Loader2 className="h-6 w-6 animate-spin text-[#83e637]" /> : <Upload className="h-6 w-6 text-[#83e637]" />}
                 <strong className="text-sm text-white">PDF-Unterlagen auswählen</strong>
-                <span className="text-[11px] text-slate-400">EMA erkennt Projektdaten und zeigt vor der Übernahme eine Vorschau.</span>
+                <span className="text-[11px] text-slate-400">EMA führt erkannte Angaben aus allen PDFs zusammen und zeigt eine Vorschau.</span>
                 <input name="documents" type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={(event) => {
                   const files = Array.from(event.currentTarget.files ?? [])
                   setSelectedDocuments(files.map((file) => file.name))
-                  const firstPdf = files.find((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))
-                  if (firstPdf) void readCompletedFactSheet(firstPdf, false)
+                  const pdfs = files.filter((file) => file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))
+                  if (pdfs.length) void readCompletedFactSheet(pdfs, false)
                 }} />
               </label>
               {selectedDocuments.length > 0 && <p className="mt-3 text-xs text-emerald-200">{selectedDocuments.length} Unterlage{selectedDocuments.length === 1 ? '' : 'n'} ausgewählt</p>}
