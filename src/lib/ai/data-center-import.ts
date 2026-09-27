@@ -19,9 +19,22 @@ export type DataCenterImport = {
   hvStation: string
   availablePowerMw: number | null
   gridOperator: string
+  gridStatus: 'indicated' | 'requested' | 'grid_study_ongoing' | 'generally_feasible' | 'confirmed_in_writing' | 'contractually_secured' | 'unknown'
+  voltageLevel: string
+  pointOfConnection: string
+  availableFrom: string
   fiberDistanceM: number | null
   fiberProvider: string
   fiberStatus: 'yes' | 'no' | 'planned' | 'unknown'
+  routeDiversity: 'confirmed' | 'not_confirmed' | 'unknown'
+  projectModel: 'greenfield' | 'existing_building' | 'brownfield_conversion' | 'shell' | 'powered_shell' | 'turnkey' | 'unknown'
+  offtakerStatus: 'none' | 'searching' | 'initial_contact' | 'nda' | 'interest' | 'loi' | 'hot' | 'binding_contract' | 'unknown'
+  offtakerName: string
+  requestedCapacityMw: number | null
+  purchasePriceMode: 'total' | 'per_mw' | 'unknown'
+  totalPurchasePrice: number | null
+  pricePerMw: number | null
+  referenceCapacity: 'grid' | 'it' | 'unknown'
   contactName: string
   contactCompany: string
   contactPhone: string
@@ -60,8 +73,11 @@ export async function extractDataCenterFromPdf(buffer: Buffer, filename: string)
       'projectName', 'state', 'district', 'city', 'address', 'coordinates',
       'landAreaHa', 'landCost', 'landPricePerSqm', 'zoningDesignation',
       'otherDesignation', 'zoningPlanStatus', 'dataCenterPermitted', 'planningNotes',
-      'hvDistanceM', 'hvStation', 'availablePowerMw', 'gridOperator',
-      'fiberDistanceM', 'fiberProvider', 'fiberStatus', 'contactName',
+      'hvDistanceM', 'hvStation', 'availablePowerMw', 'gridOperator', 'gridStatus',
+      'voltageLevel', 'pointOfConnection', 'availableFrom', 'fiberDistanceM',
+      'fiberProvider', 'fiberStatus', 'routeDiversity', 'projectModel',
+      'offtakerStatus', 'offtakerName', 'requestedCapacityMw', 'purchasePriceMode',
+      'totalPurchasePrice', 'pricePerMw', 'referenceCapacity', 'contactName',
       'contactCompany', 'contactPhone', 'contactEmail', 'assessmentDate',
       'additionalNotes',
     ],
@@ -84,9 +100,22 @@ export async function extractDataCenterFromPdf(buffer: Buffer, filename: string)
       hvStation: { type: 'string' },
       availablePowerMw: { type: ['number', 'null'] },
       gridOperator: { type: 'string' },
+      gridStatus: { type: 'string', enum: ['indicated', 'requested', 'grid_study_ongoing', 'generally_feasible', 'confirmed_in_writing', 'contractually_secured', 'unknown'] },
+      voltageLevel: { type: 'string' },
+      pointOfConnection: { type: 'string' },
+      availableFrom: { type: 'string' },
       fiberDistanceM: { type: ['number', 'null'] },
       fiberProvider: { type: 'string' },
       fiberStatus: { type: 'string', enum: ['yes', 'no', 'planned', 'unknown'] },
+      routeDiversity: { type: 'string', enum: ['confirmed', 'not_confirmed', 'unknown'] },
+      projectModel: { type: 'string', enum: ['greenfield', 'existing_building', 'brownfield_conversion', 'shell', 'powered_shell', 'turnkey', 'unknown'] },
+      offtakerStatus: { type: 'string', enum: ['none', 'searching', 'initial_contact', 'nda', 'interest', 'loi', 'hot', 'binding_contract', 'unknown'] },
+      offtakerName: { type: 'string' },
+      requestedCapacityMw: { type: ['number', 'null'] },
+      purchasePriceMode: { type: 'string', enum: ['total', 'per_mw', 'unknown'] },
+      totalPurchasePrice: { type: ['number', 'null'] },
+      pricePerMw: { type: ['number', 'null'] },
+      referenceCapacity: { type: 'string', enum: ['grid', 'it', 'unknown'] },
       contactName: { type: 'string' },
       contactCompany: { type: 'string' },
       contactPhone: { type: 'string' },

@@ -192,6 +192,12 @@ function importValueInGerman(value: string) {
     yes: 'Ja', no: 'Nein', unknown: 'Nicht bekannt', verify: 'Zu prüfen', planned: 'In Planung',
     in_preparation: 'In Vorbereitung', commercial: 'Gewerbegebiet', industrial: 'Industriegebiet',
     agricultural: 'Landwirtschaftlich', mixed: 'Mischgebiet', special: 'Sondergebiet',
+    indicated: 'Nur angegeben', requested: 'Angefragt', grid_study_ongoing: 'Netzprüfung läuft',
+    generally_feasible: 'Grundsätzlich möglich', confirmed_in_writing: 'Schriftlich bestätigt',
+    contractually_secured: 'Vertraglich gesichert', confirmed: 'Bestätigt', not_confirmed: 'Nicht bestätigt',
+    greenfield: 'Neuentwicklung', existing_building: 'Bestandsgebäude', brownfield_conversion: 'Brownfield-Umnutzung',
+    powered_shell: 'Stromerschlossene Gebäudehülle', turnkey: 'Schlüsselfertig', searching: 'Wird gesucht',
+    initial_contact: 'Erstkontakt', interest: 'Interesse', binding_contract: 'Verbindlicher Vertrag',
   }
   return translations[value] ?? value
 }
@@ -269,10 +275,10 @@ export function DataCenterAnalyzerForm() {
     setPdfBusy('fact-sheet')
     try {
       const { downloadDataCenterFactSheetPdf } = await import('@/lib/pdf/dataCenterPdfs')
-      downloadDataCenterFactSheetPdf()
-      toast.success('Bilingualer Entwickler-Fragebogen wurde erstellt.')
+      await downloadDataCenterFactSheetPdf()
+      toast.success('Das bilinguale Projekt-Eckdatenblatt wurde erstellt.')
     } catch {
-      toast.error('Der Fragebogen konnte nicht erstellt werden.')
+      toast.error('Das Projekt-Eckdatenblatt konnte nicht erstellt werden.')
     } finally {
       setPdfBusy(null)
     }
@@ -327,7 +333,7 @@ export function DataCenterAnalyzerForm() {
       if (!('data' in extracted) || !extracted.data) throw new Error(extracted.error ?? 'Keine Daten erkannt.')
       setImportPreview(extracted.data)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Der ausgefüllte Fragebogen konnte nicht gelesen werden.')
+      toast.error(error instanceof Error ? error.message : 'Das ausgefüllte Projekt-Eckdatenblatt konnte nicht gelesen werden.')
     } finally {
       setImportBusy(false)
     }
@@ -346,6 +352,9 @@ export function DataCenterAnalyzerForm() {
     if (importPreview.availablePowerMw !== null) setGridMw(importPreview.availablePowerMw)
     setNativeField('projectName', importPreview.projectName)
     setNativeField('gridOperator', importPreview.gridOperator)
+    setNativeField('voltageLevel', importPreview.voltageLevel)
+    setNativeField('pointOfConnection', importPreview.pointOfConnection)
+    setNativeField('availableFrom', importPreview.availableFrom)
     setNativeField('carriers', importPreview.fiberProvider)
     setNativeField('siteAreaSqm', importPreview.landAreaHa === null ? null : importPreview.landAreaHa * 10_000)
     setNativeField('notes', importPreview.additionalNotes || importPreview.planningNotes)
@@ -359,6 +368,34 @@ export function DataCenterAnalyzerForm() {
     }
     const connectivity = importPreview.fiberStatus === 'yes' ? 'indicated' : importPreview.fiberStatus === 'planned' ? 'planned' : 'unknown'
     setNativeField('connectivityStatus', connectivity)
+    if (importPreview.gridStatus !== 'unknown') {
+      setGridStatus(importPreview.gridStatus)
+      setNativeField('gridStatus', importPreview.gridStatus)
+    }
+    if (importPreview.routeDiversity === 'confirmed') {
+      setRouteDiversityStatus('confirmed')
+      setNativeField('routeDiversityStatus', 'confirmed')
+    }
+    if (importPreview.projectModel !== 'unknown') {
+      setProjectModel(importPreview.projectModel)
+      setNativeField('projectModel', importPreview.projectModel)
+    }
+    if (importPreview.offtakerStatus !== 'unknown') {
+      setOfftakerStatus(importPreview.offtakerStatus)
+      setNativeField('offtakerStatus', importPreview.offtakerStatus)
+    }
+    setNativeField('offtakerName', importPreview.offtakerName)
+    setNativeField('requestedCapacityMw', importPreview.requestedCapacityMw)
+    if (importPreview.purchasePriceMode !== 'unknown') {
+      setPurchaseMode(importPreview.purchasePriceMode)
+      setNativeField('purchasePriceMode', importPreview.purchasePriceMode)
+    }
+    if (importPreview.totalPurchasePrice !== null) setTotalPrice(importPreview.totalPurchasePrice)
+    if (importPreview.pricePerMw !== null) setPricePerMw(importPreview.pricePerMw)
+    if (importPreview.referenceCapacity !== 'unknown') {
+      setReferenceCapacity(importPreview.referenceCapacity)
+      setNativeField('referenceCapacity', importPreview.referenceCapacity)
+    }
     setImportPreview(null)
     toast.success('Erkannte Daten wurden als ungeprüfte Angaben übernommen.')
   }
@@ -434,10 +471,10 @@ export function DataCenterAnalyzerForm() {
               <HardDrive className="h-4 w-4 text-[#83e637]" /> PROJEKTE
             </Link>
             <button type="button" onClick={downloadFactSheet} disabled={pdfBusy !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-[#071a38]/80 px-4 text-xs font-extrabold text-white backdrop-blur transition hover:border-[#83e637]/60 disabled:opacity-60">
-              {pdfBusy === 'fact-sheet' ? <Loader2 className="h-4 w-4 animate-spin text-[#83e637]" /> : <Download className="h-4 w-4 text-[#83e637]" />} FRAGEBOGEN PDF
+              {pdfBusy === 'fact-sheet' ? <Loader2 className="h-4 w-4 animate-spin text-[#83e637]" /> : <Download className="h-4 w-4 text-[#83e637]" />} PROJEKT-ECKDATENBLATT
             </button>
             <button type="button" onClick={() => completedFactSheetRef.current?.click()} disabled={importBusy} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/20 bg-[#071a38]/80 px-4 text-xs font-extrabold text-white backdrop-blur transition hover:border-[#83e637]/60 disabled:opacity-60">
-              {importBusy ? <Loader2 className="h-4 w-4 animate-spin text-[#83e637]" /> : <Upload className="h-4 w-4 text-[#83e637]" />} AUSGEFÜLLTE PDF HOCHLADEN
+              {importBusy ? <Loader2 className="h-4 w-4 animate-spin text-[#83e637]" /> : <Upload className="h-4 w-4 text-[#83e637]" />} ECKDATENBLATT HOCHLADEN
             </button>
             <button type="button" onClick={downloadAssessment} disabled={pdfBusy !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#72d82c] px-4 text-xs font-black text-[#06142d] transition hover:brightness-105 disabled:opacity-60">
               {pdfBusy === 'assessment' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} ANALYSE PDF
@@ -448,7 +485,7 @@ export function DataCenterAnalyzerForm() {
       </section>
 
       <form ref={formRef} onSubmit={submit} className="page-container w-full min-w-0 max-w-full overflow-x-hidden !pt-5">
-        {completedFactSheet && <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#72d82c]/35 bg-[#123820]/60 p-3 text-xs text-emerald-100"><FileText className="h-4 w-4 shrink-0 text-[#83e637]" /><span className="min-w-0 flex-1 truncate">Ausgefüllter Fragebogen: {completedFactSheet.name}</span><span className="rounded-full bg-[#83e637]/15 px-2 py-1 font-bold text-[#9bed61]">ANGEGEBEN</span></div>}
+        {completedFactSheet && <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[#72d82c]/35 bg-[#123820]/60 p-3 text-xs text-emerald-100"><FileText className="h-4 w-4 shrink-0 text-[#83e637]" /><span className="min-w-0 flex-1 truncate">Ausgefülltes Eckdatenblatt: {completedFactSheet.name}</span><span className="rounded-full bg-[#83e637]/15 px-2 py-1 font-bold text-[#9bed61]">ANGEGEBEN</span></div>}
         <div className="mb-5 grid grid-cols-2 gap-2 md:grid-cols-4">
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Netzleistung</span><strong className="mt-1 block text-lg text-white">{formatMw(gridMw)}</strong></div>
           <div className="rounded-2xl border border-[#31517c]/55 bg-[#071a38]/88 p-3"><span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">IT-Leistung · PUE {pue.toFixed(2)}</span><strong className="mt-1 block text-lg text-white">{formatMw(itCapacity)}</strong></div>
@@ -597,10 +634,11 @@ export function DataCenterAnalyzerForm() {
               {[
                 ['Projekt', importPreview.projectName], ['Standort', importPreview.address || importPreview.city],
                 ['Netzleistung', importPreview.availablePowerMw === null ? '' : `${importPreview.availablePowerMw} MW`],
-                ['Netzbetreiber', importPreview.gridOperator], ['Baurecht', importPreview.zoningPlanStatus],
+                ['Netzstatus', importPreview.gridStatus], ['Netzbetreiber', importPreview.gridOperator], ['Baurecht', importPreview.zoningPlanStatus],
                 ['Rechenzentrumsnutzung', importPreview.dataCenterPermitted], ['Glasfaser', importPreview.fiberStatus],
-                ['Carrier', importPreview.fiberProvider], ['Kontakt', importPreview.contactName],
-                ['Unternehmen', importPreview.contactCompany],
+                ['Carrier', importPreview.fiberProvider], ['Projektmodell', importPreview.projectModel],
+                ['Offtaker-Status', importPreview.offtakerStatus],
+                ['Projektkaufpreis', importPreview.totalPurchasePrice === null ? importPreview.pricePerMw === null ? '' : `${importPreview.pricePerMw} EUR/MW` : `${importPreview.totalPurchasePrice} EUR`],
               ].map(([label, value]) => <div key={label} className="rounded-xl border border-[#31517c]/55 bg-[#04142f] p-3"><dt className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{label}</dt><dd className="mt-1 text-sm font-semibold text-white">{value ? importValueInGerman(String(value)) : 'NICHT VERFÜGBAR'}</dd></div>)}
             </dl>
             <div className="mt-5 grid gap-2 sm:grid-cols-2">

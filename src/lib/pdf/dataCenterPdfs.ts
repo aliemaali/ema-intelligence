@@ -145,93 +145,108 @@ function addCheck(doc: jsPDF, name: string, label: string, x: number, y: number)
   doc.text(safeText(label), x + 6, y + 3.2)
 }
 
-export function buildDataCenterFactSheetPdf() {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true })
-  doc.setProperties({ title: 'EMA Data Center Project Fact Sheet', author: 'EMA Enterprise GmbH', creator: 'EMA Data Center Analyzer' })
+function drawFactSheetFooter(doc: jsPDF, pageNumber: number) {
+  doc.setDrawColor(BORDER)
+  doc.line(15, 284, 195, 284)
+  doc.setTextColor(MUTED)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(6.5)
+  doc.text('EMA INTELLIGENCE | VERTRAULICH / CONFIDENTIAL', 15, 290)
+  doc.text(`${pageNumber} / 2`, 195, 290, { align: 'right' })
+}
 
-  drawHeader(doc, 'DATA CENTER PROJECT FACT SHEET', 'PROJEKT-ECKDATENBLATT / PROJECT FACT SHEET', 1)
-  let y = drawSection(doc, 'A. PROJEKT / PROJECT', 34)
-  addTextField(doc, 'project_name', 'Projektname / Project name', 15, y)
-  addTextField(doc, 'project_developer', 'Projektentwickler / Project developer', 111, y)
-  y += 16
-  addTextField(doc, 'company', 'Unternehmen / Company', 15, y)
-  addTextField(doc, 'contact_person', 'Ansprechpartner / Contact person', 111, y)
-  y += 16
-  addTextField(doc, 'phone', 'Telefon / Phone', 15, y)
-  addTextField(doc, 'email', 'E-Mail / Email', 111, y)
-  y = drawSection(doc, 'B. STANDORT / LOCATION', y + 18)
+export async function buildDataCenterFactSheetPdf() {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true })
+  doc.setProperties({ title: 'EMA Data Center Project Key Facts', author: 'EMA Enterprise GmbH', creator: 'EMA Data Center Analyzer' })
+  const hero = await imageToJpegDataUrl('/hero-datacenter.webp')
+
+  doc.setFillColor(NAVY_DARK)
+  doc.rect(0, 0, 210, 80, 'F')
+  if (hero) doc.addImage(hero, 'JPEG', 0, 0, 210, 72, undefined, 'FAST')
+  doc.setFillColor(NAVY)
+  doc.rect(0, 45, 210, 35, 'F')
+  doc.setFillColor(GREEN)
+  doc.rect(0, 78, 210, 2, 'F')
+  doc.setTextColor(GREEN)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.text('EMA INTELLIGENCE', 15, 54)
+  doc.setTextColor(WHITE)
+  doc.setFontSize(17)
+  doc.text('DATA CENTER PROJECT KEY FACTS', 15, 65)
+  doc.setFontSize(7.5)
+  doc.text('PROJEKT-ECKDATEN / PROJECT KEY FACTS', 15, 73)
+
+  let y = drawSection(doc, 'A. PROJEKT & STANDORT / PROJECT & LOCATION', 87)
+  addTextField(doc, 'project_name', 'Projektname / Project name', 15, y, 180)
+  y += 14
   addTextField(doc, 'street', 'Strasse / Street', 15, y)
   addTextField(doc, 'house_number', 'Hausnummer / Number', 111, y, 36)
   addTextField(doc, 'postal_code', 'PLZ / Postal code', 155, y, 40)
-  y += 16
+  y += 14
   addTextField(doc, 'city', 'Ort / City', 15, y)
   addTextField(doc, 'state', 'Bundesland / State', 111, y)
-  y += 16
+  y += 14
   addTextField(doc, 'site_area', 'Grundstuecksgroesse m2 / Site area sqm', 15, y)
   addTextField(doc, 'parcel', 'Flurstueck / Parcel number', 111, y)
-  y += 16
+  y += 14
   addTextField(doc, 'owner', 'Eigentuemer / Owner', 15, y, 180)
-  y = drawSection(doc, 'C. NETZANSCHLUSS / GRID CONNECTION', y + 18)
+
+  y = drawSection(doc, 'B. NETZANSCHLUSS / GRID CONNECTION', y + 16)
   addTextField(doc, 'grid_capacity_mw', 'Netzanschlussleistung MW / Grid capacity MW', 15, y)
   addTextField(doc, 'grid_operator', 'Netzbetreiber / Grid operator', 111, y)
-  y += 16
+  y += 14
   addSelectField(doc, 'voltage_level', 'Netzebene / Voltage level', ['Nicht bekannt / Unknown', '10 kV', '20 kV', '30 kV', '110 kV', '220 kV', '380 kV'], 15, y)
   addTextField(doc, 'point_of_connection', 'Uebergabepunkt / Point of connection', 111, y)
-  y += 16
+  y += 14
   addTextField(doc, 'available_from', 'Verfuegbar ab / Available from', 15, y)
   addSelectField(doc, 'grid_status', 'Netzstatus / Grid status', ['nur angegeben / indicated', 'angefragt / requested', 'Netzpruefung laeuft / grid study ongoing', 'grundsaetzlich moeglich / generally feasible', 'schriftlich bestaetigt / confirmed in writing', 'vertraglich gesichert / contractually secured'], 111, y)
-  y += 17
-  addCheck(doc, 'grid_confirmation_yes', 'Netzanschlussbestaetigung vorhanden / Grid confirmation available', 15, y)
+  y += 14
+  addCheck(doc, 'grid_confirmation_yes', 'Schriftlicher Netznachweis vorhanden / Written grid evidence available', 15, y)
+  drawFactSheetFooter(doc, 1)
 
   doc.addPage()
-  drawHeader(doc, 'DATA CENTER PROJECT FACT SHEET', 'PROJEKT-ECKDATENBLATT / PROJECT FACT SHEET', 2)
-  y = drawSection(doc, 'D. BAURECHT / PLANNING', 34)
+  drawHeader(doc, 'DATA CENTER PROJECT KEY FACTS', 'PROJEKT-ECKDATEN / PROJECT KEY FACTS', 2)
+  y = drawSection(doc, 'C. BAURECHT / PLANNING', 34)
   addSelectField(doc, 'planning_status', 'Aktueller Status / Current planning status', ['Nicht bekannt / Unknown', 'B-Plan vorhanden / Development plan', 'Gewerbegebiet / Commercial area', 'Industriegebiet / Industrial area', 'Section 34 BauGB', 'Section 35 BauGB', 'Bauvorbescheid / Preliminary permit', 'Baugenehmigung / Building permit'], 15, y, 180)
-  y += 16
-  addSelectField(doc, 'data_center_use', 'Data-Center-Nutzung / Data center use', ['Nicht bestaetigt / Not confirmed', 'Teilweise bestaetigt / Partially verified', 'Schriftlich bestaetigt / Confirmed in writing', 'Nicht zulaessig / Not permitted'], 15, y, 180)
-  y = drawSection(doc, 'E. GLASFASER / CONNECTIVITY', y + 18)
+  y += 14
+  addSelectField(doc, 'data_center_use', 'Rechenzentrumsnutzung / Data center use', ['Nicht bestaetigt / Not confirmed', 'Teilweise bestaetigt / Partially verified', 'Schriftlich bestaetigt / Confirmed in writing', 'Nicht zulaessig / Not permitted'], 15, y, 180)
+
+  y = drawSection(doc, 'D. GLASFASER / CONNECTIVITY', y + 15)
   addSelectField(doc, 'fiber_available', 'Glasfaser vorhanden / Fiber available', ['Nicht bekannt / Unknown', 'Ja / Yes', 'In Planung / Planned', 'Nein / No'], 15, y)
   addTextField(doc, 'known_carriers', 'Bekannte Carrier / Known carriers', 111, y)
-  y += 16
+  y += 14
   addTextField(doc, 'fiber_distance', 'Entfernung / Distance', 15, y)
   addSelectField(doc, 'route_diversity', 'Redundante Trassen / Diverse routes', ['Nicht bestaetigt / Not confirmed', 'In Pruefung / Under review', 'Bestaetigt / Confirmed'], 111, y)
-  y = drawSection(doc, 'F. PROJEKTMODELL / PROJECT MODEL', y + 18)
+
+  y = drawSection(doc, 'E. PROJEKTMODELL & OFFTAKER / PROJECT MODEL & OFFTAKER', y + 15)
   addSelectField(doc, 'project_model', 'Projektmodell / Project model', ['Greenfield', 'Bestandsgebaeude / Existing building', 'Brownfield conversion', 'Shell', 'Powered shell', 'Turnkey / Colocation facility'], 15, y, 180)
-  y = drawSection(doc, 'G. OFFTAKER', y + 18)
+  y += 14
   addSelectField(doc, 'offtaker_status', 'Offtaker-Status', ['keiner / None', 'wird gesucht / Searching', 'Erstkontakt / Initial contact', 'NDA', 'Interesse / Interest', 'LOI', 'HoT / Term sheet', 'verbindlicher Vertrag / Binding contract'], 15, y, 180)
-  y += 16
-  addTextField(doc, 'offtaker_name', 'Offtaker name', 15, y)
+  y += 14
+  addTextField(doc, 'offtaker_name', 'Offtaker-Name', 15, y)
   addTextField(doc, 'offtaker_mw', 'Angefragte MW / Requested MW', 111, y)
-  y += 16
-  addTextField(doc, 'contract_term', 'Vertragslaufzeit / Contract term', 15, y)
-  addTextField(doc, 'planned_start', 'Geplanter Start / Planned start', 111, y)
-  y = drawSection(doc, 'H. PROJEKTKAUFPREIS / PROJECT PURCHASE PRICE', y + 18)
+
+  y = drawSection(doc, 'F. PROJEKTKAUFPREIS / PROJECT PURCHASE PRICE', y + 15)
   addSelectField(doc, 'price_mode', 'Preisart / Price mode', ['Gesamtpreis / Total purchase price', 'Preis pro MW / Price per MW'], 15, y)
   addSelectField(doc, 'reference_capacity', 'Bezugsbasis / Reference capacity', ['Nicht ausgewaehlt / Not selected', 'GRID MW', 'IT MW'], 111, y)
-  y += 16
+  y += 14
   addTextField(doc, 'total_purchase_price', 'Gesamtkaufpreis EUR / Total purchase price', 15, y)
   addTextField(doc, 'price_per_mw', 'Preis EUR/MW / Price per MW', 111, y)
 
-  doc.addPage()
-  drawHeader(doc, 'DATA CENTER PROJECT FACT SHEET', 'PROJEKT-ECKDATENBLATT / PROJECT FACT SHEET', 3)
-  y = drawSection(doc, 'I. VORHANDENE UNTERLAGEN / AVAILABLE DOCUMENTS', 34)
+  y = drawSection(doc, 'G. ENTSCHEIDUNGSRELEVANTE NACHWEISE / KEY DOCUMENTS', y + 15)
   const documents = [
+    ['doc_grid_confirmation', 'Netzbestaetigung / Grid confirmation'], ['doc_grid_agreement', 'Netzvertrag / Grid agreement'],
+    ['doc_development_plan', 'B-Plan / Development plan'], ['doc_building_permit', 'Baugenehmigung / Building permit'],
+    ['doc_fiber', 'Carrier-Nachweis / Fiber evidence'], ['doc_offtaker', 'Offtaker-Nachweis / Offtaker evidence'],
     ['doc_site_plan', 'Lageplan / Site plan'], ['doc_land_register', 'Grundbuch / Land register'],
-    ['doc_grid_confirmation', 'Netzanschlussbestaetigung / Grid confirmation'], ['doc_grid_agreement', 'Netzanschlussvertrag / Grid agreement'],
-    ['doc_development_plan', 'B-Plan / Development plan'], ['doc_preliminary_permit', 'Bauvorbescheid / Preliminary permit'],
-    ['doc_building_permit', 'Baugenehmigung / Building permit'], ['doc_fiber', 'Fiber-/Carrier-Unterlagen / Fiber information'],
-    ['doc_offtaker_loi', 'Offtaker LOI'], ['doc_hot', 'HoT / Term sheet'], ['doc_offtaker_agreement', 'Offtaker agreement'],
-    ['doc_expose', 'Expose'], ['doc_other', 'Sonstige / Other'],
   ]
-  documents.forEach(([name, label], index) => addCheck(doc, name, label, index % 2 === 0 ? 15 : 111, y + Math.floor(index / 2) * 10))
-  y += 78
-  y = drawSection(doc, 'J. BEMERKUNGEN / NOTES', y)
-  addTextField(doc, 'notes', 'Freies Textfeld / Free text', 15, y, 180, 70, true)
+  documents.forEach(([name, label], index) => addCheck(doc, name, label, index % 2 === 0 ? 15 : 111, y + Math.floor(index / 2) * 7))
   doc.setTextColor(MUTED)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7)
-  doc.text('Hinweis / Note: Angaben und hochgeladene Unterlagen werden durch EMA nicht automatisch als bestaetigt behandelt.', 15, 270)
-  doc.text('All information remains unverified until supporting evidence has been reviewed.', 15, 275)
+  doc.setFontSize(6.5)
+  doc.text('Angaben gelten bis zur Pruefung der Nachweise als nicht bestaetigt. / Information remains unverified until evidence has been reviewed.', 15, 279)
+  drawFactSheetFooter(doc, 2)
   return doc
 }
 
@@ -501,8 +516,8 @@ export async function buildDataCenterAssessmentPdf(data: DataCenterAssessmentPdf
   return doc
 }
 
-export function downloadDataCenterFactSheetPdf() {
-  download(buildDataCenterFactSheetPdf(), 'EMA_Data_Center_Project_Fact_Sheet_DE_EN.pdf')
+export async function downloadDataCenterFactSheetPdf() {
+  download(await buildDataCenterFactSheetPdf(), 'EMA_Data_Center_Project_Key_Facts_DE_EN.pdf')
 }
 
 export async function downloadDataCenterAssessmentPdf(data: DataCenterAssessmentPdfData) {
