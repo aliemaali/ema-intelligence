@@ -1,7 +1,7 @@
-import { DataCenterAnalyzerForm } from '@/components/data-center/DataCenterAnalyzerForm'
+import { DataCenterSmartCheck } from '@/components/data-center/DataCenterSmartCheck'
 
-export const metadata = { title: 'EMA Rechenzentrum-Analyse' }
+export const metadata = { title: 'EMA Data Center Smart Check' }
 
 export default function DataCenterPage() {
-  return <DataCenterAnalyzerForm />
+  return <DataCenterSmartCheck />
 }

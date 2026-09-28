@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 
 const GRID_STATUSES = new Set([
+  'unknown',
   'indicated',
   'requested',
   'grid_study_ongoing',
@@ -14,6 +15,7 @@ const GRID_STATUSES = new Set([
 ])
 
 const OFFTAKER_STATUSES = new Set([
+  'unknown',
   'none',
   'searching',
   'initial_contact',
@@ -25,6 +27,7 @@ const OFFTAKER_STATUSES = new Set([
 ])
 
 const PROJECT_MODELS = new Set([
+  'unknown',
   'greenfield',
   'existing_building',
   'brownfield_conversion',
@@ -61,15 +64,16 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
 
   const address = text(formData, 'address')
   const city = text(formData, 'city')
-  if (!address && !city) return { error: 'Bitte einen Standort auswählen oder eingeben.' }
+  const fromSmartCheck = text(formData, 'smartCheckSource') === 'partner_note'
+  if (!address && !city && !fromSmartCheck) return { error: 'Bitte einen Standort auswählen oder eingeben.' }
   const projectName = text(formData, 'projectName') || `Rechenzentrum ${city || address}`
 
   const gridCapacityMw = nullableNumber(formData, 'gridCapacityMw')
   const pue = nullableNumber(formData, 'pue') ?? 1.25
   const estimatedItMw = gridCapacityMw && pue > 0 ? gridCapacityMw / pue : null
-  const gridStatus = allowed(text(formData, 'gridStatus'), GRID_STATUSES, 'indicated')
-  const offtakerStatus = allowed(text(formData, 'offtakerStatus'), OFFTAKER_STATUSES, 'none')
-  const projectModel = allowed(text(formData, 'projectModel'), PROJECT_MODELS, 'greenfield')
+  const gridStatus = allowed(text(formData, 'gridStatus'), GRID_STATUSES, fromSmartCheck ? 'unknown' : 'indicated')
+  const offtakerStatus = allowed(text(formData, 'offtakerStatus'), OFFTAKER_STATUSES, fromSmartCheck ? 'unknown' : 'none')
+  const projectModel = allowed(text(formData, 'projectModel'), PROJECT_MODELS, fromSmartCheck ? 'unknown' : 'greenfield')
   const purchasePriceMode = text(formData, 'purchasePriceMode') === 'per_mw' ? 'per_mw' : 'total'
   const totalPurchasePrice = nullableNumber(formData, 'totalPurchasePrice')
   const pricePerMw = nullableNumber(formData, 'pricePerMw')
@@ -100,6 +104,7 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
   if (!gridCapacityMw) critical.push('Netzanschlussleistung fehlt')
   else if (!['confirmed_in_writing', 'contractually_secured'].includes(gridStatus)) critical.push('Netzanschlussleistung nicht bestätigt')
   else toVerify.push('Netznachweis dokumentarisch prüfen')
+  if (!address && !city) toVerify.push('Projektstandort erfragen')
   if (text(formData, 'planningStatus') === 'planning_conflict') critical.push('Baurechtlicher Konflikt angegeben')
   if (text(formData, 'dataCenterUseStatus') !== 'confirmed') toVerify.push('Data-Center-Nutzung baurechtlich bestätigen')
   if (text(formData, 'routeDiversityStatus') !== 'confirmed') toVerify.push('Physische Glasfaserredundanz bestätigen')
@@ -111,6 +116,7 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
 
   const siteCheck = {
     analyzerVersion: 1,
+    intakeMode: fromSmartCheck ? 'smart_check' : 'full_form',
     address,
     street: text(formData, 'street'),
     houseNumber: text(formData, 'houseNumber'),
@@ -191,13 +197,13 @@ export async function createDataCenterAnalyzerProject(formData: FormData) {
       },
       source_metadata: {
         dataCenterAnalyzer: {
-          source: 'manual',
-          sourceName: 'EMA Data Center Analyzer',
+          source: fromSmartCheck ? 'partner_note' : 'manual',
+          sourceName: fromSmartCheck ? 'EMA Data Center Smart Check' : 'EMA Data Center Analyzer',
           importedAt: savedAt,
         },
       },
       notes: text(formData, 'notes') || null,
-      tags: ['data-center-analyzer'],
+      tags: fromSmartCheck ? ['data-center-analyzer', 'smart-check'] : ['data-center-analyzer'],
       is_archived: false,
       last_activity_at: savedAt,
     } as never)
