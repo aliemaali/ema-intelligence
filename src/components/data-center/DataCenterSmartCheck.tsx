@@ -124,7 +124,7 @@ export function DataCenterSmartCheck() {
   return (
     <div className="min-h-[100dvh] bg-[#031126] pb-[max(2rem,env(safe-area-inset-bottom))] text-white">
       <div className="relative overflow-hidden border-b border-[#184574]/40 bg-[#031126]">
-        <div className="absolute inset-0 bg-[url('/hero-datacenter.webp')] bg-cover bg-[center_40%] opacity-50" />
+        <div className="absolute inset-0 bg-[url('/hero-datacenter-smart-check.webp')] bg-cover bg-[center_40%] opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-r from-[#031126]/95 via-[#031126]/78 to-[#031126]/45" />
         <div className="relative mx-auto max-w-4xl px-5 pb-8 pt-[calc(env(safe-area-inset-top)+1rem)] sm:px-8">
           <div className="flex min-h-12 items-center justify-between">
