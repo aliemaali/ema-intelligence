@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Archive, BellRing, Bot, BriefcaseBusiness, Building2, Calculator,
+  Grid2X2, Archive, BellRing, Bot, BriefcaseBusiness, Building2, Calculator,
   CalendarDays, CheckSquare, ChevronRight, ClipboardPenLine, FileText,
   FolderOpen, Handshake, Inbox, LayoutDashboard, LogOut, Mail,
   MoreHorizontal, Send, Settings, Users, X,
@@ -22,6 +22,7 @@ const MORE_GROUPS = [
   {
     label: 'Arbeit',
     items: [
+      { label: 'Hauptseite', href: '/apps', icon: Grid2X2 },
       { label: 'Meine Assistenz', href: '/assistant', icon: BellRing },
       { label: 'Aufgaben', href: '/tasks', icon: CheckSquare },
       { label: 'Kalender', href: '/calendar', icon: CalendarDays },

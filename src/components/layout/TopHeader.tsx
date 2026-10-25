@@ -8,10 +8,10 @@ import { MicrosoftTeamsIcon } from '@/components/microsoft/MicrosoftTeamsIcon'
 export function TopHeader() {
   return (
     <header className="app-header">
-      <Link href="/apps" className="flex items-center gap-3" aria-label="EMA Startzentrale öffnen">
-        <span className="ema-brand-logo" aria-hidden="true">
+      <Link href="/apps" className="flex items-center gap-3" aria-label="EMA Hauptseite öffnen">
+        <span className="flex flex-col items-start gap-1"><span className="ema-brand-logo" aria-hidden="true">
           <Image src="/brand/ema-mark-white.png" alt="" width={506} height={247} priority className="h-auto w-full" />
-        </span>
+        </span><span className="text-[10px] font-bold text-slate-300">Hauptseite</span></span>
         <span className="hidden text-lg font-extrabold tracking-tight text-white sm:block">EMA Intelligence</span>
       </Link>
 

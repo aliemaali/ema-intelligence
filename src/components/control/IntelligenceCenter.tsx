@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bell, CalendarDays, Check, ChevronRight, FileText, Keyboard, Mail, Mic, RefreshCw, Send, Sparkles, Target } from 'lucide-react'
+import { Grid2X2, Bell, CalendarDays, Check, ChevronRight, FileText, Keyboard, Mail, Mic, RefreshCw, Send, Sparkles, Target } from 'lucide-react'
 import { CalendarArtwork, ConnectedAreas, ControlHero } from './ControlHero'
 import { EMA_MAILBOXES, type ControlMail } from '@/lib/control/mail'
 import styles from './control.module.css'
@@ -35,7 +35,7 @@ export function IntelligenceCenter(seed:Seed) {
   const next=appointments[0],due=seed.items.filter(item=>item.kind!=='appointment'&&item.dueAt).sort((a,b)=>Date.parse(a.dueAt!)-Date.parse(b.dueAt!))[0]
   async function syncInvoices(){setSyncing(true);setSyncMessage('');try{const response=await fetch('/office/api/intelligence/invoice-sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mailboxes:EMA_MAILBOXES})});if(!response.headers.get('content-type')?.includes('application/json'))throw Error('Bitte zuerst EMA Office öffnen und anmelden.');const data=await response.json();if(!response.ok)throw Error(data.error||'Abgleich konnte nicht gestartet werden.');setSyncMessage(`${data.created??0} neue Belege zur Prüfung, ${data.duplicate??0} Dubletten erkannt.${data.partial?' Der Abgleich ist teilweise fehlgeschlagen; bitte die Verbindung prüfen.':''}${data.subscriptionError?' '+data.subscriptionError:''}`);void refresh()}catch(e){setSyncMessage(e instanceof Error?e.message:'Abgleich fehlgeschlagen.')}finally{setSyncing(false)}}
   return <div className={styles.center}>
-    <header className={styles.brandbar}><Link href="/apps"><strong>EMA</strong> <span>Intelligence</span></Link><div className={styles.brandTools}><Link href="/assistant" aria-label="Erinnerungen und Aufgaben"><Bell size={21} /></Link><Link href="/settings" className={styles.avatar} aria-label="Mein Profil">{seed.firstName.slice(0,1)}</Link></div></header>
+    <header className={styles.brandbar}><Link href="/apps"><strong>EMA</strong> <span>Intelligence</span></Link><div className={styles.brandTools}><Link href="/apps" aria-label="EMA Hauptseite öffnen" title="Hauptseite"><Grid2X2 size={21} /></Link><Link href="/assistant" aria-label="Erinnerungen und Aufgaben"><Bell size={21} /></Link><Link href="/settings" className={styles.avatar} aria-label="Mein Profil">{seed.firstName.slice(0,1)}</Link></div></header>
     <ControlHero title={`Hallo, ${seed.firstName}.`} subtitle="Deine Zentrale denkt mit.">
       <form className={styles.command} onSubmit={event=>{event.preventDefault();ask()}}><Sparkles /><input ref={input} aria-label="Auftrag an EMA" value={command} maxLength={2000} onChange={event=>setCommand(event.target.value)} placeholder="Was soll ich für dich erledigen?" /><button type="button" className={styles.mic} aria-label="Mit EMA sprechen" onClick={()=>ask()}><Mic size={21}/></button><button type={command.trim()?'submit':'button'} className={styles.keyboard} aria-label={command.trim()?'Auftrag senden':'Auftrag eingeben'} onClick={()=>{if(!command.trim())input.current?.focus()}}>{command.trim()?<Send size={18}/>:<Keyboard size={19}/>}</button></form>
 

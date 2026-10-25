@@ -980,3 +980,22 @@ input[type="radio"] {
       0 0 24px rgba(var(--dms-panel-rgb, 91, 137, 255), .055) !important;
   }
 }
+
+/* Mobile navigation occupies its own row and reaches the lower safe area. */
+@media (max-width: 767px) {
+  .app-bottom-nav {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding: 0 8px env(safe-area-inset-bottom, 0px);
+    border-radius: 18px 18px 0 0;
+    border-width: 1px 0 0;
+    background: #051229;
+    box-shadow: 0 -6px 24px rgba(0,0,0,.18);
+  }
+  .app-content { padding-bottom: 16px; }
+}
+.ema-home-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #afcce3; font-size: 13px; font-weight: 700; }
+.ema-home-link:hover { color: #b4fa82; }
+@media print { .ema-home-link { display: none !important; } }

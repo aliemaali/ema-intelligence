@@ -1,7 +1,7 @@
 import { ControlHero } from '@/components/control/ControlHero'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Bot, Database, FileArchive, Files } from 'lucide-react'
+import { Grid2X2, Bot, Database, FileArchive, Files } from 'lucide-react'
 import { DmsWorkspace } from '@/components/dms/DmsWorkspace'
 import { NdaGeneratorCard } from '@/components/templates/NdaGeneratorCard'
 import { AdditionalDocumentGenerators } from '@/components/templates/AdditionalDocumentGenerators'
@@ -33,6 +33,7 @@ export default async function DmsPage() {
   return (
     <main className="dms-premium min-h-screen px-3 pb-10 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-7 md:py-7">
       <div className="mx-auto max-w-[1380px]">
+        <Link href="/apps" className="ema-home-link mb-3" aria-label="EMA Hauptseite öffnen"><Grid2X2 className="h-4 w-4" /> Hauptseite</Link>
         <ControlHero area="dms" title="Deine Dokumente. Zentral verbunden." subtitle="Dokumente, Datenräume und Prüfungen. Gemeinsam mit EMA Intelligence und Office.">
           <div className="mt-6 grid grid-cols-3 gap-2 md:max-w-2xl md:gap-3">
             <div className="dms-stat-tile rounded-2xl border border-white/10 bg-white/[.045] p-3"><Files className="h-4 w-4 text-[#8eee51]" /><strong className="mt-2 block text-xl md:text-2xl">{documents.length}</strong><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Dokumente</span></div>
