@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { AudioWaveform, Building2, Files, Orbit, ServerCog } from 'lucide-react'
+import { FileText, Building2, Files, Orbit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import styles from './launcher.module.css'
 
@@ -16,11 +16,10 @@ export default async function AppsPage() {
     <div className={styles.backdrop} aria-hidden="true" />
     <div className={styles.brand}><Image src="/brand/ema-mark-white.png" alt="EMA Enterprise" width={506} height={247} priority className={styles.brandLogo} /></div>
     <section className={styles.grid} aria-label="EMA Anwendungen">
-      <Link href="/dashboard" className={`${styles.card} ${styles.intelligence}`} aria-label="EMA Intelligence öffnen"><span className={styles.visual}><Orbit /></span><strong>EMA Intelligence</strong><small>Projekte & Investments</small></Link>
-      <a href={officeUrl} className={`${styles.card} ${styles.office}`} aria-label="EMA Office öffnen"><span className={styles.visual}><Building2 /></span><strong>EMA Office</strong><small>Unternehmenssteuerung</small></a>
+      <Link href="/dashboard" className={`${styles.card} ${styles.intelligence}`} aria-label="EMA Intelligence öffnen"><span className={styles.visual}><Orbit /></span><strong>EMA Intelligence</strong><small>Dein persönlicher Assistent</small></Link>
+      <a href={officeUrl} className={`${styles.card} ${styles.office}`} aria-label="EMA Office öffnen"><span className={styles.visual}><Building2 /></span><strong>EMA Office</strong><small>Angebote & Rechnungen</small></a>
       <Link href="/dms" className={`${styles.card} ${styles.dms}`} aria-label="EMA DMS öffnen"><span className={styles.visual}><Files /></span><strong>EMA DMS</strong><small>Dokumente & Datenräume</small></Link>
-      <Link href="/ema" className={`${styles.card} ${styles.ai}`} aria-label="EMA AI Sprachassistent öffnen"><span className={styles.visual}><AudioWaveform /></span><strong>EMA AI</strong><small>Sprachassistent</small></Link>
-      <Link href="/data-center" className={`${styles.card} ${styles.dataCenter}`} aria-label="EMA Rechenzentrum öffnen"><span className={styles.visual}><ServerCog /></span><strong>EMA Rechenzentrum</strong><small>Standort & Projektprüfung</small></Link>
+      <Link href="/expose" className={`${styles.card} ${styles.expose}`} aria-label="EMA Exposé öffnen"><span className={styles.visual}><FileText /></span><strong>EMA Exposé</strong><small>BESS · PV · Data Center</small></Link>
     </section>
   </main>
 }

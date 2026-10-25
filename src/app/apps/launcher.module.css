@@ -61,7 +61,7 @@
   display: grid;
   width: min(92vw, 1240px);
   transform: translateX(-50%);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(12px, 1.7vw, 24px);
 }
 
@@ -95,13 +95,11 @@
 .intelligence { background: radial-gradient(circle at 50% 35%, rgba(99, 228, 48, .22), transparent 35%), rgba(6, 32, 54, .76); border-color: rgba(131, 235, 78, .38); }
 .office { background: radial-gradient(circle at 50% 35%, rgba(52, 96, 244, .32), transparent 36%), rgba(8, 28, 65, .77); border-color: rgba(87, 126, 255, .42); }
 .dms { background: radial-gradient(circle at 50% 35%, rgba(26, 203, 180, .26), transparent 36%), rgba(5, 37, 57, .78); border-color: rgba(55, 226, 193, .4); }
-.ai { background: radial-gradient(circle at 50% 35%, rgba(138, 74, 255, .32), transparent 36%), rgba(17, 23, 69, .78); border-color: rgba(140, 99, 255, .44); }
-.dataCenter { background: radial-gradient(circle at 50% 35%, rgba(43, 173, 255, .3), transparent 36%), rgba(4, 31, 61, .8); border-color: rgba(72, 190, 255, .46); }
+.expose { background: radial-gradient(circle at 50% 35%, rgba(138, 74, 255, .32), transparent 36%), rgba(17, 23, 69, .78); border-color: rgba(140, 99, 255, .44); }
 .intelligence::after { background: #6fe832; }
 .office::after { background: #3067ff; }
 .dms::after { background: #19c9ae; }
-.ai::after { background: #824cff; }
-.dataCenter::after { background: #25b9ff; }
+.expose::after { background: #824cff; }
 
 .visual {
   position: absolute;
@@ -123,8 +121,7 @@
 .intelligence .visual { color: #8ff35a; }
 .office .visual { color: #70a3ff; }
 .dms .visual { color: #5ce5cd; }
-.ai .visual { color: #b79aff; }
-.dataCenter .visual { color: #73d7ff; }
+.expose .visual { color: #b79aff; }
 .card strong { position: relative; z-index: 1; font-size: clamp(15px, 1.5vw, 24px); font-weight: 800; letter-spacing: -.03em; }
 .card small { position: relative; z-index: 1; margin-top: 5px; color: rgba(226, 235, 247, .66); font-size: clamp(9px, .78vw, 12px); font-weight: 700; }
 
@@ -132,7 +129,6 @@
   .brand { top: max(7.5dvh, 3rem); }
   .grid { top: 21dvh; width: min(92vw, 760px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: min(3vw, 20px); }
   .card { aspect-ratio: 1 / 1.03; }
-  .dataCenter { grid-column: 1 / -1; width: calc(50% - 10px); justify-self: center; }
 }
 
 @media (max-width: 430px) {
@@ -145,3 +141,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+
+/* The central assistant leads; three focused tools follow. Flow layout stays scrollable on short screens. */
+.brand { position: relative; top: auto; left: auto; transform: none; margin: 0 auto; padding-top: max(2rem, 5dvh); }
+.grid { position: relative; top: auto; left: auto; transform: none; margin: 3rem auto; padding-bottom: 2rem; }
+.intelligence { grid-column: 1 / -1; aspect-ratio: auto; min-height: 190px; justify-content: center; padding-left: 30%; }
+.intelligence .visual { top: 50%; left: 15%; width: 100px; transform: translate(-50%, -50%); }
+@media (max-width: 900px), (max-aspect-ratio: 4 / 3) {
+  .intelligence { min-height: 155px; padding-left: 28%; }
+  .intelligence .visual { width: 76px; }
+  .expose { grid-column: 1 / -1; aspect-ratio: auto; min-height: 145px; justify-content: center; padding-left: 28%; }
+  .expose .visual { top: 50%; left: 15%; width: 76px; transform: translate(-50%, -50%); }
+}

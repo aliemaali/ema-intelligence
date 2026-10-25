@@ -8,6 +8,7 @@ import { z } from 'zod'
 
 import { buildInterFontFaceCss, fileToDataUri } from '@/lib/pdf/projektliste/loadFonts'
 import { renderMemorandumHtml } from '@/lib/pdf/projektliste/memorandumTemplate'
+import { exposeHero } from '@/lib/expose/wizard'
 import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
@@ -126,7 +127,9 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'Die Exposé-Daten sind ungültig.', details: parsed.error.flatten() }, { status: 400 })
 
   const root = process.cwd()
-  const heroImage = fileToDataUri(path.join(root, 'public/pdf/hero-solarpark.jpg'), 'image/jpeg')
+  const heroPath = exposeHero(parsed.data.projectType)
+  const heroMime = heroPath.endsWith('.svg') ? 'image/svg+xml' : heroPath.endsWith('.webp') ? 'image/webp' : 'image/jpeg'
+  const heroImage = fileToDataUri(path.join(root, 'public', heroPath.slice(1)), heroMime)
   if (!heroImage) return NextResponse.json({ error: 'Das EMA-Hero-Bild fehlt.' }, { status: 500 })
   const uploadedProjectImage = await remoteImageToDataUri(parsed.data.projectImage)
   const defaultDataCenterImage = parsed.data.projectType === 'rechenzentrum'
@@ -136,7 +139,7 @@ export async function POST(request: Request) {
   const html = renderMemorandumHtml(parsed.data, {
     germanyMap: germany,
     fontFaceCss: fontFaceCss(),
-    heroImage,
+    heroImage: uploadedProjectImage ?? heroImage,
     logoWhiteDataUri: fileToDataUri(path.join(root, 'public/brand/ema-mark-white.png'), 'image/png'),
     projectImage,
   })

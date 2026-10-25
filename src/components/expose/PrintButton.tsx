@@ -125,9 +125,9 @@ function openOrDownloadPdf(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 120000)
 }
 
-interface PrintButtonProps { data: MemorandumPdfData }
+interface PrintButtonProps { data: MemorandumPdfData; projectId?: string }
 
-export function PrintButton({ data }: PrintButtonProps) {
+export function PrintButton({ data, projectId: explicitProjectId }: PrintButtonProps) {
   const [isPreparing, setIsPreparing] = useState(false)
   const [language, setLanguage] = useState<MemorandumLanguage>('de')
 
@@ -138,7 +138,7 @@ export function PrintButton({ data }: PrintButtonProps) {
     try {
       step = 'PDF erzeugen'
       const blob = await generateMemorandumPdf(dataForLanguage(data, language))
-      const projectId = currentProjectId()
+      const projectId = explicitProjectId ?? currentProjectId()
       if (projectId) {
         step = 'Dokumentversion speichern'
         const result = await markProjectOutputGenerated(projectId, 'investment_memorandum')
@@ -156,10 +156,10 @@ export function PrintButton({ data }: PrintButtonProps) {
   }
 
   return (
-    <div className="print:hidden flex items-center gap-2">
+    <div className="print:hidden flex flex-wrap items-center gap-2">
       <label className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-[#0B1633]">
         <Languages className="h-4 w-4 text-[#5CB800]" />
-        <select value={language} onChange={(event) => setLanguage(event.target.value as MemorandumLanguage)} className="bg-white outline-none">
+        <select aria-label="PDF-Sprache" value={language} onChange={(event) => setLanguage(event.target.value as MemorandumLanguage)} className="bg-white outline-none">
           <option value="de">Deutsch</option>
           <option value="en">English</option>
         </select>

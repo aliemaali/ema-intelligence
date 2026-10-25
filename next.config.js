@@ -29,6 +29,13 @@ const nextConfig = {
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
 
   outputFileTracingIncludes: {
+    '/api/memorandum/pdf': [
+      './public/pdf/hero-solarpark.jpg',
+      './public/project-bess.svg',
+      './public/hero-datacenter.webp',
+      './public/brand/ema-mark-white.png',
+      './public/fonts/inter/*.woff2',
+    ],
     '/api/plaud/notes/*/pdf': [
       './public/brand/ema-logo.png',
       './public/fonts/inter/*.ttf',
