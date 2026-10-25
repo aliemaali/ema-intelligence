@@ -90,7 +90,7 @@ export function BottomNav({ user }: BottomNavProps) {
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href)
   const navigationHidden = HIDDEN_ROUTE_PATTERNS.some((pattern) => pattern.test(pathname))
-  const moreActive = MORE_GROUPS.some((group) => group.items.some((item) => isActive(item.href)))
+  const moreActive = !MAIN_ITEMS.some((item) => isActive(item.href)) && MORE_GROUPS.some((group) => group.items.some((item) => isActive(item.href)))
   const displayName = user.name.trim() === 'Ali Ünlü' ? 'Ali Ünlüer' : user.name
 
   if (navigationHidden) return null

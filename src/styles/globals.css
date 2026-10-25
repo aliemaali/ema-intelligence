@@ -31,8 +31,8 @@
     --toast-color:          hsl(214 45% 96%);
     --sidebar-width:        272px;
     --sidebar-width-collapsed: 64px;
-    --header-height:        92px;
-    --bottom-nav-height:    86px;
+    --header-height:        68px;
+    --bottom-nav-height:    64px;
     --ema-blue:             #132060;
     --ema-blue-dark:        #07142F;
     --ema-green:            #5CB800;
@@ -111,7 +111,9 @@
 
 @layer components {
   .app-shell {
-    @apply mx-auto flex h-screen w-full max-w-[1480px] overflow-hidden;
+    @apply mx-auto flex w-full max-w-[1480px] overflow-hidden;
+    height: 100vh;
+    height: 100dvh;
     background: rgba(3, 14, 32, 0.72);
   }
 
@@ -125,11 +127,11 @@
   }
 
   .app-main {
-    @apply flex-1 flex flex-col min-w-0 overflow-hidden;
+    @apply flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden;
   }
 
   .app-header {
-    @apply flex shrink-0 items-center justify-between border-b px-5 md:px-8;
+    @apply flex shrink-0 items-center justify-between gap-3 border-b px-4 md:px-8;
     min-height: calc(var(--header-height) + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
     background: linear-gradient(110deg, rgba(5,18,42,0.94), rgba(8,29,62,0.90));
@@ -147,25 +149,31 @@
 
   .ema-brand-logo {
     display: inline-flex;
-    width: 5.2rem;
-    flex: 0 0 5.2rem;
+    width: 4.4rem;
+    flex: 0 0 4.4rem;
     align-items: center;
     filter: drop-shadow(0 0 9px rgba(255,255,255,.18)) drop-shadow(0 0 18px rgba(117,238,53,.28));
   }
 
   .app-content {
-    @apply flex-1 overflow-y-auto;
+    @apply flex-1 min-h-0 min-w-0 overflow-y-auto;
     background: linear-gradient(150deg, rgba(2,13,30,0.45), rgba(7,25,54,0.40));
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+    padding-bottom: 24px;
+    scroll-padding-block: 16px;
+    overscroll-behavior-y: contain;
+  }
+
+  .app-main--dashboard .app-content {
+    padding-top: env(safe-area-inset-top);
   }
 
   .app-bottom-nav {
-    @apply fixed z-50 flex items-center justify-around border;
-    left: max(1rem, calc(50% - 28rem));
-    right: max(1rem, calc(50% - 28rem));
-    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    @apply relative z-50 flex shrink-0 items-center justify-around self-center border;
+    width: calc(100% - 2rem);
+    max-width: 896px;
+    margin: 8px 16px calc(8px + env(safe-area-inset-bottom));
     height: var(--bottom-nav-height);
-    border-radius: 1.8rem;
+    border-radius: 1.4rem;
     border-color: rgba(95, 141, 225, 0.28);
     background: rgba(5, 18, 41, 0.92);
     backdrop-filter: blur(24px);
@@ -175,6 +183,7 @@
   @media (min-width: 768px) {
       .app-shell {
       height: calc(100vh - 2rem);
+      height: calc(100dvh - 2rem);
       margin-top: 1rem;
       border: 1px solid rgba(94, 141, 228, 0.22);
       border-radius: 2.25rem;

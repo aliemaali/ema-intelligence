@@ -10,3 +10,55 @@
 @media(max-width:420px){.universe{height:151px}.hero{min-height:220px}.heroAction{margin-top:0}.mailRow{min-height:67px;padding:10px;gap:9px}.mailText strong{font-size:12px}.mailText small{font-size:10px}.mailText p{font-size:9px}.caption{font-size:9px}.stats{padding-top:11px;padding-bottom:11px}}
 
 .intelligence{border-color:#3c789b}
+
+/* The shared hero stays balanced at phone, tablet and desktop widths. */
+.hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 12px; }
+.heroText { min-width: 0; }
+.hero h1 { overflow-wrap: anywhere; text-wrap: balance; }
+.hero p { margin-bottom: 0; }
+.universe { min-width: 0; }
+.satellite small { font-size: inherit; }
+.center .command input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.center .command input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus { background: transparent !important; box-shadow: none !important; border: 0 !important; font-size: 16px; }
+.center .command input::placeholder { color: #a9bfd5 !important; -webkit-text-fill-color: #a9bfd5 !important; }
+.flow { flex-wrap: wrap; }
+@media (max-width: 767px) {
+  .center { padding: 12px 12px 20px; }
+  .hero { min-height: 0; padding: 18px 14px 14px; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); border-radius: 20px; }
+  .hero h1 { font-size: clamp(25px, 6.9vw, 32px); line-height: 1.12; letter-spacing: -.9px; margin: 14px 0 8px; }
+  .hero p { font-size: 12px; line-height: 1.55; }
+  .universe { height: 172px; }
+  .globe { width: 92%; left: 4%; }
+  .satellite { font-size: 8px; }
+  .satellite > span { width: 30px; height: 30px; border-radius: 9px; }
+  .satellite svg { width: 17px; height: 17px; }
+  .pill { font-size: 9px; padding: 5px 7px; }
+  .heroAction { margin-top: 8px; }
+  .command { min-height: 54px; padding: 7px 9px; gap: 7px; }
+  .mic { width: 36px; height: 36px; }
+  .hero.dms, .hero.expose, .hero.office { min-height: 0; }
+  .dms h1, .expose h1, .office h1 { font-size: clamp(23px, 5.9vw, 29px); }
+  .dms .universe, .expose .universe, .office .universe { height: 184px; }
+  .stats { padding: 12px 3px; }
+  .stat { padding: 0 8px; gap: 7px; }
+  .ring { width: 35px; height: 35px; }
+  .ring > span { width: 27px; height: 27px; }
+  .statText strong { font-size: 19px; }
+  .statText b { font-size: 11px; }
+  .statText small { font-size: 9px; line-height: 1.5; display: block; }
+  .panel { border-radius: 20px; }
+  .empty { font-size: 12px; padding: 13px; }
+  .flowPath { flex-basis: 100%; max-width: none; }
+  .flowLabel { text-align: left; }
+  .mailbox { font-size: 10px; min-height: 36px; max-width: 100%; }
+  .mailbox span { overflow-wrap: anywhere; }
+}
+@media (max-width: 359px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .heroText { text-align: center; }
+  .hero h1 { overflow-wrap: normal; }
+  .hero p { margin-inline: auto; }
+  .universe, .dms .universe, .expose .universe { width: 240px; max-width: 100%; height: 160px; margin: auto; }
+  .stat { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .brandbar > a { font-size: 18px; }
+}

@@ -168,7 +168,7 @@ export function MicrosoftContactManager() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+7.5rem)] right-4 z-[90] inline-flex items-center gap-2 rounded-full bg-[#1F2A44] px-4 py-3 text-sm font-extrabold text-white shadow-[0_16px_40px_rgba(15,23,42,0.28)] transition hover:-translate-y-0.5 md:bottom-8 md:right-8"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-[#1F2A44] px-3 py-2 text-xs font-extrabold text-white"
         aria-label="Outlook-Kontakte bearbeiten oder löschen"
       >
         <ContactRound className="h-5 w-5" />

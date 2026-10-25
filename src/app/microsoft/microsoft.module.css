@@ -1,23 +1,13 @@
-.microsoftPage form input:not([type='checkbox']),
-.microsoftPage form select,
-.microsoftPage form textarea {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-  color-scheme: light;
-  -webkit-text-fill-color: #0f172a;
-}
-
-.microsoftPage form input:not([type='checkbox'])::placeholder,
-.microsoftPage form textarea::placeholder {
-  color: #94a3b8;
-  opacity: 1;
-  -webkit-text-fill-color: #94a3b8;
-}
-
-.microsoftPage form input:not([type='checkbox']):disabled,
-.microsoftPage form select:disabled,
-.microsoftPage form textarea:disabled {
-  background-color: #f8fafc !important;
-  color: #64748b !important;
-  -webkit-text-fill-color: #64748b;
+/* Explicit dark surfaces keep background and foreground in the same theme. */
+.microsoftPage { min-width: 0; color: #f4f8ff; }
+.hub { width: 100%; min-width: 0; }
+.hero { background: radial-gradient(ellipse at 90% 0%, #19534d66, transparent 60%), linear-gradient(135deg, #102b4b, #07162c); border-color: #456c8a66 !important; }
+.hero h1 { text-wrap: balance; }
+.stats > div { min-width: 0; }
+.stats p { overflow-wrap: anywhere; }
+@media (max-width: 420px) {
+  .hero { border-radius: 22px; padding: 18px; }
+  .stats > div { padding: 10px; border-radius: 14px; }
+  .stats > div > div { width: 32px; height: 32px; border-radius: 10px; }
+  .stats p { line-height: 1.45; }
 }

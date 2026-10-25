@@ -295,7 +295,7 @@ export function ProjectImportUploaderV2() {
         ) : null}
 
         <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.16em] text-slate-500">{importMode === 'single' ? '2. Dateien auswählen' : 'Projektliste auswählen'}</p>
-        <label className={`flex min-h-[240px] flex-col items-center justify-center rounded-[2rem] border-2 border-dashed p-6 text-center transition ${importMode === 'single' && !projectType ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-55' : 'cursor-pointer border-[#5CB800]/35 bg-gradient-to-br from-[#5CB800]/8 via-white to-blue-50/70'}`}>
+        <label className={`flex min-h-[240px] flex-col items-center justify-center rounded-[2rem] border-2 border-dashed p-6 text-center transition ${importMode === 'single' && !projectType ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-55' : 'cursor-pointer border-[#5CB800]/35 bg-gradient-to-br from-[#163c36] via-[#0b203b] to-[#0b2546]'}`}>
           <input
             type="file"
             multiple={importMode === 'single'}

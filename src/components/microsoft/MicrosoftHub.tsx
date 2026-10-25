@@ -23,6 +23,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { MicrosoftTeamsIcon } from './MicrosoftTeamsIcon'
+import { MicrosoftContactManager } from './MicrosoftContactManager'
+import styles from '@/app/microsoft/microsoft.module.css'
 
 type Contact = {
   id: string
@@ -219,7 +221,7 @@ export function MicrosoftHub({ projects }: { projects: ProjectOption[] }) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8 md:py-14">
         <Link href="/dashboard" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm" aria-label="Zurück zum Dashboard"><ArrowLeft className="h-5 w-5" /></Link>
-        <section className="mt-6 overflow-hidden rounded-[2rem] border border-white bg-gradient-to-br from-white via-white to-[#EEF1FF] p-7 text-center shadow-[0_24px_70px_rgba(15,23,42,0.10)] md:p-12">
+        <section className="mt-6 overflow-hidden rounded-[2rem] border border-white bg-gradient-to-br from-[#102b4b] via-[#0b203b] to-[#07162c] p-7 text-center shadow-[0_24px_70px_rgba(15,23,42,0.10)] md:p-12">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-[#6264A7]/10"><MicrosoftTeamsIcon className="h-12 w-12" /></div>
           <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.16em] text-[#5CB800]">Microsoft 365</p>
           <h1 className="mt-3 text-4xl font-black tracking-[-0.045em] text-[#07142F] md:text-5xl">Outlook mit EMA verbinden</h1>
@@ -233,7 +235,7 @@ export function MicrosoftHub({ projects }: { projects: ProjectOption[] }) {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-3 py-5 pb-28 md:px-6 md:py-9">
+    <div className={`${styles.hub} mx-auto max-w-7xl px-3 py-4 md:px-6 md:py-7`}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <Link href="/dashboard" className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm" aria-label="Zurück zum Dashboard"><ArrowLeft className="h-5 w-5" /></Link>
         <div className="flex items-center gap-2">
@@ -242,17 +244,17 @@ export function MicrosoftHub({ projects }: { projects: ProjectOption[] }) {
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-[2rem] border border-white bg-gradient-to-br from-white via-white to-[#EEF1FF] p-6 shadow-[0_24px_70px_rgba(15,23,42,0.09)] md:p-9">
+      <section className={`${styles.hero} overflow-hidden rounded-[2rem] border border-white p-5 md:p-8`}>
         <div className="flex flex-col justify-between gap-7 md:flex-row md:items-end">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#5CB800]/10 px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.14em] text-[#3D8F00]"><Sparkles className="h-4 w-4" /> Microsoft 365 Hub</div>
-            <h1 className="max-w-3xl text-4xl font-black tracking-[-0.05em] text-[#07142F] md:text-6xl">Kontakte und Termine an einem Ort.</h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 md:text-lg">Verbunden als <span className="font-extrabold text-[#1F2A44]">{connection.name}</span>{connection.email ? ` · ${connection.email}` : ''}</p>
+            <h1 className="max-w-3xl text-[1.75rem] font-black leading-[1.12] tracking-[-0.035em] text-[#07142F] md:text-5xl">Kontakte und Termine an einem Ort.</h1>
+            <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-slate-600 md:text-base">Verbunden als <span className="font-extrabold text-[#1F2A44]">{connection.name}</span>{connection.email ? ` · ${connection.email}` : ''}</p>
           </div>
           <button onClick={() => openEventForm()} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#5CB800] px-5 py-3.5 font-extrabold text-white shadow-[0_14px_30px_rgba(92,184,0,0.28)]"><Plus className="h-5 w-5" /> Neuen Termin planen</button>
         </div>
 
-        <div className="mt-8 grid grid-cols-3 gap-2 md:gap-4">
+        <div className={`${styles.stats} mt-5 grid grid-cols-3 gap-2 md:gap-4`}>
           <div className="rounded-[1.3rem] border border-slate-100 bg-white p-3 shadow-sm md:p-5"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#5CB800]/10 text-[#3D8F00]"><Users className="h-5 w-5" /></div><p className="mt-4 text-2xl font-black md:text-3xl">{contacts.length}</p><p className="mt-1 text-[11px] font-semibold text-slate-500 md:text-sm">Outlook-Kontakte</p></div>
           <div className="rounded-[1.3rem] border border-slate-100 bg-white p-3 shadow-sm md:p-5"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700"><CalendarDays className="h-5 w-5" /></div><p className="mt-4 text-2xl font-black md:text-3xl">{upcomingEvents.length}</p><p className="mt-1 text-[11px] font-semibold text-slate-500 md:text-sm">Kommende Termine</p></div>
           <div className="rounded-[1.3rem] border border-slate-100 bg-white p-3 shadow-sm md:p-5"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#6264A7]/10"><MicrosoftTeamsIcon /></div><p className="mt-4 text-2xl font-black md:text-3xl">{teamsCount}</p><p className="mt-1 text-[11px] font-semibold text-slate-500 md:text-sm">Teams-Meetings</p></div>
@@ -262,7 +264,7 @@ export function MicrosoftHub({ projects }: { projects: ProjectOption[] }) {
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_18px_55px_rgba(15,23,42,0.07)] md:p-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div><h2 className="text-2xl font-black tracking-tight text-[#07142F]">Outlook-Kontakte</h2><p className="mt-1 text-sm text-slate-500">Live synchronisiert und direkt für Einladungen nutzbar.</p></div>
+            <div className="min-w-0"><h2 className="text-2xl font-black tracking-tight text-[#07142F]">Outlook-Kontakte</h2><p className="mb-3 mt-1 text-sm text-slate-500">Live synchronisiert und direkt für Einladungen nutzbar.</p><MicrosoftContactManager /></div>
             <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Kontakte suchen" placeholder="Kontakt suchen" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition focus:border-[#5CB800] focus:bg-white sm:w-64" /></div>
           </div>
 
@@ -299,7 +301,7 @@ export function MicrosoftHub({ projects }: { projects: ProjectOption[] }) {
             {upcomingEvents.map((appointment) => {
               const date = eventDate(appointment.start)
               return (
-                <article key={appointment.id} className="rounded-[1.5rem] border border-slate-100 bg-gradient-to-br from-white to-slate-50 p-4 shadow-sm">
+                <article key={appointment.id} className="rounded-[1.5rem] border border-slate-100 bg-gradient-to-br from-[#102b4b] to-[#07162c] p-4 shadow-sm">
                   <div className="flex gap-4">
                     <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#07142F] text-white"><span className="text-xl font-black leading-none">{date.day}</span><span className="mt-1 text-[10px] font-extrabold tracking-[0.12em] text-white/70">{date.month}</span></div>
                     <div className="min-w-0 flex-1">

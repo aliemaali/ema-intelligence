@@ -316,7 +316,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
 
   return (
     <>
-      <div className="mb-3 rounded-2xl border border-[#cfe8b9] bg-gradient-to-br from-[#f7fff1] to-white p-3.5">
+      <div className="mb-3 rounded-2xl border border-[#cfe8b9] bg-gradient-to-br from-[#163c36] to-[#0b203b] p-3.5">
         <div className="mb-1 flex items-center gap-2 text-sm font-extrabold text-[#1F2A44]">
           <ShieldCheck className="h-4.5 w-4.5 text-[#5CB800]" />
           EMA Komponenten-Assistent
@@ -497,7 +497,7 @@ export function CapexComponentPricing({ project, calc, onChange }: Props) {
           className={`mb-3 w-full rounded-2xl border p-3.5 text-left transition-colors ${
             inverterIsBestRecommendation
               ? 'border-[#5CB800] bg-[#EAF7E0]'
-              : 'border-[#b9dd98] bg-gradient-to-br from-[#f7fff1] to-white'
+              : 'border-[#b9dd98] bg-gradient-to-br from-[#163c36] to-[#0b203b]'
           }`}
         >
           <div className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#5CB800]">

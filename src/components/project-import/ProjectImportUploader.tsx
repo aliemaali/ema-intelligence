@@ -142,7 +142,7 @@ export function ProjectImportUploader() {
           className={`group flex min-h-[320px] cursor-pointer flex-col items-center justify-center rounded-[2rem] border-2 border-dashed p-6 text-center transition-all ${
             dragActive
               ? 'border-[#5CB800] bg-[#5CB800]/12 shadow-[0_22px_70px_rgba(15,23,42,0.08)]'
-              : 'border-[#5CB800]/35 bg-gradient-to-br from-[#5CB800]/8 via-white to-blue-50/70 hover:border-[#5CB800]/60 hover:shadow-[0_22px_70px_rgba(15,23,42,0.08)]'
+              : 'border-[#5CB800]/35 bg-gradient-to-br from-[#163c36] via-[#0b203b] to-[#0b2546] hover:border-[#5CB800]/60 hover:shadow-[0_22px_70px_rgba(15,23,42,0.08)]'
           }`}
         >
           <input
