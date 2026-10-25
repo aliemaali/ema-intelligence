@@ -1,14 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Fingerprint, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { runPasskeyAttempt } from '@/lib/auth/passkeyAttempt'
 
 const CANONICAL_HOSTNAME = 'app.ema-enterprise.de'
 const CANONICAL_LOGIN_URL = 'https://app.ema-enterprise.de/login'
 
 function getPasskeyErrorMessage(error: unknown) {
+  if (error instanceof DOMException && error.name === 'TimeoutError') {
+    return 'Die Passkey-Anmeldung hat nicht geantwortet. Bitte erneut versuchen oder unten mit E-Mail und Passwort anmelden.'
+  }
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return 'Passkey-Anmeldung beendet. Du kannst dich unten mit E-Mail und Passwort anmelden.'
+  }
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
     return 'Face ID oder die Passkey-Anmeldung wurde abgebrochen.'
   }
@@ -34,8 +41,16 @@ export function PasskeyLoginButton({ redirectTo }: { redirectTo?: string }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const activeAttempt = useRef<AbortController | null>(null)
+
+  useEffect(() => () => {
+    const attempt = activeAttempt.current
+    activeAttempt.current = null
+    attempt?.abort()
+  }, [])
 
   const handlePasskeyLogin = async () => {
+    if (activeAttempt.current) return
     if (!window.PublicKeyCredential) {
       setErrorMessage('Dieses Gerät oder dieser Browser unterstützt keine Passkeys.')
       return
@@ -49,12 +64,19 @@ export function PasskeyLoginButton({ redirectTo }: { redirectTo?: string }) {
       return
     }
 
+    const controller = new AbortController()
+    activeAttempt.current = controller
     setIsLoading(true)
     setErrorMessage(null)
 
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPasskey()
+      const { error } = await runPasskeyAttempt(
+        signal => supabase.auth.signInWithPasskey({ options: { signal } }),
+        controller,
+      )
+
+      if (activeAttempt.current !== controller || controller.signal.aborted) return
 
       if (error) throw error
 
@@ -64,10 +86,12 @@ export function PasskeyLoginButton({ redirectTo }: { redirectTo?: string }) {
       router.replace(destination)
       router.refresh()
     } catch (error) {
-      console.error('Passkey login failed', error)
-      setErrorMessage(getPasskeyErrorMessage(error))
+      if (activeAttempt.current === controller) setErrorMessage(getPasskeyErrorMessage(error))
     } finally {
-      setIsLoading(false)
+      if (activeAttempt.current === controller) {
+        activeAttempt.current = null
+        setIsLoading(false)
+      }
     }
   }
 
@@ -86,6 +110,16 @@ export function PasskeyLoginButton({ redirectTo }: { redirectTo?: string }) {
         )}
         {isLoading ? 'Passkey wird geprüft …' : 'Mit Face ID / Passkey anmelden'}
       </button>
+
+      {isLoading && (
+        <div className="space-y-2 text-center">
+          <p role="status" className="text-sm text-slate-300">Bitte die Passkey-Anfrage auf deinem Gerät bestätigen.</p>
+          <button type="button" className="min-h-11 px-3 text-sm font-semibold text-[#91f15e] underline underline-offset-4" onClick={() => {
+            activeAttempt.current?.abort(new DOMException('Cancelled', 'AbortError'))
+            document.getElementById('email')?.focus()
+          }}>Abbrechen und Passwort verwenden</button>
+        </div>
+      )}
 
       {errorMessage && (
         <p role="alert" className="break-words px-2 text-center text-sm leading-5 text-destructive">
