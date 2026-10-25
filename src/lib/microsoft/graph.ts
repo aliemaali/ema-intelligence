@@ -8,6 +8,8 @@ export const MICROSOFT_SCOPES = [
   'Contacts.ReadWrite',
   'Calendars.ReadWrite',
   'Mail.Send',
+  'Mail.Read',
+  'Mail.Read.Shared',
 ].join(' ')
 
 export const MICROSOFT_REFRESH_COOKIE = 'ema_ms_refresh'
@@ -68,6 +70,7 @@ async function tokenRequest(params: URLSearchParams): Promise<TokenResponse> {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: params,
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   })
   const payload = await response.json() as TokenResponse
   if (!response.ok || !payload.access_token) {
@@ -95,7 +98,6 @@ export async function refreshMicrosoftToken(refreshToken: string) {
     client_secret: clientSecret,
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
-    scope: MICROSOFT_SCOPES,
   }))
 }
 

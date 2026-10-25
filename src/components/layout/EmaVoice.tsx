@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createPortal } from 'react-dom'
 import { Mic, PhoneOff, X } from 'lucide-react'
-import { EmaVoiceOrb } from './EmaVoiceOrb'
 import { dispatchEmaAssistantTool } from '@/lib/ema/assistantToolDispatcher'
 
 type RealtimePhase = 'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' | 'speaking' | 'error'
@@ -14,6 +13,7 @@ type RealtimePhase = 'idle' | 'connecting' | 'ready' | 'listening' | 'thinking' 
 type RealtimeServerEvent = {
   type?: string
   transcript?: string
+  text?: string
   error?: { message?: string }
   response?: {
     output?: Array<{
@@ -168,6 +168,10 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
   const inputLevelRef = useRef(0)
   const outputLevelRef = useRef(0)
   const greetingPlayedRef = useRef(false)
+  const pendingTextRef = useRef('')
+  const textModeRef = useRef(false)
+  const [textInput, setTextInput] = useState('')
+  const [chatMessages, setChatMessages] = useState<{role:string;text:string}[]>([])
 
   const [realtimePhase, setRealtimePhaseState] = useState<RealtimePhase>('idle')
   const [conversationActive, setConversationActive] = useState(false)
@@ -407,6 +411,12 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
       return
     }
 
+    if (event.type === 'response.output_text.done' || event.type === 'response.output_audio_transcript.done') {
+      const answer = event.text || event.transcript
+      if (answer) setChatMessages(previous => [...previous.slice(-19), {role:'assistant',text:answer}])
+      return
+    }
+
     if (event.type === 'response.created') {
       responseActiveRef.current = true
       setRealtimePhase('thinking')
@@ -613,7 +623,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
         if (channel.readyState === 'open') {
           channel.send(JSON.stringify({
             type: 'response.create',
-            response: { output_modalities: ['audio'] },
+            response: { output_modalities: textModeRef.current ? ['text'] : ['audio'] },
           }))
           responseActiveRef.current = true
         }
@@ -623,6 +633,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
       }
 
       responseActiveRef.current = false
+      if (textModeRef.current && !conversationActiveRef.current) setRealtimePhase('ready')
       if (conversationActiveRef.current) {
         if (phaseRef.current !== 'listening') setRealtimePhase('ready')
         beginCaptureRef.current()
@@ -700,6 +711,12 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
         realtimeActiveRef.current = true
         setRealtimePhase('ready')
         resetRealtimeIdleTimer()
+        if (pendingTextRef.current) {
+          const text = pendingTextRef.current; pendingTextRef.current = ''
+          channel.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text}]}}))
+          channel.send(JSON.stringify({type:'response.create',response:{output_modalities:['text']}}))
+          return
+        }
         if (conversationActiveRef.current) {
           const greetingStarted = requestGreeting(channel)
           if (!greetingStarted && !responseActiveRef.current) beginCaptureRef.current()
@@ -749,6 +766,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
 
   const handleConversationToggle = useCallback(() => {
     triggerHaptic()
+    textModeRef.current = false
 
     if (conversationActiveRef.current) {
       stopRealtime()
@@ -768,7 +786,8 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
   }, [requestGreeting, startRealtime, stopRealtime])
 
   const closeWorkspace = useCallback(() => {
-    if (conversationActiveRef.current) stopRealtime()
+    stopRealtime()
+    pendingTextRef.current = ''
     setWorkspaceOpen(false)
   }, [stopRealtime])
 
@@ -796,16 +815,35 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
     }
   }, [pathname, standalone])
 
-  useEffect(() => {
-    const warmupTimer = window.setTimeout(() => {
-      void startRealtime()
-    }, 300)
+  const submitText = useCallback((raw: string) => {
+    const text = raw.trim().slice(0,2000)
+    if (!text || responseActiveRef.current) return
+    textModeRef.current = true
+    responseActiveRef.current = true
+    setChatMessages(previous => [...previous.slice(-19), {role:'user',text}])
+    setWorkspaceOpen(true)
+    const channel = realtimeChannelRef.current
+    if (channel?.readyState === 'open') {
+      channel.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'user',content:[{type:'input_text',text}]}}))
+      channel.send(JSON.stringify({type:'response.create',response:{output_modalities:['text']}}))
+    } else { pendingTextRef.current = text; void startRealtime() }
+    setTextInput('')
+  }, [startRealtime])
 
-    return () => {
-      window.clearTimeout(warmupTimer)
-      stopRealtime()
+  useEffect(() => {
+    const open = (event: Event) => {
+      const detail = (event as CustomEvent<{text?:string}>).detail
+      setWorkspaceOpen(true)
+      if (typeof detail?.text === 'string' && detail.text.trim()) submitText(detail.text)
+      else if (!conversationActiveRef.current) handleConversationToggle()
     }
-  }, [startRealtime, stopRealtime])
+    window.addEventListener('ema:assistant-open',open)
+    return () => { window.removeEventListener('ema:assistant-open',open); stopRealtime() }
+  },[submitText,stopRealtime,handleConversationToggle])
+
+  useEffect(() => {
+    if (standalone) void startRealtime()
+  },[standalone,startRealtime])
 
   useEffect(() => {
     if (!workspaceOpen || standalone) return
@@ -881,11 +919,7 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
           <main className="relative mx-auto grid min-h-[calc(100dvh-5rem)] w-full max-w-[1500px] grid-cols-1 gap-7 px-5 py-7 md:px-10 lg:grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)] lg:items-center lg:gap-12 lg:py-10">
             <div className="flex min-h-[520px] flex-col items-center justify-center text-center lg:min-h-[680px]">
               <div className="relative h-[330px] w-[330px] sm:h-[450px] sm:w-[450px]">
-                <EmaVoiceOrb
-                  phase={realtimePhase}
-                  inputLevelRef={inputLevelRef}
-                  outputLevelRef={outputLevelRef}
-                />
+                <Image src="/brand/ema-control-globe.webp" alt="EMA Intelligence" fill sizes="450px" className="object-contain" />
               </div>
 
               <button
@@ -902,7 +936,13 @@ export function EmaVoice({ userName, standalone = false }: { userName: string; s
               </button>
             </div>
 
-            <div className="self-stretch pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:flex lg:items-center">
+            <div className="self-stretch pb-[calc(1.5rem+env(safe-area-inset-bottom))] space-y-4">
+              <section className="rounded-3xl border border-blue-300/25 bg-[#071a32] p-5 text-slate-100">
+                <h2 className="text-lg font-bold">Dein Assistent</h2>
+                <div role="log" aria-live="polite" className="mt-4 max-h-80 space-y-3 overflow-y-auto">{chatMessages.map((message,index)=><div key={index} className={`rounded-2xl p-3 text-sm whitespace-pre-wrap ${message.role==='user'?'bg-[#19456a]':'bg-white/5'}`}><strong className="mb-1 block text-xs text-[#91ed65]">{message.role==='user'?'Du':'EMA'}</strong>{message.text}</div>)}</div>
+                {realtimePhase==='error'?<p role="status" className="my-3 text-sm text-amber-200">Die Verbindung konnte nicht aufgebaut werden. Bitte erneut versuchen.</p>:null}
+                <form className="mt-4 flex gap-2" onSubmit={event=>{event.preventDefault();submitText(textInput)}}><input aria-label="Nachricht an EMA" maxLength={2000} value={textInput} onChange={event=>setTextInput(event.target.value)} placeholder="Schreibe deinen Auftrag …" className="min-w-0 flex-1 rounded-xl border border-blue-300/25 bg-[#041126] p-3 text-sm"/><button disabled={!textInput.trim()||realtimePhase==='thinking'||realtimePhase==='connecting'} className="rounded-xl bg-[#8bf04a] px-4 text-sm font-bold text-[#041126] disabled:opacity-50">Senden</button></form>
+              </section>
               {visualResult ? (
                 <div className="w-full overflow-hidden rounded-[28px] border border-[#07142F]/10 bg-white shadow-[0_24px_70px_rgba(7,20,47,0.12)]">
                   <div className="flex flex-col gap-2 border-b border-[#07142F]/10 px-6 py-6 sm:flex-row sm:items-end sm:justify-between sm:px-8">

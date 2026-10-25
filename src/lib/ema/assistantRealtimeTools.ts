@@ -1,4 +1,5 @@
 export const EMA_ASSISTANT_REALTIME_TOOLS = [
+  {type:'function',name:'ema_office_overview',description:'Liest die Zahl prüfpflichtiger Eingangsbelege sowie den Rechnungspostfach-Status aus dem angemeldeten EMA Office. Führt keine Änderung aus.',parameters:{type:'object',properties:{},additionalProperties:false}},
   { type: 'function', name: 'ema_remember', description: 'Speichert eine vom Nutzer ausdrücklich zum Merken bestimmte persönliche, nicht sensible Information dauerhaft. Erfolg bedeutet, dass der Server den Datenbankeintrag anschließend verifiziert hat.', parameters: { type: 'object', properties: { content: { type: 'string' } }, required: ['content'], additionalProperties: false } },
   { type: 'function', name: 'ema_recall', description: 'Durchsucht das persönliche Gedächtnis des angemeldeten Nutzers.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false } },
   { type: 'function', name: 'ema_forget', description: 'Vergisst passende Informationen aus dem persönlichen Gedächtnis.', parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false } },
@@ -31,6 +32,7 @@ Persönliche Assistenz:
 - Bei „Vergiss …“ nutze ema_forget.
 - Bei „Erinnere mich …“ nutze ema_create_reminder. Interpretiere Datum und Uhrzeit in Europe/Berlin und übergib einen ISO-8601-Zeitpunkt.
 - Für heutige oder überfällige Aufgaben nutze ema_list_reminders.
+- Für den Rechnungseingang in EMA Office nutze ema_office_overview. Ein aktivierter Import bedeutet keine bestätigte Buchung oder Zahlung.
 - Für neue Outlook-Mails nutze ema_mail_previews, für Termine/Teams ema_calendar und für Kontakte ema_contacts.
 - Passwörter, PINs, Tokens, API-Schlüssel und Bankdaten niemals speichern.
 - Einen persönlichen Kalendertermin ohne weitere Teilnehmer darf EMA auf ausdrücklichen Sprachbefehl direkt im Kalender anlegen.

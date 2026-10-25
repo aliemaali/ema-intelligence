@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import { BottomNav } from './BottomNav'
 import { TopHeader } from './TopHeader'
 
@@ -14,10 +15,11 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, user }: AppShellProps) {
+  const pathname = usePathname()
   return (
     <div className="app-shell">
       <div className="app-main">
-        <TopHeader />
+        {pathname !== '/dashboard' ? <TopHeader /> : null}
         <main className="app-content animate-fade-in">
           {children}
         </main>

@@ -13,10 +13,9 @@ import { cn, getInitials } from '@/lib/utils'
 import { logout } from '@/lib/actions/auth.actions'
 
 const MAIN_ITEMS = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Zentrale', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Projekte', href: '/projects', icon: FolderOpen },
-  { label: 'Investoren', href: '/investors', icon: Building2 },
-  { label: 'EMA AI', href: '/ai', icon: Bot },
+  { label: 'Kontakte', href: '/microsoft', icon: Users },
 ] as const
 
 const MORE_GROUPS = [
@@ -33,6 +32,8 @@ const MORE_GROUPS = [
   {
     label: 'Projekte & Kontakte',
     items: [
+      { label: 'Investoren', href: '/investors', icon: Building2 },
+      { label: 'EMA Assistent', href: '/ema', icon: Bot },
       { label: 'Projekt-Import', href: '/project-import', icon: BriefcaseBusiness },
       { label: 'Deals', href: '/deals', icon: Handshake },
       { label: 'Partner', href: '/partners', icon: Users },
