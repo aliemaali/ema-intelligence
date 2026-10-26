@@ -141,6 +141,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+.smartCheck { background: radial-gradient(circle at 50% 35%,rgba(30,220,181,.35),transparent 50%),linear-gradient(135deg,#103b46,#09293b);border-color:#36d6b578; }
+.smartCheck::after { background:#00e2bf; }
+.smartCheck .visual { color:#70f8d4; }
 
 /* The central assistant leads; three focused tools follow. Flow layout stays scrollable on short screens. */
 .brand { position: relative; top: auto; left: auto; transform: none; margin: 0 auto; padding-top: max(2rem, 5dvh); }
@@ -188,3 +191,7 @@
   .intelligence { min-height: 108px; }
   .expose { min-height: 100px; }
 }
+.smartCheck { grid-column:1 / -1;aspect-ratio:auto;min-height:150px;justify-content:center;padding-left:27%; }
+.smartCheck .visual { top:50%;left:15%;width:86px;transform:translate(-50%,-50%); }
+@media(max-width:900px){.smartCheck{min-height:112px}.smartCheck .visual{width:clamp(58px,17vw,76px)}}
+

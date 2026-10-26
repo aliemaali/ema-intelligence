@@ -20,7 +20,8 @@
     "db:types": "supabase gen types typescript --local > src/lib/types/supabase.types.ts",
     "pl:render": "esbuild tools/renderProjektliste.ts --bundle --platform=node --target=node20 --outfile=.tmp/render.cjs && node .tmp/render.cjs",
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
-    "pl:fonts": "pdffonts .tmp/EMA-Projektliste.pdf"
+    "pl:fonts": "pdffonts .tmp/EMA-Projektliste.pdf",
+    "test:smart-check": "esbuild tests/smart-check.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/smart-check.test.cjs && node --test .tmp/smart-check.test.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -74,3 +75,4 @@
     }
   }
 }
+
