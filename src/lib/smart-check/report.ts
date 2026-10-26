@@ -2,6 +2,48 @@ import {jsPDF} from 'jspdf'
 import {readFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {AREAS,type Assessment,type CheckInput} from './model'
+import {buildCabinetCriteria} from './criteria'
+
+export function createShortCheckPdf(input:CheckInput,result:Assessment,version:number){
+  const pdf=new jsPDF({unit:'mm',format:'a4'})
+  for(const [style,weight] of [['normal','400'],['bold','700']] as const){
+    const name=`Inter-${weight}.ttf`
+    pdf.addFileToVFS(name,readFileSync(join(process.cwd(),'public/fonts/inter',`inter-latin-ext-${weight}.ttf`)).toString('base64'))
+    pdf.addFont(name,'Inter',style)
+  }
+  const color=result.status==='red'?[186,54,74]:result.status==='yellow'?[153,120,30]:[91,117,135]
+  const label=result.status==='red'?'Fachprüfung erforderlich':result.status==='yellow'?'Anpassung prüfen':'Noch nicht beurteilbar'
+  const line=(text:string,y:number,size=9,bold=false)=>{pdf.setFont('Inter',bold?'bold':'normal');pdf.setFontSize(size);pdf.text(text,18,y)}
+  pdf.setFillColor(5,19,34);pdf.rect(0,0,210,28,'F');pdf.setTextColor(239,247,252)
+  line('EMA Smart Check · Kurzbericht',16,16,true)
+  pdf.setTextColor(color[0],color[1],color[2]);pdf.setFillColor(color[0],color[1],color[2]);pdf.circle(21,42,3,'F')
+  pdf.setFont('Inter','bold');pdf.setFontSize(17);pdf.text(label,29,44)
+  pdf.setTextColor(74,93,111)
+  line(`${AREAS[input.area]} · Version ${version} · ${new Date(result.createdAt).toLocaleDateString('de-DE',{timeZone:'Europe/Berlin'})}`,54,8)
+  pdf.setFont('Inter','normal');pdf.setFontSize(8);pdf.text(pdf.splitTextToSize(`Netzbetreiber: ${input.operator||'nicht bekannt'} · Zuständigkeit und EVU-Konformität nicht bestätigt`,174).slice(0,2),18,61)
+  const criteria=result.criteria||buildCabinetCriteria(input,result.vision,result.findings)
+  let y=76
+  criteria.forEach(c=>{
+    const mark=c.status==='red'?'VERDACHT':c.status==='yellow'?'PRÜFEN':c.observationState==='observed'?'SICHTBEFUND':'OFFEN'
+    pdf.setTextColor(21,47,65);line(c.title,y,9,true)
+    pdf.setFontSize(7);pdf.text(mark,192,y,{align:'right'})
+    pdf.setTextColor(78,99,116);pdf.setFont('Inter','normal');pdf.setFontSize(8)
+    const summary=pdf.splitTextToSize(c.summary.slice(0,190),174).slice(0,2)
+    pdf.text(summary,18,y+5)
+    pdf.setFontSize(6.5);pdf.text(pdf.splitTextToSize('Beleg: '+c.evidence.slice(0,120),174).slice(0,1),18,y+14)
+    pdf.setDrawColor(218,228,234);pdf.line(18,y+18,192,y+18)
+    y+=24
+  })
+  pdf.setTextColor(29,60,75)
+  line('Nächster Schritt',253,9,true)
+  pdf.setFont('Inter','normal');pdf.setFontSize(8)
+  const next=result.status==='red'?'Anlage nicht öffnen oder berühren. Konkreten Sicherheitsverdacht durch einen Elektrofachbetrieb prüfen lassen.':'Offene Befunde, anwendbare Netzbetreibervorgaben und erforderliche Messnachweise fachlich klären. Aus Grau folgt keine automatische Umbaupflicht.'
+  pdf.text(pdf.splitTextToSize(next,174).slice(0,3),18,259)
+  pdf.setTextColor(100,119,134)
+  line('Vollständige Befunde, Maßnahmen und Quellen stehen in der gespeicherten Smart-Check-Prüfung.',276,6.5)
+  line('Technische Vorprüfung. Keine Sicherheitsfreigabe, EVU-Bestätigung oder Abnahme.',283,7)
+  return new Uint8Array(pdf.output('arraybuffer'))
+}
 export function createCheckPdf(input:CheckInput,result:Assessment,files:any[],version:number){
   const pdf=new jsPDF({unit:'mm',format:'a4'});let y=0,page=1
   for(const [style,weight] of [['normal','400'],['bold','700']] as const){

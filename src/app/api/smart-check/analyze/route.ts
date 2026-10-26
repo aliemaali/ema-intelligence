@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto'
 import {assess,inputSchema} from '@/lib/smart-check/model'
 import {analyzeVision} from '@/lib/smart-check/vision'
-import {createCheckPdf} from '@/lib/smart-check/report'
+import {createShortCheckPdf} from '@/lib/smart-check/report'
 import {reviewOfficialSources} from '@/lib/smart-check/source-review'
 import {assertProject,assertFolder,checkContext,checkFailure,CheckError,fingerprint,loadAttachments,privateHeaders,sameOrigin} from '@/lib/smart-check/server'
 export const runtime='nodejs'
@@ -20,7 +20,7 @@ export async function POST(request:Request){
     let version=1,checkId=randomUUID()
     if(input.previousReportId){const {data:previous}=await supabase.from('documents').select('ai_extracted_data,version').eq('id',input.previousReportId).eq('user_id',user.id).like('source_record_id','smart-check:%').eq('analysis_status','completed').maybeSingle();if(!previous || previous.ai_extracted_data?.kind!=='ema-smart-check')throw new CheckError('Vorherige Prüfung nicht gefunden.',404);version=previous.version+1;checkId=previous.ai_extracted_data.checkId}
     if(input.mode==='ai'){
-      if(process.env.SMART_CHECK_AI_ENABLED!=='true')throw new CheckError('Kostenpflichtige KI-Auswertung ist noch nicht freigegeben. Bitte Regelprüfung verwenden.',403)
+      if(process.env.SMART_CHECK_AI_ENABLED==='false')throw new CheckError('Die KI-Auswertung ist administrativ deaktiviert.',403)
       if(!process.env.OPENAI_API_KEY)throw new CheckError('KI-Anbindung nicht verfügbar. Bitte Regelprüfung verwenden.',503)
       const {count,error}=await supabase.from('documents').select('id',{count:'exact',head:true}).eq('user_id',user.id).like('source_record_id','smart-check:%').eq('ai_extracted_data->>mode','ai').gte('created_at',new Date().toISOString().slice(0,10))
       if(error || (count??0)>=20)throw new CheckError('Das Tageslimit von 20 KI-Prüfaufträgen ist erreicht oder konnte nicht geprüft werden.',429)
@@ -36,7 +36,7 @@ export async function POST(request:Request){
     const vision=input.mode==='ai'?await analyzeVision(input,files,user.id):null
     const result=assess(input,vision)
     result.sourceReview=await reviewOfficialSources(input.operator)
-    const pdf=createCheckPdf(input,result,files,version)
+    const pdf=createShortCheckPdf(input,result,version)
     if(pdf.length>40*1024*1024)throw new CheckError('Der Bericht ist zu groß. Bitte weniger Bilder verwenden.')
     const {error:uploadError}=await supabase.storage.from('ema-dms').upload(path,pdf,{contentType:'application/pdf',upsert:false})
     if(uploadError)throw new Error('Bericht konnte nicht gespeichert werden')
