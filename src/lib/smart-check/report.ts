@@ -1,11 +1,18 @@
 import {jsPDF} from 'jspdf'
+import {readFileSync} from 'node:fs'
+import {join} from 'node:path'
 import {AREAS,type Assessment,type CheckInput} from './model'
 export function createCheckPdf(input:CheckInput,result:Assessment,files:any[],version:number){
   const pdf=new jsPDF({unit:'mm',format:'a4'});let y=0,page=1
-  const header=()=>{pdf.setFillColor(4,17,38);pdf.rect(0,0,210,28,'F');pdf.setTextColor(255,255,255);pdf.setFont('helvetica','bold');pdf.setFontSize(17);pdf.text('EMA Smart Check',17,13);pdf.setFontSize(8);pdf.text(`Technische Vorprüfung · Version ${version} · ${new Date(result.createdAt).toLocaleDateString('de-DE',{timeZone:'Europe/Berlin'})}`,17,21);y=40}
-  const footer=()=>{pdf.setFont('helvetica','normal');pdf.setFontSize(7);pdf.setTextColor(95,110,125);pdf.text('Automatisierte Vorprüfung. Keine Sicherheitsfreigabe, Messung oder Abnahme.',17,288);pdf.text(`${page}`,193,288,{align:'right'})}
+  for(const [style,weight] of [['normal','400'],['bold','700']] as const){
+    const name=`Inter-${weight}.ttf`
+    pdf.addFileToVFS(name,readFileSync(join(process.cwd(),'public/fonts/inter',`inter-latin-ext-${weight}.ttf`)).toString('base64'))
+    pdf.addFont(name,'Inter',style)
+  }
+  const header=()=>{pdf.setFillColor(4,17,38);pdf.rect(0,0,210,28,'F');pdf.setTextColor(255,255,255);pdf.setFont('Inter','bold');pdf.setFontSize(17);pdf.text('EMA Smart Check',17,13);pdf.setFontSize(8);pdf.text(`Technische Vorprüfung · Version ${version} · ${new Date(result.createdAt).toLocaleDateString('de-DE',{timeZone:'Europe/Berlin'})}`,17,21);y=40}
+  const footer=()=>{pdf.setFont('Inter','normal');pdf.setFontSize(7);pdf.setTextColor(95,110,125);pdf.text('Automatisierte Vorprüfung. Keine Sicherheitsfreigabe, Messung oder Abnahme.',17,288);pdf.text(`${page}`,193,288,{align:'right'})}
   const next=()=>{footer();pdf.addPage();page++;header()}
-  const write=(title:string,text:string)=>{if(y>256)next();pdf.setFont('helvetica','bold');pdf.setFontSize(10);pdf.setTextColor(14,37,63);for(const line of pdf.splitTextToSize(title,174)){if(y>273)next();pdf.setFont('helvetica','bold');pdf.setFontSize(10);pdf.setTextColor(14,37,63);pdf.text(line,17,y);y+=5}y+=2;pdf.setFont('helvetica','normal');pdf.setFontSize(9);for(const line of pdf.splitTextToSize(text||'Nicht angegeben',174)){if(y>273)next();pdf.setFont('helvetica','normal');pdf.setFontSize(9);pdf.setTextColor(53,68,88);pdf.text(line,17,y);y+=4.6}y+=6}
+  const write=(title:string,text:string)=>{if(y>256)next();pdf.setFont('Inter','bold');pdf.setFontSize(10);pdf.setTextColor(14,37,63);for(const line of pdf.splitTextToSize(title,174)){if(y>273)next();pdf.setFont('Inter','bold');pdf.setFontSize(10);pdf.setTextColor(14,37,63);pdf.text(line,17,y);y+=5}y+=2;pdf.setFont('Inter','normal');pdf.setFontSize(9);for(const line of pdf.splitTextToSize(text||'Nicht angegeben',174)){if(y>273)next();pdf.setFont('Inter','normal');pdf.setFontSize(9);pdf.setTextColor(53,68,88);pdf.text(line,17,y);y+=4.6}y+=6}
   header();write('1. Projektdaten',`${input.title}\n${AREAS[input.area]} · ${input.building}\n${input.address}`)
   write('2. Standort und Netzbetreiber',`${input.operator||'Nicht bestimmt'} · ${input.operatorConfirmed?'vom Nutzer bestätigt':'nicht bestätigt'}\nZuordnungsbeleg: ${input.operatorEvidence||'fehlt'}`)
   write('3. Prüfgrundlage',`${input.mode==='ai'?'KI-gestützte Sichtung plus Regelprüfung':'Regelprüfung von Benutzereingaben, keine automatische Bildauswertung'}\n${files.map(f=>f.file_name).join('\n')||'Keine Dateien'}`)
