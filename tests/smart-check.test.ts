@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs'
 import * as nodeModule from 'node:module'
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
+import {CABINET_CRITERIA} from '../src/lib/smart-check/criteria'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
 import {discoverOfficialLinks,reviewOfficialSources} from '../src/lib/smart-check/source-review'
 // Runtime is Node 24; this repository deliberately still uses Node 20 type declarations.
@@ -42,12 +43,12 @@ test('same-origin and file content/size guards reject hostile input',()=>{const 
 
 function visionFixture(options:{disabled?:boolean;key?:boolean;fail?:boolean}={}) {
  const calls:any[]=[];
- const response={components:[{name:'SLS',manufacturer:'',model:'',evidenceFileId:'image-a',evidence:'Linke Bildhälfte',certainty:'unsicher'},{name:'Invented',manufacturer:'',model:'',evidenceFileId:'not-provided',evidence:'unbekannt',certainty:'unsicher'}],observations:['Typenschild nicht lesbar.'],risks:[],missing:['Scharfes Typenschildfoto'],limitations:['Keine Messwerte']};
+ const response:any={components:[{name:'SLS',manufacturer:'',model:'',evidenceFileId:'image-a',evidence:'Linke Bildhälfte',certainty:'unsicher'},{name:'Invented',manufacturer:'',model:'',evidenceFileId:'not-provided',evidence:'unbekannt',certainty:'unsicher'}],observations:['Typenschild nicht lesbar.'],risks:[],missing:['Scharfes Typenschildfoto'],limitations:['Keine Messwerte']};
  const fetcher=async(url:string,init:any)=>{calls.push({url,body:JSON.parse(init.body)});return options.fail?new Response('',{status:502}):Response.json({choices:[{message:{content:JSON.stringify(response)}}],usage:{prompt_tokens:100,completion_tokens:40}})};
  const source=readFileSync('src/lib/smart-check/vision.ts','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','');
- const fn=new Function('z','createHash','CheckError','process','fetch',stripTypeScriptTypes(source)+';return analyzeVision;')(z,createHash,Error,{env:{OPENAI_API_KEY:options.key===false?'':'test-only',SMART_CHECK_AI_ENABLED:options.disabled?'false':undefined}},fetcher);
+ const fn=new Function('z','createHash','CheckError','process','fetch','CABINET_CRITERIA',stripTypeScriptTypes(source)+';return analyzeVision;')(z,createHash,Error,{env:{OPENAI_API_KEY:options.key===false?'':'test-only',SMART_CHECK_AI_ENABLED:options.disabled?'false':undefined}},fetcher,CABINET_CRITERIA);
  const files=[{id:'image-a',file_name:'test.jpg',mime_type:'image/jpeg',bytes:new Uint8Array([255,216,255,217])}];
- return {calls,fn,files};
+ return {calls,fn,files,response};
 }
 test('existing API can analyze only an explicitly consented request; no real provider call',async()=>{
  const f=visionFixture();const input=inputSchema.parse({...base,mode:'ai',aiConsent:true});const result=await f.fn(input,f.files,'test-user');
@@ -58,4 +59,27 @@ test('missing consent, administrative disable and missing key prevent any provid
 });
 test('provider failures never become a successful visual assessment',async()=>{
  const f=visionFixture({fail:true});await assert.rejects(f.fn(inputSchema.parse({...base,mode:'ai',aiConsent:true}),f.files,'test-user'));assert.equal(f.calls.length,1);
+});
+
+test('seven cabinet criteria remain explicit without false EVU or acceptance confirmation',()=>{
+ const input=inputSchema.parse({...base,operatorConfirmed:true,operatorEvidence:'Anschlussunterlagen',rulesConfirmed:true,ruleVersion:'TAB',ruleLocator:'Seite 7',sls:'yes',spd:'yes',apz:'yes',rfz:'yes',measurementProof:true});
+ const report=assess(input);assert.equal(report.criteria?.length,7);
+ for(const id of ['evu','acceptance'])assert.equal(report.criteria?.find(c=>c.id===id)?.status,'grey');
+ assert.match(report.criteria!.find(c=>c.id==='evu')!.summary,/nicht bestätigt/);
+});
+test('older equipment triggers clarification rather than automatic replacement or red risk',()=>{
+ const vision:any={components:[],observations:[],risks:[],missing:[],limitations:[],criteria:[{id:'legacy',state:'concern',detail:'Ältere Bauform laut Typenschild',evidenceFileId:'image-a',evidence:'Bild 1: Typenschild',missing:'Herstellernachweis'}]};
+ const report=assess(inputSchema.parse(base),vision),legacy=report.criteria!.find(c=>c.id==='legacy')!;
+ assert.equal(legacy.status,'yellow');assert.match(legacy.nextStep,/allein begründen keinen Austausch/);assert.notEqual(report.status,'red');
+});
+test('unseen protection is unknown; declared absence is not an automatic retrofit order',()=>{
+ const unknown=assess(inputSchema.parse(base)).criteria!.find(c=>c.id==='protection')!;assert.equal(unknown.status,'grey');
+ const absent=assess(inputSchema.parse({...base,sls:'no'})).criteria!.find(c=>c.id==='protection')!;assert.equal(absent.status,'yellow');assert.match(absent.nextStep,/Prüfen, ob/);
+});
+
+test('criterion observations require a real attached file; all seven requested scopes are prompted',async()=>{
+ const f=visionFixture();f.response.criteria=[{id:'space',state:'observed',detail:'Reserveplatz erkennbar',evidenceFileId:'image-a',evidence:'Rechter Bildbereich',missing:'Maßnachweis'},{id:'protection',state:'concern',detail:'Unbelegter Befund',evidenceFileId:'invented',evidence:'Angeblicher Beleg',missing:'Nachweis'}];
+ const result=await f.fn(inputSchema.parse({...base,mode:'ai',aiConsent:true}),f.files,'test-user');
+ assert.equal(result.criteria.length,1);assert.equal(result.criteria[0].id,'space');assert.match(result.criteria[0].evidence,/test.jpg/);
+ for(const criterion of CABINET_CRITERIA)assert.ok(f.calls[0].body.messages[0].content.includes(criterion.title));
 });

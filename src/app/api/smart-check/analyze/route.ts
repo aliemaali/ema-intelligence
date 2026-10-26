@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto'
 import {assess,inputSchema} from '@/lib/smart-check/model'
 import {analyzeVision} from '@/lib/smart-check/vision'
-import {createCheckPdf} from '@/lib/smart-check/report'
+import {createShortCheckPdf} from '@/lib/smart-check/report'
 import {reviewOfficialSources} from '@/lib/smart-check/source-review'
 import {assertProject,assertFolder,checkContext,checkFailure,CheckError,fingerprint,loadAttachments,privateHeaders,sameOrigin} from '@/lib/smart-check/server'
 export const runtime='nodejs'
@@ -36,7 +36,7 @@ export async function POST(request:Request){
     const vision=input.mode==='ai'?await analyzeVision(input,files,user.id):null
     const result=assess(input,vision)
     result.sourceReview=await reviewOfficialSources(input.operator)
-    const pdf=createCheckPdf(input,result,files,version)
+    const pdf=createShortCheckPdf(input,result,version)
     if(pdf.length>40*1024*1024)throw new CheckError('Der Bericht ist zu groß. Bitte weniger Bilder verwenden.')
     const {error:uploadError}=await supabase.storage.from('ema-dms').upload(path,pdf,{contentType:'application/pdf',upsert:false})
     if(uploadError)throw new Error('Bericht konnte nicht gespeichert werden')
