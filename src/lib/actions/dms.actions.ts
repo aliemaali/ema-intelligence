@@ -216,3 +216,16 @@ export async function renameDmsDocument(documentId: string, displayName: string)
   revalidateDms()
   return { success: true }
 }
+
+// Foreign keys detach documents (ON DELETE SET NULL), including documents in
+// child folders. No file object or document record is removed by this action.
+export async function deleteDmsFolder(folderId: string) {
+  if (!z.string().uuid().safeParse(folderId).success) return { error: 'Ungültiger Ordner.' }
+  const { supabase, user } = await requireUser()
+  const { data, error } = await (supabase as any).from('document_folders')
+    .delete().eq('id', folderId).eq('user_id', user.id).select('id').maybeSingle()
+  if (error) return { error: 'Der Ordner konnte nicht gelöscht werden. Bitte erneut versuchen.' }
+  if (!data) return { error: 'Ordner nicht gefunden.' }
+  revalidateDms()
+  return { success: true }
+}

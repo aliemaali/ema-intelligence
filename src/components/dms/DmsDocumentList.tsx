@@ -165,6 +165,7 @@ export function DmsDocumentList({
                       <p className="mt-1 truncate text-xs text-slate-400">{bytesLabel(document.file_size_bytes)} · {documentSource(document)}</p>
                     </a>
                     {document.ai_analyzed && <span className="hidden rounded-full bg-[#5CB800]/10 px-2.5 py-1 text-[10px] font-extrabold text-[#8eee51] sm:inline">EMA gelesen</span>}
+                    {document.source_app === 'ema_office' && <button type="button" onClick={() => openMove(document)} disabled={busyId === document.id} className="flex min-h-11 shrink-0 items-center gap-1 rounded-xl border border-[#8eee51]/30 bg-[#5CB800]/10 px-3 text-xs font-bold text-[#b5fa89]" aria-label={`Beleg ${document.display_name} in Ordner ablegen`}><FolderInput className="h-4 w-4" /><span>Ablegen</span></button>}
                     <button
                       type="button"
                       onClick={() => setOpenMenuId(menuOpen ? null : document.id)}

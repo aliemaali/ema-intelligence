@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, Files, Folder, Inbox } from 'lucide-react'
+import { DmsFolderDeleteButton } from '@/components/dms/DmsFolderDeleteButton'
 import { DmsDocumentList } from '@/components/dms/DmsDocumentList'
 import { createClient } from '@/lib/supabase/server'
 import type { DmsDocument, DmsFolder } from '@/lib/dms/types'
@@ -19,7 +20,8 @@ export default async function DmsFolderPage(props: { params: Promise<{ id: strin
 
   const isUnassigned = params.id === 'unassigned'
   const isAll = params.id === 'all'
-  if (!isUnassigned && !isAll && !UUID_PATTERN.test(params.id)) notFound()
+  const isOffice = params.id === 'office'
+  if (!isUnassigned && !isAll && !isOffice && !UUID_PATTERN.test(params.id)) notFound()
 
   const documentsQuery = (supabase as any)
     .from('documents')
@@ -29,19 +31,19 @@ export default async function DmsFolderPage(props: { params: Promise<{ id: strin
     .order('created_at', { ascending: false })
 
   const [documentsResult, foldersResult, folderResult] = await Promise.all([
-    isAll ? documentsQuery : isUnassigned ? documentsQuery.is('folder_id', null) : documentsQuery.eq('folder_id', params.id),
+    isOffice ? documentsQuery.eq('source_app', 'ema_office') : isAll ? documentsQuery : isUnassigned ? documentsQuery.is('folder_id', null) : documentsQuery.eq('folder_id', params.id),
     (supabase as any).from('document_folders').select('id, name, parent_id').eq('user_id', user.id).order('name'),
-    isUnassigned || isAll
+    isUnassigned || isAll || isOffice
       ? Promise.resolve({ data: null, error: null })
       : (supabase as any).from('document_folders').select('id, name, parent_id').eq('id', params.id).eq('user_id', user.id).maybeSingle(),
   ])
 
   if (documentsResult.error || foldersResult.error || folderResult.error) throw new Error(documentsResult.error?.message ?? foldersResult.error?.message ?? folderResult.error?.message ?? 'Ordner konnte nicht geladen werden.')
-  if (!isUnassigned && !isAll && !folderResult.data) notFound()
+  if (!isUnassigned && !isAll && !isOffice && !folderResult.data) notFound()
 
   const documents = (documentsResult.data ?? []) as DmsDocument[]
   const folders = (foldersResult.data ?? []) as DmsFolder[]
-  const title = isAll ? 'Alle Dokumente' : isUnassigned ? 'Ohne Ordner' : String(folderResult.data.name)
+  const title = isOffice ? 'Office-Belege' : isAll ? 'Alle Dokumente' : isUnassigned ? 'Ohne Ordner' : String(folderResult.data.name)
 
   return (
     <main className="dms-premium min-h-screen px-3 pb-10 pt-[calc(env(safe-area-inset-top)+1rem)] md:px-7 md:py-7">
@@ -56,6 +58,7 @@ export default async function DmsFolderPage(props: { params: Promise<{ id: strin
             <div className="min-w-0">
               <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#8eee51]">EMA DMS · Ordner</p>
               <h1 className="mt-1 break-words text-3xl font-extrabold md:text-4xl">{title}</h1>
+              {!isAll && !isUnassigned && !isOffice && <DmsFolderDeleteButton folderId={params.id} folderName={title} returnToDms />}
               <p className="mt-2 text-sm text-slate-300">{documents.length} Dokument{documents.length === 1 ? '' : 'e'} · Verschieben, umbenennen und in der Vorschau öffnen</p>
             </div>
           </div>
@@ -65,7 +68,7 @@ export default async function DmsFolderPage(props: { params: Promise<{ id: strin
           documents={documents}
           folders={folders}
           heading={title}
-          description={isAll ? 'Ordnerübergreifende Übersicht' : isUnassigned ? 'Noch nicht einsortierte Dokumente' : 'Dokumente in diesem Ordner'}
+          description={isOffice ? 'Angebote und Rechnungen aus EMA Office · frei in eigene Ordner ablegen' : isAll ? 'Ordnerübergreifende Übersicht' : isUnassigned ? 'Noch nicht einsortierte Dokumente' : 'Dokumente in diesem Ordner'}
           emptyTitle={isAll ? 'Noch keine Dokumente vorhanden' : 'Dieser Ordner ist leer'}
           emptyText={isAll ? 'Lade dein erstes Dokument im EMA DMS hoch.' : 'Verschiebe ein Dokument über das Aktionsmenü in diesen Ordner.'}
         />

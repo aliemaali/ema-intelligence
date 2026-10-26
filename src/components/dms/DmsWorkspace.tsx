@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload as TusUpload } from 'tus-js-client'
 import {
@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { createDmsFolder, findDmsDuplicate, registerDmsUpload } from '@/lib/actions/dms.actions'
+import { DmsFolderDeleteButton } from '@/components/dms/DmsFolderDeleteButton'
 import { DmsDocumentList } from '@/components/dms/DmsDocumentList'
 import type { DmsDataRoom, DmsDocument, DmsFolder, DmsProjectOption } from '@/lib/dms/types'
 
@@ -80,6 +81,8 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
   const [progress, setProgress] = useState(0)
   const [newFolder, setNewFolder] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
+
+  useEffect(() => { if (uploadFolderId && !folders.some(folder => folder.id === uploadFolderId)) setUploadFolderId('') }, [folders, uploadFolderId])
 
   const folderCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -164,14 +167,16 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
   }
 
   async function addFolder() {
-    if (!newFolder.trim()) return
+    if (!newFolder.trim() || creatingFolder) return
     setCreatingFolder(true)
-    const result = await createDmsFolder(newFolder)
-    setCreatingFolder(false)
-    if (result.error) return toast.error(result.error)
-    setNewFolder('')
-    toast.success('Ordner wurde erstellt.')
-    router.refresh()
+    try {
+      const result = await createDmsFolder(newFolder)
+      if (result.error) return toast.error(result.error)
+      setNewFolder('')
+      toast.success('Ordner wurde erstellt.')
+      router.refresh()
+    } catch { toast.error('Der Ordner konnte nicht angelegt werden. Bitte erneut versuchen.') }
+    finally { setCreatingFolder(false) }
   }
 
   return (
@@ -181,10 +186,10 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-[.18em] text-[#8eee51]">Ablage</p>
             <h2 className="mt-1 text-xl font-extrabold text-white">Ordner</h2>
-            <p className="mt-1 text-xs text-slate-400">Jeder Ordner öffnet sich auf einer eigenen Seite.</p>
+            <p className="mt-1 text-xs text-slate-400">Ordner anlegen, öffnen oder löschen. Beim Löschen bleiben alle Dateien erhalten.</p>
           </div>
           <div className="flex w-full gap-2 sm:w-auto">
-            <input value={newFolder} onChange={(event) => setNewFolder(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void addFolder() }} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#020e20]/60 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 sm:w-52" placeholder="Neuer Ordner" />
+            <input value={newFolder} onChange={(event) => setNewFolder(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void addFolder() }} className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#020e20]/60 px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 sm:w-52" placeholder="Neuer Ordner" aria-label="Neuer Ordnername" maxLength={80} />
             <button type="button" onClick={() => void addFolder()} disabled={creatingFolder || !newFolder.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#5CB800] text-white disabled:opacity-50" aria-label="Ordner erstellen">{creatingFolder ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderPlus className="h-5 w-5" />}</button>
           </div>
         </div>
@@ -198,11 +203,18 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-400/15 text-amber-200"><Inbox className="h-5 w-5" /></span>
             <span><strong className="block text-sm font-extrabold">Ohne Ordner</strong><small className="mt-1 block text-xs text-slate-400">{unassignedCount} Dateien</small></span>
           </Link>
+          <Link href="/dms/folders/office" className="dms-folder-tile group flex aspect-square min-h-36 flex-col justify-between rounded-2xl border border-white/10 bg-white/[.045] p-4 text-white hover:border-[#8eee51]/40 hover:bg-white/[.075]">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 text-blue-200"><Files className="h-5 w-5" /></span>
+            <span><strong className="block text-sm font-extrabold">Office-Belege</strong><small className="mt-1 block text-xs text-slate-400">Angebote &amp; Rechnungen · {documents.filter(document => document.source_app === 'ema_office').length}</small></span>
+          </Link>
           {folders.map((folder) => (
-            <Link key={folder.id} href={`/dms/folders/${folder.id}`} className="dms-folder-tile group flex aspect-square min-h-36 flex-col justify-between rounded-2xl border border-white/10 bg-white/[.045] p-4 text-white hover:border-[#8eee51]/40 hover:bg-white/[.075]">
+            <div key={folder.id} className="relative">
+            <Link href={`/dms/folders/${folder.id}`} className="dms-folder-tile group flex aspect-square min-h-36 flex-col justify-between rounded-2xl border border-white/10 bg-white/[.045] p-4 text-white hover:border-[#8eee51]/40 hover:bg-white/[.075]">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 text-blue-200"><Folder className="h-5 w-5" /></span>
               <span className="min-w-0"><strong className="block break-words text-sm font-extrabold leading-snug">{folder.name}</strong><small className="mt-1 block text-xs text-slate-400">{folderCounts.get(folder.id) ?? 0} Dateien</small></span>
             </Link>
+            <DmsFolderDeleteButton folderId={folder.id} folderName={folder.name} compact />
+            </div>
           ))}
         </div>
       </section>
