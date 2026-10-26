@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import {useEffect, useRef, useState} from 'react'
-import {ArrowLeft, ArrowUpRight, Camera, ChevronRight, FileText, FolderOpen, History, ImagePlus, ScanLine, ShieldAlert, X} from 'lucide-react'
+import {ArrowLeft, ArrowUpRight, Camera, ChevronRight, FileText, FolderOpen, History, ImagePlus, ScanLine, ShieldAlert, Wrench, Minus, X} from 'lucide-react'
 import {OPERATORS, type Assessment, type CheckInput} from '@/lib/smart-check/model'
 import {CABINET_CRITERIA,buildCabinetCriteria,PV_CHECK_TASK} from '@/lib/smart-check/criteria'
 import s from './photo-check.module.css'
@@ -117,6 +117,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
   const offerPayload=report?JSON.stringify({title:report.input.title,reportId:report.id,measures:measures.filter(f=>selected.includes(f.id)).slice(0,8).map(f=>(f.title+': '+f.action).slice(0,400))}):''
   const vision=report?.result.vision
   const critical=report?.result.findings.filter(f=>f.status==='red')||[]
+  const nextSteps=report ? [...critical,...report.result.findings.filter(f=>f.status==='yellow'),...report.result.findings.filter(f=>f.status==='grey'&&f.id!=='image')].filter((f,i,all)=>all.findIndex(other=>other.action===f.action)===i).slice(0,3) : []
   const criteria=report?(report.result.criteria||buildCabinetCriteria(report.input,report.result.vision,report.result.findings)):[]
 
   return <main className={s.workspace}><div className={s.container}>
@@ -149,12 +150,19 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
       </section>:<p className={s.localHint}>Die Aufnahmen bleiben zunächst auf deinem Gerät. Erst beim Start des Checks werden sie hochgeladen und privat im DMS gespeichert.</p>}
     </>:null}
     {busy?<p role="status" className={s.notice}>{message||'Bericht laden …'}</p>:null}{error?<p role="alert" className={s.error}>{error}</p>:null}
-    {report?<section className={s.panel} ref={resultPanel} style={{scrollMarginTop:20}}>
-      <p className={s.eyebrow}>{vision?'Technische Vorprüfung':'Unterlagen-Check · ohne Bildanalyse'} · Version {report.version}</p>
-      <div className={report.result.status==='red'?s.redLight:report.result.status==='yellow'?s.yellowLight:s.greyLight} role="img" aria-label={report.result.status==='red'?'Roter Prüfstatus':report.result.status==='yellow'?'Anpassung prüfen':'Grauer Prüfstatus'}>{report.result.status==='red'?'!':'?'}</div><h1 className={s.resultTitle}>{report.result.status==='red'?'Fachprüfung erforderlich':report.result.status==='yellow'?'Anpassung prüfen':'Noch nicht beurteilbar'}</h1>
-      <p className={report.result.status==='red'?s.red:s.badge}>{report.result.decision}</p>
-      <div className={s.criteriaList}>{criteria.map(c=><details key={c.id} className={s.criterion}><summary><span className={c.status==='red'?s.dotRed:c.status==='yellow'?s.dotYellow:s.dotGrey}/><strong>{c.title}</strong><span>{c.status==='red'?'Verdacht':c.status==='yellow'?'Prüfen':c.observationState==='observed'?'Erkannt':'Offen'}</span></summary><p>{c.summary}</p><p><strong>Beleg:</strong> {c.evidence}</p><p><strong>Nächster Schritt:</strong> {c.nextStep}</p></details>)}</div>
-      <p className={s.muted}>Grün erst nach ausreichenden geprüften Nachweisen. Ein Foto allein bestätigt weder EVU-Konformität noch eine Abnahme.</p>
+    {report?<section className={`${s.panel} ${s.resultPanel}`} data-status={report.result.status} ref={resultPanel} style={{scrollMarginTop:20}}>
+      <div className={s.resultHero}>
+        <p className={s.eyebrow}>PV-Eignung · Vorprüfung</p>
+        <div className={s.signal} role="img" aria-label={report.result.status==='red'?'Kritischer Prüfstatus':report.result.status==='yellow'?'Anpassung prüfen':'Noch nicht beurteilbar'}>{report.result.status==='red'?<X size={80} strokeWidth={3}/>:report.result.status==='yellow'?<span>!</span>:<Minus size={76} strokeWidth={3}/>}</div>
+        <h1 className={s.resultTitle}>{report.result.status==='red'?'Kritischer Befund':report.result.status==='yellow'?'Anpassung prüfen':'Noch nicht beurteilbar'}</h1>
+        <p className={s.resultSummary}>{report.result.status==='red'?'Ein konkreter Sicherheitsverdacht muss vor der PV-Erweiterung fachlich geklärt werden.':report.result.status==='yellow'?'Für die geplante PV-Erweiterung sind Anpassungen zu prüfen.':'Für eine belastbare Aussage fehlen noch technische Nachweise.'}</p>
+      </div>
+      <div className={s.nextSteps}><p className={s.stepLabel}>Nächste Schritte</p>{nextSteps.map(f=><details key={f.id} className={s.step}><summary><span className={s.stepIcon}><Wrench size={17}/></span><strong>{f.title}</strong><ChevronRight size={18}/></summary><p>{f.action}</p></details>)}</div>
+      <p className={s.resultNote}>Grün nur mit ausreichenden geprüften Nachweisen. Ein Foto allein bestätigt keine EVU-Konformität oder Abnahme.</p>
+      <details className={`${s.details} ${s.resultDetails}`}><summary>Details & Quellen anzeigen<ChevronRight size={17}/></summary>
+        <p className={s.muted}>{vision?'Technische Vorprüfung':'Unterlagen-Check · ohne Bildanalyse'} · Version {report.version}</p>
+        <p>{report.result.decision}</p>
+        <div className={s.criteriaList}>{criteria.map(c=><details key={c.id} className={s.criterion}><summary><span className={c.status==='red'?s.dotRed:c.status==='yellow'?s.dotYellow:s.dotGrey}/><strong>{c.title}</strong><span>{c.status==='red'?'Verdacht':c.status==='yellow'?'Prüfen':c.observationState==='observed'?'Erkannt':'Offen'}</span></summary><p>{c.summary}</p><p><strong>Beleg:</strong> {c.evidence}</p><p><strong>Nächster Schritt:</strong> {c.nextStep}</p></details>)}</div>
       <details className={s.details}><summary>Ausführliche Befunde & Quellen anzeigen</summary>
       {!vision?<p className={s.notice}>Die Fotos wurden zugeordnet, aber nicht inhaltlich analysiert. Diese Hinweise beruhen auf deinen Angaben und fehlenden Nachweisen.</p>:null}
       {critical.map(f=><article className={s.critical} key={f.id}><ShieldAlert size={21}/><div><h3>{f.title}</h3><p>{f.detail}</p><p><strong>Jetzt:</strong> {f.action}</p><small>{f.basis}</small></div></article>)}
@@ -163,9 +171,10 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
       <section className={s.resultSection}><h2>Was ist der nächste Schritt?</h2>{report.result.findings.filter(f=>f.status==='yellow').map(f=><article className={s.component} key={f.id}><h3>{f.title}</h3><p>{f.action}</p><small>{f.basis}</small></article>)}{report.result.alternatives.map((item,i)=><p key={i}>{item}</p>)}<p className={s.muted}>Mögliche Prüf- und Planungswege. Daraus folgt noch keine bestätigte Nachrüstpflicht.</p></section>
       <details className={s.details}><summary>Netzbetreiber, Quellen und Prüfgrenzen</summary><p>Netzbetreiber: {report.input.operator||'Noch nicht bekannt'}. Zuständigkeit und Anwendbarkeit bleiben projektbezogen zu prüfen.</p>{report.result.sourceReview?<><p>Quellenabruf: {report.result.sourceReview.status} · {new Date(report.result.sourceReview.checkedAt).toLocaleString('de-DE')}</p><p>{report.result.sourceReview.limitation}</p>{report.result.sourceReview.documents.map(d=><p key={d.url}><a href={d.url} target="_blank" rel="noopener noreferrer">{d.title} ↗</a></p>)}</>:null}{report.result.sources.map(source=><div className={s.source} key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a><br/>{source.version}<br/>{source.locator}<br/>{source.scope}</div>)}{report.result.limitations.map(item=><p key={item}>{item}</p>)}{vision?.limitations.map((item,i)=><p key={i}>{item}</p>)}{vision?.pdfTextStatus.map((item,i)=><p key={i}>{item}</p>)}{vision?<p>Rechnerische API-Kosten: ca. {vision.usage.estimatedUsd.toFixed(4)} USD; tatsächliche Abrechnung beim Anbieter.</p>:null}</details>
       </details>
-      <div className={s.actions}><a className={s.primary} href={'/api/dms/documents/'+report.id+'/open'} target="_blank" rel="noopener noreferrer"><FileText size={18}/>PDF-Bericht öffnen</a><Link className={s.secondary} href="/dms"><FolderOpen size={18}/>DMS</Link></div>
-      <details className={s.details}><summary>Maßnahmen für ein Angebot auswählen</summary><p>Erst fachlich prüfen, dann Leistungsumfang und Preise im Office-Entwurf ergänzen.</p>{measures.map(f=><label className={s.check} key={f.id}><input type="checkbox" checked={selected.includes(f.id)} onChange={e=>setSelected(old=>e.target.checked?[...old,f.id].slice(0,8):old.filter(id=>id!==f.id))}/>{f.title}</label>)}{selected.length?<a className={s.secondary} href={officePreparationUrl+'?data='+encodeURIComponent(offerPayload)}>Angebot vorbereiten<ArrowUpRight size={16}/></a>:null}</details>
-      <div className={s.actions}><button type="button" className={s.primary} disabled={busy} onClick={()=>{clearLocal();setInput({...report.input,mode:'rules',aiConsent:false,previousReportId:report.id});setAssets(report.attachments);setConsent(false);setReport(null);window.scrollTo({top:0,behavior:'smooth'})}}>Unterlagen ergänzen & erneut prüfen</button><button type="button" className={s.secondary} disabled={busy} onClick={reset}>Neuer Check</button></div>
+      </details>
+      <div className={s.reportActions}><a className={s.secondary} href={'/api/dms/documents/'+report.id+'/open'} target="_blank" rel="noopener noreferrer"><FileText size={18}/>PDF-Bericht öffnen</a><Link className={s.secondary} href="/dms"><FolderOpen size={18}/>DMS</Link></div>
+      <details className={`${s.details} ${s.offerDetails}`}><summary>Maßnahmen für Angebot übernehmen<ChevronRight size={18}/></summary><p>Erst fachlich prüfen, dann Leistungsumfang und Preise im Office-Entwurf ergänzen.</p>{measures.map(f=><label className={s.check} key={f.id}><input type="checkbox" checked={selected.includes(f.id)} onChange={e=>setSelected(old=>e.target.checked?[...old,f.id].slice(0,8):old.filter(id=>id!==f.id))}/>{f.title}</label>)}{selected.length?<a className={s.secondary} href={officePreparationUrl+'?data='+encodeURIComponent(offerPayload)}>Angebot vorbereiten<ArrowUpRight size={16}/></a>:null}</details>
+      <div className={s.actions}><button type="button" className={s.secondary} disabled={busy} onClick={()=>{clearLocal();setInput({...report.input,mode:'rules',aiConsent:false,previousReportId:report.id});setAssets(report.attachments);setConsent(false);setReport(null);window.scrollTo({top:0,behavior:'smooth'})}}>Unterlagen ergänzen & erneut prüfen</button><button type="button" className={s.secondary} disabled={busy} onClick={reset}>Neuer Check</button></div>
     </section>:null}
     {!report&&!count?<details className={s.historyPanel}><summary><History size={17}/>Bisherige Checks<ChevronRight size={16}/></summary>{loading?<p>Wird geladen …</p>:history.length?history.slice(0,10).map(item=><div className={s.history} key={item.id}><div>{item.display_name}<small>Version {item.version} · {new Date(item.created_at).toLocaleDateString('de-DE')}</small></div><button type="button" disabled={busy} onClick={()=>openReport(item.id)}>Öffnen ↗</button></div>):<p className={s.muted}>Hier findest du später deine gespeicherten Checks.</p>}</details>:null}
     <footer className={s.footer}><ShieldAlert size={14}/>Technische Vorprüfung. Keine Sicherheitsfreigabe oder Abnahme.</footer>
