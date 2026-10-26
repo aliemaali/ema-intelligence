@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type {SourceReview} from './source-review'
 export const AREAS = { cabinet: 'Zählerschrank & Unterverteilung', pv: 'PV & Wechselrichter', storage: 'Batteriespeicher', heatpump: 'Wärmepumpe', wallbox: 'Wallbox & Ladeinfrastruktur' } as const
 const number = z.number().finite().min(0).max(100000).nullable().default(null)
 export const inputSchema = z.object({
@@ -21,7 +22,7 @@ export type Status = 'grey' | 'yellow' | 'red'
 export type Finding = { id: string; status: Status; title: string; detail: string; action: string; basis: string; sourceIds: string[]; offer: boolean }
 export type Source = { id: string; title: string; url: string; version: string; locator: string; checkedAt: string; scope: string }
 export type Vision = { components: { name: string; manufacturer: string; model: string; evidence: string; certainty: string }[]; observations: string[]; risks: { detail:string; evidence:string }[]; missing: string[]; limitations: string[]; pdfTextStatus: string[]; model: string; usage: { input: number; output: number; estimatedUsd: number } }
-export type Assessment = { status: Status; decision: string; findings: Finding[]; alternatives: string[]; sources: Source[]; vision: Vision | null; limitations: string[]; engineVersion: string; createdAt: string }
+export type Assessment = { status: Status; decision: string; findings: Finding[]; alternatives: string[]; sources: Source[]; vision: Vision | null; limitations: string[]; engineVersion: string; createdAt: string; sourceReview?: SourceReview }
 export const STATUS = { grey: 'Nicht ausreichend beurteilbar', yellow: 'Weitere Prüfung notwendig', red: 'Kritischer Hinweis – Fachprüfung erforderlich' } as const
 export const OPERATORS = [
   { name: 'EWR Netz', url: 'https://www.ewr-netz.de/partner/installateure/formulare-und-richtlinien/' },
