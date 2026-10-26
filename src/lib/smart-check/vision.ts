@@ -7,6 +7,7 @@ const schema=z.object({components:z.array(component).max(25),observations:z.arra
 export const VISION_MODEL='gpt-5.4-mini-2026-03-17'
 export async function analyzeVision(input:CheckInput,files:any[],userId:string):Promise<Vision>{
   if(input.mode!=='ai' || !input.aiConsent)throw new CheckError('KI-Auftrag nicht bestätigt.',403)
+  if(process.env.SMART_CHECK_AI_ENABLED!=='true')throw new CheckError('Kostenpflichtige KI-Auswertung ist noch nicht freigegeben. Bitte Regelprüfung verwenden.',403)
   const key=process.env.OPENAI_API_KEY
   if(!key)throw new CheckError('Die bestehende OpenAI-Anbindung ist nicht verfügbar. Regelprüfung bleibt nutzbar.',503)
   const content:any[]=[{type:'text',text:JSON.stringify({task:'Elektrotechnische Bestandsaufnahme, keine Abnahme',project:input,files:files.map(f=>({id:f.id,name:f.file_name,mime:f.mime_type}))})}]

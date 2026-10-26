@@ -1,9 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
-import {stripTypeScriptTypes} from 'node:module'
+import * as nodeModule from 'node:module'
 import {createHash} from 'node:crypto'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
+// Runtime is Node 24; this repository deliberately still uses Node 20 type declarations.
+const {stripTypeScriptTypes}=nodeModule as unknown as {stripTypeScriptTypes:(source:string)=>string}
 const base={title:'Testanlage Worms',address:'Teststraße 1, 67547 Worms',area:'cabinet',operator:'EWR Netz'}
 test('a photo or even affirmative component declarations cannot produce a green release',()=>{const input=inputSchema.parse({...base,attachmentIds:['11111111-1111-4111-8111-111111111111'],sls:'yes',spd:'yes',apz:'yes',rfz:'yes',measurementProof:true,operatorConfirmed:true,operatorEvidence:'Netzanschlussvertrag',rulesConfirmed:true,ruleVersion:'TAB',ruleLocator:'Seite 7'});const report=assess(input);assert.equal(report.status,'grey');assert.ok(report.findings.some(f=>f.id==='rules'&&f.status==='grey'));assert.ok(report.findings.some(f=>f.id==='image'));});
 test('thermal heat output never triggers an electrical 14a threshold',()=>{const report=assess(inputSchema.parse({...base,heatKw:12}));assert.ok(report.findings.some(f=>f.id==='hp-electric'));assert.equal(report.findings.some(f=>f.id==='hp14a'),false);const known=assess(inputSchema.parse({...base,heatKw:12,heatElectricKw:3,heaterKw:6}));assert.ok(known.findings.some(f=>f.id==='hp14a'));});

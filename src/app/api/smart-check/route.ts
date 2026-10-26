@@ -9,5 +9,5 @@ export async function GET(request:Request){try{
     supabase.from('documents').select('id,display_name,created_at,version,project_id').eq('user_id',user.id).like('source_record_id','smart-check:%').eq('analysis_status','completed').eq('is_archived',false).order('created_at',{ascending:false}).limit(30),
   ])
   if(projects.error || folders.error || reports.error)throw new Error('Stammdaten konnten nicht geladen werden')
-  return Response.json({projects:projects.data||[],folders:folders.data||[],reports:reports.data||[],aiAvailable:!!process.env.OPENAI_API_KEY},{headers:privateHeaders})
+  return Response.json({projects:projects.data||[],folders:folders.data||[],reports:reports.data||[],aiAvailable:process.env.SMART_CHECK_AI_ENABLED==='true' && !!process.env.OPENAI_API_KEY},{headers:privateHeaders})
 }catch(error){return checkFailure(error)}}
