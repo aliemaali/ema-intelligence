@@ -2,7 +2,7 @@ import {z} from 'zod'
 import {createHash} from 'node:crypto'
 import type {CheckInput,Vision} from './model'
 import {CheckError} from './server'
-import {CABINET_CRITERIA} from './criteria'
+import {CABINET_CRITERIA,PV_CHECK_TASK} from './criteria'
 const component=z.object({name:z.string().max(160),manufacturer:z.string().max(100),model:z.string().max(100),evidenceFileId:z.string(),evidence:z.string().max(350),certainty:z.enum(['lesbar','unsicher'])})
 const criterion=z.object({id:z.enum(['space','protection','metering','condition','legacy','acceptance','evu']),state:z.enum(['observed','concern','unknown']),detail:z.string().max(350),evidenceFileId:z.string().max(100),evidence:z.string().max(350),missing:z.string().max(300)})
 const schema=z.object({criteria:z.array(criterion).max(7).default([]),components:z.array(component).max(25),observations:z.array(z.string().max(500)).max(20),risks:z.array(z.object({detail:z.string().max(500),evidence:z.string().max(350),evidenceFileId:z.string()})).max(10),missing:z.array(z.string().max(300)).max(20),limitations:z.array(z.string().max(400)).max(12)})
@@ -12,7 +12,7 @@ export async function analyzeVision(input:CheckInput,files:any[],userId:string):
   if(process.env.SMART_CHECK_AI_ENABLED==='false')throw new CheckError('Die KI-Auswertung ist administrativ deaktiviert.',403)
   const key=process.env.OPENAI_API_KEY
   if(!key)throw new CheckError('Die bestehende OpenAI-Anbindung ist nicht verfügbar. Regelprüfung bleibt nutzbar.',503)
-  const content:any[]=[{type:'text',text:JSON.stringify({task:'Elektrotechnische Bestandsaufnahme, keine Abnahme',project:input,files:files.map(f=>({id:f.id,name:f.file_name,mime:f.mime_type}))})}]
+  const content:any[]=[{type:'text',text:JSON.stringify({task:PV_CHECK_TASK,project:input,files:files.map(f=>({id:f.id,name:f.file_name,mime:f.mime_type}))})}]
   const pdfTextStatus:string[]=[]
   for(const f of files){
     if(f.mime_type.startsWith('image/')){content.push({type:'text',text:`Quelldatei-ID: ${f.id}; Name: ${f.file_name}`},{type:'image_url',image_url:{url:`data:${f.mime_type};base64,${Buffer.from(f.bytes).toString('base64')}`,detail:'high'}})}

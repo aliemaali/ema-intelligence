@@ -3,15 +3,15 @@
 import Link from 'next/link'
 import {useEffect, useRef, useState} from 'react'
 import {ArrowLeft, ArrowUpRight, Camera, ChevronRight, FileText, FolderOpen, History, ImagePlus, ScanLine, ShieldAlert, X} from 'lucide-react'
-import {AREAS, OPERATORS, type Assessment, type CheckInput} from '@/lib/smart-check/model'
-import {CABINET_CRITERIA,buildCabinetCriteria} from '@/lib/smart-check/criteria'
+import {OPERATORS, type Assessment, type CheckInput} from '@/lib/smart-check/model'
+import {CABINET_CRITERIA,buildCabinetCriteria,PV_CHECK_TASK} from '@/lib/smart-check/criteria'
 import s from './photo-check.module.css'
 
 type Asset = {id:string; file_name:string; mime_type:string}
 type Pending = {key:string; file:File; preview:string|null}
 type Report = {id:string; version:number; input:CheckInput; result:Assessment; attachments:Asset[]}
 type PastCheck = {id:string; display_name:string; version:number; created_at:string}
-const initial = ():CheckInput => ({title:'',projectId:null,area:'cabinet',address:'',building:'',operator:'',operatorConfirmed:false,operatorEvidence:'',rulesConfirmed:false,ruleVersion:'',ruleLocator:'',pvKwp:null,inverterKw:null,storageKwh:null,storageChargeKw:null,heatKw:null,heatElectricKw:null,heaterKw:null,wallboxKw:null,deviceModel:'',notes:'',sls:'unknown',spd:'unknown',apz:'unknown',rfz:'unknown',measurementProof:false,hazard:false,hazardEvidence:'',attachmentIds:[],folderId:null,mode:'rules',aiConsent:false,previousReportId:null})
+const initial = ():CheckInput => ({title:'',projectId:null,area:'cabinet',address:'',building:'',operator:'',operatorConfirmed:false,operatorEvidence:'',rulesConfirmed:false,ruleVersion:'',ruleLocator:'',pvKwp:null,inverterKw:null,storageKwh:null,storageChargeKw:null,heatKw:null,heatElectricKw:null,heaterKw:null,wallboxKw:null,deviceModel:'',notes:PV_CHECK_TASK,sls:'unknown',spd:'unknown',apz:'unknown',rfz:'unknown',measurementProof:false,hazard:false,hazardEvidence:'',attachmentIds:[],folderId:null,mode:'rules',aiConsent:false,previousReportId:null})
 
 async function readResponse(response:Response) {
   if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('Bitte erneut anmelden und Smart Check öffnen.')
@@ -95,7 +95,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
         setAssets([...uploaded]);removePending(item)
       }
       setMessage(mode==='ai'?'Aufnahmen auswerten und technische Hinweise prüfen …':'Unterlagen-Check erstellen – ohne Bildanalyse …')
-      const payload={...input,title:input.title.trim()||('Smart Check · '+AREAS[input.area]),attachmentIds:uploaded.map(asset=>asset.id),mode,aiConsent:mode==='ai'&&consent}
+      const payload={...input,area:'cabinet' as const,notes:PV_CHECK_TASK,title:input.title.trim()||'PV-Eignung des Zählerschranks',attachmentIds:uploaded.map(asset=>asset.id),mode,aiConsent:mode==='ai'&&consent}
       const data=await readResponse(await fetch('/api/smart-check/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})) as Report
       setReport(data);setInput({...data.input,mode:'rules',aiConsent:false,previousReportId:data.id});setConsent(false);setSelected([])
       setHistory(old=>[{id:data.id,display_name:data.input.title,version:data.version,created_at:data.result.createdAt},...old].slice(0,30))
@@ -122,7 +122,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
   return <main className={s.workspace}><div className={s.container}>
     <header className={s.header}><Link href="/apps"><ArrowLeft size={18}/>EMA</Link><strong><ScanLine size={19}/>Smart Check</strong><Link href="/dms" aria-label="DMS öffnen"><FolderOpen size={19}/></Link></header>
     {!report?<>
-      <section className={s.intro}><p className={s.eyebrow}>Fotografieren · Verstehen · Vorprüfen</p><h1>Zeig uns deine Anlage.</h1><p>Mit einem Foto starten. Technische Hinweise und nächste Schritte erhalten.</p></section>
+      <section className={s.intro}><p className={s.eyebrow}>Fotografieren · Verstehen · Vorprüfen</p><h1>Zeig uns deine Anlage.</h1><p>Zählerschrank für eine neue PV-Anlage vorprüfen lassen.</p></section>
       <section className={s.capture} aria-label="Aufnahmen hinzufügen">
         <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={e=>addFiles(e.target.files)}/>
         <input ref={files} type="file" accept="image/jpeg,image/png,application/pdf" multiple hidden onChange={e=>addFiles(e.target.files)}/>
@@ -134,8 +134,6 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
         <details className={s.details}><summary>Diese sieben Kriterien prüft Smart Check</summary>{CABINET_CRITERIA.map(c=><p key={c.id}>{c.title}</p>)}</details><p className={s.hint}>Bis zu 8 Fotos oder PDFs. Keine Abdeckungen oder Plomben öffnen.</p>
       </section>
       {count>0?<section className={s.panel}>
-        <h2>Worum geht es?</h2><div className={s.choices}>{Object.entries(AREAS).map(([key,label])=><button type="button" key={key} disabled={busy} aria-pressed={input.area===key} className={input.area===key?s.selected:s.choice} onClick={()=>update('area',key as CheckInput['area'])}>{label}</button>)}</div>
-        <label className={s.field}>Was möchtest du wissen oder erweitern?<textarea value={input.notes} maxLength={2500} disabled={busy} onChange={e=>update('notes',e.target.value)} placeholder="Zum Beispiel: Kann ich hier PV, einen Speicher und eine Wärmepumpe anschließen?"/></label>
         <label className={s.field}>Dein Netzbetreiber<select value={OPERATORS.some(op=>op.name===input.operator)?input.operator:'other'} disabled={busy} onChange={e=>{update('operator',e.target.value==='other'?'':e.target.value);update('operatorConfirmed',false);update('operatorEvidence','')}}><option value="other">Noch nicht bekannt / anderer Betreiber</option>{OPERATORS.map(op=><option key={op.name}>{op.name}</option>)}</select></label>
         {!OPERATORS.some(op=>op.name===input.operator)?<label className={s.field}>Anderer Netzbetreiber (optional)<input value={input.operator} maxLength={120} disabled={busy} onChange={e=>update('operator',e.target.value)}/></label>:null}
         <p className={s.muted}>Die Auswahl allein bestätigt keine adressgenaue Zuständigkeit. Unbekannte lokale Vorgaben bleiben als offene Prüfung gekennzeichnet.</p>
