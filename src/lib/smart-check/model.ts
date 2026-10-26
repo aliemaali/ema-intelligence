@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import {operatorFinding} from './operator'
 import type {SourceReview} from './source-review'
 import {buildCabinetCriteria,type CriterionObservation,type CriterionResult} from './criteria'
 export const AREAS = { cabinet: 'Zählerschrank & Unterverteilung', pv: 'PV & Wechselrichter', storage: 'Batteriespeicher', heatpump: 'Wärmepumpe', wallbox: 'Wallbox & Ladeinfrastruktur' } as const
@@ -48,7 +49,7 @@ export function assess(input: CheckInput, vision: Vision | null = null): Assessm
   const add = (id:string,status:Status,title:string,detail:string,action:string,basis:string,sourceIds:string[]=[],offer=false) => findings.push({id,status,title,detail,action,basis,sourceIds,offer})
   if (input.hazard) add('hazard','red','Konkreter Sicherheitsverdacht',input.hazardEvidence,'Anlage nicht öffnen oder berühren. Bei unmittelbarer Gefahr Abstand halten und Fachbetrieb bzw. örtlichen Notdienst verständigen.','Vom Benutzer gemeldeter Verdacht; noch keine Messung',[],false)
   for (const [i,risk] of (vision?.risks ?? []).entries()) add(`visual-risk-${i}`,'red','Visueller Sicherheitsverdacht',risk.detail,'Zeitnahe Prüfung durch Elektrofachbetrieb; keine Arbeiten unter Spannung.',`KI-Verdacht: ${risk.evidence}; unbestätigt`,[],false)
-  if (!input.address || !input.operator || !input.operatorConfirmed || !input.operatorEvidence) add('operator','grey','Netzbetreiber nicht nachgewiesen','Eine Postleitzahl oder Ortsangabe bestätigt keinen zuständigen Verteilnetzbetreiber.','Netzbetreiber anhand Anschlussunterlagen oder Netzbetreiberauskunft für die konkrete Adresse bestätigen.','Fehlender Adress-/Netzgebietsbeleg',[],false)
+  const operator=operatorFinding(input); if(operator)findings.push(operator)
   add('rules','grey','Regelwerksprüfung eingeschränkt',input.rulesConfirmed ? `Benutzerangabe: ${input.ruleVersion || 'keine Fassung'}. Fundstelle: ${input.ruleLocator || 'nicht angegeben'}. Die Anwendbarkeit einschließlich Übergangsregeln ist nicht unabhängig verifiziert.` : 'Lokale TAB, Ergänzungen und vollständige lizenzierte Normen sind noch nicht abschließend projektbezogen geprüft.','Aktuelle TAB, Ergänzungen, Übergangsregeln und lizenzierte DIN-VDE-Nachweise mit dem Fachplaner abgleichen.','Öffentliche Quellen und gegebenenfalls manuelle Bestätigung; keine vollständige Normprüfung',['operator','tar4100','tar4105'],true)
   if (!input.attachmentIds.length) add('files','grey','Bestandsunterlagen fehlen','Keine Fotos oder technischen Unterlagen zugeordnet.','Übersichtsbild, Typenschild, Datenblatt und vorhandene Messprotokolle ergänzen.','Dateiverzeichnis',[],false)
   if (input.mode==='rules') add('image','grey','Keine automatische Bildauswertung','Fotos und PDFs werden als Originale hinterlegt; diese Prüfung bewertet strukturierte Benutzereingaben.','Bei Bedarf eine ausdrücklich freigegebene KI-Auswertung starten oder Befunde manuell dokumentieren.','Regelbasierter Prüfmodus',[],false)
