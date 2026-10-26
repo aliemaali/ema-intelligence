@@ -29,6 +29,7 @@ const nextConfig = {
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
 
   outputFileTracingIncludes: {
+    '/api/smart-check/analyze': ['./public/fonts/inter/*.ttf'],
     '/api/memorandum/pdf': [
       './public/pdf/hero-solarpark.jpg',
       './public/project-bess.svg',

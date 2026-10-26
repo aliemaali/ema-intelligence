@@ -7,5 +7,5 @@ declare module 'pdf-parse' {
     version?: string
   }
 
-  export default function pdfParse(dataBuffer: Buffer): Promise<PdfParseResult>
+  export default function pdfParse(dataBuffer: Buffer, options?: { max?: number }): Promise<PdfParseResult>
 }
