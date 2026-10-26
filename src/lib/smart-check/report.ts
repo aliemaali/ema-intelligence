@@ -20,7 +20,7 @@ export function createShortCheckPdf(input:CheckInput,result:Assessment,version:n
   pdf.setFont('Inter','bold');pdf.setFontSize(17);pdf.text(label,29,44)
   pdf.setTextColor(74,93,111)
   line(`${AREAS[input.area]} · Version ${version} · ${new Date(result.createdAt).toLocaleDateString('de-DE',{timeZone:'Europe/Berlin'})}`,54,8)
-  pdf.setFont('Inter','normal');pdf.setFontSize(8);pdf.text(pdf.splitTextToSize(`Netzbetreiber: ${input.operator||'nicht bekannt'} · Zuständigkeit und EVU-Konformität nicht bestätigt`,174).slice(0,2),18,61)
+  pdf.setFont('Inter','normal');pdf.setFontSize(8);pdf.text(pdf.splitTextToSize(`Netzbetreiber: ${input.operator?input.operator+' (vom Nutzer angegeben)':'nicht ausgewählt'} · Adresszuordnung nicht unabhängig geprüft; EVU-Konformität offen`,174).slice(0,2),18,61)
   const criteria=result.criteria||buildCabinetCriteria(input,result.vision,result.findings)
   let y=76
   criteria.forEach(c=>{

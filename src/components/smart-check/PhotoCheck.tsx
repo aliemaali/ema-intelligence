@@ -5,6 +5,7 @@ import {useEffect, useRef, useState} from 'react'
 import {ArrowLeft, ArrowUpRight, Camera, ChevronRight, FileText, FolderOpen, History, ImagePlus, ScanLine, ShieldAlert, Wrench, Minus, X} from 'lucide-react'
 import {OPERATORS, type Assessment, type CheckInput} from '@/lib/smart-check/model'
 import {CABINET_CRITERIA,buildCabinetCriteria,PV_CHECK_TASK} from '@/lib/smart-check/criteria'
+import {nextCheckSteps,presentFindings} from '@/lib/smart-check/operator'
 import s from './photo-check.module.css'
 
 type Asset = {id:string; file_name:string; mime_type:string}
@@ -113,11 +114,12 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
   function clearLocal(){urls.current.forEach(url=>URL.revokeObjectURL(url));urls.current.clear();setPending([])}
   function reset(){clearLocal();setInput(initial());setAssets([]);setReport(null);setSelected([]);setConsent(false);setError('');window.scrollTo({top:0,behavior:'smooth'})}
   const numberField=(key:'pvKwp'|'storageKwh'|'heatKw'|'heatElectricKw'|'heaterKw'|'wallboxKw',label:string)=><label className={s.field}>{label}<input type="number" min="0" max="100000" step="any" value={input[key]??''} placeholder="Nicht bekannt" disabled={busy} onChange={e=>update(key,e.target.value===''?null:Number(e.target.value))}/></label>
-  const measures=report?.result.findings.filter(f=>f.offer)||[]
+  const findings=report?presentFindings(report.input,report.result.findings):[]
+  const measures=findings.filter(f=>f.offer)
   const offerPayload=report?JSON.stringify({title:report.input.title,reportId:report.id,measures:measures.filter(f=>selected.includes(f.id)).slice(0,8).map(f=>(f.title+': '+f.action).slice(0,400))}):''
   const vision=report?.result.vision
   const critical=report?.result.findings.filter(f=>f.status==='red')||[]
-  const nextSteps=report ? [...critical,...report.result.findings.filter(f=>f.status==='yellow'),...report.result.findings.filter(f=>f.status==='grey'&&f.id!=='image')].filter((f,i,all)=>all.findIndex(other=>other.action===f.action)===i).slice(0,3) : []
+  const nextSteps=report?nextCheckSteps(report.input,findings):[]
   const criteria=report?(report.result.criteria||buildCabinetCriteria(report.input,report.result.vision,report.result.findings)):[]
 
   return <main className={s.workspace}><div className={s.container}>
@@ -137,7 +139,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
       {count>0?<section className={s.panel}>
         <label className={s.field}>Dein Netzbetreiber<select value={OPERATORS.some(op=>op.name===input.operator)?input.operator:'other'} disabled={busy} onChange={e=>{update('operator',e.target.value==='other'?'':e.target.value);update('operatorConfirmed',false);update('operatorEvidence','')}}><option value="other">Noch nicht bekannt / anderer Betreiber</option>{OPERATORS.map(op=><option key={op.name}>{op.name}</option>)}</select></label>
         {!OPERATORS.some(op=>op.name===input.operator)?<label className={s.field}>Anderer Netzbetreiber (optional)<input value={input.operator} maxLength={120} disabled={busy} onChange={e=>update('operator',e.target.value)}/></label>:null}
-        <p className={s.muted}>Die Auswahl allein bestätigt keine adressgenaue Zuständigkeit. Unbekannte lokale Vorgaben bleiben als offene Prüfung gekennzeichnet.</p>
+        <p className={s.muted}>Deine Auswahl wird für die Recherche der Netzbetreibervorgaben verwendet. Die adressgenaue Zuständigkeit wird nicht automatisch geprüft.</p>
         <details className={s.details}><summary>Technische Angaben ergänzen <span>optional</span></summary><p>Nur bekannte Werte eintragen. Fehlende Daten werden nicht geschätzt.</p><div className={s.grid}>{numberField('pvKwp','PV-Leistung (kWp)')}{numberField('storageKwh','Speicherkapazität (kWh)')}{numberField('heatKw','Wärmepumpe: Heizleistung (kW)')}{numberField('heatElectricKw','Wärmepumpe: max. elektrisch ohne Heizstab (kW)')}{numberField('heaterKw','Zusatzheizung / Heizstab (kW)')}{numberField('wallboxKw','Wallbox (kW)')}</div></details>
         <details className={s.details}><summary>Einen konkreten Sicherheitsverdacht melden</summary><p>Zum Beispiel sichtbare Schmorstellen oder eine beschädigte Abdeckung. Anlage nicht öffnen oder berühren.</p><label className={s.field}>Beobachtung<textarea value={input.hazardEvidence} maxLength={400} disabled={busy} onChange={e=>{update('hazardEvidence',e.target.value);update('hazard',e.target.value.trim().length>0)}}/></label></details>
         <div className={s.analyze}>
@@ -157,7 +159,8 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
         <h1 className={s.resultTitle}>{report.result.status==='red'?'Kritischer Befund':report.result.status==='yellow'?'Anpassung prüfen':'Noch nicht beurteilbar'}</h1>
         <p className={s.resultSummary}>{report.result.status==='red'?'Ein konkreter Sicherheitsverdacht muss vor der PV-Erweiterung fachlich geklärt werden.':report.result.status==='yellow'?'Für die geplante PV-Erweiterung sind Anpassungen zu prüfen.':'Für eine belastbare Aussage fehlen noch technische Nachweise.'}</p>
       </div>
-      <div className={s.nextSteps}><p className={s.stepLabel}>Nächste Schritte</p>{nextSteps.map(f=><details key={f.id} className={s.step}><summary><span className={s.stepIcon}><Wrench size={17}/></span><strong>{f.title}</strong><ChevronRight size={18}/></summary><p>{f.action}</p></details>)}</div>
+      <p className={s.operatorLabel}>Netzbetreiber: <strong>{report.input.operator||'Noch nicht ausgewählt'}</strong>{report.input.operator?' · vom Nutzer angegeben':null}</p>
+      <div className={s.nextSteps}><p className={s.stepLabel}>Nächste Schritte</p>{nextSteps.map(f=><details key={f.id} className={s.step} data-status={f.status}><summary><span className={s.stepIcon}>{f.status==='red'?<ShieldAlert size={17}/>:f.status==='yellow'?<Wrench size={17}/>:<Minus size={17}/>}</span><strong>{f.title}</strong><ChevronRight size={18}/></summary><p>{f.action}</p></details>)}</div>
       <p className={s.resultNote}>Grün nur mit ausreichenden geprüften Nachweisen. Ein Foto allein bestätigt keine EVU-Konformität oder Abnahme.</p>
       <details className={`${s.details} ${s.resultDetails}`}><summary>Details & Quellen anzeigen<ChevronRight size={17}/></summary>
         <p className={s.muted}>{vision?'Technische Vorprüfung':'Unterlagen-Check · ohne Bildanalyse'} · Version {report.version}</p>
@@ -167,8 +170,8 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
       {!vision?<p className={s.notice}>Die Fotos wurden zugeordnet, aber nicht inhaltlich analysiert. Diese Hinweise beruhen auf deinen Angaben und fehlenden Nachweisen.</p>:null}
       {critical.map(f=><article className={s.critical} key={f.id}><ShieldAlert size={21}/><div><h3>{f.title}</h3><p>{f.detail}</p><p><strong>Jetzt:</strong> {f.action}</p><small>{f.basis}</small></div></article>)}
       {vision?<section className={s.resultSection}><h2>Was ist erkennbar?</h2>{vision.components.length?vision.components.map((c,i)=><article className={s.component} key={i}><strong>{c.name}</strong><p>{c.manufacturer||'Hersteller nicht lesbar'} · {c.model||'Modell nicht lesbar'}</p><small>{c.evidence} · {c.certainty}</small></article>):<p>Keine Komponente zuverlässig identifiziert.</p>}{vision.observations.map((item,i)=><p key={i}>{item}</p>)}<p className={s.muted}>Automatisch erkannt, noch fachlich zu bestätigen.</p></section>:null}
-      <section className={s.resultSection}><h2>Was fehlt für eine belastbare Aussage?</h2>{vision?.missing.map((item,i)=><p key={i}>{item}</p>)}{report.result.findings.filter(f=>f.status==='grey'&&f.id!=='image').map(f=><details className={s.details} key={f.id}><summary>{f.title}</summary><p>{f.detail}</p><p><strong>Benötigt:</strong> {f.action}</p></details>)}</section>
-      <section className={s.resultSection}><h2>Was ist der nächste Schritt?</h2>{report.result.findings.filter(f=>f.status==='yellow').map(f=><article className={s.component} key={f.id}><h3>{f.title}</h3><p>{f.action}</p><small>{f.basis}</small></article>)}{report.result.alternatives.map((item,i)=><p key={i}>{item}</p>)}<p className={s.muted}>Mögliche Prüf- und Planungswege. Daraus folgt noch keine bestätigte Nachrüstpflicht.</p></section>
+      <section className={s.resultSection}><h2>Was fehlt für eine belastbare Aussage?</h2>{vision?.missing.map((item,i)=><p key={i}>{item}</p>)}{findings.filter(f=>f.status==='grey'&&f.id!=='image').map(f=><details className={s.details} key={f.id}><summary>{f.title}</summary><p>{f.detail}</p><p><strong>Benötigt:</strong> {f.action}</p></details>)}</section>
+      <section className={s.resultSection}><h2>Was ist der nächste Schritt?</h2>{findings.filter(f=>f.status==='yellow').map(f=><article className={s.component} key={f.id}><h3>{f.title}</h3><p>{f.action}</p><small>{f.basis}</small></article>)}{report.result.alternatives.map((item,i)=><p key={i}>{item}</p>)}<p className={s.muted}>Mögliche Prüf- und Planungswege. Daraus folgt noch keine bestätigte Nachrüstpflicht.</p></section>
       <details className={s.details}><summary>Netzbetreiber, Quellen und Prüfgrenzen</summary><p>Netzbetreiber: {report.input.operator||'Noch nicht bekannt'}. Zuständigkeit und Anwendbarkeit bleiben projektbezogen zu prüfen.</p>{report.result.sourceReview?<><p>Quellenabruf: {report.result.sourceReview.status} · {new Date(report.result.sourceReview.checkedAt).toLocaleString('de-DE')}</p><p>{report.result.sourceReview.limitation}</p>{report.result.sourceReview.documents.map(d=><p key={d.url}><a href={d.url} target="_blank" rel="noopener noreferrer">{d.title} ↗</a></p>)}</>:null}{report.result.sources.map(source=><div className={s.source} key={source.id}><a href={source.url} target="_blank" rel="noopener noreferrer">{source.title} ↗</a><br/>{source.version}<br/>{source.locator}<br/>{source.scope}</div>)}{report.result.limitations.map(item=><p key={item}>{item}</p>)}{vision?.limitations.map((item,i)=><p key={i}>{item}</p>)}{vision?.pdfTextStatus.map((item,i)=><p key={i}>{item}</p>)}{vision?<p>Rechnerische API-Kosten: ca. {vision.usage.estimatedUsd.toFixed(4)} USD; tatsächliche Abrechnung beim Anbieter.</p>:null}</details>
       </details>
       </details>

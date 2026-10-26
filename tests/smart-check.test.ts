@@ -5,6 +5,7 @@ import * as nodeModule from 'node:module'
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
 import {CABINET_CRITERIA,PV_CHECK_TASK} from '../src/lib/smart-check/criteria'
+import {operatorFinding,presentFindings,nextCheckSteps} from '../src/lib/smart-check/operator'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
 import {discoverOfficialLinks,reviewOfficialSources} from '../src/lib/smart-check/source-review'
 // Runtime is Node 24; this repository deliberately still uses Node 20 type declarations.
@@ -82,4 +83,21 @@ test('criterion observations require a real attached file; all seven requested s
  const result=await f.fn(inputSchema.parse({...base,mode:'ai',aiConsent:true}),f.files,'test-user');
  assert.equal(result.criteria.length,1);assert.equal(result.criteria[0].id,'space');assert.match(result.criteria[0].evidence,/test.jpg/);
  for(const criterion of CABINET_CRITERIA)assert.ok(f.calls[0].body.messages[0].content.includes(criterion.title));
+});
+
+test('selected operator is acknowledged separately from unverified local compliance',()=>{
+ const input=inputSchema.parse({...base,address:''}),report=assess(input),f=report.findings.find(f=>f.id==='operator')!;
+ assert.equal(f.title,'EWR Netz – vom Nutzer angegeben');assert.equal(f.status,'grey');assert.match(f.detail,/nicht unabhängig geprüft/);
+ assert.equal(nextCheckSteps(input,report.findings).some(f=>f.id==='operator'),false);
+ assert.equal(report.findings.find(f=>f.id==='rules')!.status,'grey');
+ const unknown=inputSchema.parse({...base,operator:''});assert.equal(operatorFinding(unknown)!.title,'Netzbetreiber auswählen');
+ assert.ok(nextCheckSteps(unknown,assess(unknown).findings).some(f=>f.id==='operator'));
+});
+test('saved reports retain individual severity and prioritize actual risk over open evidence',()=>{
+ const input=inputSchema.parse(base),old=assess(input).findings.map(f=>f.id==='operator'?{...f,title:'Netzbetreiber nicht nachgewiesen'}:f);
+ const risk={id:'risk',status:'red' as const,title:'Sicherheitsverdacht',detail:'Bildbeleg',action:'Fachprüfung des konkreten Verdachts',basis:'Bild',sourceIds:[],offer:false};
+ const shown=presentFindings(input,[...old,risk]),steps=nextCheckSteps(input,shown);
+ assert.equal(old.find(f=>f.id==='operator')!.title,'Netzbetreiber nicht nachgewiesen');
+ assert.equal(shown.find(f=>f.id==='operator')!.title,'EWR Netz – vom Nutzer angegeben');
+ assert.equal(steps.length,3);assert.equal(steps[0].status,'red');assert.equal(steps[1].status,'grey');assert.equal(steps[2].status,'grey');
 });
