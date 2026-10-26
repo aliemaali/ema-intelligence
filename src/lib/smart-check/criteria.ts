@@ -1,5 +1,7 @@
 import type {CheckInput, Finding, Vision} from './model'
 
+export const PV_CHECK_TASK = 'Prüfe den fotografierten Zählerschrank auf Eignung für eine neue PV-Anlage in Deutschland anhand der sieben vereinbarten Kriterien. Benenne erkennbare Ausstattung, mögliche Hindernisse und nächste Schritte. Trenne sichtbare Befunde von Vermutungen und fehlenden Nachweisen. Eine Umbaupflicht oder EVU-Konformität darf nur aus belastbaren projektbezogenen Nachweisen und anwendbaren Vorgaben abgeleitet werden; keine Sicherheitsfreigabe oder Abnahme.'
+
 export const CABINET_CRITERIA = [
   {id:'space',title:'Zählerschrank und Platzangebot',focus:'Bauform, erkennbare Reserveplätze und lesbare Hersteller/Typen. Maße oder verdeckte Bereiche nicht schätzen.'},
   {id:'protection',title:'Schutztechnik: SLS und Überspannungsschutz',focus:'Sichtbare Schutzgeräte mit Bildstelle benennen. Nicht sichtbar bedeutet nicht fehlend. Funktion und passende Bemessung nicht allein aus Fotos bestätigen.'},

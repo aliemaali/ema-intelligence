@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs'
 import * as nodeModule from 'node:module'
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
-import {CABINET_CRITERIA} from '../src/lib/smart-check/criteria'
+import {CABINET_CRITERIA,PV_CHECK_TASK} from '../src/lib/smart-check/criteria'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
 import {discoverOfficialLinks,reviewOfficialSources} from '../src/lib/smart-check/source-review'
 // Runtime is Node 24; this repository deliberately still uses Node 20 type declarations.
@@ -46,7 +46,7 @@ function visionFixture(options:{disabled?:boolean;key?:boolean;fail?:boolean}={}
  const response:any={components:[{name:'SLS',manufacturer:'',model:'',evidenceFileId:'image-a',evidence:'Linke Bildhälfte',certainty:'unsicher'},{name:'Invented',manufacturer:'',model:'',evidenceFileId:'not-provided',evidence:'unbekannt',certainty:'unsicher'}],observations:['Typenschild nicht lesbar.'],risks:[],missing:['Scharfes Typenschildfoto'],limitations:['Keine Messwerte']};
  const fetcher=async(url:string,init:any)=>{calls.push({url,body:JSON.parse(init.body)});return options.fail?new Response('',{status:502}):Response.json({choices:[{message:{content:JSON.stringify(response)}}],usage:{prompt_tokens:100,completion_tokens:40}})};
  const source=readFileSync('src/lib/smart-check/vision.ts','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','');
- const fn=new Function('z','createHash','CheckError','process','fetch','CABINET_CRITERIA',stripTypeScriptTypes(source)+';return analyzeVision;')(z,createHash,Error,{env:{OPENAI_API_KEY:options.key===false?'':'test-only',SMART_CHECK_AI_ENABLED:options.disabled?'false':undefined}},fetcher,CABINET_CRITERIA);
+ const fn=new Function('z','createHash','CheckError','process','fetch','CABINET_CRITERIA','PV_CHECK_TASK',stripTypeScriptTypes(source)+';return analyzeVision;')(z,createHash,Error,{env:{OPENAI_API_KEY:options.key===false?'':'test-only',SMART_CHECK_AI_ENABLED:options.disabled?'false':undefined}},fetcher,CABINET_CRITERIA,PV_CHECK_TASK);
  const files=[{id:'image-a',file_name:'test.jpg',mime_type:'image/jpeg',bytes:new Uint8Array([255,216,255,217])}];
  return {calls,fn,files,response};
 }
