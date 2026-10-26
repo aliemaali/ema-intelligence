@@ -4,8 +4,8 @@ export const AREAS = { cabinet: 'Zählerschrank & Unterverteilung', pv: 'PV & We
 const number = z.number().finite().min(0).max(100000).nullable().default(null)
 export const inputSchema = z.object({
   title: z.string().trim().min(2).max(160), projectId: z.string().uuid().nullable().default(null),
-  area: z.enum(['cabinet','pv','storage','heatpump','wallbox']), address: z.string().trim().min(3).max(240),
-  building: z.string().trim().max(100).default('Einfamilienhaus'), operator: z.string().trim().max(120), operatorConfirmed: z.boolean().default(false),
+  area: z.enum(['cabinet','pv','storage','heatpump','wallbox']), address: z.string().trim().max(240).default(''),
+  building: z.string().trim().max(100).default(''), operator: z.string().trim().max(120), operatorConfirmed: z.boolean().default(false),
   operatorEvidence: z.string().trim().max(240).default(''), rulesConfirmed: z.boolean().default(false),
   ruleVersion: z.string().trim().max(160).default(''), ruleLocator: z.string().trim().max(200).default(''),
   pvKwp: number, inverterKw: number, storageKwh: number, storageChargeKw: number,
@@ -47,7 +47,7 @@ export function assess(input: CheckInput, vision: Vision | null = null): Assessm
   const add = (id:string,status:Status,title:string,detail:string,action:string,basis:string,sourceIds:string[]=[],offer=false) => findings.push({id,status,title,detail,action,basis,sourceIds,offer})
   if (input.hazard) add('hazard','red','Konkreter Sicherheitsverdacht',input.hazardEvidence,'Anlage nicht öffnen oder berühren. Bei unmittelbarer Gefahr Abstand halten und Fachbetrieb bzw. örtlichen Notdienst verständigen.','Vom Benutzer gemeldeter Verdacht; noch keine Messung',[],false)
   for (const [i,risk] of (vision?.risks ?? []).entries()) add(`visual-risk-${i}`,'red','Visueller Sicherheitsverdacht',risk.detail,'Zeitnahe Prüfung durch Elektrofachbetrieb; keine Arbeiten unter Spannung.',`KI-Verdacht: ${risk.evidence}; unbestätigt`,[],false)
-  if (!input.operator || !input.operatorConfirmed || !input.operatorEvidence) add('operator','grey','Netzbetreiber nicht nachgewiesen','Eine Postleitzahl oder Ortsangabe bestätigt keinen zuständigen Verteilnetzbetreiber.','Netzbetreiber anhand Anschlussunterlagen oder Netzbetreiberauskunft für die konkrete Adresse bestätigen.','Fehlender Adress-/Netzgebietsbeleg',[],false)
+  if (!input.address || !input.operator || !input.operatorConfirmed || !input.operatorEvidence) add('operator','grey','Netzbetreiber nicht nachgewiesen','Eine Postleitzahl oder Ortsangabe bestätigt keinen zuständigen Verteilnetzbetreiber.','Netzbetreiber anhand Anschlussunterlagen oder Netzbetreiberauskunft für die konkrete Adresse bestätigen.','Fehlender Adress-/Netzgebietsbeleg',[],false)
   add('rules','grey','Regelwerksprüfung eingeschränkt',input.rulesConfirmed ? `Benutzerangabe: ${input.ruleVersion || 'keine Fassung'}. Fundstelle: ${input.ruleLocator || 'nicht angegeben'}. Die Anwendbarkeit einschließlich Übergangsregeln ist nicht unabhängig verifiziert.` : 'Lokale TAB, Ergänzungen und vollständige lizenzierte Normen sind noch nicht abschließend projektbezogen geprüft.','Aktuelle TAB, Ergänzungen, Übergangsregeln und lizenzierte DIN-VDE-Nachweise mit dem Fachplaner abgleichen.','Öffentliche Quellen und gegebenenfalls manuelle Bestätigung; keine vollständige Normprüfung',['operator','tar4100','tar4105'],true)
   if (!input.attachmentIds.length) add('files','grey','Bestandsunterlagen fehlen','Keine Fotos oder technischen Unterlagen zugeordnet.','Übersichtsbild, Typenschild, Datenblatt und vorhandene Messprotokolle ergänzen.','Dateiverzeichnis',[],false)
   if (input.mode==='rules') add('image','grey','Keine automatische Bildauswertung','Fotos und PDFs werden als Originale hinterlegt; diese Prüfung bewertet strukturierte Benutzereingaben.','Bei Bedarf eine ausdrücklich freigegebene KI-Auswertung starten oder Befunde manuell dokumentieren.','Regelbasierter Prüfmodus',[],false)
