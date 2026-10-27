@@ -4,11 +4,12 @@ import {readFileSync} from 'node:fs'
 import * as nodeModule from 'node:module'
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
+import {EWR_DOCUMENT} from '../src/lib/smart-check/ewr-rules'
 import {photoCoverage} from '../src/lib/smart-check/evidence'
 import {CABINET_CRITERIA,PV_CHECK_TASK} from '../src/lib/smart-check/criteria'
 import {operatorFinding,presentFindings,nextCheckSteps} from '../src/lib/smart-check/operator'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
-import {discoverOfficialLinks,reviewOfficialSources} from '../src/lib/smart-check/source-review'
+import {discoverOfficialLinks,reviewOfficialSources,reviewEwrDocument} from '../src/lib/smart-check/source-review'
 // Runtime is Node 24; this repository deliberately still uses Node 20 type declarations.
 const {stripTypeScriptTypes}=nodeModule as unknown as {stripTypeScriptTypes:(source:string)=>string}
 const base={title:'Testanlage Worms',address:'Teststraße 1, 67547 Worms',area:'cabinet',operator:'EWR Netz'}
@@ -144,4 +145,47 @@ test('unreadable images cannot identify components; concrete safety suspicions r
 test('criterion evidence retains the original file identity for direct inspection',()=>{
  const vision:any={components:[],risks:[],criteria:[{id:'space',state:'observed',detail:'Reserve sichtbar',evidenceFileId:imageId,evidence:'Rechtes Feld',missing:'Maße'}]};
  assert.equal(assess(inputSchema.parse({...base,attachmentIds:[imageId]}),vision).criteria!.find(c=>c.id==='space')!.evidenceFileId,imageId);
+});
+
+const ewrInput=()=>inputSchema.parse({...base,operatorConfirmed:true,operatorEvidence:'Netzanschlussvertrag für Teststandort',pvKwp:10});
+const reviewedEwr=(status:'matched'|'changed'|'unavailable'|'not-listed'):import('../src/lib/smart-check/source-review').SourceReview=>({status:'retrieved',publisherUrl:'https://www.ewr-netz.de/partner/installateure/formulare-und-richtlinien/',sha256:null,checkedAt:'2026-10-27T00:00:00Z',documents:[],limitation:'Testzustand; keine Fachfreigabe',ruleDocument:{status,url:EWR_DOCUMENT.url,sha256:status==='matched'?EWR_DOCUMENT.sha256:null,expectedSha256:EWR_DOCUMENT.sha256,checkedAt:'2026-10-27T00:00:00Z'}});
+test('EWR rules require confirmed assignment and an unchanged officially listed document',()=>{
+ for(const status of ['changed','unavailable','not-listed'] as const){const report=assess(ewrInput(),null,reviewedEwr(status));assert.ok(report.findings.some(f=>f.id==='ewr-document'));assert.equal(report.findings.some(f=>f.id==='ewr-duty'),false)}
+ const unconfirmed=assess(inputSchema.parse(base),null,reviewedEwr('matched'));assert.ok(unconfirmed.findings.some(f=>f.id==='ewr-scope'));assert.equal(unconfirmed.findings.some(f=>f.id==='ewr-duty'),false);
+ const other=assess(inputSchema.parse({...base,operator:'Westnetz'}),null,reviewedEwr('matched'));assert.equal(other.findings.some(f=>f.id.startsWith('ewr-')),false);
+});
+test('verified EWR document adds page-specific checks without approving the installation',()=>{
+ const report=assess(ewrInput(),null,reviewedEwr('matched'));assert.equal(report.status,'grey');
+ for(const id of ['ewr-change','ewr-duty','ewr-process'])assert.ok(report.findings.some(f=>f.id===id));
+ assert.match(report.sources.find(s=>s.id==='ewr-duty')!.url,/#page=70$/);
+ assert.match(report.findings.find(f=>f.id==='ewr-change')!.detail,/nicht pauschal/);
+ assert.equal(report.criteria!.find(c=>c.id==='evu')!.status,'grey');
+});
+test('EWR disconnect requirement distinguishes new meters from unspecified existing changes',()=>{
+ const confirmed=ewrInput(),source=reviewedEwr('matched');
+ const existing=assess({...confirmed,meteringChange:'existing_extension',postMeterDisconnect:'no'},null,source);assert.equal(existing.findings.find(f=>f.id==='ewr-disconnect')!.status,'grey');
+ const missing=assess({...confirmed,meteringChange:'new_meter_or_position',postMeterDisconnect:'no'},null,source);assert.equal(missing.findings.find(f=>f.id==='ewr-disconnect')!.status,'yellow');
+ assert.match(missing.sources.find(s=>s.id==='ewr-disconnect')!.locator,/71/);
+ const declared=assess({...confirmed,meteringChange:'new_meter_or_position',postMeterDisconnect:'yes'},null,source);assert.equal(declared.findings.find(f=>f.id==='ewr-disconnect')!.status,'grey');
+});
+test('EWR table guidance requires a declared construction type, never inferred equipment age',()=>{
+ const source=reviewedEwr('matched'),input=ewrInput();
+ assert.equal(assess({...input,building:'Altbau 1960'},null,source).findings.find(f=>f.id==='ewr-table')!.status,'grey');
+ assert.equal(assess({...input,meterBoardType:'din43853'},null,source).findings.find(f=>f.id==='ewr-table')!.status,'yellow');
+ assert.equal(assess({...input,meterBoardType:'cabinet'},null,source).findings.some(f=>f.id==='ewr-table'),false);
+});
+test('document checking never follows user URLs or silently accepts changed PDF bytes',async()=>{
+ let calls=0;const fetcher=(async(url:string)=>{calls++;assert.equal(url,EWR_DOCUMENT.url);return new Response('%PDF-1.7\nchanged test document',{headers:{'content-type':'application/pdf'}})}) as typeof fetch;
+ assert.equal((await reviewEwrDocument([{url:'https://evil.example/tab.pdf'}],fetcher)).status,'not-listed');assert.equal(calls,0);
+ const changed=await reviewEwrDocument([{url:EWR_DOCUMENT.url}],fetcher);assert.equal(changed.status,'changed');assert.equal(changed.sha256?.length,64);assert.equal(calls,1);
+});
+test('PDF provenance rejects HTML, wrong signatures, oversized bodies and failed retrieval',async()=>{
+ for(const response of [new Response('<html>Login</html>',{headers:{'content-type':'text/html'}}),new Response('not a pdf',{headers:{'content-type':'application/pdf'}}),new Response(Buffer.alloc(3*1024*1024+1),{headers:{'content-type':'application/pdf'}})]){
+  assert.equal((await reviewEwrDocument([{url:EWR_DOCUMENT.url}],(async()=>response) as typeof fetch)).status,'unavailable');
+ }
+ assert.equal((await reviewEwrDocument([{url:EWR_DOCUMENT.url}],(async()=>{throw new Error('timeout')}) as typeof fetch)).status,'unavailable');
+});
+test('photo evidence requests stay actionable alongside general EWR planning checks',()=>{
+ const input=ewrInput(),report=assess(input,null,reviewedEwr('matched'));
+ assert.ok(nextCheckSteps(input,report.findings).some(f=>f.id==='photo-overview'));
 });

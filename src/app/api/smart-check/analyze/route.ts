@@ -34,8 +34,8 @@ export async function POST(request:Request){
     if(reserveError || !reservation)throw new Error('Prüfauftrag konnte nicht gespeichert werden')
     reportId=reservation.id
     const vision=input.mode==='ai'?await analyzeVision(input,files,user.id):null
-    const result=assess(input,vision)
-    result.sourceReview=await reviewOfficialSources(input.operator)
+    const sourceReview=await reviewOfficialSources(input.operator)
+    const result=assess(input,vision,sourceReview)
     const pdf=createShortCheckPdf(input,result,version)
     if(pdf.length>40*1024*1024)throw new CheckError('Der Bericht ist zu groß. Bitte weniger Bilder verwenden.')
     const {error:uploadError}=await supabase.storage.from('ema-dms').upload(path,pdf,{contentType:'application/pdf',upsert:false})
