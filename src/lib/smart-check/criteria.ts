@@ -14,15 +14,15 @@ export const CABINET_CRITERIA = [
 
 export type CriterionId = typeof CABINET_CRITERIA[number]['id']
 export type CriterionObservation = {id:CriterionId; state:'observed'|'concern'|'unknown'; detail:string; evidenceFileId:string; evidence:string; missing:string}
-export type CriterionResult = {id:CriterionId; title:string; status:'grey'|'yellow'|'red'; observationState?:'observed'|'concern'|'unknown'; summary:string; evidence:string; nextStep:string}
+export type CriterionResult = {id:CriterionId; title:string; status:'grey'|'yellow'|'red'; observationState?:'observed'|'concern'|'unknown'; summary:string; evidence:string; evidenceFileId?:string; nextStep:string}
 
 export function buildCabinetCriteria(input:CheckInput,vision:Vision|null,findings:Finding[]):CriterionResult[] {
   return CABINET_CRITERIA.map((criterion):CriterionResult=>{
     const observation=vision?.criteria?.find(item=>item.id===criterion.id)
-    const common={id:criterion.id,title:criterion.title,observationState:observation?.state,evidence:observation?.evidence||'Kein belastbarer Einzelbeleg dokumentiert.'}
+    const common={id:criterion.id,title:criterion.title,observationState:observation?.state,evidenceFileId:observation?.evidenceFileId,evidence:observation?.evidence||'Kein belastbarer Einzelbeleg dokumentiert.'}
     if(criterion.id==='evu')return {...common,observationState:'unknown',status:'grey',summary:'EVU-Konformität nicht bestätigt.',nextStep:'Zuständigen Netzbetreiber und aktuell anwendbare TAB einschließlich Ergänzungen mit Fundstellen sowie technische Nachweise prüfen.'}
     if(criterion.id==='acceptance')return {...common,observationState:'unknown',status:'grey',summary:'Mögliche Abnahmehindernisse sind mit dem Netzbetreiber zu klären.',nextStep:observation?.missing||'Befunde und Anschluss-/Messkonzept projektbezogen abstimmen; keine Abnahmezusage aus Fotos.'}
-    if(criterion.id==='condition'&&findings.some(f=>f.status==='red'))return {...common,status:'red',summary:'Konkreter Sicherheitsverdacht – fachlich prüfen.',evidence:findings.find(f=>f.status==='red')!.basis,nextStep:'Anlage nicht öffnen oder berühren; Elektrofachbetrieb mit der Prüfung beauftragen.'}
+    if(criterion.id==='condition'&&findings.some(f=>f.status==='red'))return {...common,status:'red',summary:'Konkreter Sicherheitsverdacht – fachlich prüfen.',evidenceFileId:undefined,evidence:findings.find(f=>f.status==='red')!.basis,nextStep:'Anlage nicht öffnen oder berühren; Elektrofachbetrieb mit der Prüfung beauftragen.'}
     const declaredMissing=criterion.id==='protection'&&(input.sls==='no'||input.spd==='no')||criterion.id==='metering'&&(input.apz==='no'||input.rfz==='no')
     if(declaredMissing)return {...common,status:'yellow',summary:'Laut Benutzerangabe sind Komponenten nicht vorhanden.',nextStep:'Prüfen, ob diese Komponenten für die geplante Erweiterung vorgeschrieben und nachzurüsten sind.'}
     if(observation?.state==='concern')return {...common,status:'yellow',summary:observation.detail,nextStep:criterion.id==='legacy'?'Erweiterungseignung fachlich prüfen. Alter oder Bauart allein begründen keinen Austausch.':observation.missing||'Befund fachlich bestätigen und Anpassungen anhand der Projektvorgaben klären.'}

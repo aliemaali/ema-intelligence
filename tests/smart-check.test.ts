@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs'
 import * as nodeModule from 'node:module'
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
+import {photoCoverage} from '../src/lib/smart-check/evidence'
 import {CABINET_CRITERIA,PV_CHECK_TASK} from '../src/lib/smart-check/criteria'
 import {operatorFinding,presentFindings,nextCheckSteps} from '../src/lib/smart-check/operator'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
@@ -100,4 +101,47 @@ test('saved reports retain individual severity and prioritize actual risk over o
  assert.equal(old.find(f=>f.id==='operator')!.title,'Netzbetreiber nicht nachgewiesen');
  assert.equal(shown.find(f=>f.id==='operator')!.title,'EWR Netz – vom Nutzer angegeben');
  assert.equal(steps.length,3);assert.equal(steps[0].status,'red');assert.equal(steps[1].status,'grey');assert.equal(steps[2].status,'grey');
+});
+
+const imageId='11111111-1111-4111-8111-111111111111'
+const otherId='22222222-2222-4222-8222-222222222222'
+test('capture assignments reject foreign files and duplicate claims for one image',()=>{
+ assert.equal(inputSchema.safeParse({...base,attachmentEvidence:[{fileId:imageId,kind:'overview'}]}).success,false);
+ assert.equal(inputSchema.safeParse({...base,attachmentIds:[imageId],attachmentEvidence:[{fileId:imageId,kind:'overview'},{fileId:imageId,kind:'protection'}]}).success,false);
+});
+test('assigned images are not treated as quality-reviewed or as proof of a component',()=>{
+ const input=inputSchema.parse({...base,attachmentIds:[imageId],attachmentEvidence:[{fileId:imageId,kind:'overview'}]});
+ assert.equal(photoCoverage(input)[0].state,'assigned');
+ const report=assess(input);assert.equal(report.status,'grey');
+ assert.ok(report.findings.some(f=>f.id==='photo-protection'));
+ assert.equal(report.criteria!.find(c=>c.id==='protection')!.status,'grey');
+});
+test('legacy reports without assignments remain readable and require no migration',()=>{
+ const input=inputSchema.parse(base);const {attachmentEvidence,...old}=input;
+ assert.deepEqual(input.attachmentEvidence,[]);assert.equal(photoCoverage(old as typeof input).every(task=>task.state==='missing'),true);
+});
+test('one usable assigned view does not erase a missing view or produce a release',()=>{
+ const input=inputSchema.parse({...base,attachmentIds:[imageId,otherId],attachmentEvidence:[{fileId:imageId,kind:'overview'},{fileId:otherId,kind:'nameplate'}]});
+ const vision:any={photoQuality:[{fileId:imageId,state:'usable',reason:'Schrank vollständig erkennbar'},{fileId:otherId,state:'retake',reason:'Typenschild unscharf'}],components:[],risks:[]};
+ const views=photoCoverage(input,vision);assert.equal(views[0].state,'reviewed');assert.equal(views[3].state,'retake');assert.equal(views[2].state,'missing');
+ const report=assess(input,vision);assert.equal(report.status,'grey');assert.ok(report.findings.some(f=>f.id==='photo-nameplate'&&f.status==='grey'));
+});
+test('a replacement usable view resolves a retake request for that view only',()=>{
+ const input=inputSchema.parse({...base,attachmentIds:[imageId,otherId],attachmentEvidence:[{fileId:imageId,kind:'nameplate'},{fileId:otherId,kind:'nameplate'}]});
+ const vision:any={photoQuality:[{fileId:imageId,state:'retake'},{fileId:otherId,state:'usable'}]};
+ assert.equal(photoCoverage(input,vision)[3].state,'reviewed');
+});
+test('missing location stays explicit even when an operator is selected',()=>{
+ const report=assess(inputSchema.parse({...base,address:''}));assert.ok(report.findings.some(f=>f.id==='location'));assert.equal(report.status,'grey');
+});
+test('unreadable images cannot identify components; concrete safety suspicions remain visible',async()=>{
+ const f=visionFixture();f.response.photoQuality=[{fileId:'image-a',state:'retake',reason:'Schrift unscharf'},{fileId:'foreign',state:'usable',reason:'invented'}];
+ f.response.criteria=[{id:'protection',state:'observed',detail:'SLS erkannt',evidenceFileId:'image-a',evidence:'Linkes Feld',missing:''}];
+ f.response.risks=[{detail:'Mögliche Schmorstelle',evidenceFileId:'image-a',evidence:'Unterer Bildbereich'}];
+ const result=await f.fn(inputSchema.parse({...base,mode:'ai',aiConsent:true}),f.files,'test-user');
+ assert.equal(result.photoQuality.length,1);assert.equal(result.components.length,0);assert.equal(result.criteria[0].state,'unknown');assert.equal(result.risks.length,1);
+});
+test('criterion evidence retains the original file identity for direct inspection',()=>{
+ const vision:any={components:[],risks:[],criteria:[{id:'space',state:'observed',detail:'Reserve sichtbar',evidenceFileId:imageId,evidence:'Rechtes Feld',missing:'Maße'}]};
+ assert.equal(assess(inputSchema.parse({...base,attachmentIds:[imageId]}),vision).criteria!.find(c=>c.id==='space')!.evidenceFileId,imageId);
 });
