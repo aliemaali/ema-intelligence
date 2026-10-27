@@ -13,5 +13,7 @@ export function presentFindings(input:CheckInput,findings:Finding[]):Finding[] {
 
 export function nextCheckSteps(input:CheckInput,findings:Finding[]):Finding[] {
   const visible=presentFindings(input,findings).filter(f=>f.id!=='image'&&!(f.id==='operator'&&input.operator))
-  return [...visible.filter(f=>f.status==='red'),...visible.filter(f=>f.status==='yellow'),...visible.filter(f=>f.status==='grey')].filter((f,i,all)=>all.findIndex(other=>other.action===f.action)===i).slice(0,3)
+  const evidencePriority=(f:Finding)=>['location','operator','ewr-scope','ewr-document'].includes(f.id)?0:/^(photo-|quality-)/.test(f.id)?1:2
+  const open=visible.filter(f=>f.status==='grey').sort((a,b)=>evidencePriority(a)-evidencePriority(b))
+  return [...visible.filter(f=>f.status==='red'),...visible.filter(f=>f.status==='yellow'),...open].filter((f,i,all)=>all.findIndex(other=>other.action===f.action)===i).slice(0,3)
 }
