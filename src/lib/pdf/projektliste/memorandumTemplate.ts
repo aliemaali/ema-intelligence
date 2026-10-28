@@ -159,7 +159,16 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
   const german = isGermanCountry(data.country);
   const map = german ? buildGermanyMap(options.germanyMap, data.location) : '';
   const flagSvg = flag(data.country);
-  const totalPages = data.dataCenterDetails || data.bessPortfolioDetails ? 2 : 1;
+  const importedPages = data.importedDetails ? Math.ceil(data.importedDetails.rows.length / 8) : 0;
+  const existingPages = data.dataCenterDetails || data.bessPortfolioDetails ? 2 : 1;
+  const totalPages = existingPages + importedPages;
+  const importedPage = Array.from({ length: importedPages }, (_, index) => `
+<section class="sheet memo-detail-sheet">
+  <div class="page-head"><div class="brand"><div class="mark">${emaLogoSvg({ onDark: false, withWordmark: false })}</div><div class="t">Projektangaben aus Upload<span>${esc(data.projectName)}</span></div></div><div class="doc">${esc(data.projectNumber)}<br>${esc(data.dateLabel)}</div></div>
+  <div class="page-body"><div class="section-head"><div class="accent"></div><h2>Projektangaben</h2><div class="sub">Quelle: ${esc(data.importedDetails!.fileName)}</div></div>
+  <div class="memo-detail-card"><div class="memo-detail-rows">${data.importedDetails!.rows.slice(index * 8, (index + 1) * 8).map(row => `<div class="memo-detail-row"><span class="n">${esc(row.label)}</span><span class="v">${esc(row.value)}</span></div>`).join('')}</div></div></div>
+  <div class="page-foot"><div class="line"><div class="l"><b>EMA Enterprise GmbH</b><br>${c.confidentiality}</div><div class="r">${esc(data.projectNumber)}<br>${c.page} <span class="num">${existingPages + index + 1}</span> / ${totalPages}</div></div></div>
+</section>`).join('');
   const detailSections = data.dataCenterDetails?.sections.map((section, sectionIndex) => {
     const rows = section.rows.map((row) => {
       const state = row.value.toLocaleLowerCase('de-DE');
@@ -243,5 +252,6 @@ export function renderMemorandumHtml(data: MemorandumPdfData, options: Memorandu
 </section>
 ${detailPage}
 ${portfolioPage}
+${importedPage}
 </body></html>`;
 }
