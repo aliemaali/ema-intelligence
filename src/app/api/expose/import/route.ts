@@ -1,5 +1,4 @@
-import path from 'node:path'
-import sharp from 'sharp'
+import { recognizeProjectImage } from '@/lib/import/recognizeImage'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
@@ -32,14 +31,7 @@ export async function POST(request: Request) {
       text = pdf.text
       if (text.trim().length < 20) throw new Error('Diese PDF enthält keinen lesbaren Text. Bitte die relevanten Seiten als JPG oder PNG hochladen.')
     } else if (/\.(jpe?g|png|webp)$/i.test(file.name) && (bytes.subarray(0, 3).equals(Buffer.from([255, 216, 255])) || bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) || (bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP'))) {
-      const { createWorker } = await import('tesseract.js')
-      // Remove screenshot borders and leave space around edge text for OCR.
-      const image = await sharp(bytes, { limitInputPixels: 25_000_000 }).rotate()
-        .flatten({ background: '#ffffff' }).trim({ background: '#000000', threshold: 20 })
-        .extend({ top: 40, bottom: 40, left: 40, right: 40, background: '#ffffff' }).png().toBuffer()
-      const worker = await createWorker('deu+eng', 1, { langPath: path.join(process.cwd(), 'assets/ocr'), gzip: false, cachePath: '/tmp' })
-      try { text = (await worker.recognize(image)).data.text }
-      finally { await worker.terminate() }
+      text = await recognizeProjectImage(bytes)
     } else if (/\.(txt|csv)$/i.test(file.name) && !bytes.includes(0)) {
       text = bytes.toString('utf8')
     } else {

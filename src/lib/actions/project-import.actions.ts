@@ -1,5 +1,6 @@
 'use server'
 
+import { recognizeProjectImage } from '@/lib/import/recognizeImage'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -231,20 +232,13 @@ async function extractTextFromBlob(blob: Blob, fileName?: string | null) {
   const buffer = Buffer.from(arrayBuffer)
 
   if (isPdfType(type, fileName)) {
-    const pdfParse = (await import('pdf-parse')).default
+    const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default
     const result = await pdfParse(buffer)
     return result.text || ''
   }
 
   if (isImageType(type)) {
-    const { createWorker } = await import('tesseract.js')
-    const worker = await createWorker('deu+eng')
-    try {
-      const result = await worker.recognize(buffer)
-      return result.data.text || ''
-    } finally {
-      await worker.terminate()
-    }
+    return recognizeProjectImage(buffer)
   }
 
   if (type.startsWith('text/')) return buffer.toString('utf-8')
@@ -343,6 +337,10 @@ export async function prepareProjectImport(importId: string) {
         message: error instanceof Error ? error.message : 'Texterkennung fehlgeschlagen',
       })
     }
+  }
+
+  if (paths.length && !fileResults.some(file => file.status === 'read')) {
+    return { error: 'Keine Datei konnte gelesen werden. Bitte ein schärferes Bild oder eine PDF mit auswählbarem Text hochladen und erneut analysieren.' }
   }
 
   if (!paths.length) {

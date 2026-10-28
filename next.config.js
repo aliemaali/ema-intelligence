@@ -5,6 +5,7 @@ const ocrPackage = fs.realpathSync(require.resolve('tesseract.js/package.json'))
 const ocrRoot = path.dirname(ocrPackage)
 const ocrCoreRoot = path.dirname(fs.realpathSync(require.resolve('tesseract.js-core/package.json', { paths: [ocrRoot] })))
 const tracePath = root => './' + path.relative(__dirname, root).split(path.sep).join('/')
+const ocrFiles = [tracePath(ocrRoot) + '/src/**/*', tracePath(ocrCoreRoot) + '/*', './assets/ocr/*.traineddata']
 
 const emaOfficeOrigin = process.env.EMA_OFFICE_ORIGIN ?? 'https://ema-office.vercel.app'
 
@@ -36,7 +37,8 @@ const nextConfig = {
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min', 'tesseract.js', 'tesseract.js-core', 'pdf-parse'],
 
   outputFileTracingIncludes: {
-    '/api/expose/import': [tracePath(ocrRoot) + '/src/**/*', tracePath(ocrCoreRoot) + '/*', './assets/ocr/*.traineddata'],
+    '/api/expose/import': ocrFiles,
+    '/project-import': ocrFiles,
     '/api/smart-check/analyze': ['./public/fonts/inter/*.ttf'],
     '/api/memorandum/pdf': [
       './public/pdf/hero-solarpark.jpg',

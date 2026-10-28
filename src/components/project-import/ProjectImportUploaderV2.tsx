@@ -169,61 +169,65 @@ export function ProjectImportUploaderV2() {
     files.forEach((file) => data.append('files', file))
 
     startTransition(async () => {
-      setMessage(importMode === 'list' ? 'Projektliste wird gelesen ...' : 'Projektdateien werden analysiert ...')
-      setResult(null)
-      setDataCenter(null)
-      setProjectList([])
-      setListReadFailed(false)
+      try {
+        setMessage(importMode === 'list' ? 'Projektliste wird gelesen ...' : 'Projektdateien werden analysiert ...')
+        setResult(null)
+        setDataCenter(null)
+        setProjectList([])
+        setListReadFailed(false)
 
-      let id = importId
-      if (!id) {
-        const upload = await uploadProjectImportFiles(data)
-        if ('error' in upload && upload.error) return setMessage(`Fehler: ${upload.error}`)
-        id = 'importId' in upload ? upload.importId ?? null : null
-        setImportId(id)
-      }
-      if (!id) return setMessage('Import-ID fehlt.')
+        let id = importId
+        if (!id) {
+          const upload = await uploadProjectImportFiles(data)
+          if ('error' in upload && upload.error) return setMessage(`Fehler: ${upload.error}`)
+          id = 'importId' in upload ? upload.importId ?? null : null
+          setImportId(id)
+        }
+        if (!id) return setMessage('Import-ID fehlt.')
 
-      if (importMode === 'list') {
-        const listResponse = await prepareProjectListImport(id)
-        if ('error' in listResponse && listResponse.error) {
+        if (importMode === 'list') {
+          const listResponse = await prepareProjectListImport(id)
+          if ('error' in listResponse && listResponse.error) {
+            setListReadFailed(true)
+            setMessage(`Fehler: ${listResponse.error}`)
+            return
+          }
+          const rows = 'projects' in listResponse && Array.isArray(listResponse.projects) ? listResponse.projects : []
+          if (rows.length > 0) {
+            setProjectList(rows)
+            setLocationCountry('Frankreich')
+            setMessage(`${rows.length} Projekte erkannt. Bitte die Liste prüfen und gewünschte Zeilen auswählen.`)
+            return
+          }
           setListReadFailed(true)
-          setMessage(`Fehler: ${listResponse.error}`)
-          return
-        }
-        const rows = 'projects' in listResponse && Array.isArray(listResponse.projects) ? listResponse.projects : []
-        if (rows.length > 0) {
-          setProjectList(rows)
           setLocationCountry('Frankreich')
-          setMessage(`${rows.length} Projekte erkannt. Bitte die Liste prüfen und gewünschte Zeilen auswählen.`)
+          setMessage('Die Tabelle konnte aus dieser PDF nicht sicher gelesen werden. Bitte dieselbe Liste als Excel oder CSV hochladen. Es wurde kein Einzelprojekt angelegt.')
           return
         }
-        setListReadFailed(true)
-        setLocationCountry('Frankreich')
-        setMessage('Die Tabelle konnte aus dieser PDF nicht sicher gelesen werden. Bitte dieselbe Liste als Excel oder CSV hochladen. Es wurde kein Einzelprojekt angelegt.')
-        return
-      }
 
-      if (projectType === 'rechenzentrum') {
-        const dataCenterResponse = await prepareDataCenterImport(id)
-        if ('error' in dataCenterResponse && dataCenterResponse.error) {
-          setMessage(`Fehler: ${dataCenterResponse.error}`)
+        if (projectType === 'rechenzentrum') {
+          const dataCenterResponse = await prepareDataCenterImport(id)
+          if ('error' in dataCenterResponse && dataCenterResponse.error) {
+            setMessage(`Fehler: ${dataCenterResponse.error}`)
+            return
+          }
+          if ('data' in dataCenterResponse && dataCenterResponse.data) {
+            setDataCenter(dataCenterResponse.data)
+            setLocationCountry('Deutschland')
+            setMessage('Rechenzentrum analysiert. Bitte alle erkannten Angaben prüfen und ergänzen.')
+          }
           return
         }
-        if ('data' in dataCenterResponse && dataCenterResponse.data) {
-          setDataCenter(dataCenterResponse.data)
-          setLocationCountry('Deutschland')
-          setMessage('Rechenzentrum analysiert. Bitte alle erkannten Angaben prüfen und ergänzen.')
-        }
-        return
-      }
 
-      const singleResponse = await prepareProjectImport(id)
-      if ('error' in singleResponse && singleResponse.error) return setMessage(`Fehler: ${singleResponse.error}`)
-      const nextResult = 'result' in singleResponse ? singleResponse.result as Record<string, any> : null
-      setResult(nextResult)
-      setLocationCountry(normalizeProjectCountry(nextResult?.location_country ?? nextResult?.raw_result?.location_country))
-      setMessage('Analyse abgeschlossen. Werte jetzt mit den Unterlagen prüfen und bei Bedarf ändern.')
+        const singleResponse = await prepareProjectImport(id)
+        if ('error' in singleResponse && singleResponse.error) return setMessage(`Fehler: ${singleResponse.error}`)
+        const nextResult = 'result' in singleResponse ? singleResponse.result as Record<string, any> : null
+        setResult(nextResult)
+        setLocationCountry(normalizeProjectCountry(nextResult?.location_country ?? nextResult?.raw_result?.location_country))
+        setMessage('Analyse abgeschlossen. Werte jetzt mit den Unterlagen prüfen und bei Bedarf ändern.')
+      } catch {
+        setMessage('Fehler: Die Analyse konnte nicht abgeschlossen werden. Bitte erneut versuchen. Deine Dateiauswahl bleibt erhalten.')
+      }
     })
   }
 
@@ -263,8 +267,8 @@ export function ProjectImportUploaderV2() {
         </div>
 
         <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5">
-          <button type="button" onClick={() => changeMode('single')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'single' ? 'bg-white text-[#07142F] shadow-sm' : 'text-slate-500'}`}>Einzelprojekt</button>
-          <button type="button" onClick={() => changeMode('list')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'list' ? 'bg-[#5CB800] text-white shadow-sm' : 'text-slate-500'}`}>Projektliste</button>
+          <button type="button" disabled={isPending} onClick={() => changeMode('single')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'single' ? 'bg-white text-[#07142F] shadow-sm' : 'text-slate-500'}`}>Einzelprojekt</button>
+          <button type="button" disabled={isPending} onClick={() => changeMode('list')} className={`rounded-xl px-3 py-3 text-sm font-extrabold transition ${importMode === 'list' ? 'bg-[#5CB800] text-white shadow-sm' : 'text-slate-500'}`}>Projektliste</button>
         </div>
 
         {importMode === 'single' ? (
@@ -279,6 +283,7 @@ export function ProjectImportUploaderV2() {
                     key={option.value}
                     type="button"
                     aria-pressed={selected}
+                    disabled={isPending}
                     onClick={() => {
                       setProjectType(option.value)
                       clearAnalysis()
@@ -299,7 +304,7 @@ export function ProjectImportUploaderV2() {
           <input
             type="file"
             multiple={importMode === 'single'}
-            disabled={importMode === 'single' && !projectType}
+            disabled={isPending || (importMode === 'single' && !projectType)}
             accept={projectType === 'rechenzentrum' ? '.pdf,application/pdf' : '.pdf,.jpg,.jpeg,.png,.heic,.webp,.txt,.csv,.xlsx,.xls,image/*,application/pdf,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
             className="hidden"
             onChange={(event) => {
@@ -339,7 +344,7 @@ export function ProjectImportUploaderV2() {
           {isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
           {importMode === 'list' ? 'Projektliste analysieren' : 'Dateien analysieren'}
         </button>
-        {message ? <p className={`mt-4 rounded-2xl p-3 text-sm font-bold ${listReadFailed ? 'border border-amber-200 bg-amber-50 text-amber-900' : 'bg-slate-50 text-[#07142F]'}`}>{message}</p> : null}
+        {message ? <p role="status" aria-live="polite" className={`mt-4 rounded-2xl p-3 text-sm font-bold ${listReadFailed ? 'border border-amber-200 bg-amber-50 text-amber-900' : 'bg-slate-50 text-[#07142F]'}`}>{message}</p> : null}
       </section>
 
       <div className={`space-y-5 ${projectList.length > 0 ? 'xl:col-span-2' : ''}`}>
