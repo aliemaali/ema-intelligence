@@ -179,12 +179,9 @@ export default async function InvestmentMemorandumPage(props: { params: Promise<
 
   return (
     <div className="premium-page min-h-screen pb-16 print:bg-white print:pb-0">
-      <header className="print:hidden border-b border-slate-200 bg-white px-4 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-sm md:px-8 md:py-4">
-        <div className="mx-auto flex max-w-[1480px] items-center justify-between gap-4">
-          <Link href="/dashboard"><img src="/brand/ema-logo.png" alt="EMA Enterprise" className="h-14 w-auto" /></Link>
-          <PrintButton data={pdfData} />
-        </div>
-      </header>
+      <div className="print:hidden mx-auto flex max-w-[1480px] justify-end px-4 pt-4 md:px-8">
+        <PrintButton data={pdfData} />
+      </div>
       <div className="print:hidden mx-auto flex max-w-[900px] px-4 py-4">
         <Link href="/expose" className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-extrabold text-[#0B1633] shadow-sm"><ArrowLeft className="h-4 w-4" /> Zurück</Link>
       </div>

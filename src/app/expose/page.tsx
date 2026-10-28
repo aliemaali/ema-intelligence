@@ -1,5 +1,3 @@
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import { getProjects } from '@/lib/actions/project.actions'
 import { ExposeWizard } from '@/components/expose/ExposeWizard'
 import { ControlHero } from '@/components/control/ControlHero'
@@ -13,7 +11,6 @@ export default async function ExposePage() {
     type: String(project.project_type), location: [project.location_city, project.location_country].filter(Boolean).join(', '),
   }))
   return <main className="mx-auto min-h-screen max-w-4xl space-y-6 px-4 py-6 pb-28">
-    <Link href="/apps" className="inline-flex min-h-11 items-center gap-2 text-sm font-bold text-slate-300"><ArrowLeft className="h-4 w-4" /> Hauptseite</Link>
     <ControlHero area="expose" title="Dein Projekt. Klar präsentiert." subtitle="BESS, PV und Data Center. In fünf Schritten zu deinem Exposé." />
     <ExposeWizard projects={options} />
   </main>
