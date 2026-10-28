@@ -5,30 +5,11 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { DocumentType } from '@/lib/types/database.types'
-import { calculateBessPortfolioTotals, extractBessPortfolioFromText, type BessPortfolio } from '@/lib/projects/bessPortfolio'
+import { extractUploadedProjectData, type ExtractedProjectImport } from '@/lib/import/projectData'
 
 const BUCKET_NAME = 'project-imports'
 const PROJECT_DOCUMENTS_BUCKET = 'project-documents'
 
-type ExtractedProjectImport = {
-  partner_project_number?: string | null
-  project_name?: string | null
-  plant_type?: string | null
-  location_address?: string | null
-  location_city?: string | null
-  location_state?: string | null
-  pv_kwp?: number | null
-  bess_mw?: number | null
-  bess_mwh?: number | null
-  bess_duration_h?: number | null
-  bess_portfolio?: BessPortfolio | null
-  feed_in_type?: string | null
-  purchase_price?: number | null
-  tariff?: string | null
-  specific_yield?: string | null
-  confidence_score?: number | null
-  raw_extracted_text?: string | null
-}
 
 type ImportedFileMeta = {
   name: string
@@ -76,22 +57,6 @@ function getStringOrNull(formData: FormData, key: string) {
   return value ? value : null
 }
 
-function cleanText(text: string) {
-  return text
-    .replace(/\u00a0/g, ' ')
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\r/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-}
-
-function firstMatch(text: string, patterns: RegExp[]) {
-  for (const pattern of patterns) {
-    const match = text.match(pattern)
-    if (match?.[1]) return match[1].trim()
-  }
-  return null
-}
 
 function inferProjectType(plantType?: string | null) {
   const raw = (plantType ?? '').toLowerCase()
@@ -145,86 +110,6 @@ function mergeExtractedData(current: ExtractedProjectImport, next: ExtractedProj
   }
 }
 
-function extractUploadedProjectData(text: string): ExtractedProjectImport {
-  const normalized = cleanText(text)
-  const bessPortfolio = extractBessPortfolioFromText(normalized)
-  const portfolioTotals = calculateBessPortfolioTotals(bessPortfolio)
-
-  const projectName = firstMatch(normalized, [
-    /Projekt\s+([^\n]+)/i,
-    /Projektname\s*:?\s*([^\n]+)/i,
-  ])
-
-  const plantType = firstMatch(normalized, [
-    /Anlagenart\s*:?\s*([^\n]+)/i,
-    /(Aufdachanlage|Freifl[aä]chenanlage|Dachanlage|PV[-\s]?Anlage)/i,
-  ])
-
-  const pvText = firstMatch(normalized, [
-    /Anlagengr[oö][ßs]e\s*:?\s*([\d.,]+)\s*kWp/i,
-    /PV[-\s]?Leistung\s*:?\s*([\d.,]+)\s*kWp/i,
-    /Leistung\s*:?\s*([\d.,]+)\s*kWp/i,
-    /([\d.,]+)\s*kWp/i,
-  ])
-
-  const bessText = firstMatch(normalized, [
-    /BESS[-\s]?(?:Leistung|Kapazit[aä]t)\s*:?\s*([\d.,]+)\s*MWh/i,
-    /Speicher(?:kapazit[aä]t)?\s*:?\s*([\d.,]+)\s*MWh/i,
-    /([\d.,]+)\s*MWh/i,
-  ])
-
-  const purchaseText = firstMatch(normalized, [
-    /(?:EK[-\s]*(?:Kaufpreis|Preis)|Einkaufspreis)\s*:?\s*([\d.,]+)\s*(?:€|EUR)?/i,
-    /Kaufpreis\s*:?\s*([\d.,]+)\s*(?:€|EUR)/i,
-    /Preis\s*:?\s*([\d.,]+)\s*(?:€|EUR)/i,
-    /([\d.]+,\d{2})\s*(?:€|EUR)/i,
-  ])
-
-  const tariff = firstMatch(normalized, [
-    /Einspeiseverg[uü]tung\*?\s*:?\s*([\d.,]+\s*(?:EUR|€)\s*\/\s*kWh)/i,
-    /Verg[uü]tung\*?\s*:?\s*([\d.,]+\s*(?:EUR|€)\s*\/\s*kWh)/i,
-    /([\d.,]+\s*(?:EUR|€)\s*\/\s*kWh)/i,
-  ])
-
-  const specificYield = firstMatch(normalized, [
-    /spezifischer\s+Ertrag\s*:?\s*([\d.,]+\s*kWh\s*\/\s*kWp)/i,
-    /Ertrag\s*:?\s*([\d.,]+\s*kWh\s*\/\s*kWp)/i,
-    /([\d.,]+\s*kWh\s*\/\s*kWp)/i,
-  ])
-
-  const feedInType = /PPA/i.test(normalized)
-    ? 'PPA'
-    : /Volleinspeisung|Voll/i.test(normalized)
-      ? 'Voll'
-      : /EEG/i.test(normalized)
-        ? 'EEG'
-        : null
-
-  const city = firstMatch(normalized, [
-    /(?:Ort|Standort)\s*:?\s*([^\n,]+)/i,
-    /Projekt\s+(?:PVA\s+|PV\s+)?([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]+)/,
-  ])
-
-  const found = [projectName, plantType, pvText, purchaseText, tariff, specificYield].filter(Boolean).length
-
-  return {
-    project_name: bessPortfolio ? 'BESS-Portfolio Deutschland' : projectName,
-    plant_type: bessPortfolio ? 'BESS-Portfolio · Paketverkauf' : plantType,
-    location_city: bessPortfolio ? null : city,
-    location_state: null,
-    pv_kwp: normalizeNumber(pvText),
-    bess_mw: bessPortfolio ? portfolioTotals.mw : null,
-    bess_mwh: bessPortfolio ? portfolioTotals.mwh : normalizeNumber(bessText),
-    bess_duration_h: bessPortfolio ? portfolioTotals.durationH : null,
-    bess_portfolio: bessPortfolio,
-    purchase_price: normalizeNumber(purchaseText),
-    feed_in_type: feedInType,
-    tariff,
-    specific_yield: specificYield,
-    confidence_score: bessPortfolio ? 0.95 : Math.min(1, found / 6),
-    raw_extracted_text: normalized.slice(0, 12000),
-  }
-}
 
 async function extractTextFromBlob(blob: Blob, fileName?: string | null) {
   const type = blob.type || ''
@@ -330,6 +215,7 @@ export async function prepareProjectImport(importId: string) {
       extracted = mergeExtractedData(extracted, extractUploadedProjectData(extractedText))
       fileResults.push({ name, path, status: 'read' })
     } catch (error) {
+      console.error('Project import text extraction failed:', error)
       fileResults.push({
         name,
         path,
@@ -340,7 +226,9 @@ export async function prepareProjectImport(importId: string) {
   }
 
   if (paths.length && !fileResults.some(file => file.status === 'read')) {
-    return { error: 'Keine Datei konnte gelesen werden. Bitte ein schärferes Bild oder eine PDF mit auswählbarem Text hochladen und erneut analysieren.' }
+    return { error: fileResults.some(file => file.status === 'error')
+      ? 'Die Datei wurde hochgeladen, aber die Texterkennung konnte sie auf dem Server nicht verarbeiten. Bitte die Analyse erneut starten.'
+      : 'In der Datei wurde kein Text erkannt. Bitte eine PDF mit auswählbarem Text oder ein deutlicheres Bild verwenden.' }
   }
 
   if (!paths.length) {

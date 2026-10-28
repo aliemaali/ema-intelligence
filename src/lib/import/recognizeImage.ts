@@ -1,12 +1,13 @@
 import path from 'node:path'
 import { access } from 'node:fs/promises'
-import { createRequire } from 'node:module'
 import sharp from 'sharp'
 import { createWorker } from 'tesseract.js'
 
 export async function recognizeProjectImage(bytes: Buffer): Promise<string> {
   // Fail as a normal import error if a deployment is missing OCR runtime files.
   // Tesseract otherwise throws from a worker message handler outside the action.
+  // Keep native resolution outside Webpack's createRequire transform.
+  const { createRequire } = process.getBuiltinModule('module')
   const resolve = createRequire(path.join(process.cwd(), 'package.json'))
   const packagePath = resolve.resolve('tesseract.js/package.json')
   const coreRoot = path.dirname(createRequire(packagePath).resolve('tesseract.js-core/package.json'))
