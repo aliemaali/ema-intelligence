@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { mailFingerprint } from '@/lib/control/mail-dismissals'
 import { createClient } from '@/lib/supabase/server'
 import { getMicrosoftAccessToken } from '@/lib/microsoft/session'
 import { graphFetch } from '@/lib/microsoft/graph'
@@ -27,5 +28,10 @@ export async function GET() {
     const result = await graphFetch<{ value?: { id: string; subject?: string; isCancelled?: boolean; start?: { dateTime?: string }; end?: { dateTime?: string } }[] }>(token, `/me/calendarView?${params}`, { headers: { Prefer: 'outlook.timezone="UTC"' }, signal: AbortSignal.timeout(8000) })
     events = (result.value || []).filter(event => !event.isCancelled && event.start?.dateTime).map(event => ({ id: event.id, title: event.subject || 'Termin', start: event.start!.dateTime!.replace(/Z?$/, 'Z'), end: (event.end?.dateTime || '').replace(/Z?$/, 'Z') }))
   } catch { calendarAvailable = false }
-  return NextResponse.json({ connected: true, reconnect: mailboxResults.some(item => item.state !== 'connected'), mailboxes: mailboxResults.map(({ mailbox, state }) => ({ mailbox, state })), messages: rankMail(mailboxResults.flatMap(item => item.messages)), events, calendarAvailable, updatedAt: new Date().toISOString() }, { headers })
+  const messages=rankMail(mailboxResults.flatMap(item=>item.messages))
+  const hidden=messages.length?await supabase.from('control_mail_dismissals').select('message_key').eq('user_id',user.id).in('message_key',messages.map(mailFingerprint)):{data:[],error:null}
+  if(hidden.error)return NextResponse.json({error:'Die Nachrichtenübersicht konnte nicht geladen werden.'},{status:503,headers})
+  const hiddenKeys=new Set((hidden.data||[]).map(row=>row.message_key))
+  return NextResponse.json({ connected: true, reconnect: mailboxResults.some(item => item.state !== 'connected'), mailboxes: mailboxResults.map(({ mailbox, state }) => ({ mailbox, state })), messages: messages.filter(mail=>!hiddenKeys.has(mailFingerprint(mail))), events, calendarAvailable, updatedAt: new Date().toISOString() }, { headers })
 }
+

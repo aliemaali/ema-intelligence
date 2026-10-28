@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Grid2X2, Bell, CalendarDays, Check, ChevronRight, FileText, Keyboard, Mail, Mic, RefreshCw, Send, Sparkles, Target } from 'lucide-react'
+import { Grid2X2, Bell, CalendarDays, Check, FileText, Keyboard, Mail, Mic, RefreshCw, Send, Sparkles, Target } from 'lucide-react'
 import { CalendarArtwork, ConnectedAreas, ControlHero } from './ControlHero'
-import { EMA_MAILBOXES, type ControlMail } from '@/lib/control/mail'
+import { EMA_MAILBOXES, rankMail, type ControlMail } from '@/lib/control/mail'
+import { ControlMailList } from './ControlMailList'
+import { mailSelectionKey } from '@/lib/control/mail-selection'
 import styles from './control.module.css'
 
 type Item = { id:string; title:string; dueAt:string|null; kind:string }
@@ -17,7 +19,7 @@ function Ring({icon:Icon,color}:{icon:typeof Mail;color:string}) { return <span 
 function Spark({color}:{color:string}) { return <svg className={styles.spark} viewBox="0 0 60 18" aria-hidden="true"><path d="M0 15L9 12L17 14L25 5L32 9L43 4L50 6L60 1" fill="none" stroke={color} strokeWidth="2" /></svg> }
 async function jsonResponse<T>(url:string,signal:AbortSignal):Promise<T> { const response=await fetch(url,{cache:'no-store',signal}); if(!response.ok||!response.headers.get('content-type')?.includes('application/json'))throw Error('Daten konnten nicht geladen werden.'); return response.json() }
 export function IntelligenceCenter(seed:Seed) {
-  const [overview,setOverview]=useState<Overview|null>(null),[office,setOffice]=useState<Office|null>(null),[busy,setBusy]=useState(true),[error,setError]=useState(''),[mailbox,setMailbox]=useState('all'),[expanded,setExpanded]=useState(false),[command,setCommand]=useState(''),[syncing,setSyncing]=useState(false),[syncMessage,setSyncMessage]=useState('')
+  const [overview,setOverview]=useState<Overview|null>(null),[office,setOffice]=useState<Office|null>(null),[busy,setBusy]=useState(true),[error,setError]=useState(''),[mailbox,setMailbox]=useState('all'),[command,setCommand]=useState(''),[syncing,setSyncing]=useState(false),[syncMessage,setSyncMessage]=useState('')
   const currentRequest=useRef<AbortController|null>(null),input=useRef<HTMLInputElement>(null)
   const refresh=useCallback(async()=>{
     currentRequest.current?.abort();const controller=new AbortController();currentRequest.current=controller;setBusy(true);setError('')
@@ -51,9 +53,8 @@ export function IntelligenceCenter(seed:Seed) {
       {busy&&!overview?<p role="status" className={styles.busy}>Deine Postfächer werden geprüft …</p>:null}
       {error?<p role="status" className={styles.error}>{error}</p>:null}
       {overview?.reconnect?<div className={styles.empty}>Für mindestens ein Postfach fehlt noch der bestätigte Lesezugriff. Bereits verfügbare Nachrichten bleiben sichtbar.<br/><a href="/api/microsoft/connect">Microsoft-Leserechte verbinden →</a><p>Für info@ ist zusätzlich eine Postfachfreigabe in Microsoft 365 erforderlich.</p></div>:null}
-      {!busy&&overview&&!overview.reconnect&&!visible.length?<p className={styles.empty}>In diesem Postfach liegen aktuell keine Nachrichten vor.</p>:null}
-      <div className={styles.mailRows}>{visible.slice(0,expanded?visible.length:2).map(mail=><a key={`${mail.mailbox}:${mail.id}`} href={mail.url||'/microsoft'} target={mail.url?'_blank':undefined} rel="noopener noreferrer" className={styles.mailRow} style={{'--tone':mail.invoice?'#51dffc':mail.priority>=4?'#ffc35a':'#7fbcf2'} as React.CSSProperties}>{mail.invoice?<FileText/>:<Mail/>}<div className={styles.mailText}><small>{mail.sender} · {mail.mailbox.split('@')[0]} · {mail.receivedAt?day(mail.receivedAt):''}</small><strong>{mail.subject}</strong><p>{mail.reason}</p></div><ChevronRight className={styles.mailRight}/></a>)}</div>
-      {visible.length>2?<button className={styles.textButton} onClick={()=>setExpanded(!expanded)}>{expanded?'Weniger anzeigen':`Weitere Nachrichten (${visible.length-2}) →`}</button>:null}
+      {!busy&&overview&&!overview.reconnect&&!visible.length?<p className={styles.empty}>Keine weiteren Nachrichten in dieser Übersicht.</p>:null}
+      <ControlMailList key={mailbox} messages={visible} onRemoved={items=>{currentRequest.current?.abort();setBusy(false);const keys=new Set(items.map(mailSelectionKey));setOverview(previous=>previous?{...previous,messages:previous.messages.filter(mail=>!keys.has(mailSelectionKey(mail)))}:previous)}} onRestored={items=>{currentRequest.current?.abort();setBusy(false);setOverview(previous=>previous?{...previous,messages:rankMail([...new Map([...previous.messages,...items].map(mail=>[mailSelectionKey(mail),mail])).values()])}:previous)}}/>
       {overview?.messages.length?<p className={styles.caption}>Priorisiert nach Outlook-Markierung, Fristbegriffen und Rechnungshinweisen. Jeweils die letzten 25 E-Mails.</p>:null}
       <div className={styles.flow}><div className={styles.flowPath}>{[{Icon:Mail,label:'E-Mail'},{Icon:FileText,label:'Erkannt'},{Icon:Check,label:'Office'}].map(({Icon,label},index)=><div key={label} style={{display:'contents'}}>{index?<i className={styles.flowLine}/>:null}<span className={styles.flowNode}><span><Icon/></span>{label}</span></div>)}</div><div className={styles.flowLabel}>{office?.connected?office.enabled?'Eingangsrechnung · Entwurf zur Prüfung':'Rechnungseingang noch nicht aktiviert':'Office-Anmeldung erforderlich'}<br/>{office?.connected&&office.enabled?<button className={styles.textButton} disabled={syncing} onClick={()=>void syncInvoices()}>{syncing?'Wird abgeglichen …':'Beide Postfächer abgleichen →'}</button>:<a href="/office/integrationen">In Office einrichten →</a>}</div></div>
       {syncMessage?<p role="status" className={styles.caption}>{syncMessage}</p>:null}{office?.lastError?<p className={styles.error}>Der letzte Rechnungsabgleich meldet einen Fehler. Bitte die Verbindung in Office prüfen.</p>:null}
@@ -64,3 +65,4 @@ export function IntelligenceCenter(seed:Seed) {
     <p className={styles.smallFooter}>{overview?.updatedAt?`Aktualisiert ${time(overview.updatedAt)} · `:''}EMA Intelligence · Deine Zentrale</p>
   </div>
 }
+
