@@ -93,7 +93,7 @@ export function ExposeWizard({ projects }: { projects: ExposeProjectOption[] }) 
     </li>)}</ol></nav>
     <section className="rounded-3xl border border-blue-200/15 bg-[#0a1d35] p-5 sm:p-7">
       <p className="text-xs font-bold text-[#8bf04a]">Schritt {step + 1} von 5</p>
-      <h2 ref={heading} tabIndex={-1} className="mt-2 scroll-mt-5 text-2xl font-extrabold outline-none">{['Welches Exposé möchtest du erstellen?', 'Projekt auswählen', 'Inhalte prüfen und verfeinern', 'Dein Titelbild', 'Alles bereit für dein Exposé'][step]}</h2>
+      <h2 ref={heading} tabIndex={-1} className="mt-2 scroll-mt-40 text-2xl font-extrabold outline-none">{['Welches Exposé möchtest du erstellen?', 'Projekt auswählen', 'Inhalte prüfen und verfeinern', 'Dein Titelbild', 'Alles bereit für dein Exposé'][step]}</h2>
 
       {step === 0 ? <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-4">{exposeKinds.map(item => {
         const Icon = icons[item.id]
