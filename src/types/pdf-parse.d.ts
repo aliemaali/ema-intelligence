@@ -9,3 +9,7 @@ declare module 'pdf-parse' {
 
   export default function pdfParse(dataBuffer: Buffer, options?: { max?: number }): Promise<PdfParseResult>
 }
+
+declare module 'pdf-parse/lib/pdf-parse.js' {
+  export { default } from 'pdf-parse'
+}

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeft, ArrowRight, BatteryCharging, Check, FileText, Loader2, Save, Server, Sun } from 'lucide-react'
 import { exposeKinds, exposeKind, applyExposeDraft, type ExposeDraft, type ExposeKind, type ExposeProjectOption, type ExposeWizardSource } from '@/lib/expose/wizard'
 import { loadExposeWizard, saveExposeWizard } from '@/lib/actions/expose-wizard.actions'
+import { importedExposeSchema } from '@/lib/expose/import'
 import { PrintButton } from './PrintButton'
 
 const steps = ['Typ', 'Projekt', 'Inhalte', 'Titelbild', 'Zusammenfassung']
@@ -22,6 +23,8 @@ export function ExposeWizard({ projects }: { projects: ExposeProjectOption[] }) 
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [importMessage, setImportMessage] = useState('')
   const [saved, setSaved] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
   const selectedKind = exposeKinds.find(item => item.id === kind)
@@ -44,7 +47,7 @@ export function ExposeWizard({ projects }: { projects: ExposeProjectOption[] }) 
     go(1)
   }
   async function chooseProject(id: string) {
-    setBusy(true); setMessage(''); setSaved(false)
+    setBusy(true); setMessage(''); setImportMessage(''); setSaved(false)
     try {
       const result = await loadExposeWizard(id)
       if (!result.source) { setMessage(result.error || 'Projekt konnte nicht geladen werden.'); return }
@@ -53,6 +56,22 @@ export function ExposeWizard({ projects }: { projects: ExposeProjectOption[] }) 
       go(2)
     } catch { setMessage('Verbindung unterbrochen. Bitte erneut versuchen.') }
     finally { setBusy(false) }
+  }
+  async function importFile(file: File) {
+    if (!draft || importing) return
+    if (file.size > 4 * 1024 * 1024) { setImportMessage('Maximal 4 MB pro Datei.'); return }
+    setImporting(true); setImportMessage('Datei wird gelesen und Angaben werden erkannt …')
+    try {
+      const form = new FormData()
+      form.append('file', file); form.append('projectId', projectId)
+      const response = await fetch('/api/expose/import', { method: 'POST', body: form })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Import fehlgeschlagen.')
+      const imported = importedExposeSchema.parse(result.imported)
+      update({ imported, title: imported.title || draft.title, summary: imported.text.length <= 1200 ? imported.text : '', highlights: imported.metrics.slice(0, 6).map(row => `${row.label}: ${row.value}`) })
+      setImportMessage(`„${imported.fileName}“ übernommen. Bitte die erkannten Felder prüfen.${!imported.title ? ' Projekttitel nicht erkannt – bitte prüfen.' : ''}${!imported.location ? ' Standort nicht erkannt – bitte ergänzen.' : ''} Ein weiterer Upload ersetzt diese Importdaten.`)
+    } catch (error) { setImportMessage(error instanceof Error ? error.message : 'Import fehlgeschlagen. Bitte erneut versuchen.') }
+    finally { setImporting(false) }
   }
   async function save() {
     if (!draft || saving) return
@@ -66,9 +85,9 @@ export function ExposeWizard({ projects }: { projects: ExposeProjectOption[] }) 
   }
   const canNext = step === 0 ? Boolean(kind) : step === 1 ? Boolean(source) : Boolean(draft?.title.trim())
 
-  return <div className="space-y-5 text-white" aria-busy={busy}>
+  return <div className="space-y-5 text-white" aria-busy={busy || importing}>
     <nav aria-label="Exposé-Fortschritt"><ol className="grid grid-cols-5 gap-1 sm:gap-3">{steps.map((label, index) => <li key={label}>
-      <button type="button" aria-current={index === step ? 'step' : undefined} disabled={busy || saving || index > step || (index > 1 && !source)} onClick={() => go(index)} className={`flex min-h-16 w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] sm:text-xs break-words ${step === index ? 'bg-[#8bf04a] font-extrabold text-[#06152f]' : 'bg-white/5 text-slate-300 disabled:opacity-40'}`}>
+      <button type="button" aria-current={index === step ? 'step' : undefined} disabled={busy || saving || importing || index > step || (index > 1 && !source)} onClick={() => go(index)} className={`flex min-h-16 w-full flex-col items-center gap-1 rounded-xl px-1 py-2 text-[10px] sm:text-xs break-words ${step === index ? 'bg-[#8bf04a] font-extrabold text-[#06152f]' : 'bg-white/5 text-slate-300 disabled:opacity-40'}`}>
         <span className="flex h-6 w-6 items-center justify-center rounded-full border border-current font-bold">{index < step ? <Check className="h-4 w-4" /> : index + 1}</span>{index === 4 ? <><span className="sm:hidden">Prüfen</span><span className="hidden sm:inline">{label}</span></> : label}
       </button>
     </li>)}</ol></nav>
@@ -95,35 +114,55 @@ export function ExposeWizard({ projects }: { projects: ExposeProjectOption[] }) 
       </div> : null}
 
       {step === 2 && source && draft ? <div className="mt-5 space-y-5">
-        {source.draft ? <div className="rounded-xl border border-[#8bf04a]/30 p-4"><p className="text-sm">Für dieses Projekt ist ein gespeicherter Entwurf vorhanden.</p><button type="button" onClick={() => { setDraft(source.draft); setSaved(true); setMessage('Gespeicherter Entwurf geladen.') }} className={`${button} mt-3`}>Entwurf laden</button></div> : null}
-        <p className="text-xs leading-5 text-slate-400">Aus deiner Projektakte vorbereitet. Änderungen hier gelten für diesen Exposé-Entwurf.</p>
+        <div className="rounded-2xl border border-[#8bf04a]/30 bg-[#8bf04a]/5 p-4">
+          <h3 className="font-bold">Daten aus Bild oder Datei übernehmen</h3>
+          <p className="mt-2 text-sm text-slate-300">Screenshot, Foto oder Dokument auswählen. Erkannte Daten füllen diesen Exposé-Entwurf. Die Projektakte bleibt unverändert.</p>
+          <label className="mt-4 block text-sm">JPG, PNG, WebP, Text-PDF (max. 10 Seiten), TXT oder CSV · bis 4 MB
+            <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.txt,.csv" disabled={importing || saving} className="mt-2 block w-full text-sm file:mr-3 file:rounded-xl file:border-0 file:bg-[#8bf04a] file:px-4 file:py-3 file:font-bold file:text-[#06152f]" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void importFile(file) }} />
+          </label>
+          {importMessage ? <p role="status" className="mt-3 text-sm">{importMessage}</p> : null}
+        </div>
+        {draft.imported ? <fieldset disabled={importing || saving} className="space-y-3 rounded-xl border border-blue-200/20 p-4">
+          <legend className="px-2 font-bold">Erkannte Angaben prüfen</legend>
+          <p className="text-xs text-amber-100">Quelle: {draft.imported.fileName}. Texterkennung kann Fehler enthalten. Kennzahlen und Projektangaben aus dem Upload ersetzen die Angaben aus der Projektakte für dieses Exposé.</p>
+          <label className="block text-sm">Standort<input className={input} maxLength={200} value={draft.imported.location || ''} onChange={event => update({ imported: { ...draft.imported!, location: event.target.value } })} /></label>
+          {(['metrics', 'profile'] as const).map(group => <div key={group} className="space-y-3"><h4 className="text-sm font-bold">{group === 'metrics' ? 'Kennzahlen' : 'Projektangaben'}</h4>{draft.imported![group].map((row, index) => <div key={index} className="grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+            <input aria-label={`Bezeichnung ${group} ${index + 1}`} className={input} maxLength={100} value={row.label} onChange={event => update({ imported: { ...draft.imported!, [group]: draft.imported![group].map((item, i) => i === index ? { ...item, label: event.target.value } : item) } })} />
+            <input aria-label={`Wert ${group} ${index + 1}`} className={input} maxLength={160} value={row.value} onChange={event => update({ imported: { ...draft.imported!, [group]: draft.imported![group].map((item, i) => i === index ? { ...item, value: event.target.value } : item) } })} />
+            <button type="button" className={`${button} mt-2`} onClick={() => update({ imported: { ...draft.imported!, [group]: draft.imported![group].filter((_, i) => i !== index) } })}>Entfernen</button>
+          </div>)}</div>)}
+          <details><summary className="cursor-pointer text-sm">Erkannten Originaltext anzeigen</summary><p className="mt-3 whitespace-pre-wrap text-sm text-slate-300">{draft.imported.text}</p></details>
+        </fieldset> : null}
+        {source.draft ? <div className="rounded-xl border border-[#8bf04a]/30 p-4"><p className="text-sm">Für dieses Projekt ist ein gespeicherter Entwurf vorhanden.</p><button type="button" disabled={importing || saving} onClick={() => { setDraft(source.draft); setImportMessage(''); setSaved(true); setMessage('Gespeicherter Entwurf geladen.') }} className={`${button} mt-3`}>Entwurf laden</button></div> : null}
+        <p className="text-xs leading-5 text-slate-400">Änderungen hier gelten für diesen Exposé-Entwurf. Angaben aus einem Upload bitte mit dem Original vergleichen.</p>
         <label className="block text-sm font-bold">Titel<input className={input} maxLength={160} required value={draft.title} onChange={event => update({ title: event.target.value })} /></label>
         <label className="block text-sm font-bold">Kurzbeschreibung<textarea className={input} rows={5} maxLength={1200} value={draft.summary} onChange={event => update({ summary: event.target.value })} /><span className="text-xs font-normal text-slate-400">{draft.summary.length} / 1.200 Zeichen</span></label>
         <fieldset className="space-y-3"><legend className="mb-2 text-sm font-bold">Investment Highlights</legend>{draft.highlights.map((highlight, index) => <label key={index} className="block text-xs text-slate-400">Highlight {index + 1}<input className={input} maxLength={240} value={highlight} onChange={event => update({ highlights: draft.highlights.map((text, i) => i === index ? event.target.value : text) })} /></label>)}{draft.highlights.length < 6 ? <button type="button" className={button} onClick={() => update({ highlights: [...draft.highlights, ''] })}>+ Highlight hinzufügen</button> : null}</fieldset>
-        <details className="rounded-xl border border-blue-200/15 p-4"><summary className="cursor-pointer text-sm font-bold">Kennzahlen aus der Projektakte ({source.data.metrics.length})</summary><dl className="mt-3 space-y-2">{source.data.metrics.map(item => <div key={item.label} className="flex flex-wrap justify-between gap-2 text-sm"><dt className="text-slate-400">{item.label}</dt><dd>{item.value}</dd></div>)}</dl><Link href={`/projects/${projectId}/edit`} className="mt-4 inline-block text-sm font-bold text-[#8bf04a]">Projektdaten bearbeiten →</Link></details>
-        {source.warnings.length ? <div className="rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><strong>Vor dem Versand prüfen</strong><ul className="mt-2 list-disc space-y-1 pl-4">{source.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div> : null}
+        {!draft.imported ? <details className="rounded-xl border border-blue-200/15 p-4"><summary className="cursor-pointer text-sm font-bold">Kennzahlen aus der Projektakte ({source.data.metrics.length})</summary><dl className="mt-3 space-y-2">{source.data.metrics.map(item => <div key={item.label} className="flex flex-wrap justify-between gap-2 text-sm"><dt className="text-slate-400">{item.label}</dt><dd>{item.value}</dd></div>)}</dl><Link href={`/projects/${projectId}/edit`} className="mt-4 inline-block text-sm font-bold text-[#8bf04a]">Projektdaten bearbeiten →</Link></details> : null}
+        {!draft.imported && source.warnings.length ? <div className="rounded-xl border border-amber-300/30 bg-amber-300/5 p-4 text-sm text-amber-100"><strong>Vor dem Versand prüfen</strong><ul className="mt-2 list-disc space-y-1 pl-4">{source.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul></div> : null}
       </div> : null}
 
       {step === 3 && source && draft && selectedKind ? <div className="mt-5 space-y-5">
         <p className="text-sm text-slate-400">Jeder Projekttyp erhält sein eigenes Hero. Alternativ kannst du das hinterlegte Projektfoto nutzen.</p>
         <fieldset className="flex flex-wrap gap-3"><legend className="sr-only">Titelbild auswählen</legend><label className={`${button} cursor-pointer`}><input type="radio" name="hero" value="type" checked={draft.hero === 'type'} onChange={() => update({ hero: 'type' })} /> {selectedKind.label}-Motiv</label>{source.projectImage ? <label className={`${button} cursor-pointer`}><input type="radio" name="hero" value="project" checked={draft.hero === 'project'} onChange={() => update({ hero: 'project' })} /> Projektfoto</label> : null}</fieldset>
-        <div className="relative min-h-64 overflow-hidden rounded-2xl bg-[#06152f]"><img src={draft.hero === 'project' && source.projectImage ? source.projectImage : selectedKind.hero} alt={`${selectedKind.label} Titelmotiv`} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-r from-[#06152f]/95 to-transparent" /><div className="relative max-w-[80%] p-6"><p className="text-xs font-bold uppercase text-[#8bf04a]">{selectedKind.label} · Exposé</p><h3 className="mt-6 break-words text-3xl font-extrabold">{draft.title}</h3><p className="mt-4 text-sm text-slate-300">{source.data.location}</p></div></div>
+        <div className="relative min-h-64 overflow-hidden rounded-2xl bg-[#06152f]"><img src={draft.hero === 'project' && source.projectImage ? source.projectImage : selectedKind.hero} alt={`${selectedKind.label} Titelmotiv`} className="absolute inset-0 h-full w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-r from-[#06152f]/95 to-transparent" /><div className="relative max-w-[80%] p-6"><p className="text-xs font-bold uppercase text-[#8bf04a]">{selectedKind.label} · Exposé</p><h3 className="mt-6 break-words text-3xl font-extrabold">{draft.title}</h3><p className="mt-4 text-sm text-slate-300">{data?.location || source.data.location}</p></div></div>
         <p className="text-xs text-slate-400">{draft.hero === 'project' ? 'Hinterlegtes Projektfoto.' : 'Symbolmotiv für den gewählten Projekttyp.'} Das Titelbild wird auch im PDF verwendet.</p>
       </div> : null}
 
       {step === 4 && source && draft && data ? <div className="mt-5 space-y-5">
-        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-4"><FileText className="h-7 w-7 shrink-0 text-[#8bf04a]" /><div><h3 className="break-words font-extrabold">{draft.title}</h3><p className="mt-1 text-xs text-slate-400">{selectedKind?.label} · {selectedProject?.number} · {source.data.location}</p></div></div>
+        <div className="flex items-start gap-3 rounded-xl bg-white/5 p-4"><FileText className="h-7 w-7 shrink-0 text-[#8bf04a]" /><div><h3 className="break-words font-extrabold">{draft.title}</h3><p className="mt-1 text-xs text-slate-400">{selectedKind?.label} · {selectedProject?.number} · {data?.location || source.data.location}</p></div></div>
+        {draft.imported ? <dl className="space-y-2">{[...draft.imported.metrics, ...draft.imported.profile].map((row, index) => <div key={index} className="flex flex-wrap justify-between gap-2 border-b border-white/10 py-2 text-sm"><dt className="text-slate-400">{row.label}</dt><dd>{row.value}</dd></div>)}</dl> : null}
         <p className="whitespace-pre-wrap text-sm leading-6 text-slate-300">{draft.summary || 'Keine Kurzbeschreibung eingetragen.'}</p>
         <ul className="space-y-2">{draft.highlights.filter(Boolean).map((text, index) => <li key={index} className="flex gap-2 text-sm"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[#8bf04a]" />{text}</li>)}</ul>
-        {source.warnings.length ? <p className="rounded-xl border border-amber-300/30 p-3 text-sm text-amber-100">{source.warnings.length} offene Angaben. Bitte die Hinweise unter „Inhalte“ vor dem Versand prüfen.</p> : null}
-        <button type="button" className={`${button} w-full bg-[#8bf04a] !text-[#06152f]`} disabled={saving || !draft.title.trim()} onClick={save}><Save className="h-4 w-4" />{saving ? 'Wird gespeichert …' : saved ? 'Entwurf gespeichert' : 'Exposé-Entwurf speichern'}</button>
+        {!draft.imported && source.warnings.length ? <p className="rounded-xl border border-amber-300/30 p-3 text-sm text-amber-100">{source.warnings.length} offene Angaben. Bitte die Hinweise unter „Inhalte“ vor dem Versand prüfen.</p> : null}
+        <button type="button" className={`${button} w-full bg-[#8bf04a] !text-[#06152f]`} disabled={saving || importing || !draft.title.trim()} onClick={save}><Save className="h-4 w-4" />{saving ? 'Wird gespeichert …' : saved ? 'Entwurf gespeichert' : 'Exposé-Entwurf speichern'}</button>
         <div className="overflow-x-auto rounded-xl bg-white p-3"><PrintButton data={data} projectId={projectId} /></div>
         <p className="text-xs leading-5 text-slate-400">Der Entwurf bleibt beim Projekt gespeichert. „PDF erstellen“ öffnet die Datei auf dem iPhone und lädt sie am Computer herunter.</p>
       </div> : null}
       {message ? <p role="status" className="mt-4 rounded-xl border border-blue-200/20 p-3 text-sm">{message}</p> : null}
       <div className="mt-7 flex justify-between gap-3 border-t border-blue-200/15 pt-5">
-        <button type="button" className={button} disabled={step === 0 || busy || saving} onClick={() => go(step - 1)}><ArrowLeft className="h-4 w-4" /> Zurück</button>
-        {step < 4 ? <button type="button" className={`${button} bg-[#8bf04a] !text-[#06152f]`} disabled={!canNext || busy || saving} onClick={() => go(step + 1)}>Weiter <ArrowRight className="h-4 w-4" /></button> : null}
+        <button type="button" className={button} disabled={step === 0 || busy || saving || importing} onClick={() => go(step - 1)}><ArrowLeft className="h-4 w-4" /> Zurück</button>
+        {step < 4 ? <button type="button" className={`${button} bg-[#8bf04a] !text-[#06152f]`} disabled={!canNext || busy || saving || importing} onClick={() => go(step + 1)}>Weiter <ArrowRight className="h-4 w-4" /></button> : null}
       </div>
     </section>
   </div>
