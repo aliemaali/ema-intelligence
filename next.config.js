@@ -39,7 +39,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/expose/import': ocrFiles,
     '/project-import': ocrFiles,
-    '/api/_diagnostics/ocr': ocrFiles,
+    '/api/diagnostics/ocr-runtime': ocrFiles,
     '/api/smart-check/analyze': ['./public/fonts/inter/*.ttf'],
     '/api/memorandum/pdf': [
       './public/pdf/hero-solarpark.jpg',
