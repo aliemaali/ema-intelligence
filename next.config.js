@@ -26,9 +26,10 @@ const nextConfig = {
     },
   },
 
-  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min'],
+  serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min', 'tesseract.js', 'tesseract.js-core', 'pdf-parse'],
 
   outputFileTracingIncludes: {
+    '/api/expose/import': ['./node_modules/tesseract.js/src/**/*', './node_modules/tesseract.js-core/**/*'],
     '/api/smart-check/analyze': ['./public/fonts/inter/*.ttf'],
     '/api/memorandum/pdf': [
       './public/pdf/hero-solarpark.jpg',

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { importedExposeSchema } from './import'
 import { getExposePresentation } from './projectPresentation'
 import { resolvePvEconomics } from '@/lib/projects/pv-units'
 import type { MemorandumPdfData } from '@/lib/pdf/memorandumPdf'
@@ -23,6 +24,7 @@ export const exposeDraftSchema = z.object({
   summary: z.string().trim().max(1200),
   highlights: z.array(z.string().trim().max(240)).max(6),
   hero: z.enum(['type', 'project']),
+  imported: importedExposeSchema.optional(),
 })
 export type ExposeDraft = z.infer<typeof exposeDraftSchema>
 export type ExposeProjectOption = { id: string; name: string; number: string; type: string; location: string }
@@ -58,6 +60,7 @@ export function buildExposeSource(project: Record<string, unknown>): Omit<Expose
   } }
 }
 export function applyExposeDraft(source: ExposeWizardSource, draft: ExposeDraft): MemorandumPdfData {
-  return { ...source.data, projectName: draft.title, summary: draft.summary, highlights: draft.highlights.filter(Boolean),
+  const imported = draft.imported
+  return { ...source.data, ...(imported ? { metrics: imported.metrics, profile: imported.profile, location: imported.location || 'Standort offen', country: '', countryFlag: '', latitude: null, longitude: null, status: 'Angaben aus Upload', importedDetails: { fileName: imported.fileName, rows: imported.profile }, dataCenterDetails: undefined, bessPortfolioDetails: undefined, showPvEconomics: false, pvEconomics: null } : {}), projectName: draft.title, summary: draft.summary, highlights: draft.highlights.filter(Boolean),
     projectImage: draft.hero === 'project' && source.projectImage ? source.projectImage : undefined }
 }

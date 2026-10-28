@@ -64,6 +64,7 @@ const requestSchema = z.object({
   metrics: z.array(metricSchema).max(12),
   profile: z.array(metricSchema).max(16),
   highlights: z.array(z.string().trim().max(240)).max(12),
+  importedDetails: z.object({ fileName: z.string().max(255), rows: z.array(metricSchema).max(16) }).optional(),
   dataCenterDetails: dataCenterDetailsSchema.optional(),
   bessPortfolioDetails: bessPortfolioDetailsSchema.optional(),
   heroImage: z.string().max(2_048),

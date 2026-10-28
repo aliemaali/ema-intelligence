@@ -16,6 +16,7 @@ export interface MemorandumPdfData {
   metrics: Array<{ label: string; value: string }>
   profile: Array<{ label: string; value: string }>
   highlights: string[]
+  importedDetails?: { fileName: string; rows: Array<{ label: string; value: string }> }
   dataCenterDetails?: ExposeDataCenterDetails
   bessPortfolioDetails?: ExposeBessPortfolioDetails
   heroImage: string
