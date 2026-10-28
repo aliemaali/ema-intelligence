@@ -22,3 +22,14 @@ for (const route of ['app/project-import/page.js', 'app/api/expose/import/route.
     }
   })
 }
+
+test('the production OCR bundle retains working native module resolution', () => {
+  const chunks = fs.readdirSync('.next/server/chunks')
+    .filter(file => file.endsWith('.js'))
+    .map(file => fs.readFileSync(path.join('.next/server/chunks', file), 'utf8'))
+    .filter(code => code.includes('tesseract-core-lstm.wasm'))
+  assert.ok(chunks.length, 'The built OCR module must be present')
+  for (const code of chunks) {
+    assert.doesNotMatch(code, /\(void 0\)\.resolve/, 'Webpack must not replace the native resolver with undefined')
+  }
+})
