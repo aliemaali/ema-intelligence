@@ -22,7 +22,6 @@ export const MORE_ITEMS: MenuEntry[] = [
     { label: 'Mit EMA sprechen', href: '/ema', icon: Bot },
     { label: 'Aufgaben', href: '/tasks', icon: CheckSquare },
     { label: 'Kalender', href: '/calendar', icon: CalendarDays },
-    { label: 'PLAUD-Archiv', href: '/archive/plaud', icon: Archive },
   ] },
   { label: 'Projekte', icon: FolderOpen, children: [
     { label: 'Projektübersicht', href: '/projects', icon: FolderOpen },
