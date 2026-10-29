@@ -4,8 +4,8 @@ import { useEffect, useId, useRef } from 'react'
 import Link from 'next/link'
 import {
   Archive, BellRing, Bot, BriefcaseBusiness, Building2, Calculator,
-  CalendarDays, CheckSquare, ChevronRight, ClipboardPenLine, FolderOpen,
-  Grid2X2, Handshake, Inbox, LogOut, Mail, Send, Settings, Users, X,
+  CalendarDays, CheckSquare, ChevronRight, FolderOpen,
+  Grid2X2, Inbox, LogOut, Mail, Send, Settings, Users, X,
   type LucideIcon,
 } from 'lucide-react'
 import { getInitials } from '@/lib/utils'
@@ -25,7 +25,6 @@ export const MORE_ITEMS: MenuEntry[] = [
   ] },
   { label: 'Projekte', icon: FolderOpen, children: [
     { label: 'Projektübersicht', href: '/projects', icon: FolderOpen },
-    { label: 'Deals', href: '/deals', icon: Handshake },
     { label: 'Projekt-Import', href: '/project-import', icon: BriefcaseBusiness },
     { label: 'Rechner', href: '/capex', icon: Calculator },
     { label: 'Projektarchiv', href: '/projects/archive', icon: Archive },
@@ -36,7 +35,6 @@ export const MORE_ITEMS: MenuEntry[] = [
     { label: 'Partner-Einreichungen', href: '/partner-submissions', icon: Inbox },
     { label: 'Kontaktarchiv', href: '/archive/contacts', icon: Archive },
   ] },
-  { label: 'Kundenaufnahme', href: '/customer-intake', icon: ClipboardPenLine },
   { label: 'Kommunikation', icon: Mail, children: [
     { label: 'Microsoft 365', href: '/microsoft', icon: Mail },
     { label: 'Versandcenter', href: '/versandcenter', icon: Send },
