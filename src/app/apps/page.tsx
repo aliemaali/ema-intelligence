@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { FileText, Building2, Files, Orbit, ScanLine } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import styles from './launcher.module.css'
+import { ThemeToggle } from '@/components/ThemeRuntime'
 
 const officeUrl = '/office'
 
@@ -13,8 +14,9 @@ export default async function AppsPage() {
   if (!user) redirect('/login?redirectTo=/apps')
 
   return <main className={styles.launcher}>
+    <div className={styles.themeControl}><ThemeToggle /></div>
     <div className={styles.backdrop} aria-hidden="true" />
-    <div className={styles.brand}><Image src="/brand/ema-mark-white.png" alt="EMA Enterprise" width={506} height={247} priority className={styles.brandLogo} /></div>
+    <div className={styles.brand}><Image src="/brand/ema-mark-white.png" alt="EMA Enterprise" width={506} height={247} priority className={`${styles.brandLogo} ema-logo-dark`} /><Image src="/brand/ema-mark.png" alt="EMA Enterprise" width={506} height={247} className={`${styles.brandLogo} ema-logo-light`} /></div>
     <section className={styles.grid} aria-label="EMA Anwendungen">
       <Link href="/dashboard" className={`${styles.card} ${styles.intelligence}`} aria-label="EMA Intelligence öffnen"><span className={styles.visual}><Orbit /></span><strong>EMA Intelligence</strong><small>Dein persönlicher Assistent</small></Link>
       <a href={officeUrl} className={`${styles.card} ${styles.office}`} aria-label="EMA Office öffnen"><span className={styles.visual}><Building2 /></span><strong>EMA Office</strong><small>Angebote & Rechnungen</small></a>

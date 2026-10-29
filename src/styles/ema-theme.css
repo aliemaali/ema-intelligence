@@ -1,0 +1,259 @@
+/* EMA Executive / Emerald: shared by Intelligence and Office. */
+:root, .dark {
+  --ema-color-scheme: dark;
+  --ema-canvas: #061521;
+  --ema-text: #edf5f7;
+  --ema-muted: #a6bac4;
+  --ema-accent: #84e6b9;
+  --ema-border: rgba(117, 182, 167, .23);
+  --ema-solid: #102735;
+  --ema-input: #091c28;
+  --ema-tint: rgba(137, 205, 185, .07);
+  --ema-surface: linear-gradient(135deg, rgba(25, 55, 65, .86), rgba(10, 30, 43, .96));
+  --ema-chrome: rgba(8, 26, 38, .96);
+  --ema-shadow: 0 12px 36px rgba(0, 0, 0, .19);
+  --ema-inset: inset 0 1px 0 rgba(255, 255, 255, .045);
+  --background: 205 69% 8%;
+  --foreground: 192 38% 95%;
+  --card: 202 47% 14%;
+  --card-foreground: 192 38% 95%;
+  --popover: 202 47% 14%;
+  --popover-foreground: 192 38% 95%;
+  --muted: 201 36% 18%;
+  --muted-foreground: 200 20% 71%;
+  --accent: 168 29% 18%;
+  --accent-foreground: 192 38% 95%;
+  --border: 180 23% 25%;
+  --input: 180 23% 25%;
+  --ring: 151 64% 68%;
+  --toast-bg: #102735;
+  --toast-border: rgba(117, 182, 167, .23);
+  --toast-color: #edf5f7;
+  --intel-glass-text: var(--ema-text);
+  --intel-glass-muted: var(--ema-muted);
+  --intel-glass-border: var(--ema-border);
+  --intel-glass-bg: var(--ema-surface);
+  --intel-glass-shadow: var(--ema-shadow);
+}
+html.light {
+  --ema-color-scheme: light;
+  --ema-canvas: #f4f8f6;
+  --ema-text: #142e3c;
+  --ema-muted: #526876;
+  --ema-accent: #17664e;
+  --ema-border: #d4e2dc;
+  --ema-solid: #ffffff;
+  --ema-input: #ffffff;
+  --ema-tint: rgba(23, 102, 78, .055);
+  --ema-surface: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(244, 250, 247, .96));
+  --ema-chrome: rgba(249, 252, 250, .96);
+  --ema-shadow: 0 8px 30px rgba(30, 66, 51, .065);
+  --ema-inset: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --background: 150 22% 97%;
+  --foreground: 201 50% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 201 50% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 201 50% 16%;
+  --muted: 150 17% 93%;
+  --muted-foreground: 202 18% 39%;
+  --accent: 151 27% 92%;
+  --accent-foreground: 201 50% 16%;
+  --border: 154 19% 86%;
+  --input: 154 19% 86%;
+  --ring: 162 63% 25%;
+  --toast-bg: #ffffff;
+  --toast-border: #d4e2dc;
+  --toast-color: #142e3c;
+}
+html { color-scheme: var(--ema-color-scheme); }
+html body { background: var(--ema-canvas) !important; color: var(--ema-text) !important; }
+.ema-theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; min-width: 44px; flex: 0 0 44px;
+  border: 1px solid var(--ema-border); border-radius: 14px;
+  background: var(--ema-surface); color: var(--ema-accent);
+  cursor: pointer; box-shadow: var(--ema-inset); padding: 10px;
+}
+.ema-theme-toggle svg { width: 22px; height: 22px; }
+.ema-theme-toggle:hover { border-color: var(--ema-accent); }
+.ema-theme-toggle:focus-visible { outline: 2px solid var(--ema-accent); outline-offset: 4px; }
+.ema-theme-actions { display: flex; align-items: center; gap: 8px; }
+.ema-logo-light { display: none !important; }
+.light .ema-logo-dark { display: none !important; }
+.light .ema-logo-light { display: block !important; }
+
+/* Keep fixed document canvases and image overlays independent of the UI theme. */
+:is(.premium-document, .pdf-page, .pdf-preview, .document-preview, .memorandum-preview, .a4-page, [data-pdf-page], [data-document-preview]) {
+  --ema-text: #142e3c; --ema-muted: #526876; --ema-solid: #fff;
+  --ema-canvas: #fff; --ema-surface: #fff; --ema-border: #d4e2dc;
+  --ema-color-scheme: light; color-scheme: light;
+}
+[data-theme-preserve="dark"] { --ema-text: #edf5f7; --ema-muted: #bccdd4; --ema-accent: #84e6b9; }
+@media print {
+  html body { background: white !important; color: #142e3c !important; }
+  .ema-theme-toggle { display: none !important; }
+}
+
+/* Legacy neutral utilities join the shared palette in both modes. */
+html .premium-root [class~="bg-[#1F2A44]/8"],
+html .premium-root [class~="bg-[#1F2A44]"],
+html .premium-root [class~="bg-[#031126]"],
+html .premium-root [class~="bg-[#07142F]"],
+html .premium-root [class~="bg-[#06162f]"],
+html .premium-root [class~="bg-[#171D33]"],
+html .premium-root [class~="bg-[#07162f]"],
+html .premium-root [class~="bg-[#0B1633]"],
+html .premium-root [class~="bg-[#06152f]/95"],
+html .premium-root [class~="bg-[#111827]"],
+html .premium-root [class~="bg-[#0b203b]"],
+html .premium-root [class~="bg-[#132060]/5"],
+html .premium-root [class~="bg-[#07142F]/72"],
+html .premium-root [class~="bg-[#020e20]/70"],
+html .premium-root [class~="bg-[#1F2A44]/5"],
+html .premium-root [class~="bg-[#143b2e]"],
+html .premium-root [class~="bg-[#081c3a]/80"],
+html .premium-root [class~="bg-[#04142f]/70"],
+html .premium-root [class~="bg-[#020b1d]"],
+html .premium-root [class~="bg-[#03142c]"],
+html .premium-root [class~="bg-[#04152e]/90"],
+html .premium-root [class~="bg-[#04152e]/95"],
+html .premium-root [class~="bg-[#061a38]"],
+html .premium-root [class~="bg-[#12365f]"],
+html .premium-root [class~="bg-[#061832]"],
+html .premium-root [class~="bg-[#12315c]"],
+html .premium-root [class~="bg-[#04142d]"],
+html .premium-root [class~="bg-[#04142d]/90"],
+html .premium-root [class~="bg-[#071a38]/80"],
+html .premium-root [class~="bg-[#071a38]/88"],
+html .premium-root [class~="bg-[#010817]/85"],
+html .premium-root [class~="bg-[#04142f]"],
+html .premium-root [class~="bg-[#061936]/80"],
+html .premium-root [class~="bg-[#061b3a]"],
+html .premium-root [class~="bg-[#0b2b55]"],
+html .premium-root [class~="bg-[#071e3f]"],
+html .premium-root [class~="bg-[#15355f]"],
+html .premium-root [class~="bg-[#0a2850]"],
+html .premium-root [class~="bg-[#07142F]/8"],
+html .premium-root [class~="bg-[#020e20]/60"],
+html .premium-root [class~="bg-[#010817]/80"],
+html .premium-root [class~="bg-[#1c2436]"],
+html .premium-root [class~="bg-[#071a32]"],
+html .premium-root [class~="bg-[#06152f]"],
+html .premium-root [class~="bg-[#0a1d35]"],
+html .premium-root [class~="bg-[#1F2A44]/55"],
+html .premium-root [class~="bg-[#1F2A44]/75"],
+html .premium-root [class~="bg-[#020817]/78"],
+html .premium-root [class~="bg-[#06162f]/[.97]"],
+html .premium-root [class~="bg-[#10294f]"],
+html .premium-root [class~="bg-[#171D33]/[0.88]"],
+html .premium-root [class~="bg-[#19456a]"],
+html .premium-root [class~="bg-[#041126]"],
+html .premium-root [class~="bg-[#07142F]/50"],
+html .premium-root [class~="bg-[#07142F]/45"],
+html .premium-root [class~="bg-[#07142F]/5"],
+html .premium-root [class~="bg-[#132060]"] { background: var(--ema-surface) !important; }
+html .premium-root [class~="text-[#07142F]"],
+html .premium-root [class~="text-[#1F2A44]"],
+html .premium-root [class~="text-[#0B1633]"],
+html .premium-root [class~="text-[#27334a]"],
+html .premium-root [class~="text-[#06142d]"],
+html .premium-root [class~="text-[#c3dcff]"],
+html .premium-root [class~="text-[#07172e]"],
+html .premium-root [class~="text-[#c4d9f5]"],
+html .premium-root [class~="text-[#06152f]"],
+html .premium-root [class~="text-[#1B2C4E]"],
+html .premium-root [class~="text-[#041126]"],
+html .premium-root [class~="text-[#25324c]"],
+html .premium-root [class~="text-[#132060]/80"],
+html .premium-root [class~="text-[#132060]"] { color: var(--ema-text) !important; }
+html .premium-root [class~="text-[#4b5565]"],
+html .premium-root [class~="text-[#1473E6]"],
+html .premium-root [class~="text-[#6264A7]"],
+html .premium-root [class~="text-[#5a6b58]"],
+html .premium-root [class~="text-[#b9cde7]"],
+html .premium-root [class~="text-[#acc2df]"],
+html .premium-root [class~="text-[#c6d4e8]"],
+html .premium-root [class~="text-[#7fc9ff]"],
+html .premium-root [class~="text-[#93a9c5]"],
+html .premium-root [class~="text-[#a9c1de]"],
+html .premium-root [class~="text-[#bdcfe6]"],
+html .premium-root [class~="text-[#adc0d9]"],
+html .premium-root [class~="text-[#9eb7d5]"],
+html .premium-root [class~="text-[#b4cbe5]"],
+html .premium-root [class~="text-[#96abc7]"],
+html .premium-root [class~="text-[#9aafcb]"],
+html .premium-root [class~="text-[#b6cce7]"],
+html .premium-root [class~="text-[#657188]"],
+html .premium-root [class~="text-[#667187]"],
+html .premium-root [class~="text-[#778197]"],
+html .premium-root [class~="text-[#4f5b70]"],
+html .premium-root [class~="text-[#647089]"] { color: var(--ema-muted) !important; }
+html .premium-root [class~="border-[#dce8d7]"],
+html .premium-root [class~="border-[#1F2A44]/20"],
+html .premium-root [class~="border-[#6264A7]/20"],
+html .premium-root [class~="border-[#31517c]/80"],
+html .premium-root [class~="border-[#31517c]/55"],
+html .premium-root [class~="border-[#42699d]/60"],
+html .premium-root [class~="border-[#31517c]/35"],
+html .premium-root [class~="border-[#3b6091]"],
+html .premium-root [class~="border-[#31517c]/45"],
+html .premium-root [class~="border-[#4b73a5]"],
+html .premium-root [class~="border-[#31517c]/60"],
+html .premium-root [class~="border-[#31517c]"],
+html .premium-root [class~="border-[#184574]/40"],
+html .premium-root [class~="border-[#4976a5]/40"],
+html .premium-root [class~="border-[#3482c5]"],
+html .premium-root [class~="border-[#416b9c]"],
+html .premium-root [class~="border-[#38679b]"],
+html .premium-root [class~="border-[#2d608d]"],
+html .premium-root [class~="border-[#2e5d87]"],
+html .premium-root [class~="border-[#37699d]"],
+html .premium-root [class~="border-[#356797]"],
+html .premium-root [class~="border-[#07142F]/10"],
+html .premium-root [class~="border-[#07142F]/[0.08]"] { border-color: var(--ema-border) !important; }
+html .premium-root [class~="text-[#87d33b]"],
+html .premium-root [class~="text-[#76d22a]"],
+html .premium-root [class~="text-[#87D33B]"],
+html .premium-root [class~="text-[#8eee51]"],
+html .premium-root [class~="text-[#91f15e]"],
+html .premium-root [class~="text-[#b9f99a]"],
+html .premium-root [class~="text-[#80eb42]"],
+html .premium-root [class~="text-[#9af45f]"],
+html .premium-root [class~="text-[#8cf24e]"],
+html .premium-root [class~="text-[#89ee4c]"],
+html .premium-root [class~="text-[#83e637]"],
+html .premium-root [class~="text-[#9bed61]"],
+html .premium-root [class~="text-[#9cf05b]"],
+html .premium-root [class~="text-[#b5fa89]"],
+html .premium-root [class~="text-[#8bf04a]"],
+html .premium-root [class~="text-[#82ef45]"],
+html .premium-root [class~="text-[#9af45e]"],
+html .premium-root [class~="text-[#91ed65]"],
+html .premium-root [class~="text-[#8CD93C]"],
+html .premium-root [class~="text-[#8FDA45]"] { color: var(--ema-accent) !important; }
+
+html.light .premium-root .text-white { color: var(--ema-text); }
+
+/* Neutral form controls, chrome and document paper share the same palette. */
+:where(input,select,textarea) { color-scheme: var(--ema-color-scheme); }
+.invoicePrint { --ema-text:#182033; --ema-muted:#526876; --ema-border:#d4e2dc; --ema-surface:#fff; --ema-solid:#fff; --ema-canvas:#fff; --ema-color-scheme:light; }
+.ema-brand-logo { filter: none; }
+.light .minimalBrand > img { filter: none; }
+.offerRing > div { background:var(--ema-solid); }
+.offerRing strong { color:var(--ema-text); }
+.offerRing span { color:var(--ema-muted); }
+.light .dashStat { --tile-accent:#17664e; }
+.light .dashStat.blue { --tile-accent:#365c9a; }
+.light .dashStat.amber { --tile-accent:#176b62; }
+.light .dashStat.navy { --tile-accent:#65528b; }
+.light .chartColumns { background:repeating-linear-gradient(to top,transparent 0,transparent calc(50% - 1px),#d4e2dc calc(50% - 1px),#d4e2dc 50%); }
+.btn-primary, html .premium-root :is(button,a)[class~="bg-[#8bf04a]"] { color:#062c31 !important; }
+html.light .app-content [class~="bg-red-50"], html.light .fixed [class~="bg-red-50"] { color:#98263a; background:#fff0f2 !important; border-color:#ebbac3 !important; }
+html.light .app-content [class~="bg-amber-50"], html.light .fixed [class~="bg-amber-50"] { color:#82591a; background:#fff8e9 !important; }
+@media (max-width:380px) { .officeHeaderActions { gap:4px; } .officeHeaderActions .ema-theme-toggle { width:38px; min-width:38px; flex-basis:38px; height:40px; } }
+
+@media (max-width:380px) {
+  .app-header .mobile-header-action, .app-header .ema-theme-toggle { width:36px; min-width:36px; height:40px; flex-basis:36px; }
+  .app-header .ema-brand-logo { width:3.5rem; flex-basis:3.5rem; }
+}

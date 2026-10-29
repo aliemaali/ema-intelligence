@@ -1,5 +1,7 @@
 'use client'
 
+import { ThemeToggle } from '@/components/ThemeRuntime'
+
 import Link from 'next/link'
 import {useEffect, useRef, useState} from 'react'
 import {ArrowLeft, ArrowUpRight, Camera, ChevronRight, FileText, FolderOpen, History, ImagePlus, ScanLine, ShieldAlert, Wrench, Minus, X} from 'lucide-react'
@@ -133,7 +135,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
   const criteria=report?(report.result.criteria||buildCabinetCriteria(report.input,report.result.vision,report.result.findings)):[]
 
   return <main className={s.workspace}><div className={s.container}>
-    <header className={s.header}><Link href="/apps"><ArrowLeft size={18}/>EMA</Link><strong><ScanLine size={19}/>Smart Check</strong><Link href="/dms" aria-label="DMS öffnen"><FolderOpen size={19}/></Link></header>
+    <header className={s.header}><Link href="/apps"><ArrowLeft size={18}/>EMA</Link><strong><ScanLine size={19}/>Smart Check</strong><ThemeToggle /><Link href="/dms" aria-label="DMS öffnen"><FolderOpen size={19}/></Link></header>
     {!report?<>
       <section className={s.intro}><p className={s.eyebrow}>Fotografieren · Verstehen · Vorprüfen</p><h1>Zeig uns deine Anlage.</h1><p>Zählerschrank für eine neue PV-Anlage vorprüfen lassen.</p></section>
       <section className={s.capture} aria-label="Aufnahmen hinzufügen">

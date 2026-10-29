@@ -1,7 +1,7 @@
 /* Explicit dark surfaces keep background and foreground in the same theme. */
-.microsoftPage { min-width: 0; color: #f4f8ff; }
+.microsoftPage { min-width: 0; color: var(--ema-text); }
 .hub { width: 100%; min-width: 0; }
-.hero { background: radial-gradient(ellipse at 90% 0%, #19534d66, transparent 60%), linear-gradient(135deg, #102b4b, #07162c); border-color: #456c8a66 !important; }
+.hero { background: var(--ema-surface); border-color: var(--ema-border) !important; }
 .hero h1 { text-wrap: balance; }
 .stats > div { min-width: 0; }
 .stats p { overflow-wrap: anywhere; }
