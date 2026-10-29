@@ -4,10 +4,7 @@
   background: var(--ema-canvas); color: var(--ema-text);
 }
 .backdrop { position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(circle at 4% 48%, rgba(106, 231, 45, .27), transparent 28%),
-    radial-gradient(circle at 96% 43%, rgba(46, 90, 242, .34), transparent 30%),
-    linear-gradient(145deg, rgba(2, 13, 28, .9), rgba(6, 25, 50, .94)),
-    url('/brand/ema-app-launcher-choice-one.webp') center / cover no-repeat; }
+  background: radial-gradient(ellipse at 50% 0, rgba(51, 160, 113, .09), transparent 52%); }
 .themeControl { position: absolute; right: 20px; top: max(22px, calc(env(safe-area-inset-top) + 16px)); }
 .brand { width: 118px; margin: 14px auto 34px; }
 .brandLogo { width: 100%; height: auto; }
