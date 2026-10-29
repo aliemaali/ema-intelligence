@@ -1,5 +1,7 @@
 'use client'
 
+import { ThemeToggle } from '@/components/ThemeRuntime'
+
 import Image from 'next/image'
 import Link from 'next/link'
 import { Bell, FolderOpen } from 'lucide-react'
@@ -10,13 +12,13 @@ export function TopHeader() {
     <header className="app-header">
       <Link href="/apps" className="flex items-center gap-3" aria-label="EMA Hauptseite öffnen">
         <span className="flex flex-col items-start gap-1"><span className="ema-brand-logo" aria-hidden="true">
-          <Image src="/brand/ema-mark-white.png" alt="" width={506} height={247} priority className="h-auto w-full" />
-        </span><span className="text-[10px] font-bold text-slate-300">Hauptseite</span></span>
+          <Image src="/brand/ema-mark-white.png" alt="" width={506} height={247} priority className="ema-logo-dark h-auto w-full" />
+        <Image src="/brand/ema-mark.png" alt="" width={506} height={247} className="ema-logo-light h-auto w-full" /></span><span className="text-[10px] font-bold text-slate-300">Hauptseite</span></span>
         <span className="hidden text-lg font-extrabold tracking-tight text-white sm:block">EMA Intelligence</span>
       </Link>
 
       <div className="flex items-center gap-2">
-        <div id="ema-voice-header-action" className="contents" />
+        <ThemeToggle /><div id="ema-voice-header-action" className="contents" />
         <Link href="/microsoft" className="mobile-header-action" title="Microsoft 365" aria-label="Outlook-Kontakte, Kalender und Teams öffnen">
           <MicrosoftTeamsIcon className="h-6 w-6" />
         </Link>

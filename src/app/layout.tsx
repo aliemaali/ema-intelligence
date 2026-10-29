@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
-import { ThemeProvider } from 'next-themes'
+import { ThemeRuntime } from '@/components/ThemeRuntime'
+import { themeInitScript } from '@/lib/theme-init'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/useAuth'
 import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
 import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
 import { EmaVoiceGate } from '@/components/layout/EmaVoiceGate'
 import '@/styles/globals.css'
+import '@/styles/ema-theme.css'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -52,13 +54,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeInitScript }} /></head>
       <body className={`${inter.variable} premium-root font-sans antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+        <ThemeRuntime>
           <AuthProvider>
             {children}
             <EmaVoiceGate />
@@ -76,7 +74,7 @@ export default function RootLayout({
               richColors
             />
           </AuthProvider>
-        </ThemeProvider>
+        </ThemeRuntime>
       </body>
     </html>
   )
