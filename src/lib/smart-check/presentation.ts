@@ -9,7 +9,7 @@ export function criterionLabel(c:CriterionResult):string {
 }
 
 export function resultHeadline(result:Assessment) {
-  if(result.status==='red')return {title:'Konkreter Sicherheitsverdacht',summary:result.findings.find(f=>f.status==='red')?.detail||'Den gespeicherten Verdachtsbefund fachlich klären.',status:'red' as const}
+  if(result.status==='red')return {title:result.engineVersion==='1.4.0'?'Konkreter Sicherheitsverdacht':'Gespeicherter Verdacht',summary:result.findings.find(f=>f.status==='red')?.detail||'Den gespeicherten Verdachtsbefund fachlich klären.',status:'red' as const}
   return {title:'PV-Eignung noch offen',summary:'Noch keine belastbare Entscheidung zu Weiterverwendung oder Umbau. Kläre zuerst die unten genannten Punkte.',status:'yellow' as const}
 }
 

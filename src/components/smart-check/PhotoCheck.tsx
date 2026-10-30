@@ -174,7 +174,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
     {report?<section className={`${s.panel} ${s.resultPanel}`} data-status={headline!.status} ref={resultPanel} style={{scrollMarginTop:20}}>
       <div className={s.resultHero}>
         <p className={s.eyebrow}>PV-Eignung · Vorprüfung</p>
-        <div className={s.signal} role="img" aria-label={headline!.status==='red'?'Rot: konkreter Sicherheitsverdacht':'Gelb: PV-Eignung noch offen'}>{headline!.status==='red'?<X size={80} strokeWidth={3}/>:<span>!</span>}</div>
+        <div className={s.signal} role="img" aria-label={headline!.status==='red'?'Rot: '+headline!.title:'Gelb: PV-Eignung noch offen'}>{headline!.status==='red'?<X size={80} strokeWidth={3}/>:<span>!</span>}</div>
         <h1 className={s.resultTitle}>{headline!.title}</h1>
         <p className={s.resultSummary}>{headline!.summary}</p>
       </div>

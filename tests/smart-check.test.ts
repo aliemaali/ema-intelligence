@@ -230,3 +230,10 @@ test('image marks are bounded and tied to supplied image evidence',async()=>{
  const result=await f.fn(inputSchema.parse({...base,mode:'ai',aiConsent:true}),f.files,'test-user');
  assert.deepEqual(result.criteria[0].box,{x:.5,y:.4,width:.4,height:.2});assert.equal(result.criteria[1].box,null);assert.equal(result.criteria[2].box,null);
 });
+
+test('legacy red reports retain their warning without upgrading it to a concrete new finding',()=>{
+ const report=assess(inputSchema.parse({...base,hazard:true,hazardEvidence:'Sichtbare Schmorstelle'}));
+ assert.equal(resultHeadline({...report,engineVersion:'1.3.0'}).title,'Gespeicherter Verdacht');
+ assert.equal(resultHeadline({...report,engineVersion:'1.3.0'}).status,'red');
+ assert.equal(resultHeadline(report).title,'Konkreter Sicherheitsverdacht');
+});
