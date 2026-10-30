@@ -237,3 +237,10 @@ test('legacy red reports retain their warning without upgrading it to a concrete
  assert.equal(resultHeadline({...report,engineVersion:'1.3.0'}).status,'red');
  assert.equal(resultHeadline(report).title,'Konkreter Sicherheitsverdacht');
 });
+
+test('open protection evidence asks for a specific accessible photo, not just repeated missing data',()=>{
+ const result=assess(inputSchema.parse(base));
+ assert.match(result.criteria!.find(c=>c.id==='protection')!.nextStep,/Nahaufnahme.*lesbaren Beschriftungen/);
+ assert.match(result.criteria!.find(c=>c.id==='protection')!.nextStep,/keine Abdeckungen öffnen/);
+ assert.match(result.criteria!.find(c=>c.id==='metering')!.nextStep,/frontal näher aufnehmen/);
+});

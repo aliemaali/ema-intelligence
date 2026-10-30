@@ -17,6 +17,13 @@ export type EvidenceBox = {x:number;y:number;width:number;height:number}
 export type CriterionObservation = {id:CriterionId; state:'observed'|'concern'|'unknown'; detail:string; evidenceFileId:string; evidence:string; missing:string; box?:EvidenceBox|null}
 export type CriterionResult = {id:CriterionId; title:string; status:'grey'|'green'|'yellow'|'red'; observationState?:'observed'|'concern'|'unknown'; summary:string; evidence:string; evidenceFileId?:string; box?:EvidenceBox|null; missing?:string; nextStep:string}
 
+export function photoFollowup(id:CriterionId):string|undefined {
+  if(id==='protection')return 'Nahaufnahme der sichtbaren Schutzgerätereihe mit lesbaren Beschriftungen ergänzen. Verdeckte SLS/SPD durch den Fachbetrieb klären; keine Abdeckungen öffnen.'
+  if(id==='metering')return 'Zählerfeld und zugängliche Steuer-/Kommunikationsbereiche frontal näher aufnehmen. APZ/RfZ anhand von Unterlagen oder Fachprüfung zuordnen.'
+  if(id==='space')return 'Frontale Gesamtübersicht und ein lesbares Schrank-Typenschild ergänzen. Nutzbare Reserve und Maße durch den Fachbetrieb bestätigen lassen.'
+  return undefined
+}
+
 export function buildCabinetCriteria(input:CheckInput,vision:Vision|null,findings:Finding[]):CriterionResult[] {
   return CABINET_CRITERIA.map((criterion):CriterionResult=>{
     const observation=vision?.criteria?.find(item=>item.id===criterion.id)
@@ -26,8 +33,8 @@ export function buildCabinetCriteria(input:CheckInput,vision:Vision|null,finding
     if(criterion.id==='condition'&&findings.some(f=>f.status==='red'))return {...common,status:'red',summary:'Konkreter Sicherheitsverdacht – fachlich prüfen.',evidenceFileId:findings.find(f=>f.status==='red')!.evidenceFileId,evidence:findings.find(f=>f.status==='red')!.basis,nextStep:'Anlage nicht öffnen oder berühren; Elektrofachbetrieb mit der Prüfung beauftragen.'}
     const declaredMissing=criterion.id==='protection'&&(input.sls==='no'||input.spd==='no')||criterion.id==='metering'&&(input.apz==='no'||input.rfz==='no')
     if(declaredMissing)return {...common,status:'yellow',summary:'Laut Benutzerangabe sind Komponenten nicht vorhanden.',nextStep:'Prüfen, ob diese Komponenten für die geplante Erweiterung vorgeschrieben und nachzurüsten sind.'}
-    if(observation?.state==='concern')return {...common,status:'yellow',summary:observation.detail,nextStep:criterion.id==='legacy'?'Erweiterungseignung fachlich prüfen. Alter oder Bauart allein begründen keinen Austausch.':observation.missing||'Befund fachlich bestätigen und Anpassungen anhand der Projektvorgaben klären.'}
+    if(observation?.state==='concern')return {...common,status:'yellow',summary:observation.detail,nextStep:photoFollowup(criterion.id)||(criterion.id==='legacy'?'Erweiterungseignung fachlich prüfen. Alter oder Bauart allein begründen keinen Austausch.':observation.missing||'Befund fachlich bestätigen und Anpassungen anhand der Projektvorgaben klären.')}
     if(observation?.state==='observed'&&!observation.missing.trim()&&observation.evidenceFileId&&input.attachmentIds.includes(observation.evidenceFileId)&&criterion.id!=='protection'&&criterion.id!=='metering')return {...common,status:'green',summary:observation.detail,nextStep:'Sichtbefund dokumentiert. Diese grüne Einzelbewertung gilt nur für das sichtbare Merkmal, nicht für elektrische Sicherheit oder PV-Freigabe.'}
-    return {...common,status:'grey',summary:observation?.detail||'Mit den vorliegenden Informationen nicht ausreichend beurteilbar.',nextStep:observation?.missing||(criterion.id==='condition'?'Mess-/Prüfprotokoll und fachliche Zustandsprüfung ergänzen.':'Übersichtsaufnahme, lesbare Typen und erforderliche technische Nachweise ergänzen.')}
+    return {...common,status:'grey',summary:observation?.detail||'Mit den vorliegenden Informationen nicht ausreichend beurteilbar.',nextStep:photoFollowup(criterion.id)||observation?.missing||(criterion.id==='condition'?'Mess-/Prüfprotokoll und fachliche Zustandsprüfung ergänzen.':'Übersichtsaufnahme, lesbare Typen und erforderliche technische Nachweise ergänzen.')}
   })
 }
