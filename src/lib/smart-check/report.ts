@@ -2,6 +2,7 @@ import {jsPDF} from 'jspdf'
 import {readFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {AREAS,type Assessment,type CheckInput} from './model'
+import {criterionLabel,resultHeadline,scopedAlternatives} from './presentation'
 import {buildCabinetCriteria} from './criteria'
 
 export function createShortCheckPdf(input:CheckInput,result:Assessment,version:number){
@@ -11,8 +12,8 @@ export function createShortCheckPdf(input:CheckInput,result:Assessment,version:n
     pdf.addFileToVFS(name,readFileSync(join(process.cwd(),'public/fonts/inter',`inter-latin-ext-${weight}.ttf`)).toString('base64'))
     pdf.addFont(name,'Inter',style)
   }
-  const color=result.status==='red'?[186,54,74]:result.status==='yellow'?[153,120,30]:[91,117,135]
-  const label=result.status==='red'?'Fachprüfung erforderlich':result.status==='yellow'?'Anpassung prüfen':'Noch nicht beurteilbar'
+  const color=result.status==='red'?[186,54,74]:[153,120,30]
+  const label=resultHeadline(result).title
   const line=(text:string,y:number,size=9,bold=false)=>{pdf.setFont('Inter',bold?'bold':'normal');pdf.setFontSize(size);pdf.text(text,18,y)}
   pdf.setFillColor(5,19,34);pdf.rect(0,0,210,28,'F');pdf.setTextColor(239,247,252)
   line('EMA Smart Check · Kurzbericht',16,16,true)
@@ -24,7 +25,7 @@ export function createShortCheckPdf(input:CheckInput,result:Assessment,version:n
   const criteria=result.criteria||buildCabinetCriteria(input,result.vision,result.findings)
   let y=76
   criteria.forEach(c=>{
-    const mark=c.status==='red'?'VERDACHT':c.status==='yellow'?'PRÜFEN':c.observationState==='observed'?'SICHTBEFUND':'OFFEN'
+    const mark=criterionLabel(c).toLocaleUpperCase('de-DE')
     pdf.setTextColor(21,47,65);line(c.title,y,9,true)
     pdf.setFontSize(7);pdf.text(mark,192,y,{align:'right'})
     pdf.setTextColor(78,99,116);pdf.setFont('Inter','normal');pdf.setFontSize(8)
@@ -37,7 +38,7 @@ export function createShortCheckPdf(input:CheckInput,result:Assessment,version:n
   pdf.setTextColor(29,60,75)
   line('Nächster Schritt',253,9,true)
   pdf.setFont('Inter','normal');pdf.setFontSize(8)
-  const next=result.status==='red'?'Anlage nicht öffnen oder berühren. Konkreten Sicherheitsverdacht durch einen Elektrofachbetrieb prüfen lassen.':'Offene Befunde, anwendbare Netzbetreibervorgaben und erforderliche Messnachweise fachlich klären. Aus Grau folgt keine automatische Umbaupflicht.'
+  const next=result.status==='red'?'Anlage nicht öffnen oder berühren. Konkreten Sicherheitsverdacht durch einen Elektrofachbetrieb prüfen lassen.':'Offene Befunde, anwendbare Netzbetreibervorgaben und erforderliche Messnachweise fachlich klären. Offene Nachweise sind keine bestätigten Mängel oder Umbaupflichten.'
   pdf.text(pdf.splitTextToSize(next,174).slice(0,3),18,259)
   pdf.setTextColor(100,119,134)
   line('Vollständige Befunde, Maßnahmen und Quellen stehen in der gespeicherten Smart-Check-Prüfung.',276,6.5)
@@ -58,12 +59,12 @@ export function createCheckPdf(input:CheckInput,result:Assessment,files:any[],ve
   header();write('1. Projektdaten',`${input.title}\n${AREAS[input.area]} · ${input.building||'Gebäudeart nicht angegeben'}\n${input.address||'Standort nicht angegeben'}`)
   write('2. Standort und Netzbetreiber',`${input.operator||'Nicht bestimmt'} · ${input.operatorConfirmed?'vom Nutzer bestätigt':'nicht bestätigt'}\nZuordnungsbeleg: ${input.operatorEvidence||'fehlt'}`)
   write('3. Prüfgrundlage',`${input.mode==='ai'?'KI-gestützte Sichtung plus Regelprüfung':'Regelprüfung von Benutzereingaben, keine automatische Bildauswertung'}\n${files.map(f=>f.file_name).join('\n')||'Keine Dateien'}`)
-  write('4. Geplante Erweiterung',`PV ${input.pvKwp??'?'} kWp · WR ${input.inverterKw??'?'} kW · Speicher ${input.storageKwh??'?'} kWh / Laden ${input.storageChargeKw??'?'} kW\nWärmepumpe thermisch ${input.heatKw??'?'} kW, elektrisch ${input.heatElectricKw??'?'} kW, Zusatzheizung ${input.heaterKw??'?'} kW\nWallbox ${input.wallboxKw??'?'} kW\nModell: ${input.deviceModel||'unbekannt'}`)
+  write('4. Geplante Erweiterung',`PV ${input.pvKwp??'?'} kWp · WR ${input.inverterKw??'?'} kW · Speicher ${input.storageKwh??'?'} kWh / Laden ${input.storageChargeKw??'?'} kW${input.area==='heatpump'||input.heatKw!==null?'\nWärmepumpe thermisch '+(input.heatKw??'?')+' kW, elektrisch '+(input.heatElectricKw??'?')+' kW, Zusatzheizung '+(input.heaterKw??'?')+' kW':''}\nWallbox ${input.wallboxKw??'?'} kW\nModell: ${input.deviceModel||'unbekannt'}`)
   write('5. Bestandsaufnahme',`Manuelle Angaben: SLS ${input.sls}, SPD ${input.spd}, APZ ${input.apz}, RfZ ${input.rfz}. Messprotokoll ${input.measurementProof?'laut Nutzer vorhanden':'nicht bestätigt'}.\nNotizen: ${input.notes||'keine'}`)
   if(result.vision){write('6. Erkannte Komponenten – KI, unbestätigt',result.vision.components.map(c=>`${c.name}: ${c.manufacturer||'Hersteller unbekannt'} / ${c.model||'Typ unbekannt'} · ${c.certainty}\nBeleg: ${c.evidence}`).join('\n\n'));write('Beobachtungen / fehlende Informationen',[...result.vision.observations,...result.vision.missing,...result.vision.limitations,...result.vision.pdfTextStatus].join('\n'));write('KI-Nutzung',`${result.vision.model}\nInput ${result.vision.usage.input} / Output ${result.vision.usage.output} Tokens\nRechnerischer Listenpreis: ca. ${result.vision.usage.estimatedUsd.toFixed(4)} USD; tatsächliche Abrechnung beim Anbieter.`)}
   write('7. Ergebnis / Prüfstatus',result.decision)
   result.findings.forEach((f,i)=>write(`8.${i+1} ${f.title} · ${f.status.toUpperCase()}`,`${f.detail}\nMaßnahme: ${f.action}\nGrundlage: ${f.basis}\nQuellenschlüssel: ${f.sourceIds.join(', ')||'Benutzereingabe / fehlender Nachweis'}`))
-  write('9. Technische Alternativen',result.alternatives.join('\n\n'))
+  write('9. Technische Alternativen',scopedAlternatives(input,result.alternatives).join('\n\n'))
   if(result.sourceReview){const review=result.sourceReview;write('10. Dokumentierter offizieller Quellenabruf',`Zeitpunkt: ${review.checkedAt}\nAbrufstatus: ${review.status}\n${review.publisherUrl||'Kein verifizierter Einstieg'}\nSHA-256 der Einstiegsseite: ${review.sha256||'nicht verfügbar'}\n${review.limitation}\n${review.documents.map(d=>`${d.title}\n${d.url}`).join('\n\n')}`)}
   result.sources.forEach(s=>write(`10. Quelle ${s.id} – ${s.title}`,`${s.version}\nFundstelle: ${s.locator}\nGeltungsbereich: ${s.scope}\nBibliografisch geprüft: ${s.checkedAt}; keine automatische laufende Gültigkeitsbestätigung.\n${s.url}`))
   write('11. Fehlende Nachweise / Prüfgrenzen',result.limitations.join('\n'))

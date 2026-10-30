@@ -20,3 +20,11 @@
 .step a{color:var(--ema-accent)}
 
 .criterion a{white-space:nowrap}
+
+/* Green is scoped to visible individual features; the overall PV assessment stays open. */
+.dotGreen{width:10px;height:10px;border-radius:50%;background:#32c99b;flex-shrink:0}
+.legend{display:grid;gap:8px;margin:18px 0 26px;font-size:11px;color:var(--ema-muted)}.legend span{display:flex;align-items:center;gap:9px}.legend i{display:inline-block}
+.priority{margin:20px 0 24px;padding:16px;border:1px solid var(--ema-border);border-radius:14px}.priority h2{font-size:15px;margin:0 0 15px}.priority>details+details{border-top:1px solid var(--ema-border);padding-top:12px;margin-top:12px}.priority strong{font-size:12px}.priority p{font-size:12px;color:var(--ema-muted);line-height:1.6;margin:6px 0 0}
+.evidenceView summary{cursor:pointer;color:var(--ema-accent);font-size:12px}.evidenceView figure{margin:12px 0}.evidenceImage{position:relative;width:100%;line-height:0}.evidenceImage img{display:block;width:100%;height:auto;border-radius:8px}.evidenceBox{position:absolute;border:3px solid #f4cc68;background:#f4cc6820;box-sizing:border-box;pointer-events:none}.evidenceView figcaption{font-size:10px;line-height:1.5;color:var(--ema-muted);margin-top:8px}.criterion summary>span:last-child{text-align:right;max-width:125px}.step[data-status=grey]{--signal:#f4cc68;--glow:#e5b74140}
+
+.priority summary{font-size:12px;cursor:pointer;padding:5px 0;color:var(--ema-text)}

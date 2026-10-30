@@ -4,6 +4,7 @@ import type {SourceReview} from './source-review'
 import {buildCabinetCriteria,type CriterionObservation,type CriterionResult} from './criteria'
 import {photoCoverage} from './evidence'
 import {ewrFindings,ewrSources} from './ewr-rules'
+import {isConcreteVisualRisk} from './risk'
 export const AREAS = { cabinet: 'Zählerschrank & Unterverteilung', pv: 'PV & Wechselrichter', storage: 'Batteriespeicher', heatpump: 'Wärmepumpe', wallbox: 'Wallbox & Ladeinfrastruktur' } as const
 const number = z.number().finite().min(0).max(100000).nullable().default(null)
 export const inputSchema = z.object({
@@ -31,12 +32,12 @@ export const inputSchema = z.object({
   if(new Set(ids).size!==ids.length||ids.some(id=>!data.attachmentIds.includes(id)))ctx.addIssue({code:'custom',message:'Aufnahmezuordnungen müssen eindeutig sein und zu den Prüfdateien gehören.',path:['attachmentEvidence']})
 })
 export type CheckInput = z.infer<typeof inputSchema>
-export type Status = 'grey' | 'yellow' | 'red'
-export type Finding = { id: string; status: Status; title: string; detail: string; action: string; basis: string; sourceIds: string[]; offer: boolean }
+export type Status = 'grey' | 'green' | 'yellow' | 'red'
+export type Finding = { id: string; status: Status; title: string; detail: string; action: string; basis: string; sourceIds: string[]; offer: boolean; evidenceFileId?: string }
 export type Source = { id: string; title: string; url: string; version: string; locator: string; checkedAt: string; scope: string }
-export type Vision = { photoQuality?:{fileId:string; state:'usable'|'retake'|'unknown'; reason:string}[]; criteria?:CriterionObservation[]; components: { name: string; manufacturer: string; model: string; evidence: string; certainty: string }[]; observations: string[]; risks: { detail:string; evidence:string }[]; missing: string[]; limitations: string[]; pdfTextStatus: string[]; model: string; usage: { input: number; output: number; estimatedUsd: number } }
+export type Vision = { photoQuality?:{fileId:string; state:'usable'|'retake'|'unknown'; reason:string}[]; criteria?:CriterionObservation[]; components: { name: string; manufacturer: string; model: string; evidence: string; certainty: string }[]; observations: string[]; risks: { detail:string; evidence:string; evidenceFileId?:string; kind?:'visible_damage'|'uncertainty'; hazardType?:'burn'|'exposed_conductor'|'broken_cover'|'water'|'other' }[]; missing: string[]; limitations: string[]; pdfTextStatus: string[]; model: string; usage: { input: number; output: number; estimatedUsd: number } }
 export type Assessment = { criteria?:CriterionResult[]; status: Status; decision: string; findings: Finding[]; alternatives: string[]; sources: Source[]; vision: Vision | null; limitations: string[]; engineVersion: string; createdAt: string; sourceReview?: SourceReview }
-export const STATUS = { grey: 'Nicht ausreichend beurteilbar', yellow: 'Weitere Prüfung notwendig', red: 'Kritischer Hinweis – Fachprüfung erforderlich' } as const
+export const STATUS = { grey: 'Nicht ausreichend beurteilbar', green: 'Im geprüften Sichtumfang unauffällig', yellow: 'PV-Eignung noch offen', red: 'Kritischer Hinweis – Fachprüfung erforderlich' } as const
 export const OPERATORS = [
   { name: 'EWR Netz', url: 'https://www.ewr-netz.de/partner/installateure/formulare-und-richtlinien/' },
   { name: 'Westnetz', url: 'https://www.westnetz.de/' },
@@ -60,7 +61,11 @@ export function assess(input: CheckInput, vision: Vision | null = null, sourceRe
   const findings: Finding[] = []
   const add = (id:string,status:Status,title:string,detail:string,action:string,basis:string,sourceIds:string[]=[],offer=false) => findings.push({id,status,title,detail,action,basis,sourceIds,offer})
   if (input.hazard) add('hazard','red','Konkreter Sicherheitsverdacht',input.hazardEvidence,'Anlage nicht öffnen oder berühren. Bei unmittelbarer Gefahr Abstand halten und Fachbetrieb bzw. örtlichen Notdienst verständigen.','Vom Benutzer gemeldeter Verdacht; noch keine Messung',[],false)
-  for (const [i,risk] of (vision?.risks ?? []).entries()) add(`visual-risk-${i}`,'red','Visueller Sicherheitsverdacht',risk.detail,'Zeitnahe Prüfung durch Elektrofachbetrieb; keine Arbeiten unter Spannung.',`KI-Verdacht: ${risk.evidence}; unbestätigt`,[],false)
+  for (const [i,risk] of (vision?.risks ?? []).entries()) {
+    const concrete=isConcreteVisualRisk(risk,input.attachmentIds)
+    add(`visual-risk-${i}`,concrete?'red':'grey',concrete?'Sichtbarer Sicherheitsverdacht':'Offener Bildbefund',risk.detail,concrete?'Konkrete Bildstelle zeitnah durch Elektrofachbetrieb prüfen lassen; keine Arbeiten unter Spannung.':'Betroffene Bildstelle und fehlende Nachweise fachlich klären. Fehlende Sichtbarkeit belegt keinen Schaden.',`KI-${concrete?'Verdacht':'Klärungshinweis'}: ${risk.evidence}; unbestätigt`,[],false)
+    findings[findings.length-1].evidenceFileId=risk.evidenceFileId
+  }
   findings.push(...ewrFindings(input,sourceReview?.ruleDocument?.status))
   const operator=operatorFinding(input); if(operator)findings.push(operator)
   add('rules','grey','Regelwerksprüfung eingeschränkt',input.rulesConfirmed ? `Benutzerangabe: ${input.ruleVersion || 'keine Fassung'}. Fundstelle: ${input.ruleLocator || 'nicht angegeben'}. Die Anwendbarkeit einschließlich Übergangsregeln ist nicht unabhängig verifiziert.` : 'Lokale TAB, Ergänzungen und vollständige lizenzierte Normen sind noch nicht abschließend projektbezogen geprüft.','Aktuelle TAB, Ergänzungen, Übergangsregeln und lizenzierte DIN-VDE-Nachweise mit dem Fachplaner abgleichen.','Öffentliche Quellen und gegebenenfalls manuelle Bestätigung; keine vollständige Normprüfung',['operator','tar4100','tar4105'],true)
@@ -83,6 +88,6 @@ export function assess(input: CheckInput, vision: Vision | null = null, sourceRe
   if(input.pvKwp || input.area==='pv') add('pv','grey','PV-/Wechselrichterauslegung nachweisen','Modulleistung (kWp) und Wechselrichterleistung (kW/kVA) sind getrennt zu betrachten.','String-/Spannungsauslegung, WR-Zertifikate, Netz-/Anlagenschutz, Einspeisebegrenzung und Messkonzept prüfen.','Planungsdaten; keine belastbare String-/Netzberechnung',['tar4105'],true)
   if(input.storageKwh || input.area==='storage') add('storage','grey','Speicher-Kompatibilität nachweisen','Speicherkapazität (kWh) belegt weder Ladeleistung noch WR-Kompatibilität oder sicheren Aufstellort.','Freigegebene Geräte-Kombination, Batterie-/WR-Datenblätter, Aufstellung, Netzbezug und Schutzkonzept prüfen.','Planungsdaten',['tar4105','14a'],true)
   if(!input.measurementProof) add('measurements','grey','Messungen und Fachprüfung fehlen','Schutzleiter, Isolationswerte, Abschaltbedingungen, Erdung und Anlagenzustand sind aus Fotos nicht feststellbar.','Mess- und Prüfprotokolle durch den zuständigen Elektrofachbetrieb erstellen bzw. bereitstellen lassen.','Kein bestätigtes Messprotokoll',[],true)
-  const status: Status = findings.some(x=>x.status==='red')?'red':findings.some(x=>x.status==='grey')?'grey':'yellow'
-  return {criteria:buildCabinetCriteria(input,vision,findings),status,decision:STATUS[status],findings,sources:sourcesFor(input.operator),vision,sourceReview,engineVersion:'1.3.0',createdAt:new Date().toISOString(),alternatives:['Bestand ertüchtigen: nur bei nachgewiesener Eignung und zulässigem lokalen Mess-/Anschlusskonzept.','Zusätzlicher Zählerschrank: Platzbedarf, Anschlussweg und TAB-konforme Ausführung vergleichen. Bestehende Verteilung nur nach Fachprüfung weiterverwenden.','Wärmepumpen-Messung: gemeinsamer oder separater Zähler erst nach Messkonzept-, Tarif- und Kostenvergleich auswählen.'],limitations:['Automatisierte Vorprüfung, keine Sicherheitsfreigabe, Messung oder Abnahme.','Kein lizenzierter vollständiger DIN-VDE-Normzugriff. Keine grüne Gesamtfreigabe aus Fotos.','Netzgebietszuordnung wird vom Nutzer bestätigt; keine automatische adressgenaue Netzbetreiberbestimmung.','Quellenstand und Projektgültigkeit sind bei jeder Prüfung erneut abzugleichen.']}
+  const status: Status = findings.some(x=>x.status==='red')?'red':'yellow'
+  return {criteria:buildCabinetCriteria(input,vision,findings),status,decision:STATUS[status],findings,sources:sourcesFor(input.operator),vision,sourceReview,engineVersion:'1.4.0',createdAt:new Date().toISOString(),alternatives:['Bestand ertüchtigen: nur bei nachgewiesener Eignung und zulässigem lokalen Mess-/Anschlusskonzept.','Zusätzlicher Zählerschrank: Platzbedarf, Anschlussweg und TAB-konforme Ausführung vergleichen. Bestehende Verteilung nur nach Fachprüfung weiterverwenden.',...(input.area==='heatpump'||input.heatKw!==null?['Wärmepumpen-Messung: gemeinsamer oder separater Zähler erst nach Messkonzept-, Tarif- und Kostenvergleich auswählen.']:[])],limitations:['Automatisierte Vorprüfung, keine Sicherheitsfreigabe, Messung oder Abnahme.','Kein lizenzierter vollständiger DIN-VDE-Normzugriff. Keine grüne Gesamtfreigabe aus Fotos.','Netzgebietszuordnung wird vom Nutzer bestätigt; keine automatische adressgenaue Netzbetreiberbestimmung.','Quellenstand und Projektgültigkeit sind bei jeder Prüfung erneut abzugleichen.']}
 }

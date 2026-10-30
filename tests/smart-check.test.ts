@@ -8,6 +8,8 @@ import {EWR_DOCUMENT} from '../src/lib/smart-check/ewr-rules'
 import {photoCoverage} from '../src/lib/smart-check/evidence'
 import {CABINET_CRITERIA,PV_CHECK_TASK} from '../src/lib/smart-check/criteria'
 import {operatorFinding,presentFindings,nextCheckSteps} from '../src/lib/smart-check/operator'
+import {criterionLabel,resultHeadline,inspectionMeasures,inspectionMeasureText,scopedAlternatives} from '../src/lib/smart-check/presentation'
+import {isConcreteVisualRisk} from '../src/lib/smart-check/risk'
 import {inputSchema,assess,sourcesFor} from '../src/lib/smart-check/model'
 import {discoverOfficialLinks,reviewOfficialSources,reviewEwrDocument} from '../src/lib/smart-check/source-review'
 // Runtime is Node 24; this repository deliberately still uses Node 20 type declarations.
@@ -25,7 +27,7 @@ test('publisher retrieval documents provenance but never claims local applicabil
  assert.equal((await reviewOfficialSources('Unknown',fetcher)).status,'unconfigured');assert.equal(calls,1);
  assert.equal((await reviewOfficialSources('EWR Netz',(async()=>{throw new Error('timeout')}) as typeof fetch)).status,'unavailable');
 });
-test('a photo or even affirmative component declarations cannot produce a green release',()=>{const input=inputSchema.parse({...base,attachmentIds:['11111111-1111-4111-8111-111111111111'],sls:'yes',spd:'yes',apz:'yes',rfz:'yes',measurementProof:true,operatorConfirmed:true,operatorEvidence:'Netzanschlussvertrag',rulesConfirmed:true,ruleVersion:'TAB',ruleLocator:'Seite 7'});const report=assess(input);assert.equal(report.status,'grey');assert.ok(report.findings.some(f=>f.id==='rules'&&f.status==='grey'));assert.ok(report.findings.some(f=>f.id==='image'));});
+test('a photo or even affirmative component declarations cannot produce a green release',()=>{const input=inputSchema.parse({...base,attachmentIds:['11111111-1111-4111-8111-111111111111'],sls:'yes',spd:'yes',apz:'yes',rfz:'yes',measurementProof:true,operatorConfirmed:true,operatorEvidence:'Netzanschlussvertrag',rulesConfirmed:true,ruleVersion:'TAB',ruleLocator:'Seite 7'});const report=assess(input);assert.equal(report.status,'yellow');assert.ok(report.findings.some(f=>f.id==='rules'&&f.status==='grey'));assert.ok(report.findings.some(f=>f.id==='image'));});
 test('thermal heat output never triggers an electrical 14a threshold',()=>{const report=assess(inputSchema.parse({...base,heatKw:12}));assert.ok(report.findings.some(f=>f.id==='hp-electric'));assert.equal(report.findings.some(f=>f.id==='hp14a'),false);const known=assess(inputSchema.parse({...base,heatKw:12,heatElectricKw:3,heaterKw:6}));assert.ok(known.findings.some(f=>f.id==='hp14a'));});
 test('PV with battery and wallbox checks remain distinct and measured in appropriate units',()=>{const r=assess(inputSchema.parse({...base,pvKwp:10,storageKwh:10,wallboxKw:11}));for(const id of ['pv','storage','wallbox'])assert.ok(r.findings.some(f=>f.id===id));assert.ok(r.findings.find(f=>f.id==='storage')!.detail.includes('kWh'));});
 test('postal address or a checkbox alone cannot prove network operator assignment',()=>{const r=assess(inputSchema.parse({...base,operatorConfirmed:true}));assert.ok(r.findings.some(f=>f.id==='operator'));});
@@ -113,7 +115,7 @@ test('capture assignments reject foreign files and duplicate claims for one imag
 test('assigned images are not treated as quality-reviewed or as proof of a component',()=>{
  const input=inputSchema.parse({...base,attachmentIds:[imageId],attachmentEvidence:[{fileId:imageId,kind:'overview'}]});
  assert.equal(photoCoverage(input)[0].state,'assigned');
- const report=assess(input);assert.equal(report.status,'grey');
+ const report=assess(input);assert.equal(report.status,'yellow');
  assert.ok(report.findings.some(f=>f.id==='photo-protection'));
  assert.equal(report.criteria!.find(c=>c.id==='protection')!.status,'grey');
 });
@@ -125,7 +127,7 @@ test('one usable assigned view does not erase a missing view or produce a releas
  const input=inputSchema.parse({...base,attachmentIds:[imageId,otherId],attachmentEvidence:[{fileId:imageId,kind:'overview'},{fileId:otherId,kind:'nameplate'}]});
  const vision:any={photoQuality:[{fileId:imageId,state:'usable',reason:'Schrank vollständig erkennbar'},{fileId:otherId,state:'retake',reason:'Typenschild unscharf'}],components:[],risks:[]};
  const views=photoCoverage(input,vision);assert.equal(views[0].state,'reviewed');assert.equal(views[3].state,'retake');assert.equal(views[2].state,'missing');
- const report=assess(input,vision);assert.equal(report.status,'grey');assert.ok(report.findings.some(f=>f.id==='photo-nameplate'&&f.status==='grey'));
+ const report=assess(input,vision);assert.equal(report.status,'yellow');assert.ok(report.findings.some(f=>f.id==='photo-nameplate'&&f.status==='grey'));
 });
 test('a replacement usable view resolves a retake request for that view only',()=>{
  const input=inputSchema.parse({...base,attachmentIds:[imageId,otherId],attachmentEvidence:[{fileId:imageId,kind:'nameplate'},{fileId:otherId,kind:'nameplate'}]});
@@ -133,7 +135,7 @@ test('a replacement usable view resolves a retake request for that view only',()
  assert.equal(photoCoverage(input,vision)[3].state,'reviewed');
 });
 test('missing location stays explicit even when an operator is selected',()=>{
- const report=assess(inputSchema.parse({...base,address:''}));assert.ok(report.findings.some(f=>f.id==='location'));assert.equal(report.status,'grey');
+ const report=assess(inputSchema.parse({...base,address:''}));assert.ok(report.findings.some(f=>f.id==='location'));assert.equal(report.status,'yellow');
 });
 test('unreadable images cannot identify components; concrete safety suspicions remain visible',async()=>{
  const f=visionFixture();f.response.photoQuality=[{fileId:'image-a',state:'retake',reason:'Schrift unscharf'},{fileId:'foreign',state:'usable',reason:'invented'}];
@@ -155,7 +157,7 @@ test('EWR rules require confirmed assignment and an unchanged officially listed 
  const other=assess(inputSchema.parse({...base,operator:'Westnetz'}),null,reviewedEwr('matched'));assert.equal(other.findings.some(f=>f.id.startsWith('ewr-')),false);
 });
 test('verified EWR document adds page-specific checks without approving the installation',()=>{
- const report=assess(ewrInput(),null,reviewedEwr('matched'));assert.equal(report.status,'grey');
+ const report=assess(ewrInput(),null,reviewedEwr('matched'));assert.equal(report.status,'yellow');
  for(const id of ['ewr-change','ewr-duty','ewr-process'])assert.ok(report.findings.some(f=>f.id===id));
  assert.match(report.sources.find(s=>s.id==='ewr-duty')!.url,/#page=70$/);
  assert.match(report.findings.find(f=>f.id==='ewr-change')!.detail,/nicht pauschal/);
@@ -188,4 +190,43 @@ test('PDF provenance rejects HTML, wrong signatures, oversized bodies and failed
 test('photo evidence requests stay actionable alongside general EWR planning checks',()=>{
  const input=ewrInput(),report=assess(input,null,reviewedEwr('matched'));
  assert.ok(nextCheckSteps(input,report.findings).some(f=>f.id==='photo-overview'));
+});
+
+
+test('regression IMG_2113: unknown free fields, SLS and APZ are open evidence, never red',()=>{
+ const input=inputSchema.parse({...base,attachmentIds:[imageId],mode:'ai',aiConsent:true});
+ const vision:any={components:[],observations:[],missing:[],limitations:[],risks:[
+  {kind:'uncertainty',detail:'Unklare Reserve- und Funktionszuordnung der freien Felder.',evidenceFileId:imageId,evidence:'Freie Bereiche sichtbar, aber ohne Pläne nicht eindeutig nutzbar.'},
+  {kind:'visible_damage',hazardType:'other',detail:'SLS/Überspannungsschutz nicht sicher identifizierbar.',evidenceFileId:imageId,evidence:'Schutzgeräte teilweise sichtbar, Beschriftung unleserlich.'},
+  {kind:'visible_damage',hazardType:'broken_cover',detail:'APZ nicht erkennbar',evidenceFileId:imageId,evidence:'Unterer Bereich vorhanden, eindeutige Zuordnung fehlt.'}],criteria:[{id:'protection',state:'observed',detail:'Schaltgeräte sichtbar',evidenceFileId:imageId,evidence:'Rechtes Feld',missing:'SLS/SPD unbestätigt'}]};
+ const report=assess(input,vision);
+ assert.equal(report.status,'yellow');assert.equal(report.findings.some(f=>f.status==='red'),false);
+ assert.equal(resultHeadline(report).title,'PV-Eignung noch offen');
+ assert.equal(criterionLabel(report.criteria!.find(c=>c.id==='protection')!),'Teilweise sichtbar · offen');
+ assert.equal(report.alternatives.some(text=>/Wärmepump/.test(text)),false);
+});
+test('red requires a concrete physical image finding, a real attachment and a matching hazard type',()=>{
+ const risk={kind:'visible_damage',hazardType:'burn',detail:'Mögliche Schmorstelle',evidenceFileId:imageId,evidence:'Rechte obere Klemme mit sichtbaren Schmorstellen'};
+ assert.equal(isConcreteVisualRisk(risk,[imageId]),true);
+ for(const alternative of [{...risk,kind:'uncertainty'},{...risk,evidenceFileId:otherId},{...risk,evidence:'Rechter Bereich unklar'},{...risk,evidence:'Keine Schmorstellen sichtbar'},{...risk,evidence:'Schmorstellen nicht erkennbar'}])assert.equal(isConcreteVisualRisk(alternative,[imageId]),false);
+ const report=assess(inputSchema.parse({...base,attachmentIds:[imageId]}),{components:[],risks:[risk]} as any);
+ assert.equal(report.status,'red');assert.equal(report.criteria!.find(c=>c.id==='condition')!.evidenceFileId,imageId);
+});
+test('green describes only a supported individual sight observation, never the overall PV release',()=>{
+ const input=inputSchema.parse({...base,attachmentIds:[imageId]});
+ const report=assess(input,{components:[],risks:[],criteria:[{id:'condition',state:'observed',detail:'Keine sichtbaren Brandspuren',evidenceFileId:imageId,evidence:'Schrankfront vollständig sichtbar',missing:''}]} as any);
+ assert.equal(report.criteria!.find(c=>c.id==='condition')!.status,'green');assert.equal(report.status,'yellow');
+ assert.equal(report.criteria!.find(c=>c.id==='evu')!.status,'grey');
+});
+test('offer handoff labels uncertain suggestions as inspection services, not required retrofit',()=>{
+ const report=assess(inputSchema.parse(base));const measures=inspectionMeasures(report.findings);
+ assert.ok(measures.length);assert.ok(measures.every(f=>f.status!=='red'));
+ assert.ok(measures.every(f=>inspectionMeasureText(f).startsWith('Prüfleistung – ')));
+ assert.ok(measures.every(f=>inspectionMeasureText(f).includes('Keine bestätigte Umbaupflicht.')));
+ assert.equal(scopedAlternatives(inputSchema.parse(base),['Bestand prüfen','Wärmepumpen-Messung prüfen']).length,1);
+});
+test('image marks are bounded and tied to supplied image evidence',async()=>{
+ const f=visionFixture();f.response.criteria=[{id:'space',state:'observed',detail:'Freies Feld',evidenceFileId:'image-a',evidence:'Rechter Bildbereich',missing:'Maße',box:{x:.5,y:.4,width:.4,height:.2}},{id:'metering',state:'unknown',detail:'Offen',evidenceFileId:'foreign',evidence:'Unbelegt',missing:'Foto',box:{x:0,y:0,width:1,height:1}},{id:'protection',state:'unknown',detail:'Offen',evidenceFileId:'image-a',evidence:'Rechts',missing:'Lesbare Geräte',box:{x:.8,y:.9,width:.5,height:.5}}];
+ const result=await f.fn(inputSchema.parse({...base,mode:'ai',aiConsent:true}),f.files,'test-user');
+ assert.deepEqual(result.criteria[0].box,{x:.5,y:.4,width:.4,height:.2});assert.equal(result.criteria[1].box,null);assert.equal(result.criteria[2].box,null);
 });
