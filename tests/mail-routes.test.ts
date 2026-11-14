@@ -59,7 +59,7 @@ function builder(table: string) {
       return b;
     },
     eq: (k: string, v: any) => {
-      filters.push((r) => r[k] === v);
+      filters.push((r) => (k === "payload->>mailbox" ? r.payload?.mailbox : r[k]) === v);
       return b;
     },
     gt: (k: string, v: any) => {
@@ -1635,4 +1635,40 @@ test("swipe-compatible trash action moves the exact message into deleteditems wi
   );
   assert.equal(denied.status, 403);
   assert.equal(graphCalls, 0);
+});
+
+
+test("dashboard statistics are scoped to the selected authorized mailbox and the current user's active drafts", async () => {
+  reset();
+  rows.ema_mail_memberships = [{ user_id: uid, mailbox: "team@example.com", can_read: true }];
+  rows.ema_mail_drafts = [
+    {user_id:uid,payload:{mailbox:"me"},status:"draft"},
+    {user_id:uid,payload:{mailbox:"me"},status:"approved"},
+    {user_id:uid,payload:{mailbox:"me"},status:"submitted"},
+    {user_id:"other",payload:{mailbox:"me"},status:"draft"},
+    {user_id:uid,payload:{mailbox:"team@example.com"},status:"draft"},
+  ];
+  const paths:string[]=[];
+  globalThis.fetch = async url => {paths.push(String(url)); return Response.json({unreadItemCount:String(url).includes("/me/")?42:7});};
+  const own=await GET(new NextRequest("https://ema.example/api/mail/dashboard-stats"));
+  assert.equal(own.status,200);
+  assert.deepEqual(await own.json(),{unread:42,drafts:2});
+  assert.match(own.headers.get("cache-control")||"",/no-store/);
+  const shared=await GET(new NextRequest("https://ema.example/api/mail/dashboard-stats?mailbox=team%40example.com"));
+  assert.equal(shared.status,200);
+  assert.deepEqual(await shared.json(),{unread:7,drafts:1});
+  assert.equal(paths.length,2);
+  assert.ok(paths.every(path=>path.includes("mailFolders/inbox?$select=unreadItemCount")));
+  const denied=await GET(new NextRequest("https://ema.example/api/mail/dashboard-stats?mailbox=foreign%40example.com"));
+  assert.equal(denied.status,403);
+  assert.equal(paths.length,2);
+});
+test("dashboard statistics reject invalid counters and are unavailable in preview", async () => {
+  reset();
+  for (const unreadItemCount of [-1,1.5,"2",null]) {
+    globalThis.fetch = async () => Response.json({unreadItemCount});
+    assert.equal((await GET(new NextRequest("https://ema.example/api/mail/dashboard-stats"))).status,502);
+  }
+  process.env.VERCEL_ENV="preview";
+  assert.equal((await GET(new NextRequest("https://ema.example/api/mail/dashboard-stats"))).status,503);
 });

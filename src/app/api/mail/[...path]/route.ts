@@ -709,6 +709,24 @@ async function handle(request: NextRequest) {
       permission,
     );
     const root = mailboxRoot(mailbox);
+    if (action === "dashboard-stats" && !mutating) {
+      const [inbox, drafts] = await Promise.all([
+        mailGraph<{ unreadItemCount: number }>(
+          token,
+          `${root}/mailFolders/inbox?$select=unreadItemCount`,
+        ),
+        admin.from("ema_mail_drafts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", session.user.id)
+          .eq("payload->>mailbox", mailbox)
+          .in("status", ["draft", "approved"]),
+      ]);
+      if (!Number.isSafeInteger(inbox.unreadItemCount) || inbox.unreadItemCount < 0)
+        throw new MailError(502, "Ungelesen-Zähler derzeit nicht verfügbar.");
+      if (drafts.error || !Number.isSafeInteger(drafts.count) || (drafts.count ?? -1) < 0)
+        throw new MailError(503, "Entwurfszähler derzeit nicht verfügbar.");
+      return json({ unread: inbox.unreadItemCount, drafts: drafts.count });
+    }
     if (action === "messages" && !mutating) {
       const folder = request.nextUrl.searchParams.get("folder") || "inbox";
       if (!folders.some((f) => f.id === folder))
