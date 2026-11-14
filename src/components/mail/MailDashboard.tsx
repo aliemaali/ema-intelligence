@@ -1,6 +1,6 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {CalendarDays,ChevronRight,Home,Mail,Mic,PenLine,RefreshCw,Settings,Sparkles,Users,Folder,Flag} from 'lucide-react';
+import {CalendarDays,ChevronRight,Home,Mail,Mic,PenLine,RefreshCw,Settings,Users,Folder,Flag} from 'lucide-react';
 import {demoMessages} from '@/lib/mail/demo';
 import {invoiceHint,type Message} from '@/lib/mail/model';
 import {graphDate,teamsJoinUrl} from '@/lib/mail/calendar';
@@ -11,35 +11,32 @@ import {MailSwipeRow} from './MailSwipeRow';
 import s from './mail.module.css';
 export type MailView='home'|'mail'|'calendar'|'contacts'|'tasks'|'settings';
 export function MailBottomNav({view,onNavigate}:{view:MailView;onNavigate:(view:MailView)=>void}) {
-  return <nav className={s.dashboardNav} aria-label="Mail Hauptnavigation">{([{id:'home',label:'Start',icon:Home},{id:'mail',label:'Postfach',icon:Mail},{id:'calendar',label:'Kalender',icon:CalendarDays},{id:'contacts',label:'Kontakte',icon:Users}] as const).map(item=><button key={item.id} aria-current={view===item.id?'page':undefined} onClick={()=>onNavigate(item.id)}><item.icon size={23}/><span>{item.label}</span></button>)}</nav>;
+  return <nav className={s.dashboardNav} aria-label="Mail Hauptnavigation">{([{id:'home',label:'Start',icon:Home},{id:'mail',label:'Postfach',icon:Mail},{id:'calendar',label:'Kalender',icon:CalendarDays},{id:'contacts',label:'Kontakte',icon:Users}] as const).map(item=><button key={item.id} aria-current={view===item.id?'page':undefined} onClick={()=>onNavigate(item.id)}><item.icon size={21}/><span>{item.label}</span></button>)}</nav>;
 }
 export function priorityMail(m:Message){return m.importance==='high'||m.flag?.flagStatus==='flagged'||m.emaAnalysis?.priority==='high';}
 async function get(path:string,signal:AbortSignal){const r=await fetch('/api/mail/'+path,{cache:'no-store',signal});const d=await r.json();if(!r.ok)throw new Error(d.error||'Daten konnten nicht geladen werden.');return d;}
 export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onVoice,onTrash,revision,demoRecords,notice}:{demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onVoice:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[];notice?:string}) {
-  const [messages,setMessages]=useState<Message[]>([]),[events,setEvents]=useState<MailPimItem[]>([]),[unread,setUnread]=useState<number|null>(null),[busy,setBusy]=useState(true),[errors,setErrors]=useState<string[]>([]),[tab,setTab]=useState<'priority'|'all'|'events'>('priority'),[partial,setPartial]=useState(false),[swiped,setSwiped]=useState<string|null>(null),[today,setToday]=useState(new Date());
+  const [messages,setMessages]=useState<Message[]>([]),[events,setEvents]=useState<MailPimItem[]>([]),[busy,setBusy]=useState(true),[errors,setErrors]=useState<string[]>([]),[tab,setTab]=useState<'priority'|'all'|'events'>('priority'),[partial,setPartial]=useState(false),[swiped,setSwiped]=useState<string|null>(null),[today,setToday]=useState(new Date());
   const version=useRef(0), demoDeleted=useRef(new Set<string>());
   const refresh=useCallback(async(signal:AbortSignal)=>{
     const current=++version.current;setBusy(true);
-    if(demo){const day=fromZonedTime(`${berlinDay()}T14:00:00`,'Europe/Berlin');setMessages(demoMessages.filter(m=>!demoDeleted.current.has(m.id)));setUnread(demoMessages.filter(m=>!m.isRead&&!demoDeleted.current.has(m.id)).length);setEvents(demoRecords??[{id:'demo-overview',subject:'Projektbesprechung Chemnitz',start:{dateTime:day.toISOString()},end:{dateTime:new Date(day.getTime()+1800000).toISOString()},location:{displayName:'Microsoft Teams'}}]);setBusy(false);return;}
-    setMessages([]);setEvents([]);setUnread(null);setErrors([]);setPartial(false);setToday(new Date());
+    if(demo){const day=fromZonedTime(`${berlinDay()}T14:00:00`,'Europe/Berlin');setMessages(demoMessages.filter(m=>!demoDeleted.current.has(m.id)));setEvents(demoRecords??[{id:'demo-overview',subject:'Projektbesprechung Chemnitz',start:{dateTime:day.toISOString()},end:{dateTime:new Date(day.getTime()+1800000).toISOString()},location:{displayName:'Microsoft Teams'}}]);setBusy(false);return;}
+    setMessages([]);setEvents([]);setErrors([]);setPartial(false);setToday(new Date());
     const range=todayRange();
-    const results=await Promise.allSettled([get(`messages?${new URLSearchParams({mailbox,folder:'inbox'})}`,signal),get(`calendar?${new URLSearchParams(range)}`,signal),get('badge',signal)]);
+    const results=await Promise.allSettled([get(`messages?${new URLSearchParams({mailbox,folder:'inbox'})}`,signal),get(`calendar?${new URLSearchParams(range)}`,signal)]);
     if(signal.aborted||version.current!==current)return;
     const problems:string[]=[];
     if(results[0].status==='fulfilled'){setMessages(results[0].value.messages);setPartial(Boolean(results[0].value.cursor));}else problems.push('Posteingang: '+results[0].reason.message);
     if(results[1].status==='fulfilled'){setEvents(results[1].value.value||[]);if(results[1].value['@odata.nextLink'])problems.push('Weitere Termine findest du im Kalender.');}else problems.push('Kalender: '+results[1].reason.message);
-    if(results[2].status==='fulfilled')setUnread(results[2].value.count);else problems.push('Ungelesen-Zahl derzeit nicht verfügbar.');
     setErrors(problems);setBusy(false);
   },[demo,mailbox,demoRecords]);
   useEffect(()=>{const controller=new AbortController();void refresh(controller.signal);const update=()=>{if(!document.hidden)void refresh(controller.signal);};const timer=setInterval(update,60000);window.addEventListener('focus',update);document.addEventListener('visibilitychange',update);return()=>{controller.abort();version.current++;clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};},[refresh,revision]);
   const important=messages.filter(priorityMail),list=tab==='priority'?important:messages;
-  const tasks=messages.reduce((n,m)=>n+(m.emaAnalysis?.tasks.length||0),0);
   return <div className={s.dashboard}>
     <div className={s.dashboardScroll}>
       <header className={s.dashboardHeader}><a href="/apps" className={s.dashboardBrand}><i>e</i><span>EMA Mail</span></a><div><button onClick={()=>void refresh(new AbortController().signal)} disabled={busy} aria-label="Dashboard aktualisieren"><RefreshCw size={18}/></button><button onClick={()=>onNavigate('settings')} aria-label="Einstellungen"><Settings size={19}/></button></div></header>
       {demo&&<p className={s.dashboardDemo}>Designvorschau · Beispieldaten</p>}
       <div className={s.dashboardTitle}><p>{today.toLocaleDateString('de-DE',{timeZone:'Europe/Berlin',weekday:'long',day:'numeric',month:'long'})}</p><h1>Dein Überblick</h1></div>
-      <section className={s.dashboardHero} aria-label="Tagesüberblick"><Sparkles size={29}/><div><h2>Alles im Blick</h2><p>{busy?'Dein Tag wird geladen …':`${unread===null?'–':unread} ungelesen · ${events.length} ${events.length===1?'Termin':'Termine'} heute`}</p><small>Ungelesen: alle freigegebenen Postfächer</small><p className={s.dashboardInsight}>{tasks?`${tasks} Aufgabenvorschläge in den analysierten E-Mails.`:'Wichtige Nachrichten und Termine an einem Ort.'}</p></div></section>
       <label className={s.dashboardMailbox}><span>Postfach</span><select value={mailbox} onChange={e=>onMailbox(e.target.value)} aria-label="Postfach auswählen">{accounts.length?accounts.map(a=><option key={a.mailbox} value={a.mailbox}>{a.name||a.address||a.mailbox}</option>):<option value="me">Mein Postfach</option>}</select></label>
       {notice&&<p className={s.dashboardFootnote} role="status">{notice}</p>}
       {errors.length>0&&<div className={s.dashboardErrors} role="status">{errors.map(error=><p key={error}>{error}</p>)}<button onClick={()=>void refresh(new AbortController().signal)}>Erneut laden</button></div>}
@@ -55,6 +52,6 @@ export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,
       {events.slice(0,tab==='events'?20:4).map(event=>{const join=teamsJoinUrl(event.onlineMeeting?.joinUrl);return <article className={s.dashboardEvent} key={event.id}><span className={s.dashboardDot}/><time>{event.isAllDay?'Ganztägig':event.start?graphDate(event.start.dateTime).toLocaleTimeString('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit'}):'–'}</time><div><button onClick={()=>onNavigate('calendar')}>{event.subject||'Termin'}</button><p>{event.isOnlineMeeting?'Microsoft Teams':event.location?.displayName||'Kalendertermin'}</p></div>{join&&<a href={join} target="_blank" rel="noopener noreferrer">Beitreten</a>}</article>;})}
       </section></div>
     </div>
-    <div className={s.dashboardActions}><button onClick={onVoice} aria-label="Sprachsteuerung öffnen"><Mic size={24}/><span>Sprechen</span></button><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={25}/></button></div>
+    <div className={s.dashboardActions}><button onClick={onVoice} aria-label="Sprachsteuerung öffnen"><Mic size={21}/></button><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={22}/></button></div>
   </div>;
 }
