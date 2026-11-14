@@ -53,7 +53,6 @@ import { sanitizeRichHtml } from "@/lib/mail/rich-text";
 import { replyAllRecipients, checkSchedule } from "@/lib/mail/productivity";
 import { useMailProductivity, mailPost } from "./useMailProductivity";
 import { MailProductivitySettings } from "./MailProductivitySettings";
-import { MailMessageTools } from "./MailMessageTools";
 import { signatureForAddress } from "@/lib/mail/signature";
 import { MailSignature } from "./MailSignature";
 import { MailComposeFields } from "./MailComposeFields";
@@ -214,7 +213,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     detailVersion = useRef(0),
     composeVersion = useRef(0);
   const productivity = useMailProductivity(demo, mailbox);
-  const [selectedProject, setSelectedProject] = useState("");
   const account = accounts.find((a) => a.mailbox === mailbox);
   const hasComposer = Boolean(composer);
   const composeRef = useRef<HTMLElement>(null);
@@ -355,7 +353,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }, [load]);
   async function openMessage(message: Message) {
     const version = ++detailVersion.current;
-    setSelectedProject("");
     setSelected(message);
     setAnalysis(message.emaAnalysis ?? null);
     setReading(true);
@@ -517,7 +514,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           mailbox,
           id: selected.id,
           attachmentId: file.id,
-          ...(selectedProject ? { projectId: selectedProject } : {}),
         });
         setNotice(
           result.duplicate
@@ -1309,14 +1305,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                         </button>
                       </div>
                     ))}
-                    <MailMessageTools
-                      key={`${mailbox}:${selected.id}`}
-                      demo={demo}
-                      message={selected}
-                      mailbox={mailbox}
-                      projects={productivity.data.projects}
-                      onProject={setSelectedProject}
-                    />
                     <section className={s.aiCard}>
                       <div className={s.aiHeader}>
                         <Sparkles size={16} />
