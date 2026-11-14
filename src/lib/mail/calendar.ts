@@ -1,3 +1,14 @@
+import { fromZonedTime } from 'date-fns-tz';
+
+export function berlinDay(now = new Date()) {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+export function todayRange(now = new Date()) {
+  const day = berlinDay(now);
+  const next = new Date(`${day}T12:00:00Z`); next.setUTCDate(next.getUTCDate() + 1);
+  return { start: fromZonedTime(`${day}T00:00:00`, 'Europe/Berlin').toISOString(), end: fromZonedTime(`${next.toISOString().slice(0,10)}T00:00:00`, 'Europe/Berlin').toISOString() };
+}
+
 /** Local calendar days are advanced by date, never by 24h (DST). */
 export function calendarDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
