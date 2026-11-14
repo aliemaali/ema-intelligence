@@ -42,7 +42,7 @@ import { demoMessages, demoReply } from "@/lib/mail/demo";
 import type { MailAnalysis } from "@/lib/mail/analysis";
 import s from "./mail.module.css";
 import { MailTeam } from "./MailTeam";
-import { MailPim } from "./MailPim";
+import { MailPim, type MailPimItem } from "./MailPim";
 import { MailAutomation } from "./MailAutomation";
 type Account = {
   mailbox: string;
@@ -152,8 +152,10 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     [composer, setComposer] = useState<MailDraft | null>(null),
     [draftId, setDraftId] = useState<string | undefined>(),
     [review, setReview] = useState(false);
-  const [aux, setAux] = useState<Record<string, any>[]>([]),
-    [taskOpen, setTaskOpen] = useState(false),
+  const [demoPim, setDemoPim] = useState<
+    Partial<Record<"calendar" | "contacts" | "tasks", MailPimItem[]>>
+  >({});
+  const [taskOpen, setTaskOpen] = useState(false),
     [taskTitle, setTaskTitle] = useState(""),
     [due, setDue] = useState("");
   const requestVersion = useRef(0),
@@ -559,10 +561,17 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           mailbox,
         });
       else
-        setAux((old) => [
+        setDemoPim((old) => ({
           ...old,
-          { title: taskTitle, due_at: new Date(due).toISOString() },
-        ]);
+          tasks: [
+            ...(old.tasks || []),
+            {
+              id: crypto.randomUUID(),
+              title: taskTitle,
+              due_at: new Date(due).toISOString(),
+            },
+          ],
+        }));
       setTaskOpen(false);
       setNotice(
         demo
@@ -881,6 +890,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     </button>
                     <button
                       disabled={busy || !account?.can_write}
+                      aria-label="Archivieren"
                       onClick={() => void messageAction("archive")}
                     >
                       <Archive size={15} />
@@ -888,6 +898,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     </button>
                     <button
                       disabled={busy || !account?.can_write}
+                      aria-label="In den Papierkorb verschieben"
                       onClick={() => void messageAction("trash")}
                     >
                       <Trash2 size={15} />
@@ -920,6 +931,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       <Flag size={15} />
                     </button>
                     <button
+                      aria-label="Erinnern"
                       onClick={() => {
                         setTaskTitle(selected.subject);
                         setTaskOpen(true);
@@ -1112,15 +1124,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
               <Menu size={16} />
               Navigation
             </button>
-            <h1>
-              {view === "calendar"
-                ? "Dein Kalender"
-                : view === "contacts"
-                  ? "Deine Kontakte"
-                  : view === "tasks"
-                    ? "Aufgaben & Erinnerungen"
-                    : "Dein sicherer Arbeitsplatz"}
-            </h1>
+            {view === "settings" ? <h1>Dein sicherer Arbeitsplatz</h1> : null}
             {view === "settings" ? (
               <>
                 <p>
@@ -1175,7 +1179,15 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                 {!demo ? <MailTeam /> : null}
               </>
             ) : (
-              <MailPim key={view} mode={view} demo={demo} />
+              <MailPim
+                key={view}
+                mode={view}
+                demo={demo}
+                demoRecords={demoPim[view]}
+                onDemoChange={(items) =>
+                  setDemoPim((old) => ({ ...old, [view]: items }))
+                }
+              />
             )}
           </section>
         )}

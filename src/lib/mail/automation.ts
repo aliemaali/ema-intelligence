@@ -146,3 +146,17 @@ export async function processMailJob(
   await deps.complete();
   return "done";
 }
+
+export function operationTimeout(
+  deadline: number,
+  max = 20000,
+  now = Date.now(),
+) {
+  const left = deadline - now - 3000;
+  if (left < 1000)
+    throw new MailError(
+      503,
+      "Laufzeitbudget erschöpft; Verarbeitung wird fortgesetzt.",
+    );
+  return Math.min(max, left);
+}

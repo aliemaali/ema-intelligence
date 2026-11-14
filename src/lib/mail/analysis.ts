@@ -12,7 +12,10 @@ const resultSchema = z
   })
   .strict();
 export type MailAnalysis = z.infer<typeof resultSchema>;
-export async function analyzeMessage(message: Message): Promise<MailAnalysis> {
+export async function analyzeMessage(
+  message: Message,
+  timeoutMs = 30000,
+): Promise<MailAnalysis> {
   if (!process.env.OPENAI_API_KEY)
     throw new MailError(503, "KI-Analyse ist nicht konfiguriert.");
   const response = await fetch("https://api.openai.com/v1/responses", {
@@ -22,7 +25,7 @@ export async function analyzeMessage(message: Message): Promise<MailAnalysis> {
       "Content-Type": "application/json",
     },
     cache: "no-store",
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(timeoutMs),
     body: JSON.stringify({
       model: process.env.EMA_MAIL_AI_MODEL || "gpt-5-mini",
       store: false,

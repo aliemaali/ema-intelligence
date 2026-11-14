@@ -40,7 +40,7 @@ export async function mailGraph<T>(
     },
     cache: "no-store",
     redirect: "error",
-    signal: AbortSignal.timeout(20000),
+    signal: init.signal ?? AbortSignal.timeout(20000),
   });
   if (!response.ok)
     throw new MailError(

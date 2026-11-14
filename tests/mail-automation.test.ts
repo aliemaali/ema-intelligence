@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  operationTimeout,
   deltaPath,
   checkedDeltaLink,
   newMessageIds,
@@ -312,4 +313,10 @@ test("delta cursor binds resolved Inbox ID and accepts Microsoft OData spelling"
       "AAMk==",
     ),
   );
+});
+
+test("worker bounds network calls and refuses new work after its budget", () => {
+  assert.equal(operationTimeout(50000, 20000, 0), 20000);
+  assert.equal(operationTimeout(5000, 20000, 0), 2000);
+  assert.throws(() => operationTimeout(3000, 20000, 0), /Laufzeitbudget/);
 });

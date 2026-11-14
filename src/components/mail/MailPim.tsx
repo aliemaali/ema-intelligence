@@ -21,6 +21,21 @@ type Item = {
   due_at?: string;
   completed_at?: string | null;
 };
+export type MailPimItem = Item;
+const fieldLabels: Record<string, string> = {
+  subject: "Titel",
+  start: "Beginn",
+  end: "Ende",
+  location: "Ort",
+  notes: "Notizen",
+  attendees: "Teilnehmer",
+  displayName: "Name",
+  email: "E-Mail",
+  companyName: "Firma",
+  phone: "Telefon",
+  title: "Titel",
+  due: "Fällig",
+};
 type Mode = "calendar" | "contacts" | "tasks";
 async function request(path: string, value?: unknown) {
   const r = await fetch("/api/mail/" + path, {
@@ -76,7 +91,17 @@ const samples: Record<Mode, Item[]> = {
     },
   ],
 };
-export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
+export function MailPim({
+  mode,
+  demo,
+  demoRecords,
+  onDemoChange,
+}: {
+  mode: Mode;
+  demo: boolean;
+  demoRecords?: Item[];
+  onDemoChange?: (items: Item[]) => void;
+}) {
   const [items, setItems] = useState<Item[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [error, setError] = useState(""),
@@ -92,7 +117,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
       setBusy(true);
       try {
         if (demo) {
-          setItems(samples[mode]);
+          setItems(demoRecords ?? samples[mode]);
           return;
         }
         const data = await request(
@@ -113,7 +138,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
         setBusy(false);
       }
     },
-    [mode, demo],
+    [mode, demo, demoRecords],
   );
   useEffect(() => {
     void load();
@@ -130,6 +155,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
         setBusy(false);
       }
     }
+    setError("");
     setRequestId(crypto.randomUUID());
     setEditor(item || {});
     setReview(false);
@@ -169,12 +195,16 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
         }
       : fields;
   }
+  function updateItems(next: Item[]) {
+    setItems(next);
+    if (demo) onDemoChange?.(next);
+  }
   async function save() {
     setBusy(true);
     try {
       const v = value();
       if (demo) {
-        setItems((old) => [
+        updateItems([
           {
             id: editor?.id || crypto.randomUUID(),
             ...(mode === "contacts"
@@ -198,7 +228,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
                     due_at: new Date(fields.due).toISOString(),
                   }),
           },
-          ...old.filter((x) => x.id !== editor?.id),
+          ...items.filter((x) => x.id !== editor?.id),
         ]);
         setError("In der Demo gespeichert. Keine Microsoft-Daten geändert.");
       } else if (mode === "tasks") {
@@ -234,7 +264,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
           id: deleting.id,
           confirmed: true,
         });
-      setItems((old) => old.filter((i) => i.id !== deleting.id));
+      updateItems(items.filter((i) => i.id !== deleting.id));
       setDeleting(null);
     } catch (e) {
       setError((e as Error).message);
@@ -251,8 +281,8 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
           complete: !item.completed_at,
           confirmed: true,
         });
-      setItems((old) =>
-        old.map((i) =>
+      updateItems(
+        items.map((i) =>
           i.id === item.id
             ? {
                 ...i,
@@ -362,6 +392,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
           busy={busy}
           onClose={() => setEditor(null)}
         >
+          {error ? <p role="alert">{error}</p> : null}
           {review ? (
             <>
               <p>
@@ -377,7 +408,7 @@ export function MailPim({ mode, demo }: { mode: Mode; demo: boolean }) {
                   .filter(([, v]) => v)
                   .map(([k, v]) => (
                     <p key={k}>
-                      <b>{k}</b>: {v}
+                      <b>{fieldLabels[k] || k}</b>: {v}
                     </p>
                   ))}
               </div>

@@ -30,11 +30,11 @@ Stand: 14.11.2026. Branch: `feature/ema-mail`, Fortsetzung auf Basis von 073f69f
 
 ## Durchgeführte Prüfungen
 
-- **52 Unit-/API-/Worker-Tests bestanden:** tatsächliche Session-/Rollen-/MFA-Prüfung, CSRF, Postfachrechte, Replay/Parallelversand, native Antwortfreigabe, Kalender-/Kontaktänderungen, fremde Erinnerungen, Worker-Schalter, Cursor-Bindung, historische Nachrichten, Teilfehler, Rechteentzug, Wiederaufnahme, Budgets und sichere Push-Endpunkte.
+- **53 Unit-/API-/Worker-Tests bestanden:** tatsächliche Session-/Rollen-/MFA-Prüfung, CSRF, Postfachrechte, Replay/Parallelversand, native Antwortfreigabe, Kalender-/Kontaktänderungen, fremde Erinnerungen, Worker-Schalter, Cursor-Bindung, historische Nachrichten, Teilfehler, Rechteentzug, Wiederaufnahme, Budgets und sichere Push-Endpunkte.
 - **SQL lokal mit PGlite/Postgres bestanden:** beide Migrationen, sieben RLS-Tabellen; anon/authenticated verweigert; nur Service-Rolle auf neue Mailtabellen/Funktionen; einmaliger Versand-Claim; genau 20 von 25 parallelen Budget-Claims; nur ein Sync-/Job-Claim; doppelte Jobs abgewiesen; verlassene Leases wieder aufgenommen; ausgeschöpfte Jobs als fehlgeschlagen markiert.
 - **Bestandsregressionen erneut bestanden:** 16 Push-Status- und 44 Smart-Check-Tests.
 - **TypeScript und Next.js-Produktionsbuild bestanden**, Mail-Komponenten ohne neue Lint-Fehler. Keine Runtime-Abhängigkeit hinzugefügt; Quellcode für Prüfung lesbar formatiert.
-- Vorherige Desktop-Demo inkl. Analyse/Entwurf/Freigabe im Browser geprüft. Erweiterte PIM- und Mobil-Vorschau werden im Browser zusätzlich geprüft; physische Geräte- und Graph-Echttests sind davon getrennt.
+- Desktop-Demo inkl. Analyse/Entwurf/Freigabe im Browser geprüft. Kalenderänderung mit Freigabe, Kontaktformular und mobile Liste-/Leseansicht bei 390 × 844 geprüft; Aufgaben erledigt und über den Filter wieder angezeigt. Dabei doppelte Überschriften, Beschriftungen im Freigabedialog und mobile Icon-Namen korrigiert. Physische Geräte- und Graph-Echttests bleiben getrennt.
 
 ## Bewusste Grenzen vor vollständigem Outlook-Ersatz
 

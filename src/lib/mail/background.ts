@@ -8,6 +8,7 @@ import { mailGraph, MailError, messagePath } from "./graph";
 import { analyzeMessage } from "./analysis";
 import { digest } from "./security";
 import {
+  operationTimeout,
   processMailJob,
   retryAt,
   synchronizeInbox,
@@ -66,7 +67,11 @@ async function requiredToken(userId: string) {
   if (!token) throw new MailError(409, "Microsoft-Verbindung fehlt.");
   return token;
 }
-async function analyzeAndDraft(job: MailJob, message: Message) {
+async function analyzeAndDraft(
+  job: MailJob,
+  message: Message,
+  deadline: number,
+) {
   const db = mailAdmin(),
     access = await currentAccess(job);
   if (!access) throw new MailError(403, "Zugriff entzogen.");
@@ -91,7 +96,7 @@ async function analyzeAndDraft(job: MailJob, message: Message) {
     });
     if (error) throw new MailError(503, "Analysebudget nicht verfügbar.");
     if (!allowed) throw new MailError(429, "Analysebudget ausgeschöpft.");
-    analysis = await analyzeMessage(message);
+    analysis = await analyzeMessage(message, operationTimeout(deadline, 18000));
     if (!(await currentAccess(job))?.analyze) return;
     await checked(
       db
@@ -103,18 +108,16 @@ async function analyzeAndDraft(job: MailJob, message: Message) {
     );
   }
   await checked(
-    db
-      .from("ema_mail_insights")
-      .upsert(
-        {
-          user_id: job.user_id,
-          mailbox: job.mailbox,
-          message_id: message.id,
-          result: analysis,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,mailbox,message_id" },
-      ),
+    db.from("ema_mail_insights").upsert(
+      {
+        user_id: job.user_id,
+        mailbox: job.mailbox,
+        message_id: message.id,
+        result: analysis,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,mailbox,message_id" },
+    ),
   );
   const fresh = await currentAccess(job);
   if (!fresh?.analyze || !fresh.can_send || !analysis.suggestedReply) return;
@@ -149,7 +152,7 @@ async function analyzeAndDraft(job: MailJob, message: Message) {
   if (error && error.code !== "23505")
     throw new MailError(503, "Antwortentwurf konnte nicht gespeichert werden.");
 }
-async function pushNewMail(job: MailJob) {
+async function pushNewMail(job: MailJob, deadline: number) {
   const db = mailAdmin(),
     access = await currentAccess(job);
   if (job.push_state === "claimed") {
@@ -184,6 +187,7 @@ async function pushNewMail(job: MailJob) {
   if (claimError || !claim)
     throw new MailError(409, "Push wurde bereits übernommen.");
   if (!devices?.length) return;
+  operationTimeout(deadline, 5000);
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || "mailto:info@ema-enterprise.de",
     pub,
@@ -211,7 +215,7 @@ async function pushNewMail(job: MailJob) {
           tag: `ema-mail-${job.id}`,
           url: `/mail?${new URLSearchParams({ mailbox: job.mailbox, message: job.message_id })}`,
         }),
-        { TTL: 300, timeout: 5000 },
+        { TTL: 300, timeout: operationTimeout(deadline, 5000) },
       );
     } catch (e) {
       const code = Number((e as { statusCode?: number }).statusCode);
@@ -236,7 +240,8 @@ async function pushNewMail(job: MailJob) {
 }
 export async function runMailWorker() {
   const db = mailAdmin(),
-    started = Date.now();
+    started = Date.now(),
+    deadline = started + 50000;
   const result = { synced: 0, jobs: 0, errors: 0 };
   const { data: syncs, error } = await db.rpc("ema_mail_claim_sync");
   if (error)
@@ -260,7 +265,12 @@ export async function runMailWorker() {
       await synchronizeInbox(state, {
         authorized: async () => Boolean(await currentAccess(state)),
         read: (path) =>
-          mailGraph<DeltaPage>(token, path, {}, mailboxRoot(state.mailbox)),
+          mailGraph<DeltaPage>(
+            token,
+            path,
+            { signal: AbortSignal.timeout(operationTimeout(deadline)) },
+            mailboxRoot(state.mailbox),
+          ),
         enqueue: async (id) => {
           await checked(
             db.from("ema_mail_jobs").upsert(
@@ -364,15 +374,15 @@ export async function runMailWorker() {
             return mailGraph<Message>(
               await requiredToken(job.user_id),
               messagePath(job.mailbox, job.message_id),
-              {},
+              { signal: AbortSignal.timeout(operationTimeout(deadline)) },
               mailboxRoot(job.mailbox),
             );
           },
-          analyze: (msg) => analyzeAndDraft(job, msg),
+          analyze: (msg) => analyzeAndDraft(job, msg, deadline),
           analysisDone: async () => {
             await update({ analysis_done: true });
           },
-          push: () => pushNewMail(job),
+          push: () => pushNewMail(job, deadline),
           complete: async () => {
             await update({ state: "done", lease_id: null, leased_until: null });
           },
