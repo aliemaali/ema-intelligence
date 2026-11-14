@@ -2485,8 +2485,6 @@
 .dashboardHeader button,.dashboardSectionTitle button { border:0; background:transparent; color:#becac6; display:grid; place-items:center; min-width:42px; min-height:42px; border-radius:50%; }
 .dashboardHeader button:hover { background:#ffffff10; }
 .dashboardBrand { display:flex; align-items:center; gap:17px; color:#f5f7f6; text-decoration:none; font-size:24px; }
-.dashboardBrand i { font:italic 68px/.8 Georgia,serif; color:#13b680; }
-.dashboardBrand span { border-left:1px solid #7b8f84; padding-left:17px; }
 .dashboardDemo { color:#7ee1bb; font-size:12px; }
 .dashboardTitle p { text-transform:uppercase; color:#b5bfba; font-size:12px; letter-spacing:1.4px; margin:0 0 8px; }
 .dashboardTitle h1 { font-size:36px; letter-spacing:-1px; margin:0 0 23px; line-height:1.15; }
@@ -2540,8 +2538,6 @@
   .dashboardScroll { width:100%; min-width:0; overflow-y:auto; overscroll-behavior-y:contain; padding:21px 20px 16px; }
   .dashboardHeader { margin-bottom:23px; }
   .dashboardBrand { font-size:20px; gap:12px; }
-  .dashboardBrand i { font-size:56px; }
-  .dashboardBrand span { padding-left:12px; }
   .dashboardTitle h1 { font-size:32px; margin-bottom:20px; }
   .dashboardTitle p { font-size:11px; letter-spacing:1px; }
   .dashboardSectionTitle h2 { font-size:22px; }
@@ -2556,4 +2552,52 @@
   .dashboardNav button { font-size:11px; padding-inline:5px; }
   .dashboardActions { padding:7px 20px; }
   .withDashboardNav .sidebar.open { bottom:calc(54px + env(safe-area-inset-bottom,0px)); }
+}
+
+
+/* Dashboard follows the same saved appearance as the mailbox. */
+.dashboardLogo { display:flex; align-items:center; justify-content:center; flex-shrink:0; background:#fff; padding:4px 6px; border-radius:8px; }
+.dashboardLogo img { display:block; width:96px; height:45px; object-fit:contain; }
+.dashboardBrand strong { font-size:20px; font-weight:650; }
+.workspace[data-theme="light"].homeWorkspace,
+.workspace[data-theme="light"] .dashboard { background:#f6f8fa; color:#182c3b; }
+.workspace[data-theme="light"] .dashboardBrand { color:#182c3b; }
+.workspace[data-theme="light"] .dashboardHeader button,
+.workspace[data-theme="light"] .dashboardSectionTitle button { color:#526a77; }
+.workspace[data-theme="light"] .dashboardHeader button:hover { background:#e6edf0; }
+.workspace[data-theme="light"] .dashboardDemo { color:#087653; }
+.workspace[data-theme="light"] .dashboardTitle p,
+.workspace[data-theme="light"] .dashboardMailbox { color:#536b78; }
+.workspace[data-theme="light"] .dashboardMailbox select { background:#fff; color:#182c3b; border-color:#d3dfe4; }
+.workspace[data-theme="light"] .dashboardTabs { background:#e9eff2; border-color:#d3dfe4; }
+.workspace[data-theme="light"] .dashboardTabs button { color:#435d6b; }
+.workspace[data-theme="light"] .dashboardTabs button[aria-pressed="true"] { color:#fff; }
+.workspace[data-theme="light"] .dashboardMailWrap { border-color:#d9e3e8; background:#fff; box-shadow:0 2px 8px #17304406; }
+.workspace[data-theme="light"] .dashboardMailWrap .swipeContent { background:#fff; }
+.workspace[data-theme="light"] .dashboardMail { color:#182c3b; }
+.workspace[data-theme="light"] .dashboardAvatar { background:#d8f1e6; color:#126443; }
+.workspace[data-theme="light"] .dashboardAvatar[data-color="1"] { background:#dfece8; color:#3a6556; }
+.workspace[data-theme="light"] .dashboardAvatar[data-color="2"] { background:#deedf3; color:#365f72; }
+.workspace[data-theme="light"] .dashboardSender time,
+.workspace[data-theme="light"] .dashboardPreview,
+.workspace[data-theme="light"] .dashboardEvent p,
+.workspace[data-theme="light"] .dashboardFootnote,
+.workspace[data-theme="light"] .dashboardEmpty { color:#526a77; }
+.workspace[data-theme="light"] .dashboardTag { background:#e1f3e9; color:#176444; }
+.workspace[data-theme="light"] .dashboardEvent button { color:#182c3b; }
+.workspace[data-theme="light"] .dashboardEvent:not(:last-child)::before { background:#99cfb8; }
+.workspace[data-theme="light"] .dashboardErrors { background:#fff8e6; color:#785b16; border-color:#e8d79e; }
+.workspace[data-theme="light"] .dashboardErrors button { color:#087653; }
+.workspace[data-theme="light"] .dashboardActions { background:#f6f8fa; border-color:#dfe7eb; }
+.workspace[data-theme="light"] .dashboardNav { background:#fffffff5; border-color:#d9e3e8; }
+.workspace[data-theme="light"] .dashboardNav button { color:#586d79; }
+.workspace[data-theme="light"] .dashboardNav button[aria-current="page"] { color:#087653; }
+.workspace[data-theme="light"] .dashboardNav button[aria-current="page"]::after { background:#0b996a; }
+@media(max-width:650px) {
+  .dashboardBrand { gap:9px; }
+  .dashboardLogo img { width:82px; height:38px; }
+  .dashboardBrand strong { font-size:18px; }
+  .dashboardHeader { gap:10px; }
+  .dashboardHeader > div { gap:2px; }
+  .dashboardHeader button { min-width:36px; min-height:40px; }
 }

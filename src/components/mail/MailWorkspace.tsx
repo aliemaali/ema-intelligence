@@ -141,16 +141,16 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 export function MailWorkspace({ demo }: { demo: boolean }) {
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
   useEffect(() => {
     try {
-      setTheme(localStorage.getItem("ema-mail-theme-v2") === "light" ? "light" : "dark");
+      setTheme(localStorage.getItem("ema-mail-theme-v2") === "dark" ? "dark" : "light");
     } catch {
       /* Mail remains usable when browser storage is blocked. */
     }
     function syncTheme(event: StorageEvent) {
       if (event.key === "ema-mail-theme-v2")
-        setTheme(event.newValue === "light" ? "light" : "dark");
+        setTheme(event.newValue === "dark" ? "dark" : "light");
     }
     window.addEventListener("storage", syncTheme);
     return () => window.removeEventListener("storage", syncTheme);
@@ -762,7 +762,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         revision={messages}
       />
       {view === "home" ? <MailDashboard key={mailbox}
-        demo={demo} mailbox={mailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
+        theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={mailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
         onCompose={() => newCompose()}
