@@ -88,6 +88,7 @@ export type Attachment = {
   size: number;
   contentBytes?: string;
   isInline?: boolean;
+  contentId?: string;
   "@odata.type"?: string;
 };
 export const folders = [

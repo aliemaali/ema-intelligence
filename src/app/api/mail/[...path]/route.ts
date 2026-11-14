@@ -789,6 +789,7 @@ async function handle(request: NextRequest) {
         `${messagePath(mailbox, id)}?$select=id,subject,body,bodyPreview,from,toRecipients,ccRecipients,receivedDateTime,isRead,importance,hasAttachments,flag,conversationId,replyTo`,
         {},
         root,
+        "html",
       );
       const { data: insight } = await admin
         .from("ema_mail_insights")

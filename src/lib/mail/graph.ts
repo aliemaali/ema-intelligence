@@ -36,6 +36,7 @@ export async function mailGraph<T>(
   path: string,
   init: RequestInit = {},
   root?: string,
+  bodyFormat: "text" | "html" = "text",
 ): Promise<T> {
   const response = await fetch(safeGraphUrl(path, root), {
     ...init,
@@ -43,7 +44,7 @@ export async function mailGraph<T>(
       ...init.headers,
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      Prefer: 'outlook.body-content-type="text", IdType="ImmutableId"',
+      Prefer: `outlook.body-content-type="${bodyFormat}", IdType="ImmutableId"`,
     },
     cache: "no-store",
     redirect: "error",
