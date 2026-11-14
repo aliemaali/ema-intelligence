@@ -8,12 +8,13 @@ export function MailMessageBody({ message, attachments, mailbox }: { message: Me
   const html = message.body?.contentType.toLowerCase() === 'html';
   const content = message.body?.content || message.bodyPreview;
   const [inline, setInline] = useState<Record<string,string>>({});
+  const [photos, setPhotos] = useState<{ id: string; src: string; name: string }[]>([]);
   const [failed, setFailed] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     const controller = new AbortController();
-    setInline({}); setFailed(false);
-    if (!html || !referencedCids(content).length) return () => controller.abort();
+    setInline({}); setPhotos([]); setFailed(false);
+    const references = html ? referencedCids(content) : [];
     let total = 0;
     const images = attachments.filter(a => {
       if (!imageTypes.has(a.contentType.toLowerCase()) || a.size > 5_000_000 || a.size < 0 || total + a.size > 20_000_000) return false;
@@ -29,12 +30,13 @@ export function MailMessageBody({ message, attachments, mailbox }: { message: Me
       const bytes = Uint8Array.from(atob(a.contentBytes), c => c.charCodeAt(0));
       if (!validMailImage(bytes,mime)) throw new Error('Ungültiges Bildformat.');
       const cid = normalizeCid(a.contentId || a.name);
-      return {cid,src:`data:${mime};base64,${a.contentBytes}`};
+      return {cid,src:`data:${mime};base64,${a.contentBytes}`,id:file.id,name:file.name,isInline:a.isInline || file.isInline};
     })).then(results => {
       if (controller.signal.aborted) return;
       const sources: Record<string,string> = {};
       for (const result of results) if (result.status === 'fulfilled' && result.value.cid) sources[result.value.cid] = result.value.src;
       setInline(sources);
+      setPhotos(results.flatMap(result => result.status === 'fulfilled' && !result.value.isInline && !references.includes(result.value.cid) ? [result.value] : []));
       setFailed(results.some(result => result.status === 'rejected'));
     });
     return () => controller.abort();
@@ -61,9 +63,9 @@ export function MailMessageBody({ message, attachments, mailbox }: { message: Me
     if (iframe.contentDocument?.readyState === 'complete') loaded();
     return () => { iframe.removeEventListener('load',loaded); body?.removeEventListener('load',resize,true); observer?.disconnect(); };
   }, [html,document]);
-  if (!html) return <div className={s.mailBody}>{content}</div>;
   return <div className={s.receivedMail}>
-    <iframe ref={frame} title="E-Mail-Inhalt" srcDoc={document} sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" className={s.receivedFrame} />
+    {html ? <iframe ref={frame} title="E-Mail-Inhalt" srcDoc={document} sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" className={s.receivedFrame} /> : <div className={s.mailBody}>{content}</div>}
+    {photos.map(photo => <figure key={photo.id} className={s.receivedPhoto}><img src={photo.src} alt={photo.name} loading="lazy" /><figcaption>{photo.name}</figcaption></figure>)}
     {failed && <small>Einige eingebettete Bilder konnten nicht geladen werden.</small>}
   </div>;
 }

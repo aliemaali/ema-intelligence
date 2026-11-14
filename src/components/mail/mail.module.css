@@ -2765,3 +2765,6 @@
 .receivedMail { margin: 22px 0; min-width: 0; }
 .receivedFrame { display: block; width: 100%; min-height: 120px; border: 0; background: #fff; border-radius: 8px; }
 .receivedMail small { display: block; color: var(--muted); font-size: 11px; margin-top: 8px; }
+.receivedPhoto { margin: 18px 0; }
+.receivedPhoto img { display: block; max-width: 100%; height: auto; border-radius: 6px; }
+.receivedPhoto figcaption { color: var(--muted); font-size: 11px; margin-top: 5px; }
