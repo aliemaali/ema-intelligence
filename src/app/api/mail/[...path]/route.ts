@@ -82,38 +82,74 @@ async function handle(request: NextRequest) {
     );
     if (extension) return extension;
     if (action === "badge" && !mutating) {
-      const { data, error } = await admin.from("ema_mail_memberships")
-        .select("mailbox").eq("user_id", session.user.id).eq("can_read", true);
+      const { data, error } = await admin
+        .from("ema_mail_memberships")
+        .select("mailbox")
+        .eq("user_id", session.user.id)
+        .eq("can_read", true);
       if (error) throw new MailError(503, "Postfachrechte nicht verfügbar.");
       const own = await mailSenderAddress(session, "me");
-      const boxes = ["me", ...new Set((data || []).map(row => String(row.mailbox)).filter(box => box !== own))];
-      if (boxes.length > 50) throw new MailError(503, "Zu viele Postfächer für den Badge-Abgleich.");
+      const boxes = [
+        "me",
+        ...new Set(
+          (data || [])
+            .map((row) => String(row.mailbox))
+            .filter((box) => box !== own),
+        ),
+      ];
+      if (boxes.length > 50)
+        throw new MailError(503, "Zu viele Postfächer für den Badge-Abgleich.");
       let count = 0;
       // All-or-nothing: never replace a correct badge with a partial mailbox count.
       for (let i = 0; i < boxes.length; i += 5) {
-        const counts = await Promise.all(boxes.slice(i, i + 5).map(async box => {
-          const access = await mailboxAccess(session, box);
-          const folder = await mailGraph<{unreadItemCount: number}>(access.token,
-            `${mailboxRoot(access.mailbox)}/mailFolders/inbox?$select=unreadItemCount`);
-          if (!Number.isSafeInteger(folder.unreadItemCount) || folder.unreadItemCount < 0)
-            throw new MailError(502, "Ungültiger Ungelesen-Zähler.");
-          return folder.unreadItemCount;
-        }));
+        const counts = await Promise.all(
+          boxes.slice(i, i + 5).map(async (box) => {
+            const access = await mailboxAccess(session, box);
+            const folder = await mailGraph<{ unreadItemCount: number }>(
+              access.token,
+              `${mailboxRoot(access.mailbox)}/mailFolders/inbox?$select=unreadItemCount`,
+            );
+            if (
+              !Number.isSafeInteger(folder.unreadItemCount) ||
+              folder.unreadItemCount < 0
+            )
+              throw new MailError(502, "Ungültiger Ungelesen-Zähler.");
+            return folder.unreadItemCount;
+          }),
+        );
         count += counts.reduce((a, b) => a + b, 0);
       }
-      return json({count});
+      return json({ count });
     }
     if (action === "push-subscription" && mutating) {
-      const subscription = z.object({endpoint: z.string().max(2048),
-        keys: z.object({p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(256)}).strict()}).strict().parse(input);
-      if (!safePushEndpoint(subscription.endpoint)) throw new MailError(400, "Ungültiger Push-Dienst.");
-      const {error} = await admin.from("ema_push_subscriptions").upsert({
-        user_id: session.user.id, endpoint: subscription.endpoint,
-        p256dh: subscription.keys.p256dh, auth_key: subscription.keys.auth,
-        device_label: "EMA Mail · Home-Bildschirm", last_seen_at: new Date().toISOString(),
-      }, {onConflict: "user_id,endpoint"});
-      if (error) throw new MailError(503, "Push-Gerät konnte nicht gespeichert werden.");
-      return json({ok:true});
+      const subscription = z
+        .object({
+          endpoint: z.string().max(2048),
+          keys: z
+            .object({
+              p256dh: z.string().min(1).max(256),
+              auth: z.string().min(1).max(256),
+            })
+            .strict(),
+        })
+        .strict()
+        .parse(input);
+      if (!safePushEndpoint(subscription.endpoint))
+        throw new MailError(400, "Ungültiger Push-Dienst.");
+      const { error } = await admin.from("ema_push_subscriptions").upsert(
+        {
+          user_id: session.user.id,
+          endpoint: subscription.endpoint,
+          p256dh: subscription.keys.p256dh,
+          auth_key: subscription.keys.auth,
+          device_label: "EMA Mail · Home-Bildschirm",
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,endpoint" },
+      );
+      if (error)
+        throw new MailError(503, "Push-Gerät konnte nicht gespeichert werden.");
+      return json({ ok: true });
     }
     if (action === "team" || action === "memberships") {
       const { data: profile } = await session.db
@@ -545,10 +581,11 @@ async function handle(request: NextRequest) {
           const event = await mailGraph<{
             isOrganizer?: boolean;
             isOnlineMeeting?: boolean;
+            onlineMeetingProvider?: string;
             attendees?: { emailAddress: { address: string }; type: string }[];
           }>(
             token,
-            `${path}?$select=isOrganizer,isOnlineMeeting,attendees`,
+            `${path}?$select=isOrganizer,isOnlineMeeting,onlineMeetingProvider,attendees`,
             {},
             "/me",
           );
@@ -558,7 +595,21 @@ async function handle(request: NextRequest) {
               "Nur der Organisator kann diesen Termin bearbeiten.",
             );
           const next = payload as ReturnType<typeof graphEvent>;
-          if (event.isOnlineMeeting) delete (next as Partial<typeof next>).body;
+          if (event.isOnlineMeeting) {
+            if (
+              next.isOnlineMeeting &&
+              event.onlineMeetingProvider &&
+              event.onlineMeetingProvider !== "teamsForBusiness"
+            )
+              throw new MailError(
+                409,
+                "Der Onlineanbieter eines bestehenden Meetings kann nicht geändert werden.",
+              );
+            // Graph keeps the original join link/body and cannot disable an online meeting.
+            delete (next as Partial<typeof next>).body;
+            delete next.isOnlineMeeting;
+            delete next.onlineMeetingProvider;
+          }
           next.attendees = next.attendees.map((a) => ({
             ...a,
             type:
@@ -569,6 +620,26 @@ async function handle(request: NextRequest) {
               )?.type || a.type,
           }));
         }
+      }
+      if (
+        action === "calendar" &&
+        (payload as ReturnType<typeof graphEvent> | undefined)?.isOnlineMeeting
+      ) {
+        const calendar = await mailGraph<{
+          allowedOnlineMeetingProviders?: string[];
+        }>(
+          token,
+          "/me/calendar?$select=allowedOnlineMeetingProviders",
+          {},
+          "/me",
+        );
+        if (
+          !calendar.allowedOnlineMeetingProviders?.includes("teamsForBusiness")
+        )
+          throw new MailError(
+            409,
+            "Microsoft Teams ist für diesen Microsoft-365-Kalender nicht freigeschaltet. Bitte Teams-Lizenz und Besprechungsrichtlinie prüfen.",
+          );
       }
       // Do not blindly retry creates or changes which may generate invitations.
       await audit(session.user.id, `${collection}_${operation}_requested`);
@@ -915,12 +986,28 @@ async function handle(request: NextRequest) {
         throw new MailError(502, "Erinnerung konnte nicht angelegt werden.");
       return json({ reminder: data }, 201);
     }
+    if (action === "calendar-options" && !mutating) {
+      const calendar = await mailGraph<{
+        allowedOnlineMeetingProviders?: string[];
+      }>(
+        token,
+        "/me/calendar?$select=allowedOnlineMeetingProviders",
+        {},
+        "/me",
+      );
+      return json({
+        teamsAvailable:
+          calendar.allowedOnlineMeetingProviders?.includes(
+            "teamsForBusiness",
+          ) === true,
+      });
+    }
     if (action === "event" && !mutating) {
       const id = resourceId.parse(request.nextUrl.searchParams.get("id"));
       return json({
         item: await mailGraph(
           token,
-          `/me/events/${encodeURIComponent(id)}?$select=id,subject,start,end,location,attendees,body,isOrganizer,isOnlineMeeting`,
+          `/me/events/${encodeURIComponent(id)}?$select=id,subject,start,end,location,attendees,body,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider`,
           {},
           "/me",
         ),
@@ -941,23 +1028,48 @@ async function handle(request: NextRequest) {
       return json(result);
     }
     if (action === "calendar" && !mutating) {
-      const start = new Date(),
-        end = new Date(start.getTime() + 30 * 86400000);
+      const requestedStart = request.nextUrl.searchParams.get("start");
+      const requestedEnd = request.nextUrl.searchParams.get("end");
+      if (!!requestedStart !== !!requestedEnd)
+        throw new MailError(400, "Kalenderzeitraum unvollständig.");
+      const start = requestedStart
+        ? new Date(z.string().datetime({ offset: true }).parse(requestedStart))
+        : new Date();
+      const end = requestedEnd
+        ? new Date(z.string().datetime({ offset: true }).parse(requestedEnd))
+        : new Date(start.getTime() + 30 * 86400000);
+      if (
+        end.getTime() <= start.getTime() ||
+        end.getTime() - start.getTime() > 45 * 86400000
+      )
+        throw new MailError(
+          400,
+          "Kalenderzeitraum muss zwischen einem und 45 Tagen liegen.",
+        );
       const params = new URLSearchParams({
         startDateTime: start.toISOString(),
         endDateTime: end.toISOString(),
         $top: "100",
         $orderby: "start/dateTime",
         $select:
-          "id,subject,start,end,location,attendees,bodyPreview,isOrganizer",
+          "id,subject,start,end,location,attendees,bodyPreview,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider",
       });
       const cursor = request.nextUrl.searchParams.get("cursor");
-      if (
-        cursor &&
-        new URL(safeGraphUrl(cursor, "/me")).pathname !==
-          "/v1.0/me/calendarView"
-      )
-        throw new MailError(400, "Ungültige Kalenderseite.");
+      if (cursor) {
+        const page = new URL(safeGraphUrl(cursor, "/me"));
+        if (
+          page.pathname !== "/v1.0/me/calendarView" ||
+          !requestedStart ||
+          Date.parse(page.searchParams.get("startDateTime") || "") !==
+            start.getTime() ||
+          Date.parse(page.searchParams.get("endDateTime") || "") !==
+            end.getTime()
+        )
+          throw new MailError(
+            400,
+            "Ungültige Kalenderseite oder abweichender Zeitraum.",
+          );
+      }
       return json(
         await mailGraph(token, cursor || `/me/calendarView?${params}`),
       );

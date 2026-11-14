@@ -379,3 +379,71 @@ test("file picker and drop share count, size and encoded-total limits", async ()
     ),
   );
 });
+
+import {
+  monthDays,
+  isoWeek,
+  dayKey,
+  eventOnDay,
+  teamsJoinUrl,
+} from "../src/lib/mail/calendar";
+test("month grid is Monday-first, includes leap days and correct ISO year boundaries", () => {
+  const november = monthDays(new Date(2026, 10, 1));
+  assert.equal(november.length, 42);
+  assert.equal(dayKey(november[0]), "2026-10-26");
+  assert.equal(dayKey(november[41]), "2026-12-06");
+  assert.equal(november[0].getDay(), 1);
+  assert.deepEqual(
+    november.filter((_, i) => i % 7 === 0).map(isoWeek),
+    [44, 45, 46, 47, 48, 49],
+  );
+  assert.equal(
+    monthDays(new Date(2024, 1, 1)).filter((d) => d.getMonth() === 1).length,
+    29,
+  );
+  assert.equal(isoWeek(new Date(2027, 0, 1)), 53);
+  assert.equal(isoWeek(new Date(2027, 0, 4)), 1);
+});
+test("calendar overlaps use exclusive ends and local days across daylight saving", () => {
+  const previous = process.env.TZ;
+  process.env.TZ = "Europe/Berlin";
+  try {
+    const event = {
+      start: { dateTime: "2026-03-28T23:00:00Z" },
+      end: { dateTime: "2026-03-29T22:00:00Z" },
+    };
+    assert.equal(eventOnDay(event, new Date(2026, 2, 29)), true);
+    assert.equal(eventOnDay(event, new Date(2026, 2, 28)), false);
+    assert.equal(eventOnDay(event, new Date(2026, 2, 30)), false);
+    const days = monthDays(new Date(2026, 2, 1));
+    assert.equal(new Set(days.map(dayKey)).size, days.length);
+    assert.equal(days.filter((d) => d.getMonth() === 2).length, 31);
+    assert.equal(
+      eventOnDay(
+        {
+          start: { dateTime: "2026-11-14T22:30:00Z" },
+          end: { dateTime: "2026-11-15T00:30:00Z" },
+        },
+        new Date(2026, 10, 15),
+      ),
+      true,
+    );
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+test("meeting join URLs reject scripts, credentials, insecure and lookalike domains", () => {
+  for (const value of [
+    "javascript:alert(1)",
+    "http://teams.microsoft.com/meet/1",
+    "https://teams.microsoft.com.evil.example/meet/1",
+    "https://user@teams.microsoft.com/meet/1",
+    "https://evil.example/",
+  ])
+    assert.equal(teamsJoinUrl(value), null);
+  assert.equal(
+    teamsJoinUrl("https://teams.microsoft.com/l/meetup-join/test"),
+    "https://teams.microsoft.com/l/meetup-join/test",
+  );
+});

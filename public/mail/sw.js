@@ -20,7 +20,7 @@ self.addEventListener('push', event => {
   event.waitUntil(Promise.allSettled([
     self.registration.showNotification(isMail ? 'EMA Mail' : 'EMA', {
       body: isMail ? 'Eine neue Nachricht ist eingegangen.' : 'Eine Erinnerung ist fällig.',
-      icon:'/mail/icons/icon-192.png', tag: payload.tag || 'ema-mail', data:{url},
+      icon:'/mail/icons/icon-192-v2.png', tag: payload.tag || 'ema-mail', data:{url},
     }),
     refreshBadge(),
   ]));

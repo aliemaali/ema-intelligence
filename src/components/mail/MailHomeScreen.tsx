@@ -64,7 +64,7 @@ export function MailHomeScreen({demo, visible, revision, background=false}: {dem
     <h3>eMail auf deinem Home-Bildschirm</h3>
     {/* The system overlays the live unread badge; it is never baked into the icon. */}
     {/* eslint-disable-next-line @next/next/no-img-element */}
-    <img src="/mail/icons/icon-192.png" width="80" height="80" alt="Dein eMail App-Logo" />
+    <img src="/mail/icons/icon-192-v2.png" width="80" height="80" alt="Dein eMail App-Logo" />
     <p>In Safari: Teilen → Zum Home-Bildschirm. Danach eMail über das neue Symbol öffnen.</p>
     <p>Das App-Kennzeichen zählt ungelesene E-Mails im Posteingang deines eigenen und aller für dich freigegebenen gemeinsamen Postfächer. Beim Lesen wird es aktualisiert; bei null verschwindet es.</p>
     <p>{demo?'Vorschau: keine echten Ungelesen-Zahlen.':count===null?'Ungelesen-Zahl noch nicht verfügbar.':`${count} ungelesene E-Mails.`} Auf dem iPhone ab iOS 16.4 sind Mitteilungen und Kennzeichen erforderlich. Änderungen aus anderen Mail-Apps erscheinen beim nächsten Abgleich.</p>
