@@ -1414,3 +1414,103 @@ test("Teams conversion preserves all-day boundaries in the original Exchange tim
   assert.equal(patch.end, undefined);
   assert.equal(patch.isOnlineMeeting, true);
 });
+
+test("actual analysis route rejects malformed model output without persisting partial results or drafts", async () => {
+  reset();
+  const key = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-only";
+  globalThis.__mailFixture.admin.rpc = async () => ({
+    data: true,
+    error: null,
+  });
+  const targets: string[] = [];
+  globalThis.fetch = async (url) => {
+    targets.push(new URL(String(url)).hostname);
+    return Response.json(
+      String(url).startsWith("https://graph.microsoft.com/")
+        ? {
+            id: "message",
+            subject: "Prüfen",
+            from: { emailAddress: { address: "sender@example.com" } },
+            bodyPreview: "Zwei offene Punkte",
+          }
+        : {
+            status: "completed",
+            output: [
+              {
+                type: "message",
+                content: [{ type: "output_text", text: '{"summary":' }],
+              },
+            ],
+          },
+    );
+  };
+  try {
+    const response = await POST(
+      req("analyze", { mailbox: "me", id: "message" }),
+    );
+    assert.equal(response.status, 502);
+    assert.match((await response.json()).error, /KI-Antwort/);
+    assert.equal(rows.ema_mail_analysis, undefined);
+    assert.equal(rows.ema_mail_insights, undefined);
+    assert.equal(rows.ema_mail_drafts, undefined);
+    assert.deepEqual(targets, ["graph.microsoft.com", "api.openai.com"]);
+  } finally {
+    if (key === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = key;
+  }
+});
+test("actual analysis route caches only validated results under the current user without sending messages", async () => {
+  reset();
+  const key = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-only";
+  globalThis.__mailFixture.admin.rpc = async () => ({
+    data: true,
+    error: null,
+  });
+  const value = {
+    summary: "Zwei Punkte offen.",
+    priority: "normal",
+    reason: "Rückmeldung erbeten.",
+    invoiceCandidate: false,
+    suggestedReply: "Ich prüfe die beiden Punkte.",
+    tasks: ["Punkte prüfen"],
+  };
+  const targets: string[] = [];
+  globalThis.fetch = async (url) => {
+    targets.push(String(url));
+    return Response.json(
+      String(url).startsWith("https://graph.microsoft.com/")
+        ? {
+            id: "message",
+            subject: "Prüfen",
+            from: { emailAddress: { address: "sender@example.com" } },
+            bodyPreview: "Zwei offene Punkte",
+          }
+        : {
+            status: "completed",
+            output: [
+              {
+                type: "message",
+                content: [{ type: "output_text", text: JSON.stringify(value) }],
+              },
+            ],
+          },
+    );
+  };
+  try {
+    const response = await POST(
+      req("analyze", { mailbox: "me", id: "message" }),
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual((await response.json()).analysis, value);
+    assert.equal(rows.ema_mail_analysis[0].user_id, uid);
+    assert.equal(rows.ema_mail_insights[0].message_id, "message");
+    assert.equal(rows.ema_mail_drafts, undefined);
+    assert.equal(targets.length, 2);
+    assert.ok(targets.every((url) => !url.includes("/send")));
+  } finally {
+    if (key === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = key;
+  }
+});
