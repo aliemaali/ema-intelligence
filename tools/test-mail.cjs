@@ -74,6 +74,13 @@ const fs = require("node:fs");
     format: "cjs",
     outfile: ".tmp/mail-analysis.test.cjs",
   });
+  await esbuild.build({
+    entryPoints: ["tests/mail-voice.test.ts"],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    outfile: ".tmp/mail-voice.test.cjs",
+  });
   const result = spawnSync(
     process.execPath,
     [
@@ -82,6 +89,7 @@ const fs = require("node:fs");
       ".tmp/mail-routes.test.cjs",
       ".tmp/mail-automation.test.cjs",
       ".tmp/mail-analysis.test.cjs",
+      ".tmp/mail-voice.test.cjs",
     ],
     { stdio: "inherit" },
   );

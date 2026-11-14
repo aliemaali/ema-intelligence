@@ -4,6 +4,7 @@ import { MailDialog } from "./MailDialog";
 import s from "./mail.module.css";
 import { MailCalendarMonth } from "./MailCalendarMonth";
 import { monthDays, teamsJoinUrl } from "@/lib/mail/calendar";
+import type { CalendarSeed } from "@/lib/mail/voice";
 type Item = {
   id: string;
   subject?: string;
@@ -101,7 +102,11 @@ export function MailPim({
   demo,
   demoRecords,
   onDemoChange,
+  initialSeed,
+  onSeedConsumed,
 }: {
+  initialSeed?: CalendarSeed | null;
+  onSeedConsumed?: () => void;
   mode: Mode;
   demo: boolean;
   demoRecords?: Item[];
@@ -123,6 +128,16 @@ export function MailPim({
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const [teamsMeeting, setTeamsMeeting] = useState(false);
   const [teamsAvailable, setTeamsAvailable] = useState<boolean | null>(null);
+  const seedConsumed = useRef(onSeedConsumed);
+  seedConsumed.current = onSeedConsumed;
+  useEffect(() => {
+    if (mode !== "calendar" || !initialSeed) return;
+    setEditor({}); setReview(false); setError(""); setRequestId(crypto.randomUUID());
+    setTeamsMeeting(initialSeed.teamsMeeting);
+    setFields({subject:initialSeed.subject,start:dateInput(initialSeed.start),end:dateInput(initialSeed.end),location:"",notes:"",attendees:""});
+    seedConsumed.current?.();
+  }, [mode, initialSeed]);
+
   useEffect(() => {
     if (mode !== "calendar" || demo) return;
     let active = true;
