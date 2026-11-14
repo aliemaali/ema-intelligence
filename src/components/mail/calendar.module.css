@@ -1,0 +1,212 @@
+.calendar {
+  --line: #ffffff22;
+  --cell: #20252a;
+  --other: #10161c;
+  --accent: #61a3f4;
+  width: 100%;
+  min-width: 0;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(22px, 3vw, 32px);
+  margin: 0;
+  text-transform: capitalize;
+}
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.navigation button,
+.actions button,
+.actions a {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 12px;
+  background: var(--cell);
+  color: inherit;
+  text-decoration: none;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 32px repeat(7, minmax(0, 1fr));
+  height: clamp(450px, calc(100dvh - 310px), 780px);
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+}
+.weekHeading,
+.weekday {
+  background: var(--cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.weekHeading {
+  font-size: 10px;
+  color: var(--muted);
+}
+.weekNumber {
+  background: var(--other);
+  text-align: center;
+  padding-top: 12px;
+  font-weight: 700;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.day {
+  min-width: 0;
+  padding: 4px 3px;
+  background: var(--cell);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+}
+.outside {
+  background: var(--other);
+}
+.today {
+  background: color-mix(in srgb, var(--accent) 18%, var(--cell));
+}
+.selected {
+  box-shadow: inset 0 0 0 2px var(--mint);
+}
+.calendar .dayNumber {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  border: 0;
+  border-radius: 18px;
+  padding: 3px;
+  color: inherit;
+  background: transparent;
+  font-size: 15px;
+}
+.calendar .today .dayNumber {
+  background: var(--accent);
+  color: #061c30;
+  font-weight: 700;
+}
+.calendar .chip {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 2px 3px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--mint) 28%, var(--cell));
+  color: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.1;
+}
+.calendar .more {
+  border: 0;
+  background: transparent;
+  color: var(--mint);
+  font-size: 11px;
+  padding: 1px 2px;
+  line-height: 1;
+}
+.agenda {
+  margin-top: 20px;
+  padding-bottom: 20px;
+}
+.agenda > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.agenda h2 {
+  font-size: 17px;
+  margin: 0;
+}
+.newEvent {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: var(--mint);
+  color: #06251d;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 11px 12px;
+  min-height: 44px;
+}
+.event {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.event strong {
+  display: block;
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.event small {
+  display: block;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+:global([data-theme="light"]) .calendar {
+  --line: #dbe2e8;
+  --cell: #fff;
+  --other: #f1f4f6;
+  --accent: #75adf5;
+}
+:global([data-theme="light"]) .newEvent {
+  color: white;
+}
+@media (max-width: 650px) {
+  .header {
+    margin-bottom: 12px;
+    gap: 9px;
+  }
+  .header h1 {
+    font-size: 23px;
+  }
+  .grid {
+    grid-template-columns: 25px repeat(7, minmax(0, 1fr));
+    height: clamp(430px, calc(100dvh - 300px), 700px);
+  }
+  .day {
+    padding: 4px 2px;
+  }
+  .calendar .dayNumber {
+    font-size: 14px;
+  }
+  .calendar .chip {
+    font-size: 10px;
+  }
+  .navigation button {
+    padding: 7px 10px;
+  }
+}

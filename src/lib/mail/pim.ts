@@ -18,6 +18,7 @@ export const eventSchema = z
     location: z.string().max(300).default(""),
     notes: z.string().max(10000).default(""),
     attendees: z.array(address).max(50).default([]),
+    teamsMeeting: z.boolean().default(false),
   })
   .strict()
   .superRefine((v, c) => {
@@ -40,6 +41,9 @@ export function graphEvent(
       emailAddress: { address },
       type: "required",
     })),
+    ...(value.teamsMeeting
+      ? { isOnlineMeeting: true, onlineMeetingProvider: "teamsForBusiness" }
+      : {}),
     ...(transactionId ? { transactionId } : {}),
   };
 }

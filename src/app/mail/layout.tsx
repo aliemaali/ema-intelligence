@@ -3,7 +3,7 @@ import { MailChrome } from "@/components/mail/MailChrome";
 export const metadata: Metadata = {
   applicationName: "EMA Mail", manifest: "/mail/manifest.webmanifest",
   appleWebApp: { capable: true, title: "eMail", statusBarStyle: "default" },
-  icons: { icon: "/mail/icons/icon-192.png", apple: "/mail/icons/apple-touch-icon.png" },
+  icons: { icon: "/mail/icons/icon-192-v2.png", apple: "/mail/icons/apple-touch-icon-v2.png" },
 };
 export const viewport: Viewport = { themeColor: "#ffffff", colorScheme: "light" };
 export default function MailLayout({children}: {children: React.ReactNode}) {

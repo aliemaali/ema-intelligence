@@ -1,7 +1,9 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MailDialog } from "./MailDialog";
 import s from "./mail.module.css";
+import { MailCalendarMonth } from "./MailCalendarMonth";
+import { monthDays, teamsJoinUrl } from "@/lib/mail/calendar";
 type Item = {
   id: string;
   subject?: string;
@@ -17,6 +19,9 @@ type Item = {
   attendees?: { emailAddress: { address: string } }[];
   isOrganizer?: boolean;
   isOnlineMeeting?: boolean;
+  isAllDay?: boolean;
+  onlineMeetingProvider?: string;
+  onlineMeeting?: { joinUrl?: string };
   title?: string;
   due_at?: string;
   completed_at?: string | null;
@@ -112,37 +117,88 @@ export function MailPim({
     [fields, setFields] = useState<Record<string, string>>({}),
     [completed, setCompleted] = useState(false),
     [requestId, setRequestId] = useState("");
+  const [month, setMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
+  const [selectedDay, setSelectedDay] = useState(() => new Date());
+  const [teamsMeeting, setTeamsMeeting] = useState(false);
+  const [teamsAvailable, setTeamsAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (mode !== "calendar" || demo) return;
+    let active = true;
+    void request("calendar-options")
+      .then((data) => {
+        if (active) setTeamsAvailable(data.teamsAvailable === true);
+      })
+      .catch(() => {
+        if (active) setTeamsAvailable(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mode, demo]);
+  const loadGeneration = useRef(0);
+  const days = monthDays(month);
+  const rangeStart = days[0].toISOString();
+  const lastDay = days[days.length - 1];
+  const rangeEnd = new Date(
+    lastDay.getFullYear(),
+    lastDay.getMonth(),
+    lastDay.getDate() + 1,
+  ).toISOString();
   const load = useCallback(
     async (next?: string) => {
+      const generation = ++loadGeneration.current;
       setBusy(true);
+      setError("");
+      if (!next) {
+        setItems([]);
+        setCursor(null);
+      }
       try {
         if (demo) {
           setItems(demoRecords ?? samples[mode]);
           return;
         }
+        const params = new URLSearchParams();
+        if (mode === "tasks") params.set("includeCompleted", "1");
+        if (mode === "calendar") {
+          params.set("start", rangeStart);
+          params.set("end", rangeEnd);
+        }
+        if (next) params.set("cursor", next);
         const data = await request(
-          (mode === "tasks" ? "reminders?includeCompleted=1" : mode) +
-            (next
-              ? `${mode === "tasks" ? "&" : "?"}cursor=${encodeURIComponent(next)}`
-              : ""),
+          `${mode === "tasks" ? "reminders" : mode}?${params}`,
         );
+        if (generation !== loadGeneration.current) return;
         setItems((old) =>
           next
-            ? [...old, ...(data.value ?? data.reminders ?? [])]
+            ? Array.from(
+                new Map(
+                  [...old, ...(data.value ?? data.reminders ?? [])].map(
+                    (item: Item) => [item.id, item],
+                  ),
+                ).values(),
+              )
             : (data.value ?? data.reminders ?? []),
         );
         setCursor(data["@odata.nextLink"] ?? null);
       } catch (e) {
-        setError((e as Error).message);
+        if (generation === loadGeneration.current)
+          setError((e as Error).message);
       } finally {
-        setBusy(false);
+        if (generation === loadGeneration.current) setBusy(false);
       }
     },
-    [mode, demo, demoRecords],
+    [mode, demo, demoRecords, rangeStart, rangeEnd],
   );
+  const invalidateLoad = useCallback(() => {
+    loadGeneration.current++;
+  }, []);
   useEffect(() => {
     void load();
-  }, [load]);
+    return invalidateLoad;
+  }, [load, invalidateLoad]);
   async function edit(item?: Item) {
     if (mode === "calendar" && item?.id && !demo) {
       setBusy(true);
@@ -159,6 +215,19 @@ export function MailPim({
     setRequestId(crypto.randomUUID());
     setEditor(item || {});
     setReview(false);
+    setTeamsMeeting(item?.onlineMeetingProvider === "teamsForBusiness");
+    const initialStart = new Date(
+      selectedDay.getFullYear(),
+      selectedDay.getMonth(),
+      selectedDay.getDate(),
+      9,
+    );
+    const initialEnd = new Date(
+      selectedDay.getFullYear(),
+      selectedDay.getMonth(),
+      selectedDay.getDate(),
+      10,
+    );
     setFields(
       mode === "contacts"
         ? {
@@ -170,8 +239,10 @@ export function MailPim({
         : mode === "calendar"
           ? {
               subject: item?.subject || "",
-              start: dateInput(item?.start?.dateTime),
-              end: dateInput(item?.end?.dateTime),
+              start: dateInput(
+                item?.start?.dateTime || initialStart.toISOString(),
+              ),
+              end: dateInput(item?.end?.dateTime || initialEnd.toISOString()),
               location: item?.location?.displayName || "",
               notes: item?.body?.content || item?.bodyPreview || "",
               attendees:
@@ -186,6 +257,7 @@ export function MailPim({
     return mode === "calendar"
       ? {
           ...fields,
+          teamsMeeting,
           start: new Date(fields.start).toISOString(),
           end: new Date(fields.end).toISOString(),
           attendees: fields.attendees
@@ -220,7 +292,18 @@ export function MailPim({
                     start: { dateTime: new Date(fields.start).toISOString() },
                     end: { dateTime: new Date(fields.end).toISOString() },
                     location: { displayName: fields.location },
-                    attendees: [],
+                    attendees: fields.attendees
+                      .split(/[;,]/)
+                      .map((address) => address.trim())
+                      .filter(Boolean)
+                      .map((address) => ({ emailAddress: { address } })),
+                    body: { content: fields.notes },
+                    isOnlineMeeting: teamsMeeting || editor?.isOnlineMeeting,
+                    onlineMeetingProvider: teamsMeeting
+                      ? "teamsForBusiness"
+                      : editor?.onlineMeetingProvider,
+                    onlineMeeting: editor?.onlineMeeting,
+                    isAllDay: editor?.isAllDay,
                     isOrganizer: true,
                   }
                 : {
@@ -299,27 +382,40 @@ export function MailPim({
   }
   return (
     <>
-      <h1>
-        {mode === "calendar"
-          ? "Dein Kalender"
-          : mode === "contacts"
-            ? "Deine Kontakte"
-            : "Aufgaben & Erinnerungen"}
-      </h1>
-      <p>
-        {mode === "calendar"
-          ? "Termine der nächsten 30 Tage · Anzeige in deiner Gerätezeitzone"
-          : mode === "contacts"
-            ? "Deine Microsoft-Kontakte"
-            : "Persönliche Erinnerungen mit EMA-Push-Anbindung"}
-      </p>
-      <button className={s.primary} disabled={busy} onClick={() => void edit()}>
-        {mode === "calendar"
-          ? "Neuer Termin"
-          : mode === "contacts"
-            ? "Neuer Kontakt"
-            : "Neue Erinnerung"}
-      </button>
+      {mode === "calendar" ? (
+        <MailCalendarMonth
+          month={month}
+          selected={selectedDay}
+          items={items}
+          busy={busy}
+          onMonth={(date) => {
+            setMonth(date);
+            setSelectedDay(date);
+          }}
+          onSelect={setSelectedDay}
+          onNew={() => void edit()}
+          onEdit={(item) => void edit(item)}
+          onRemove={setDeleting}
+        />
+      ) : (
+        <>
+          <h1>
+            {mode === "contacts" ? "Deine Kontakte" : "Aufgaben & Erinnerungen"}
+          </h1>
+          <p>
+            {mode === "contacts"
+              ? "Deine Microsoft-Kontakte"
+              : "Persönliche Erinnerungen mit EMA-Push-Anbindung"}
+          </p>
+          <button
+            className={s.primary}
+            disabled={busy}
+            onClick={() => void edit()}
+          >
+            {mode === "contacts" ? "Neuer Kontakt" : "Neue Erinnerung"}
+          </button>
+        </>
+      )}
       {mode === "tasks" ? (
         <label className={s.checkLabel}>
           <input
@@ -331,7 +427,7 @@ export function MailPim({
         </label>
       ) : null}
       {error ? <p role="status">{error}</p> : null}
-      {items
+      {(mode === "calendar" ? [] : items)
         .filter((i) => mode !== "tasks" || completed || !i.completed_at)
         .map((item) => (
           <article className={s.auxItem} key={item.id}>
@@ -375,7 +471,9 @@ export function MailPim({
           className={s.subtle}
           onClick={() => void load(cursor)}
         >
-          Weitere laden
+          {mode === "calendar"
+            ? "Weitere Termine im Monat laden"
+            : "Weitere laden"}
         </button>
       ) : null}
       {editor ? (
@@ -403,6 +501,16 @@ export function MailPim({
                   ? " In dieser Demo werden keine Nachrichten versendet."
                   : ""}
               </p>
+              {mode === "calendar" ? (
+                <p>
+                  <b>Microsoft Teams:</b>{" "}
+                  {teamsMeeting
+                    ? "Ja – Besprechungslink in der Einladung"
+                    : editor.isOnlineMeeting
+                      ? "Bestehende Online-Besprechung bleibt erhalten"
+                      : "Nein"}
+                </p>
+              ) : null}
               <div className={s.review}>
                 {Object.entries(fields)
                   .filter(([, v]) => v)
@@ -429,9 +537,61 @@ export function MailPim({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                setError("");
+                if (
+                  mode === "calendar" &&
+                  new Date(fields.end).getTime() <=
+                    new Date(fields.start).getTime()
+                ) {
+                  setError("Das Ende muss nach dem Beginn liegen.");
+                  return;
+                }
                 setReview(true);
               }}
             >
+              {mode === "calendar" ? (
+                <>
+                  <label className={s.checkLabel}>
+                    <input
+                      type="checkbox"
+                      checked={teamsMeeting}
+                      disabled={
+                        editor.isOnlineMeeting === true ||
+                        teamsAvailable === false
+                      }
+                      onChange={(e) => setTeamsMeeting(e.target.checked)}
+                    />
+                    Microsoft Teams-Besprechung
+                  </label>
+                  {teamsAvailable === false && !editor.isOnlineMeeting ? (
+                    <p>
+                      Teams ist für deinen Microsoft-365-Kalender noch nicht
+                      freigeschaltet. Bitte Teams-Lizenz und
+                      Besprechungsrichtlinie prüfen.
+                    </p>
+                  ) : null}
+                  <p>
+                    {editor.isOnlineMeeting
+                      ? "Der Onlineanbieter einer bestehenden Besprechung bleibt unverändert."
+                      : "Teams-Link automatisch erstellen. Für eine Einladung unten die E-Mail-Adressen der Teilnehmer eintragen."}
+                  </p>
+                  {teamsJoinUrl(editor.onlineMeeting?.joinUrl) ? (
+                    <a
+                      href={teamsJoinUrl(editor.onlineMeeting?.joinUrl)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Teams-Besprechung öffnen
+                    </a>
+                  ) : null}
+                  {editor.isAllDay ? (
+                    <p>
+                      Ganztägiger Termin: Der Zeitraum bleibt beim Bearbeiten
+                      erhalten. Teilnehmer und Teams kannst du hier ändern.
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
               {editor?.isOnlineMeeting ? (
                 <p>
                   Notizen des bestehenden Online-Meetings bleiben erhalten,
@@ -460,7 +620,9 @@ export function MailPim({
                   }
                   <input
                     disabled={
-                      key === "notes" && editor?.isOnlineMeeting === true
+                      (key === "notes" && editor?.isOnlineMeeting === true) ||
+                      (["start", "end"].includes(key) &&
+                        editor?.isAllDay === true)
                     }
                     required={[
                       "subject",

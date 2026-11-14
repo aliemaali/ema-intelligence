@@ -14,3 +14,11 @@ const {middleware}=require('../.tmp/mail-pwa-middleware.cjs');
 for(const pathname of ['/mail/manifest.webmanifest','/mail/sw.js']){const response=await middleware({nextUrl:{pathname}});assert.equal(response.status,200);assert.equal(response.headers.get('location'),null);}
 for(const pathname of ['/mail','/mail/sw.js/private','/mail/manifest.webmanifest/private','/mail/messages'])await assert.rejects(middleware({nextUrl:{pathname}}),/Authentication required/);
 });
+test('new Mail home-screen icons are opaque full-bleed images without white outer padding',async()=>{
+  const sharp=require('sharp');
+  for(const name of ['icon-192-v2.png','icon-512-v2.png','apple-touch-icon-v2.png']) {
+    const {data,info}=await sharp('public/mail/icons/'+name).removeAlpha().raw().toBuffer({resolveWithObject:true});
+    for(let y=0;y<info.height;y++)for(let x=0;x<info.width;x++)if(x===0||y===0||x===info.width-1||y===info.height-1){const i=(y*info.width+x)*info.channels;assert.ok(!(data[i]>230&&data[i+1]>230&&data[i+2]>230),`${name}: white edge`);}
+    assert.equal((await sharp('public/mail/icons/'+name).metadata()).hasAlpha,false);
+  }
+});

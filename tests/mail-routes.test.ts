@@ -1014,24 +1014,28 @@ test("retired followup endpoints reject stale clients without writes", async () 
   reset();
   process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
   for (const action of ["followup", "cancel-followup"]) {
-    const response = await POST(req(action, {mailbox:"me", messageId:"incoming", id}));
-    assert.equal(response.status,410);
+    const response = await POST(
+      req(action, { mailbox: "me", messageId: "incoming", id }),
+    );
+    assert.equal(response.status, 410);
   }
-  assert.equal(graphCalls,0);
+  assert.equal(graphCalls, 0);
   assert.ok(!rows.ema_mail_followups);
 });
 test("scheduled dispatcher ignores legacy followups and creates no reminders", async () => {
   reset();
   process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
-  rows.ema_mail_followups = [{id,user_id:uid,mailbox:"me",state:"pending"}];
-  const calls:string[]=[];
-  globalThis.__mailFixture.admin.rpc = async (name:string) => {
+  rows.ema_mail_followups = [
+    { id, user_id: uid, mailbox: "me", state: "pending" },
+  ];
+  const calls: string[] = [];
+  globalThis.__mailFixture.admin.rpc = async (name: string) => {
     calls.push(name);
-    return {data:[],error:null};
+    return { data: [], error: null };
   };
-  assert.deepEqual(await runApprovedDispatch(),{scheduled:0});
-  assert.deepEqual(calls,["ema_mail_claim_scheduled"]);
-  assert.equal(rows.ema_mail_followups[0].state,"pending");
+  assert.deepEqual(await runApprovedDispatch(), { scheduled: 0 });
+  assert.deepEqual(calls, ["ema_mail_claim_scheduled"]);
+  assert.equal(rows.ema_mail_followups[0].state, "pending");
   assert.ok(!rows.ema_reminders?.length);
 });
 test("project documents include only own linked DMS records when mail is enabled", async () => {
@@ -1087,36 +1091,326 @@ test("project documents include only own linked DMS records when mail is enabled
 
 test("badge sums authorized Inbox counts, excludes foreign and revoked mailboxes", async () => {
   reset();
-  rows.ema_mail_memberships=[
-    {user_id:uid,mailbox:'team@example.com',can_read:true},
-    {user_id:uid,mailbox:'tester@example.com',can_read:true},
-    {user_id:uid,mailbox:'revoked@example.com',can_read:false},
-    {user_id:'other',mailbox:'foreign@example.com',can_read:true},
+  rows.ema_mail_memberships = [
+    { user_id: uid, mailbox: "team@example.com", can_read: true },
+    { user_id: uid, mailbox: "tester@example.com", can_read: true },
+    { user_id: uid, mailbox: "revoked@example.com", can_read: false },
+    { user_id: "other", mailbox: "foreign@example.com", can_read: true },
   ];
-  const paths:string[]=[];
-  globalThis.fetch=async url=>{
+  const paths: string[] = [];
+  globalThis.fetch = async (url) => {
     paths.push(String(url));
-    return Response.json({unreadItemCount:String(url).includes('/me/')?4:7});
+    return Response.json({
+      unreadItemCount: String(url).includes("/me/") ? 4 : 7,
+    });
   };
-  const response=await GET(new NextRequest('https://ema.example/api/mail/badge'));
-  assert.equal(response.status,200);
-  assert.deepEqual(await response.json(),{count:11});
-  assert.equal(paths.length,2);
-  assert.ok(paths.every(path=>path.includes('/mailFolders/inbox?')));
-  assert.ok(!paths.some(path=>/foreign|revoked|tester/.test(path)));
+  const response = await GET(
+    new NextRequest("https://ema.example/api/mail/badge"),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { count: 11 });
+  assert.equal(paths.length, 2);
+  assert.ok(paths.every((path) => path.includes("/mailFolders/inbox?")));
+  assert.ok(!paths.some((path) => /foreign|revoked|tester/.test(path)));
 });
 test("badge refuses partial or invalid counts and stays gated in preview", async () => {
   reset();
-  globalThis.fetch=async()=>Response.json({unreadItemCount:-1});
-  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/badge'))).status,502);
-  process.env.VERCEL_ENV='preview';
-  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/badge'))).status,503);
+  globalThis.fetch = async () => Response.json({ unreadItemCount: -1 });
+  assert.equal(
+    (await GET(new NextRequest("https://ema.example/api/mail/badge"))).status,
+    502,
+  );
+  process.env.VERCEL_ENV = "preview";
+  assert.equal(
+    (await GET(new NextRequest("https://ema.example/api/mail/badge"))).status,
+    503,
+  );
 });
 test("mail push registration rejects external endpoints and cross-origin writes", async () => {
   reset();
-  assert.equal((await POST(req('push-subscription',{endpoint:'https://internal.example/push',keys:{p256dh:'test',auth:'test'}}))).status,400);
-  const bad=new NextRequest('https://ema.example/api/mail/push-subscription',{method:'POST',headers:{origin:'https://evil.example'},body:'{}'});
-  assert.equal((await POST(bad)).status,403);
-  assert.equal((await POST(req('push-subscription',{endpoint:'https://web.push.apple.com/test',keys:{p256dh:'test',auth:'test'}}))).status,200);
-  assert.equal(rows.ema_push_subscriptions[0].user_id,uid);
+  assert.equal(
+    (
+      await POST(
+        req("push-subscription", {
+          endpoint: "https://internal.example/push",
+          keys: { p256dh: "test", auth: "test" },
+        }),
+      )
+    ).status,
+    400,
+  );
+  const bad = new NextRequest(
+    "https://ema.example/api/mail/push-subscription",
+    { method: "POST", headers: { origin: "https://evil.example" }, body: "{}" },
+  );
+  assert.equal((await POST(bad)).status, 403);
+  assert.equal(
+    (
+      await POST(
+        req("push-subscription", {
+          endpoint: "https://web.push.apple.com/test",
+          keys: { p256dh: "test", auth: "test" },
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(rows.ema_push_subscriptions[0].user_id, uid);
+});
+
+const meetingValue = {
+  subject: "Teams-Test",
+  start: "2026-11-14T10:00:00Z",
+  end: "2026-11-14T11:00:00Z",
+  attendees: ["guest@example.com"],
+  teamsMeeting: true,
+};
+test("Teams invitations require explicit approval before even checking the calendar", async () => {
+  reset();
+  assert.equal(
+    (
+      await POST(
+        req("calendar", {
+          operation: "create",
+          confirmed: false,
+          requestId: id,
+          value: meetingValue,
+        }),
+      )
+    ).status,
+    409,
+  );
+  assert.equal(graphCalls, 0);
+});
+test("Teams creation checks mailbox capability before creating an invitation", async () => {
+  reset();
+  const calls: { url: string; method: string; body: any }[] = [];
+  globalThis.fetch = async (url, init) => {
+    calls.push({
+      url: String(url),
+      method: init?.method || "GET",
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    });
+    return Response.json(
+      init?.method === "POST"
+        ? {
+            id: "event",
+            onlineMeeting: { joinUrl: "https://teams.microsoft.com/meet/test" },
+          }
+        : { allowedOnlineMeetingProviders: ["teamsForBusiness"] },
+    );
+  };
+  const response = await POST(
+    req("calendar", {
+      operation: "create",
+      confirmed: true,
+      requestId: id,
+      value: meetingValue,
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].url, /\/me\/calendar\?/);
+  assert.equal(calls[1].body.isOnlineMeeting, true);
+  assert.equal(calls[1].body.onlineMeetingProvider, "teamsForBusiness");
+  assert.equal(calls[1].body.transactionId, id);
+  assert.equal(
+    calls[1].body.attendees[0].emailAddress.address,
+    "guest@example.com",
+  );
+});
+test("missing Teams entitlement stops before any mutation or invitation audit", async () => {
+  reset();
+  const methods: string[] = [];
+  globalThis.fetch = async (_url, init) => {
+    methods.push(init?.method || "GET");
+    return Response.json({ allowedOnlineMeetingProviders: [] });
+  };
+  const response = await POST(
+    req("calendar", {
+      operation: "create",
+      confirmed: true,
+      requestId: id,
+      value: meetingValue,
+    }),
+  );
+  assert.equal(response.status, 409);
+  assert.deepEqual(methods, ["GET"]);
+  assert.equal(rows.ema_mail_audit?.length || 0, 0);
+});
+test("own existing appointment converts to Teams but foreign organizers cannot convert", async () => {
+  for (const organizer of [true, false]) {
+    reset();
+    let patch: any;
+    let capability = 0;
+    globalThis.fetch = async (url, init) => {
+      if (init?.method === "PATCH") {
+        patch = JSON.parse(String(init.body));
+        return Response.json({ id: "event" });
+      }
+      if (String(url).includes("/me/calendar?")) {
+        capability++;
+        return Response.json({
+          allowedOnlineMeetingProviders: ["teamsForBusiness"],
+        });
+      }
+      return Response.json({
+        isOrganizer: organizer,
+        isOnlineMeeting: false,
+        attendees: [],
+      });
+    };
+    const response = await POST(
+      req("calendar", {
+        operation: "update",
+        id: "event",
+        confirmed: true,
+        value: meetingValue,
+      }),
+    );
+    assert.equal(response.status, organizer ? 200 : 403);
+    assert.equal(capability, organizer ? 1 : 0);
+    assert.equal(patch?.isOnlineMeeting, organizer ? true : undefined);
+  }
+});
+test("existing Teams meeting preserves body and provider without re-provisioning", async () => {
+  reset();
+  let patch: any;
+  const methods: string[] = [];
+  globalThis.fetch = async (_url, init) => {
+    methods.push(init?.method || "GET");
+    if (init?.method === "PATCH") {
+      patch = JSON.parse(String(init.body));
+      return Response.json({ id: "event" });
+    }
+    return Response.json({
+      isOrganizer: true,
+      isOnlineMeeting: true,
+      onlineMeetingProvider: "teamsForBusiness",
+      attendees: [],
+    });
+  };
+  assert.equal(
+    (
+      await POST(
+        req("calendar", {
+          operation: "update",
+          id: "event",
+          confirmed: true,
+          value: meetingValue,
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(patch.body, undefined);
+  assert.equal(patch.isOnlineMeeting, undefined);
+  assert.equal(patch.onlineMeetingProvider, undefined);
+  assert.deepEqual(methods, ["GET", "PATCH"]);
+});
+test("month calendar validates bounds and binds pagination to the requested window", async () => {
+  reset();
+  const start = "2026-10-25T23:00:00.000Z",
+    end = "2026-12-06T23:00:00.000Z";
+  let captured = "";
+  globalThis.fetch = async (url) => {
+    captured = String(url);
+    return Response.json({ value: [] });
+  };
+  const window = new URLSearchParams({ start, end });
+  assert.equal(
+    (
+      await GET(
+        new NextRequest(`https://ema.example/api/mail/calendar?${window}`),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(new URL(captured).searchParams.get("startDateTime"), start);
+  assert.match(
+    new URL(captured).searchParams.get("$select") || "",
+    /onlineMeeting/,
+  );
+  for (const bad of [
+    new URLSearchParams({ start }),
+    new URLSearchParams({ start, end: start }),
+    new URLSearchParams({ start, end: "2027-01-01T00:00:00Z" }),
+  ])
+    assert.equal(
+      (
+        await GET(
+          new NextRequest(`https://ema.example/api/mail/calendar?${bad}`),
+        )
+      ).status,
+      400,
+    );
+  window.set(
+    "cursor",
+    `https://graph.microsoft.com/v1.0/me/calendarView?${new URLSearchParams({ startDateTime: start, endDateTime: end, $skiptoken: "abc" })}`,
+  );
+  assert.equal(
+    (
+      await GET(
+        new NextRequest(`https://ema.example/api/mail/calendar?${window}`),
+      )
+    ).status,
+    200,
+  );
+  window.set("end", "2026-12-07T23:00:00.000Z");
+  assert.equal(
+    (
+      await GET(
+        new NextRequest(`https://ema.example/api/mail/calendar?${window}`),
+      )
+    ).status,
+    400,
+  );
+});
+test("Teams capability can be checked without creating an event or invitation", async () => {
+  reset();
+  let method = "";
+  globalThis.fetch = async (_url, init) => {
+    method = init?.method || "GET";
+    return Response.json({
+      allowedOnlineMeetingProviders: ["teamsForBusiness"],
+    });
+  };
+  const response = await GET(
+    new NextRequest("https://ema.example/api/mail/calendar-options"),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { teamsAvailable: true });
+  assert.equal(method, "GET");
+});
+
+test("Teams conversion preserves all-day boundaries in the original Exchange timezone", async () => {
+  reset();
+  let patch: any;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === "PATCH") {
+      patch = JSON.parse(String(init.body));
+      return Response.json({ id: "event" });
+    }
+    return Response.json(
+      String(url).includes("/me/calendar?")
+        ? { allowedOnlineMeetingProviders: ["teamsForBusiness"] }
+        : { isOrganizer: true, isAllDay: true, isOnlineMeeting: false },
+    );
+  };
+  const response = await POST(
+    req("calendar", {
+      operation: "update",
+      id: "event",
+      confirmed: true,
+      value: {
+        ...meetingValue,
+        start: "2026-11-13T23:00:00Z",
+        end: "2026-11-14T23:00:00Z",
+      },
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(patch.start, undefined);
+  assert.equal(patch.end, undefined);
+  assert.equal(patch.isOnlineMeeting, true);
 });

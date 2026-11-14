@@ -320,3 +320,23 @@ test("worker bounds network calls and refuses new work after its budget", () => 
   assert.equal(operationTimeout(5000, 20000, 0), 2000);
   assert.throws(() => operationTimeout(3000, 20000, 0), /Laufzeitbudget/);
 });
+
+test("Teams is opt-in and only adds Microsoft's calendar meeting provider", () => {
+  const base = {
+    subject: "Besprechung",
+    start: "2026-11-14T10:00:00Z",
+    end: "2026-11-14T11:00:00Z",
+  };
+  assert.equal(graphEvent(eventSchema.parse(base)).isOnlineMeeting, undefined);
+  const meeting = graphEvent(
+    eventSchema.parse({
+      ...base,
+      teamsMeeting: true,
+      attendees: ["guest@example.com"],
+    }),
+  );
+  assert.equal(meeting.isOnlineMeeting, true);
+  assert.equal(meeting.onlineMeetingProvider, "teamsForBusiness");
+  assert.equal(meeting.attendees[0].emailAddress.address, "guest@example.com");
+  assert.throws(() => eventSchema.parse({ ...base, teamsMeeting: "true" }));
+});
