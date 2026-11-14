@@ -407,6 +407,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   ) {
     composeVersion.current++;
     setReview(false);
+    setNotice("");
     setDraftId(undefined);
     const draft = blank(mailbox);
     draft.signatureId = signatureForAddress(account?.address || mailbox);

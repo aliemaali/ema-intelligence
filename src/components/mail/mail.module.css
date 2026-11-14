@@ -2065,7 +2065,7 @@
 .richEditor {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 220px;
 }
 .richToolbar,
@@ -2116,7 +2116,7 @@
 }
 .richBody {
   min-height: 170px;
-  flex: 1;
+  flex: 0 0 auto;
   padding: 18px 22px;
   line-height: 1.7;
   outline-offset: -2px;

@@ -26,3 +26,5 @@ Antwortbeobachtung gilt für eigene ausgehende Nachrichten und prüft spätere M
 71 Mail-/Sicherheits-/API-/Worker-Tests und SQL-Prüfung mit 12 RLS-Tabellen bestanden. Geprüft: HTML-Bereinigung, Reply-all ohne Bcc/Own-Adresse, private Vorlagen und Signaturen, fremde Projekte, Conversation-Cursor, explizite Terminfreigabe, unveränderliche Versanddaten, Rechteentzug, unklarer Versand ohne Wiederholung, Ablauf/Abbruch und Antwortbeobachtung. Vorhandene SQL-Tests für Budgets, Leases und parallele Claims bleiben enthalten.
 
 Keine Migration, kein Cron und keine Versandfreigabe in Produktion aktiviert. Die Vorschau verwendet ausschließlich Demo-Aufträge. End-to-End-Abnahme mit echten Testpostfächern, isolierter Datenbank und physischem iPhone bleibt vor Live-Betrieb erforderlich.
+
+Browserprüfung: Vorlage eingesetzt, Text fett/groß formatiert, Tabelle eingefügt und persönliche Vorlage wieder geladen. Demo-Terminfreigabe geprüft, Auftrag eingeplant und anschließend abgebrochen. Ein Überlappen von großem Text und Signatur wurde durch normalen Inhaltsfluss im Editor korrigiert. Der Datei-Uploadtest wurde unterbrochen und bleibt separat offen.
