@@ -195,7 +195,7 @@
   }
   .grid {
     grid-template-columns: 25px repeat(7, minmax(0, 1fr));
-    height: clamp(430px, calc(100dvh - 300px), 700px);
+    height: clamp(430px, calc(100dvh - 360px), 700px);
   }
   .day {
     padding: 4px 2px;
