@@ -75,12 +75,14 @@ const fs = require("node:fs");
     outfile: ".tmp/mail-analysis.test.cjs",
   });
   await esbuild.build({ entryPoints: ["tests/mail-combined-inbox.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-combined-inbox.test.cjs" });
+  await esbuild.build({ entryPoints: ["tests/mail-received.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-received.test.cjs" });
   const result = spawnSync(
     process.execPath,
     [
       "--test",
       ".tmp/mail-security.test.cjs",
       ".tmp/mail-combined-inbox.test.cjs",
+      ".tmp/mail-received.test.cjs",
       ".tmp/mail-routes.test.cjs",
       ".tmp/mail-automation.test.cjs",
       ".tmp/mail-analysis.test.cjs",

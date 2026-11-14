@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { MailMessageBody } from "./MailMessageBody";
 import { MailAttachmentPreview } from "./MailAttachmentPreview";
 import {
   Archive,
@@ -400,11 +401,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     try {
       const [detail, files] = await Promise.all([
         api(`message?${new URLSearchParams({ mailbox: source, id: message.id })}`),
-        message.hasAttachments
-          ? api(
-              `attachments?${new URLSearchParams({ mailbox: source, id: message.id })}`,
-            )
-          : Promise.resolve({ attachments: [] }),
+        api(`attachments?${new URLSearchParams({ mailbox: source, id: message.id })}`),
       ]);
       if (version === detailVersion.current) {
         setSelected({ ...detail.message, sourceMailbox: message.sourceMailbox });
@@ -456,7 +453,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       draft.body =
         body ||
         (mode === "forward"
-          ? `\n\n--- Weitergeleitete Nachricht ---\nVon: ${selected.from.emailAddress.address}\nBetreff: ${selected.subject}\n\n${selected.body?.content || selected.bodyPreview}`
+          ? `\n\n--- Weitergeleitete Nachricht ---\nVon: ${selected.from.emailAddress.address}\nBetreff: ${selected.subject}\n\n${(selected.body?.contentType.toLowerCase() === "html" ? new DOMParser().parseFromString(sanitizeRichHtml(selected.body.content), "text/html").body.textContent : selected.body?.content) || selected.bodyPreview}`
           : "");
     }
     setComposeMinimized(false);
@@ -1312,11 +1309,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                         {formatTime(selected.receivedDateTime)}
                       </time>
                     </div>
-                    <div className={s.mailBody}>
-                      {selected.body?.contentType.toLowerCase() === "html"
-                        ? "Diese Nachricht liegt als HTML vor. Aktive Inhalte werden nicht dargestellt. Bitte Textansicht erneut laden."
-                        : selected.body?.content || selected.bodyPreview}
-                    </div>
+                    <MailMessageBody key={`${mailbox}:${selected.id}`} message={selected} attachments={attachments} mailbox={mailbox} />
                     {attachments.map((a) => (
                       <div key={a.id} className={s.attachment}>
                         <button

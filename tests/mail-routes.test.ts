@@ -1689,3 +1689,17 @@ test('message pagination accepts actual Graph OData folder links and rejects a d
   assert.equal(denied.status, 400);
   assert.equal(calls, 1);
 });
+
+test('reading a message requests HTML while retaining immutable IDs and mailbox authorization', async () => {
+  reset();
+  let calls=0;
+  globalThis.fetch = async (_url, init) => {
+    calls++;
+    assert.equal(new Headers(init?.headers).get('Prefer'), 'outlook.body-content-type="html", IdType="ImmutableId"');
+    return Response.json({id:'img-test',body:{contentType:'html',content:'<img src="cid:logo">'}});
+  };
+  const read = await GET(new NextRequest('https://ema.example/api/mail/message?id=img-test'));
+  assert.equal(read.status,200); assert.equal((await read.json()).message.body.contentType,'html');
+  const denied = await GET(new NextRequest('https://ema.example/api/mail/message?id=img-test&mailbox=foreign%40example.com'));
+  assert.equal(denied.status,403); assert.equal(calls,1);
+});
