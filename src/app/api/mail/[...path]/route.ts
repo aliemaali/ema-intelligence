@@ -1,3 +1,5 @@
+import { productivityEndpoint, visibleProject } from "@/lib/mail/extensions";
+import { deliverMessage } from "@/lib/mail/deliver";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
@@ -71,6 +73,13 @@ async function handle(request: NextRequest) {
       input = JSON.parse(text);
     }
     const admin = mailAdmin();
+    const extension = await productivityEndpoint(
+      request,
+      action,
+      input,
+      session,
+    );
+    if (extension) return extension;
     if (action === "team" || action === "memberships") {
       const { data: profile } = await session.db
         .from("profiles")
@@ -165,17 +174,30 @@ async function handle(request: NextRequest) {
           "Mail-Datenbankschema noch nicht eingerichtet.",
         );
       const senderAddress = await mailSenderAddress(session, "me");
+      const settings = await admin
+        .from("ema_mail_user_settings")
+        .select("mailbox,signature_text")
+        .eq("user_id", session.user.id);
+      if (settings.error)
+        throw new MailError(503, "Mail-Einstellungen noch nicht eingerichtet.");
+      const signature = (box: string) =>
+        (settings.data || []).find((s) => s.mailbox === box)?.signature_text ||
+        "";
       return json({
         mailboxes: [
           {
             mailbox: "me",
             name: senderAddress,
             address: senderAddress,
+            signatureText: signature("me"),
             can_read: true,
             can_write: true,
             can_send: true,
           },
-          ...(data || []),
+          ...(data || []).map((a) => ({
+            ...a,
+            signatureText: signature(a.mailbox),
+          })),
         ],
       });
     }
@@ -318,6 +340,11 @@ async function handle(request: NextRequest) {
       );
       if (draft.content_hash !== digest(payload))
         throw new MailError(409, "Entwurf wurde verändert.");
+      if (payload.scheduledAt)
+        throw new MailError(
+          409,
+          "Geplanten Versand bitte ausdrücklich zum Termin freigeben.",
+        );
       if (action === "approve") {
         if (
           input.contentHash !== draft.content_hash ||
@@ -381,67 +408,34 @@ async function handle(request: NextRequest) {
       const result = await submitApprovedDraft(
         payload,
         id,
-        async (message) => {
-          const root = mailboxRoot(payload.mailbox);
-          if (payload.replyToMessageId) {
-            await mailboxAccess(session, payload.mailbox, "write");
-            const reply = await mailGraph<{ id: string }>(
-              token,
-              `${messagePath(payload.mailbox, payload.replyToMessageId)}/createReply`,
-              { method: "POST", body: "{}" },
-              root,
-            );
-            if (!reply?.id)
-              throw new MailError(
-                502,
-                "Microsoft lieferte keinen Antwortentwurf.",
+        async (message) =>
+          deliverMessage(
+            payload,
+            message,
+            token,
+            async (providerId) => {
+              const { error } = await admin
+                .from("ema_mail_drafts")
+                .update({ provider_draft_id: providerId })
+                .eq("id", id)
+                .eq("user_id", session.user.id)
+                .eq("status", "sending");
+              if (error)
+                throw new MailError(503, "Antwortentwurf nicht protokolliert.");
+            },
+            async () => {
+              await mailboxAccess(
+                session,
+                payload.mailbox,
+                payload.replyToMessageId ? "write" : "send",
               );
-            const { error } = await admin
-              .from("ema_mail_drafts")
-              .update({ provider_draft_id: reply.id })
-              .eq("id", id)
-              .eq("user_id", session.user.id)
-              .eq("status", "sending");
-            if (error)
-              throw new MailError(
-                503,
-                "Antwortentwurf konnte nicht protokolliert werden.",
+              await mailboxAccess(session, payload.mailbox, "send");
+              assertSignatureSender(
+                payload,
+                await mailSenderAddress(session, payload.mailbox),
               );
-            const { attachments, internetMessageHeaders, ...values } =
-              message as ReturnType<
-                typeof import("@/lib/mail/security").graphMessage
-              >;
-            await mailGraph(
-              token,
-              messagePath(payload.mailbox, reply.id),
-              { method: "PATCH", body: JSON.stringify(values) },
-              root,
-            );
-            for (const attachment of attachments)
-              await mailGraph(
-                token,
-                `${messagePath(payload.mailbox, reply.id)}/attachments`,
-                { method: "POST", body: JSON.stringify(attachment) },
-                root,
-              );
-            await mailboxAccess(session, payload.mailbox, "send");
-            await mailGraph(
-              token,
-              `${messagePath(payload.mailbox, reply.id)}/send`,
-              { method: "POST" },
-              root,
-            );
-          } else
-            await mailGraph(
-              token,
-              `${root}/sendMail`,
-              {
-                method: "POST",
-                body: JSON.stringify({ message, saveToSentItems: true }),
-              },
-              root,
-            );
-        },
+            },
+          ),
         async (status) => {
           const { error } = await admin
             .from("ema_mail_drafts")
@@ -585,7 +579,7 @@ async function handle(request: NextRequest) {
         const params = new URLSearchParams({
           $top: "30",
           $select:
-            "id,subject,bodyPreview,receivedDateTime,isRead,from,toRecipients,importance,hasAttachments,flag,conversationId,replyTo",
+            "id,subject,bodyPreview,receivedDateTime,isRead,from,toRecipients,ccRecipients,importance,hasAttachments,flag,conversationId,replyTo",
         });
         const q = (request.nextUrl.searchParams.get("q") || "").trim();
         if (q) {
@@ -780,6 +774,26 @@ async function handle(request: NextRequest) {
       if (!bytes.length || bytes.length > 15_000_000)
         throw new MailError(413, "Anhang zu groß oder leer.");
       validateStoredAttachment(bytes, attachment.contentType);
+      const project = input.projectId
+        ? await visibleProject(session, input.projectId)
+        : null;
+      async function linkDocument(documentId: string) {
+        if (!project) return;
+        const { error } = await session.db.from("dms_document_links").upsert(
+          {
+            user_id: session.user.id,
+            document_id: documentId,
+            entity_type: "project",
+            entity_id: project.id,
+          },
+          { onConflict: "document_id,entity_type,entity_id" },
+        );
+        if (error)
+          throw new MailError(
+            503,
+            "Datei gespeichert; Projektzuordnung bitte erneut versuchen.",
+          );
+      }
       const hash = createHash("sha256").update(bytes).digest("hex");
       const { data: duplicate } = await session.db
         .from("documents")
@@ -788,7 +802,10 @@ async function handle(request: NextRequest) {
         .eq("sha256", hash)
         .eq("is_archived", false)
         .maybeSingle();
-      if (duplicate) return json({ documentId: duplicate.id, duplicate: true });
+      if (duplicate) {
+        await linkDocument(duplicate.id);
+        return json({ documentId: duplicate.id, duplicate: true });
+      }
       const name =
         attachment.name.replace(/[\/\\\x00-\x1f]/g, "_").slice(0, 180) ||
         "Anhang.pdf";
@@ -805,6 +822,7 @@ async function handle(request: NextRequest) {
         .from("documents")
         .insert({
           user_id: session.user.id,
+          project_id: project?.id || null,
           display_name: name,
           file_name: name,
           file_path: path,
@@ -826,6 +844,7 @@ async function handle(request: NextRequest) {
           "DMS-Registrierung fehlgeschlagen; bitte Dubletten prüfen.",
         );
       }
+      await linkDocument(data.id);
       return json({ documentId: data.id });
     }
     if (action === "reminders" && !mutating) {
@@ -851,7 +870,9 @@ async function handle(request: NextRequest) {
           user_id: session.user.id,
           title,
           due_at: dueAt,
-          notes: "Aus EMA Mail erstellt.",
+          notes: input.messageId
+            ? `Aus EMA Mail: /mail?${new URLSearchParams({ mailbox, message: idSchema.parse(input.messageId) })}`
+            : "Aus EMA Mail erstellt.",
         })
         .select("id")
         .single();

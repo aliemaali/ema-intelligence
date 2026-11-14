@@ -48,6 +48,12 @@ import {
 import { demoMessages, demoReply } from "@/lib/mail/demo";
 import type { MailAnalysis } from "@/lib/mail/analysis";
 import s from "./mail.module.css";
+import { validateComposeFiles } from "@/lib/mail/attachments";
+import { sanitizeRichHtml } from "@/lib/mail/rich-text";
+import { replyAllRecipients, checkSchedule } from "@/lib/mail/productivity";
+import { useMailProductivity, mailPost } from "./useMailProductivity";
+import { MailProductivitySettings } from "./MailProductivitySettings";
+import { MailMessageTools } from "./MailMessageTools";
 import { signatureForAddress } from "@/lib/mail/signature";
 import { MailSignature } from "./MailSignature";
 import { MailComposeFields } from "./MailComposeFields";
@@ -57,6 +63,7 @@ import { MailAutomation } from "./MailAutomation";
 type Account = {
   mailbox: string;
   address?: string;
+  signatureText?: string;
   name?: string;
   can_read: boolean;
   can_write: boolean;
@@ -204,6 +211,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   const requestVersion = useRef(0),
     detailVersion = useRef(0),
     composeVersion = useRef(0);
+  const productivity = useMailProductivity(demo, mailbox);
+  const [selectedProject, setSelectedProject] = useState("");
   const account = accounts.find((a) => a.mailbox === mailbox);
   const hasComposer = Boolean(composer);
   const composeRef = useRef<HTMLElement>(null);
@@ -271,13 +280,34 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       try {
         if (demo) {
           setMessages(
-            folder === "inbox"
-              ? demoMessages.filter((m) =>
-                  `${m.subject} ${m.bodyPreview} ${m.from.emailAddress.name}`
-                    .toLowerCase()
-                    .includes(q.toLowerCase()),
-                )
-              : [],
+            folder === "sentitems"
+              ? [
+                  {
+                    ...demoMessages[0],
+                    id: "demo-sent",
+                    from: {
+                      emailAddress: {
+                        address: "unluer@ema-enterprise.de",
+                        name: "Ali Ünlüer",
+                      },
+                    },
+                    toRecipients: [demoMessages[0].from],
+                    ccRecipients: [],
+                    conversationId: "demo-conversation",
+                    subject: "Projektunterlagen zur Prüfung",
+                    body: {
+                      contentType: "text",
+                      content: "Guten Tag, bitte prüfe die Unterlagen.",
+                    },
+                  },
+                ]
+              : folder === "inbox"
+                ? demoMessages.filter((m) =>
+                    `${m.subject} ${m.bodyPreview} ${m.from.emailAddress.name}`
+                      .toLowerCase()
+                      .includes(q.toLowerCase()),
+                  )
+                : [],
           );
           setCursor(null);
           return;
@@ -323,6 +353,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }, [load]);
   async function openMessage(message: Message) {
     const version = ++detailVersion.current;
+    setSelectedProject("");
     setSelected(message);
     setAnalysis(message.emaAnalysis ?? null);
     setReading(true);
@@ -371,7 +402,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     setFilter("all");
   }
   function newCompose(
-    mode: "new" | "reply" | "forward" = "new",
+    mode: "new" | "reply" | "replyAll" | "forward" = "new",
     body?: string,
   ) {
     composeVersion.current++;
@@ -379,15 +410,23 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     setDraftId(undefined);
     const draft = blank(mailbox);
     draft.signatureId = signatureForAddress(account?.address || mailbox);
+    draft.signatureText = draft.signatureId
+      ? undefined
+      : account?.signatureText || undefined;
     if (selected && mode !== "new") {
       draft.to =
-        mode === "reply"
+        mode !== "forward"
           ? selected.replyTo?.length
             ? selected.replyTo.map((r) => r.emailAddress.address)
             : [selected.from.emailAddress.address]
           : [];
-      if (mode === "reply") draft.replyToMessageId = selected.id;
-      draft.subject = `${mode === "reply" ? "Re:" : "WG:"} ${selected.subject.replace(/^(Re:|WG:)\s*/i, "")}`;
+      if (mode !== "forward") draft.replyToMessageId = selected.id;
+      if (mode === "replyAll")
+        Object.assign(
+          draft,
+          replyAllRecipients(selected, account?.address || mailbox),
+        );
+      draft.subject = `${mode !== "forward" ? "Re:" : "WG:"} ${selected.subject.replace(/^(Re:|WG:)\s*/i, "")}`;
       draft.body =
         body ||
         (mode === "forward"
@@ -475,6 +514,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           mailbox,
           id: selected.id,
           attachmentId: file.id,
+          ...(selectedProject ? { projectId: selectedProject } : {}),
         });
         setNotice(
           result.duplicate
@@ -511,6 +551,13 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           update.mailbox,
       );
     }
+    if (update.body !== undefined && update.bodyHtml === undefined)
+      update.bodyHtml = undefined;
+    if (update.mailbox)
+      update.signatureText = update.signatureId
+        ? undefined
+        : accounts.find((a) => a.mailbox === update.mailbox)?.signatureText ||
+          undefined;
     composeVersion.current++;
     setComposer((old) => (old ? { ...old, ...update } : null));
     setReview(false);
@@ -551,6 +598,27 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     if (!composer) return;
     setBusy(true);
     try {
+      if (demo && composer.scheduledAt) {
+        checkSchedule(composer.scheduledAt);
+        productivity.update((d) => ({
+          ...d,
+          schedules: [
+            {
+              id: crypto.randomUUID(),
+              subject: composer.subject,
+              run_at: composer.scheduledAt!,
+              state: "pending",
+            },
+            ...d.schedules,
+          ],
+        }));
+        setComposer(null);
+        setReview(false);
+        setNotice(
+          "Demo-Versand eingeplant. Es wird keine echte Mail gesendet.",
+        );
+        return;
+      }
       if (demo) {
         setNotice(
           "Freigabe in der Demo geprüft. Es wurde keine E-Mail versendet.",
@@ -560,6 +628,20 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         return;
       }
       const saved = await api("drafts", { id: draftId, payload: composer });
+      if (composer.scheduledAt) {
+        checkSchedule(composer.scheduledAt);
+        const result = await api("schedule", {
+          id: saved.id,
+          contentHash: saved.content_hash,
+          confirmed: true,
+          mailbox: composer.mailbox,
+        });
+        setComposer(null);
+        setReview(false);
+        setNotice(result.message);
+        await productivity.refresh();
+        return;
+      }
       const approval = await api("approve", {
         id: saved.id,
         contentHash: saved.content_hash,
@@ -579,9 +661,10 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     }
   }
   async function addFiles(files: FileList | null) {
-    if (!composer || !files) return;
+    if (!composer || !files || busy) return;
     const version = composeVersion.current;
     try {
+      validateComposeFiles(composer.attachments, Array.from(files));
       const additions = [];
       for (const file of Array.from(files)) {
         if (file.size > 2_000_000)
@@ -643,6 +726,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           title: taskTitle,
           dueAt: new Date(due).toISOString(),
           mailbox,
+          messageId: selected?.id,
         });
       else
         setDemoPim((old) => ({
@@ -982,6 +1066,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                           setComposeMinimized(false);
                           setComposer({
                             ...d.payload,
+                            signatureText:
+                              d.payload.signatureText ||
+                              accounts.find(
+                                (a) => a.mailbox === d.payload.mailbox,
+                              )?.signatureText ||
+                              undefined,
                             signatureId: signatureForAddress(
                               accounts.find(
                                 (a) => a.mailbox === d.payload.mailbox,
@@ -1225,6 +1315,30 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                         </button>
                       </div>
                     ))}
+                    <MailMessageTools
+                      key={`${mailbox}:${selected.id}`}
+                      demo={demo}
+                      message={selected}
+                      mailbox={mailbox}
+                      ownAddress={account?.address || mailbox}
+                      projects={productivity.data.projects}
+                      onProject={setSelectedProject}
+                      onReminder={(value) =>
+                        setDemoPim((old) => ({
+                          ...old,
+                          tasks: [
+                            ...(old.tasks || []),
+                            { id: crypto.randomUUID(), ...value },
+                          ],
+                        }))
+                      }
+                      onFollowup={(value) =>
+                        productivity.update((d) => ({
+                          ...d,
+                          followups: [value, ...d.followups],
+                        }))
+                      }
+                    />
                     <section className={s.aiCard}>
                       <div className={s.aiHeader}>
                         <Sparkles size={16} />
@@ -1289,6 +1403,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       </div>
                     </section>
                     <div className={s.replyActions}>
+                      <button
+                        disabled={!account?.can_send}
+                        onClick={() => newCompose("replyAll")}
+                      >
+                        <Reply size={15} /> Allen antworten
+                      </button>
                       <button
                         disabled={!account?.can_send}
                         onClick={() => newCompose("reply")}
@@ -1375,6 +1495,26 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                   </article>
                 </div>
                 <MailAutomation demo={demo} mailbox={mailbox} />
+                {productivity.error && (
+                  <p role="status">{productivity.error}</p>
+                )}
+                <MailProductivitySettings
+                  demo={demo}
+                  mailbox={mailbox}
+                  address={account?.address || mailbox}
+                  data={productivity.data}
+                  update={productivity.update}
+                  refresh={productivity.refresh}
+                  onSignature={(text) =>
+                    setAccounts((old) =>
+                      old.map((a) =>
+                        a.mailbox === mailbox
+                          ? { ...a, signatureText: text }
+                          : a,
+                      ),
+                    )
+                  }
+                />
                 {!demo ? <MailTeam /> : null}
               </>
             ) : (
@@ -1482,9 +1622,30 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                   <br />
                   <b>Betreff:</b> {composer.subject}
                   <hr />
-                  {composer.body}
+                  {composer.bodyHtml ? (
+                    <div
+                      className={s.richReview}
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeRichHtml(composer.bodyHtml),
+                      }}
+                    />
+                  ) : (
+                    composer.body
+                  )}
+                  {composer.signatureText && (
+                    <div className={s.textSignature}>
+                      {composer.signatureText}
+                    </div>
+                  )}
                   {composer.signatureId && <MailSignature />}
                   <hr />
+                  {composer.scheduledAt && (
+                    <>
+                      <b>Versandtermin:</b>{" "}
+                      {new Date(composer.scheduledAt).toLocaleString("de-DE")}
+                      <br />
+                    </>
+                  )}
                   <b>Lesebestätigung:</b>{" "}
                   {composer.isReadReceiptRequested ? "Anfordern" : "Nein"}
                   <br />
@@ -1512,19 +1673,74 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       ? "Wird verarbeitet …"
                       : demo
                         ? "Freigabe demonstrieren"
-                        : "Freigeben und senden"}
+                        : composer.scheduledAt
+                          ? "Freigeben und einplanen"
+                          : "Freigeben und senden"}
                   </button>
                 </footer>
               </>
             ) : (
               <MailComposeFields
                 draft={composer}
+                templates={productivity.data.templates}
+                onPreview={(index) => {
+                  const a = composer.attachments[index];
+                  setPreviewFile({
+                    file: {
+                      ...a,
+                      id: `compose-${index}`,
+                      size: Math.ceil(a.contentBytes.length * 0.75),
+                    },
+                    mailbox: composer.mailbox,
+                    messageId: "",
+                  });
+                }}
+                onSaveTemplate={(title) => {
+                  void (async () => {
+                    try {
+                      if (!demo) {
+                        await mailPost("template", {
+                          mailbox: composer.mailbox,
+                          title,
+                          subject: composer.subject,
+                          body: composer.body,
+                          bodyHtml: composer.bodyHtml,
+                        });
+                        await productivity.refresh();
+                      } else
+                        productivity.update((d) => ({
+                          ...d,
+                          templates: [
+                            ...d.templates,
+                            {
+                              id: crypto.randomUUID(),
+                              title,
+                              subject: composer.subject,
+                              body: composer.body,
+                              body_html: composer.bodyHtml,
+                            },
+                          ],
+                        }));
+                      setNotice("Vorlage gespeichert.");
+                    } catch (e) {
+                      setNotice((e as Error).message);
+                    }
+                  })();
+                }}
                 accounts={accounts}
                 busy={busy}
                 update={updateDraft}
                 addFiles={(files) => void addFiles(files)}
                 save={() => void saveDraft()}
                 review={() => {
+                  if (composer.scheduledAt) {
+                    try {
+                      checkSchedule(composer.scheduledAt);
+                    } catch (e) {
+                      setNotice((e as Error).message);
+                      return;
+                    }
+                  }
                   setComposer({
                     ...composer,
                     to: composer.to.filter(Boolean),

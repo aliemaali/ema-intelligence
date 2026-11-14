@@ -3,6 +3,9 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { POST, GET } from "../src/app/api/mail/[...path]/route";
 import { mailSession, mailboxAccess } from "../src/lib/mail/server";
+import { runApprovedDispatch } from "../src/lib/mail/dispatch";
+import { GET as dispatchCron } from "../src/app/api/cron/ema-mail-dispatch/route";
+import { getDocuments } from "../src/lib/actions/document.actions";
 import { draftSchema } from "../src/lib/mail/model";
 import { GET as cronGet } from "../src/app/api/cron/ema-mail/route";
 import { runMailWorker, cronAuthorized } from "../src/lib/mail/background";
@@ -26,6 +29,18 @@ function builder(table: string) {
   const b: any = {
     select: (c = "*") => {
       columns = c;
+      return b;
+    },
+    delete: () => {
+      op = "delete";
+      return b;
+    },
+    lt: (k: string, v: any) => {
+      filters.push((r) => r[k] < v);
+      return b;
+    },
+    range: (a: number, z: number) => {
+      limit = z + 1;
       return b;
     },
     update: (v: any) => {
@@ -73,6 +88,8 @@ function builder(table: string) {
       .filter((r) => filters.every((f) => f(r)))
       .slice(0, limit);
     if (table === "profiles") matched = profile ? [profile] : [];
+    if (op === "delete")
+      rows[table] = (rows[table] || []).filter((r) => !matched.includes(r));
     if (op === "update") matched.forEach((r) => Object.assign(r, update));
     if (op === "insert") {
       const r = { id, ...update };
@@ -88,6 +105,7 @@ function builder(table: string) {
   return b;
 }
 function reset() {
+  process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "false";
   process.env.EMA_MAIL_ENABLED = "true";
   process.env.VERCEL_ENV = "development";
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
@@ -679,7 +697,7 @@ test("actual worker with no analysis or push finishes job without Graph or AI ca
   rows.ema_mail_sync = [
     { user_id: uid, mailbox: "me", enabled: true, analyze: false, push: false },
   ];
-  const job = {
+  const job: any = {
     id,
     user_id: uid,
     mailbox: "me",
@@ -734,4 +752,378 @@ test("signature policy rejects missing signature, wrong sender and changed sende
     409,
   );
   assert.equal(graphCalls, 0);
+});
+
+test("project assignment rejects foreign projects before fetching mailbox data", async () => {
+  reset();
+  rows.projects = [
+    {
+      id: "33333333-3333-4333-8333-333333333333",
+      user_id: "foreign",
+      project_name: "Secret",
+    },
+  ];
+  const r = await POST(
+    req("project-link", {
+      mailbox: "me",
+      messageId: "source",
+      projectId: rows.projects[0].id,
+    }),
+  );
+  assert.equal(r.status, 403);
+  assert.equal(graphCalls, 0);
+});
+test("templates are sanitized and private; personal signatures are stored under the caller", async () => {
+  reset();
+  assert.equal(
+    (
+      await POST(
+        req("template", {
+          mailbox: "me",
+          title: "Personal",
+          subject: "Subject",
+          body: "Hello",
+          bodyHtml: '<b>Hello</b><img src="https://evil.example">',
+        }),
+      )
+    ).status,
+    201,
+  );
+  assert.equal(rows.ema_mail_templates[0].user_id, uid);
+  assert.equal(rows.ema_mail_templates[0].body_html, "<b>Hello</b>");
+  assert.equal(
+    (await POST(req("signature", { mailbox: "me", text: "Employee\nCompany" })))
+      .status,
+    200,
+  );
+  assert.equal(rows.ema_mail_user_settings[0].user_id, uid);
+  rows.ema_mail_templates.push({
+    id: "33333333-3333-4333-8333-333333333333",
+    user_id: "foreign",
+    title: "private",
+  });
+  await POST(
+    req("template", {
+      mailbox: "me",
+      operation: "delete",
+      id: "33333333-3333-4333-8333-333333333333",
+    }),
+  );
+  assert.equal(
+    rows.ema_mail_templates.filter((r) => r.user_id === "foreign").length,
+    1,
+  );
+});
+test("conversation cursor is bound to source mailbox and conversation", async () => {
+  reset();
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return Response.json({ id: "source", conversationId: "conversation-A" });
+  };
+  const query = new URLSearchParams({
+    messageId: "source",
+    cursor:
+      "https://graph.microsoft.com/v1.0/me/messages?$filter=conversationId%20eq%20%27foreign%27",
+  });
+  assert.equal(
+    (await GET(new NextRequest(`https://ema.example/api/mail/thread?${query}`)))
+      .status,
+    400,
+  );
+  assert.equal(calls, 1);
+});
+test("schedule requires separate explicit approval and blocks immediate-send bypass", async () => {
+  reset();
+  process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
+  const payload = draftSchema.parse({
+    to: ["test@example.com"],
+    subject: "Later",
+    body: "Approved",
+    scheduledAt: new Date(Date.now() + 3600000).toISOString(),
+  });
+  rows.ema_mail_drafts = [
+    {
+      id,
+      user_id: uid,
+      payload,
+      content_hash: digest(payload),
+      status: "draft",
+    },
+  ];
+  assert.equal(
+    (
+      await POST(
+        req("schedule", { mailbox: "me", id, contentHash: digest(payload) }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await POST(
+        req("approve", { id, contentHash: digest(payload), confirmed: true }),
+      )
+    ).status,
+    409,
+  );
+  let calls = 0;
+  globalThis.__mailFixture.admin.rpc = async (name: string, args: any) => {
+    calls++;
+    assert.equal(name, "ema_mail_schedule_draft");
+    assert.equal(args.p_user_id, uid);
+    assert.equal(args.p_hash, digest(payload));
+    return { data: "scheduled-id", error: null };
+  };
+  assert.equal(
+    (
+      await POST(
+        req("schedule", {
+          mailbox: "me",
+          id,
+          contentHash: "changed",
+          confirmed: true,
+        }),
+      )
+    ).status,
+    409,
+  );
+  assert.equal(calls, 0);
+  assert.equal(
+    (
+      await POST(
+        req("schedule", {
+          mailbox: "me",
+          id,
+          contentHash: digest(payload),
+          confirmed: true,
+        }),
+      )
+    ).status,
+    200,
+  );
+  assert.equal(calls, 1);
+  assert.equal(graphCalls, 0);
+});
+function scheduledFixture() {
+  reset();
+  process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
+  const when = new Date(Date.now() - 60000).toISOString(),
+    payload = draftSchema.parse({
+      to: ["recipient@example.com"],
+      subject: "Scheduled",
+      body: "Approved",
+      scheduledAt: when,
+    });
+  const job: any = {
+    id: "33333333-3333-4333-8333-333333333333",
+    draft_id: id,
+    user_id: uid,
+    mailbox: "me",
+    payload,
+    content_hash: digest(payload),
+    run_at: when,
+    state: "pending",
+    approved_at: new Date(Date.now() - 3600000).toISOString(),
+  };
+  rows.ema_mail_scheduled = [job];
+  rows.ema_mail_drafts = [
+    {
+      id,
+      user_id: uid,
+      payload,
+      content_hash: job.content_hash,
+      status: "scheduled",
+    },
+  ];
+  globalThis.__mailFixture.admin.rpc = async (name: string) => {
+    if (name === "ema_mail_claim_scheduled" && job.state === "pending") {
+      job.state = "sending";
+      job.claimed_at = new Date().toISOString();
+      return { data: [JSON.parse(JSON.stringify(job))], error: null };
+    }
+    return { data: [], error: null };
+  };
+  return job as any;
+}
+test("scheduled delivery consumes approved work once and never retries ambiguous sends", async () => {
+  const job = scheduledFixture();
+  let sends = 0;
+  globalThis.fetch = async () => {
+    sends++;
+    throw new Error("timeout after acceptance");
+  };
+  await runApprovedDispatch();
+  assert.equal(job.state, "uncertain");
+  assert.equal(rows.ema_mail_drafts[0].status, "uncertain");
+  await runApprovedDispatch();
+  assert.equal(sends, 1);
+});
+test("scheduled delivery rejects changed snapshots, stale approval and revoked staff", async () => {
+  for (const mutate of [
+    (job: any) => {
+      job.payload.body = "tampered";
+    },
+    (job: any) => {
+      job.run_at = new Date(Date.now() - 2 * 86400000).toISOString();
+    },
+    () => {
+      profile.is_active = false;
+    },
+  ]) {
+    const job = scheduledFixture();
+    mutate(job);
+    await runApprovedDispatch();
+    assert.equal(job.state, "blocked");
+    assert.equal(graphCalls, 0);
+  }
+});
+test("scheduled delivery submits only exact stored recipients and request flags", async () => {
+  const job = scheduledFixture();
+  let sent: any;
+  globalThis.fetch = async (_url, init) => {
+    sent = JSON.parse(String(init?.body));
+    return new Response(null, { status: 202 });
+  };
+  const result = await runApprovedDispatch();
+  assert.equal(result.scheduled, 1);
+  assert.equal(job.state, "submitted");
+  assert.equal(
+    sent.message.toRecipients[0].emailAddress.address,
+    "recipient@example.com",
+  );
+  assert.equal(sent.message.body.content, "Approved");
+  await runApprovedDispatch();
+  assert.equal(job.state, "submitted");
+});
+test("dispatch route is disabled in previews even with scheduler flag", async () => {
+  reset();
+  process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
+  process.env.VERCEL_ENV = "preview";
+  assert.equal(
+    (
+      await dispatchCron(
+        new NextRequest("https://ema.example/api/cron/ema-mail-dispatch"),
+      )
+    ).status,
+    503,
+  );
+  assert.equal(graphCalls, 0);
+});
+test("answer observation only accepts own sent mail; no arbitrary incoming watch", async () => {
+  reset();
+  process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
+  globalThis.fetch = async () =>
+    Response.json({
+      id: "incoming",
+      subject: "s",
+      from: { emailAddress: { address: "external@example.com" } },
+      toRecipients: [{ emailAddress: { address: "tester@example.com" } }],
+      conversationId: "c",
+      receivedDateTime: new Date().toISOString(),
+    });
+  assert.equal(
+    (
+      await POST(
+        req("followup", {
+          mailbox: "me",
+          messageId: "incoming",
+          dueAt: new Date(Date.now() + 3600000).toISOString(),
+        }),
+      )
+    ).status,
+    400,
+  );
+  assert.ok(!rows.ema_mail_followups);
+});
+test("answer followup creates a private reminder only if no expected recipient replied", async () => {
+  for (const answered of [false, true]) {
+    reset();
+    process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
+    const watch: any = {
+      id,
+      user_id: uid,
+      mailbox: "me",
+      message_id: "sent",
+      conversation_id: "c",
+      reference_at: new Date(Date.now() - 3600000).toISOString(),
+      expected_repliers: ["recipient@example.com"],
+      title: "Follow up",
+      state: "pending",
+    };
+    rows.ema_mail_followups = [watch];
+    globalThis.__mailFixture.admin.rpc = async (name: string) => {
+      if (name === "ema_mail_claim_followup" && watch.state === "pending") {
+        watch.state = "checking";
+        return { data: [{ ...watch }], error: null };
+      }
+      return { data: [], error: null };
+    };
+    globalThis.fetch = async () =>
+      Response.json({
+        value: answered
+          ? [
+              {
+                id: "reply",
+                from: { emailAddress: { address: "recipient@example.com" } },
+              },
+            ]
+          : [],
+      });
+    await runApprovedDispatch();
+    assert.equal(watch.state, answered ? "answered" : "reminded");
+    assert.equal(rows.ema_reminders?.length || 0, answered ? 0 : 1);
+    await runApprovedDispatch();
+    assert.equal(rows.ema_reminders?.length || 0, answered ? 0 : 1);
+  }
+});
+test("project documents include only own linked DMS records when mail is enabled", async () => {
+  reset();
+  const projectId = "33333333-3333-4333-8333-333333333333";
+  rows.documents = [
+    {
+      id: "direct",
+      user_id: uid,
+      project_id: projectId,
+      is_archived: false,
+      created_at: "2026-01-01",
+    },
+    {
+      id: "linked",
+      user_id: uid,
+      project_id: null,
+      is_archived: false,
+      created_at: "2026-01-02",
+    },
+    {
+      id: "foreign",
+      user_id: "foreign",
+      project_id: null,
+      is_archived: false,
+      created_at: "2026-01-03",
+    },
+  ];
+  rows.dms_document_links = [
+    {
+      user_id: uid,
+      document_id: "linked",
+      entity_type: "project",
+      entity_id: projectId,
+    },
+    {
+      user_id: uid,
+      document_id: "foreign",
+      entity_type: "project",
+      entity_id: projectId,
+    },
+  ];
+  assert.deepEqual(
+    (await getDocuments(projectId)).map((d) => d.id),
+    ["linked", "direct"],
+  );
+  process.env.EMA_MAIL_ENABLED = "false";
+  assert.deepEqual(
+    (await getDocuments(projectId)).map((d) => d.id),
+    ["direct"],
+  );
 });

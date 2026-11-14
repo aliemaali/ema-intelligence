@@ -2062,3 +2062,249 @@
 .workspace[data-theme="light"] .receiptOptions small {
   color: #526575;
 }
+.richEditor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 220px;
+}
+.richToolbar,
+.linkTools,
+.templateTools,
+.scheduleControls,
+.toolRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.richToolbar,
+.linkTools,
+.templateTools {
+  padding: 8px 15px;
+  border-bottom: 1px solid #ffffff15;
+}
+.richToolbar button,
+.linkTools button,
+.templateTools button,
+.messageTools button,
+.queueItem button {
+  border: 1px solid #6c929750;
+  background: #1c333c;
+  color: #d5e6e9;
+  padding: 7px 10px;
+  border-radius: 4px;
+}
+.composeWindow .richToolbar select,
+.composeWindow .richToolbar input,
+.composeWindow .linkTools input,
+.composeWindow .templateTools input,
+.composeWindow .templateTools select {
+  width: auto;
+  max-width: 100%;
+  padding: 5px;
+  margin: 0;
+}
+.composeWindow .richToolbar input[type="color"] {
+  width: 32px;
+  height: 29px;
+  padding: 1px;
+}
+.linkTools input {
+  flex: 1;
+  min-width: 100px;
+}
+.richBody {
+  min-height: 170px;
+  flex: 1;
+  padding: 18px 22px;
+  line-height: 1.7;
+  outline-offset: -2px;
+  overflow-wrap: anywhere;
+}
+.richBody table,
+.richReview table {
+  border-collapse: collapse;
+}
+.richBody td,
+.richBody th,
+.richReview td,
+.richReview th {
+  border: 1px solid #8b9ca7;
+  padding: 6px 10px;
+  min-width: 70px;
+}
+.richBody a,
+.richReview a {
+  text-decoration: underline;
+  color: #149d85;
+}
+.richReview {
+  white-space: normal;
+}
+.richBody p,
+.richReview p {
+  margin: 4px 0 10px;
+  color: inherit;
+}
+.dropHint {
+  padding: 8px 22px;
+  color: #8aafae;
+  font-size: 10px;
+}
+.attachmentName {
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  padding: 0;
+}
+.textSignature {
+  padding: 12px 22px;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  font-size: 12px;
+}
+.scheduleControls {
+  padding: 8px 20px;
+}
+.composeWindow .scheduleControls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.composeWindow .scheduleControls input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.composeWindow .scheduleControls input[type="datetime-local"] {
+  width: auto;
+  margin: 0;
+}
+.messageTools {
+  border: 1px solid #56787444;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 25px 0;
+  background: #172931;
+}
+.messageTools h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+.messageTools input,
+.messageTools select {
+  max-width: 100%;
+  min-width: 0;
+  background: #10212c;
+  color: #d5e6e9;
+  border: 1px solid #43626c;
+  padding: 7px;
+  border-radius: 4px;
+}
+.messageTools small {
+  display: block;
+  color: #9bb1be;
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+.toolRow {
+  margin: 9px 0;
+}
+.thread details {
+  border-top: 1px solid #7f999940;
+  padding: 12px 0;
+}
+.thread summary {
+  cursor: pointer;
+  line-height: 1.6;
+}
+.thread p {
+  white-space: pre-wrap;
+  line-height: 1.8;
+}
+.queueItem {
+  display: grid;
+  gap: 7px;
+  padding: 12px 0;
+  border-top: 1px solid #78929440;
+}
+.queueItem button {
+  justify-self: start;
+}
+.queueItem span {
+  color: #9bb4c5;
+}
+.auxItem textarea {
+  width: 100%;
+  min-height: 130px;
+  display: block;
+  margin: 10px 0;
+  background: #0c1923;
+  color: #d5e4ec;
+  border: 1px solid #2a4250;
+  padding: 10px;
+}
+.workspace[data-theme="light"] .richToolbar,
+.workspace[data-theme="light"] .linkTools,
+.workspace[data-theme="light"] .templateTools {
+  border-bottom-color: #dce3e9;
+}
+.workspace[data-theme="light"] .messageTools {
+  background: #f6faf8;
+  border-color: #d2e3da;
+}
+.workspace[data-theme="light"] .richToolbar button,
+.workspace[data-theme="light"] .linkTools button,
+.workspace[data-theme="light"] .templateTools button,
+.workspace[data-theme="light"] .messageTools button,
+.workspace[data-theme="light"] .queueItem button {
+  color: #255744;
+  background: #e8f1ec;
+  border-color: #cadbd1;
+}
+.workspace[data-theme="light"] .messageTools input,
+.workspace[data-theme="light"] .messageTools select,
+.workspace[data-theme="light"] .auxItem textarea {
+  background: #fff;
+  color: #244051;
+  border-color: #cfdae1;
+}
+.workspace[data-theme="light"] .queueItem span,
+.workspace[data-theme="light"] .dropHint,
+.workspace[data-theme="light"] .messageTools small {
+  color: #526575;
+}
+@media (max-width: 650px) {
+  .richToolbar,
+  .linkTools,
+  .templateTools {
+    padding-inline: 12px;
+    gap: 5px;
+  }
+  .richBody {
+    padding: 14px 16px;
+    min-height: 130px;
+  }
+  .richToolbar button {
+    padding: 7px;
+  }
+  .composeWindow .richToolbar select {
+    max-width: 95px;
+  }
+  .messageTools {
+    padding: 12px;
+  }
+  .messageTools input {
+    font-size: 16px;
+  }
+  .scheduleControls {
+    padding-inline: 12px;
+  }
+  .composeWindow .scheduleControls label {
+    flex-wrap: wrap;
+  }
+}

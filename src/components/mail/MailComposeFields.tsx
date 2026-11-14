@@ -1,19 +1,12 @@
 "use client";
 import { useRef, useState } from "react";
-import {
-  IndentIncrease,
-  List,
-  ListOrdered,
-  Paperclip,
-  Save,
-  Send,
-  ShieldCheck,
-  X,
-} from "lucide-react";
+import { Paperclip, Save, Send, ShieldCheck, X } from "lucide-react";
 import type { MailDraft } from "@/lib/mail/model";
+import { builtInTemplates } from "@/lib/mail/productivity";
+import { MailRichEditor } from "./MailRichEditor";
 import { MailSignature } from "./MailSignature";
+import { localDateTime, type Template } from "./useMailProductivity";
 import s from "./mail.module.css";
-
 type Account = { mailbox: string; name?: string; can_send: boolean };
 export function MailComposeFields({
   draft,
@@ -23,6 +16,9 @@ export function MailComposeFields({
   addFiles,
   save,
   review,
+  templates,
+  onSaveTemplate,
+  onPreview,
 }: {
   draft: MailDraft;
   accounts: Account[];
@@ -31,36 +27,15 @@ export function MailComposeFields({
   addFiles: (files: FileList | null) => void;
   save: () => void;
   review: () => void;
+  templates: Template[];
+  onSaveTemplate: (title: string) => void;
+  onPreview: (index: number) => void;
 }) {
-  const [cc, setCc] = useState(draft.cc.some(Boolean));
-  const [bcc, setBcc] = useState(draft.bcc.some(Boolean));
-  const editor = useRef<HTMLTextAreaElement>(null);
+  const [cc, setCc] = useState(draft.cc.some(Boolean)),
+    [bcc, setBcc] = useState(draft.bcc.some(Boolean)),
+    [title, setTitle] = useState("");
   const file = useRef<HTMLInputElement>(null);
-  function prefixLines(kind: "bullet" | "number" | "indent") {
-    const el = editor.current;
-    if (!el) return;
-    const start =
-      el.selectionStart === 0
-        ? 0
-        : draft.body.lastIndexOf("\n", el.selectionStart - 1) + 1;
-    const next = draft.body.indexOf("\n", el.selectionEnd);
-    const end = next < 0 ? draft.body.length : next;
-    const value = draft.body
-      .slice(start, end)
-      .split("\n")
-      .map(
-        (line, i) =>
-          `${kind === "bullet" ? "• " : kind === "number" ? `${i + 1}. ` : "    "}${line}`,
-      )
-      .join("\n");
-    update({
-      body: draft.body.slice(0, start) + value + draft.body.slice(end),
-    });
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(start, start + value.length);
-    });
-  }
+  const options: Template[] = [...builtInTemplates, ...templates];
   return (
     <>
       <div
@@ -78,13 +53,57 @@ export function MailComposeFields({
           }
           onClick={review}
         >
-          <Send size={16} /> Senden <ShieldCheck size={13} />
+          <Send size={16} />
+          {draft.scheduledAt ? "Versand planen" : "Senden"}
+          <ShieldCheck size={13} />
         </button>
         <button disabled={busy} onClick={() => file.current?.click()}>
-          <Paperclip size={17} /> Datei anfügen
+          <Paperclip size={17} />
+          Datei anfügen
         </button>
         <button disabled={busy} onClick={save}>
-          <Save size={16} /> Entwurf speichern
+          <Save size={16} />
+          Entwurf speichern
+        </button>
+      </div>
+      <div className={s.templateTools}>
+        <select
+          aria-label="Textvorlage auswählen"
+          defaultValue=""
+          disabled={busy}
+          onChange={(e) => {
+            const t = options.find((t) => t.id === e.target.value);
+            if (t)
+              update({
+                subject: t.subject,
+                body: t.body,
+                bodyHtml: t.body_html || undefined,
+              });
+            e.target.value = "";
+          }}
+        >
+          <option value="">Vorlage einsetzen …</option>
+          {options.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.title}
+            </option>
+          ))}
+        </select>
+        <input
+          aria-label="Name der neuen Vorlage"
+          maxLength={100}
+          placeholder="Vorlagenname"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <button
+          disabled={busy || !title.trim() || !draft.body.trim()}
+          onClick={() => {
+            onSaveTemplate(title.trim());
+            setTitle("");
+          }}
+        >
+          Als Vorlage speichern
         </button>
       </div>
       <div className={s.addressFields}>
@@ -107,30 +126,30 @@ export function MailComposeFields({
         </label>
         {(["to", "cc", "bcc"] as const)
           .filter(
-            (field) =>
-              field === "to" ||
-              (field === "cc"
+            (f) =>
+              f === "to" ||
+              (f === "cc"
                 ? cc || draft.cc.some(Boolean)
                 : bcc || draft.bcc.some(Boolean)),
           )
-          .map((field) => (
-            <div className={s.addressRow} key={field}>
-              <label htmlFor={`compose-${field}`}>
-                {field === "to" ? "An" : field === "cc" ? "Cc" : "Bcc"}
+          .map((f) => (
+            <div className={s.addressRow} key={f}>
+              <label htmlFor={`compose-${f}`}>
+                {f === "to" ? "An" : f === "cc" ? "Cc" : "Bcc"}
               </label>
               <input
-                id={`compose-${field}`}
+                id={`compose-${f}`}
                 disabled={busy}
-                value={draft[field].join("; ")}
+                value={draft[f].join("; ")}
                 onChange={(e) =>
                   update({
-                    [field]: e.target.value.split(/[;,]/).map((v) => v.trim()),
+                    [f]: e.target.value.split(/[;,]/).map((v) => v.trim()),
                   })
                 }
                 placeholder="E-Mail-Adresse hinzufügen"
                 autoComplete="off"
               />
-              {field === "to" && (
+              {f === "to" && (
                 <div className={s.recipientToggles}>
                   <button aria-pressed={cc} onClick={() => setCc((v) => !v)}>
                     Cc
@@ -152,26 +171,44 @@ export function MailComposeFields({
           />
         </label>
       </div>
-      <div className={s.composeEditor}>
-        <label className={s.srOnly} htmlFor="compose-message">
-          Nachricht
-        </label>
-        <textarea
-          id="compose-message"
-          ref={editor}
+      <div
+        className={s.composeEditor}
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (e.dataTransfer.files.length) {
+            e.preventDefault();
+            if (!busy) addFiles(e.dataTransfer.files);
+          }
+        }}
+      >
+        <small className={s.dropHint}>
+          Dateien hierher ziehen oder „Datei anfügen“ wählen.
+        </small>
+        <MailRichEditor
+          body={draft.body}
+          html={draft.bodyHtml}
           disabled={busy}
-          value={draft.body}
-          placeholder="Schreibe deine Nachricht …"
-          onChange={(e) => update({ body: e.target.value })}
+          onChange={(body, bodyHtml) => update({ body, bodyHtml })}
         />
+        {draft.signatureText && (
+          <div className={s.textSignature}>{draft.signatureText}</div>
+        )}
         {draft.signatureId && <MailSignature />}
-        {draft.attachments.length > 0 && (
+        {!!draft.attachments.length && (
           <div className={s.composeFiles}>
             {draft.attachments.map((a, i) => (
               <div key={i}>
                 <Paperclip size={15} />
                 <span>
-                  {a.name}
+                  <button
+                    type="button"
+                    className={s.attachmentName}
+                    onClick={() => onPreview(i)}
+                  >
+                    {a.name}
+                  </button>
                   <small>
                     {Math.ceil((a.contentBytes.length * 0.75) / 1024)} KB
                   </small>
@@ -182,7 +219,7 @@ export function MailComposeFields({
                   aria-label={`${a.name} entfernen`}
                   onClick={() =>
                     update({
-                      attachments: draft.attachments.filter((_, j) => j !== i),
+                      attachments: draft.attachments.filter((_, j) => i !== j),
                     })
                   }
                 >
@@ -191,6 +228,40 @@ export function MailComposeFields({
               </div>
             ))}
           </div>
+        )}
+      </div>
+      <div className={s.scheduleControls}>
+        <label>
+          <input
+            type="checkbox"
+            disabled={busy}
+            checked={!!draft.scheduledAt}
+            onChange={(e) =>
+              update({
+                scheduledAt: e.target.checked
+                  ? new Date(Date.now() + 3600000).toISOString()
+                  : undefined,
+              })
+            }
+          />
+          Später senden
+        </label>
+        {draft.scheduledAt && (
+          <label>
+            Versandtermin{" "}
+            <input
+              aria-label="Geplanter Versandtermin"
+              type="datetime-local"
+              disabled={busy}
+              value={localDateTime(new Date(draft.scheduledAt))}
+              onChange={(e) => {
+                if (e.target.value)
+                  update({
+                    scheduledAt: new Date(e.target.value).toISOString(),
+                  });
+              }}
+            />
+          </label>
         )}
       </div>
       <div className={s.receiptOptions}>
@@ -202,7 +273,7 @@ export function MailComposeFields({
             onChange={(e) =>
               update({ isReadReceiptRequested: e.target.checked })
             }
-          />{" "}
+          />
           Lesebestätigung anfordern
         </label>
         <label>
@@ -213,69 +284,30 @@ export function MailComposeFields({
             onChange={(e) =>
               update({ isDeliveryReceiptRequested: e.target.checked })
             }
-          />{" "}
+          />
           Empfangsbestätigung anfordern
         </label>
         <small>
           Bestätigungen hängen vom Empfänger und dessen Mailsystem ab.
         </small>
       </div>
-      <div className={s.textTools} role="toolbar" aria-label="Textwerkzeuge">
-        <span>Nur Text</span>
-        <i />
-        <button
-          disabled={busy}
-          title="Aufzählung"
-          aria-label="Aufzählung einfügen"
-          onClick={() => prefixLines("bullet")}
-        >
-          <List size={18} />
-        </button>
-        <button
-          disabled={busy}
-          title="Nummerierung"
-          aria-label="Nummerierung einfügen"
-          onClick={() => prefixLines("number")}
-        >
-          <ListOrdered size={18} />
-        </button>
-        <button
-          disabled={busy}
-          title="Einrücken"
-          aria-label="Text einrücken"
-          onClick={() => prefixLines("indent")}
-        >
-          <IndentIncrease size={18} />
-        </button>
-        <i />
-        <button
-          disabled={busy}
-          aria-label="Datei anfügen"
-          onClick={() => file.current?.click()}
-        >
-          <Paperclip size={18} />
-        </button>
-        <input
-          ref={file}
-          className={s.srOnly}
-          type="file"
-          multiple
-          aria-label="Anhänge auswählen"
-          disabled={busy}
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
+      <input
+        ref={file}
+        className={s.srOnly}
+        type="file"
+        multiple
+        aria-label="Anhänge auswählen"
+        disabled={busy}
+        onChange={(e) => {
+          addFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
       <div className={s.composeStatus}>
         <ShieldCheck size={13} />
         <span>
-          „Senden“ öffnet die Versandfreigabe.{" "}
-          {draft.attachments.length
-            ? `${draft.attachments.length} Anhang/Anhänge · `
-            : ""}
-          Anhänge zusammen max. 2,25 MB.
+          „Senden“ und „Versand planen“ öffnen zuerst die Freigabe. Anhänge
+          zusammen max. 2,25 MB.
         </span>
       </div>
     </>

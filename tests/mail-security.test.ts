@@ -289,3 +289,93 @@ test("signature uses the supplied immutable image as CID and escapes mail text",
   assert.ok(Buffer.from(a.contentBytes, "base64").byteLength > 0);
   assert.notEqual(digest(d), digest(draft()));
 });
+
+test("rich HTML is canonical, keeps formatting and tables, removes executable content", async () => {
+  const { sanitizeRichHtml } = await import("../src/lib/mail/rich-text");
+  const dirty =
+    '<p onclick="alert(1)"><b>Bold</b><i>Italic</i><span style="color:#ff0000;background:url(https://evil.example/x)">Red</span><a href="javascript:alert(1)">bad</a><a href="https://ema-enterprise.de">good</a></p><img src="https://evil.example/pixel"><svg onload="alert(1)"></svg><script>alert(1)</script><table><tr><td>Cell</td></tr></table>';
+  const html = sanitizeRichHtml(dirty);
+  assert.match(html, /<b>Bold<\/b>/);
+  assert.match(html, /<table>/);
+  assert.match(html, /#ff0000/);
+  assert.ok(
+    !/onclick|javascript:|<img|<svg|<script|background|evil\.example/.test(
+      html,
+    ),
+  );
+  assert.equal(sanitizeRichHtml(html), html);
+  const d = draftSchema.parse({
+    ...draft(),
+    bodyHtml: dirty,
+    signatureText: "<script>signature</script>",
+  });
+  const m = graphMessage(d, "id");
+  assert.equal(m.body.contentType, "HTML");
+  assert.ok(m.body.content.includes("&lt;script&gt;signature"));
+  assert.notEqual(digest(d), digest(draft()));
+});
+test("reply-all excludes own address, deduplicates To/Cc and never copies Bcc", async () => {
+  const { replyAllRecipients } = await import("../src/lib/mail/productivity");
+  const a = (address: string) => ({ emailAddress: { address } });
+  const result = replyAllRecipients(
+    {
+      id: "m",
+      subject: "s",
+      bodyPreview: "",
+      receivedDateTime: new Date().toISOString(),
+      isRead: true,
+      hasAttachments: false,
+      from: a("sender@example.com"),
+      replyTo: [a("reply@example.com")],
+      toRecipients: [
+        a("UNLUER@EMA-ENTERPRISE.DE"),
+        a("reply@example.com"),
+        a("colleague@example.com"),
+      ],
+      ccRecipients: [a("colleague@example.com"), a("cc@example.com")],
+    },
+    "unluer@ema-enterprise.de",
+  );
+  assert.deepEqual(result, {
+    to: ["reply@example.com", "colleague@example.com"],
+    cc: ["cc@example.com"],
+    bcc: [],
+  });
+});
+test("scheduled time and personal signature are immutable approval inputs", async () => {
+  const { checkSchedule } = await import("../src/lib/mail/productivity");
+  const when = new Date(Date.now() + 3600000).toISOString();
+  assert.equal(checkSchedule(when), when);
+  assert.throws(() => checkSchedule(new Date(Date.now() - 1000).toISOString()));
+  assert.throws(() =>
+    checkSchedule(new Date(Date.now() + 31 * 86400000).toISOString()),
+  );
+  const d = draftSchema.parse({
+    ...draft(),
+    scheduledAt: when,
+    signatureText: "Employee",
+  });
+  assert.notEqual(
+    digest(d),
+    digest({ ...d, scheduledAt: new Date(Date.now() + 7200000).toISOString() }),
+  );
+  assert.notEqual(digest(d), digest({ ...d, signatureText: "Changed" }));
+});
+
+test("file picker and drop share count, size and encoded-total limits", async () => {
+  const { validateComposeFiles } = await import("../src/lib/mail/attachments");
+  validateComposeFiles([], [{ size: 2_000_000 }]);
+  assert.throws(() => validateComposeFiles([], [{ size: 2_000_001 }]));
+  assert.throws(() =>
+    validateComposeFiles(
+      Array.from({ length: 10 }, () => ({ contentBytes: "" })),
+      [{ size: 1 }],
+    ),
+  );
+  assert.throws(() =>
+    validateComposeFiles(
+      [{ contentBytes: "a".repeat(2_800_000) }],
+      [{ size: 200_000 }],
+    ),
+  );
+});

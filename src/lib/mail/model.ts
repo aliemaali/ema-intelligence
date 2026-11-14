@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeRichHtml } from "./rich-text";
 
 export const mailboxSchema = z.union([
   z.literal("me"),
@@ -37,6 +38,13 @@ export const draftSchema = z
       .max(500)
       .regex(/^[^\r\n]+$/),
     body: z.string().trim().min(1).max(100_000),
+    bodyHtml: z.string().max(200_000).transform(sanitizeRichHtml).optional(),
+    signatureText: z.string().trim().max(4000).optional(),
+    scheduledAt: z
+      .string()
+      .datetime({ offset: true })
+      .transform((v) => new Date(v).toISOString())
+      .optional(),
     signatureId: z.literal("ali-unluer-v1").optional(),
     isReadReceiptRequested: z.boolean().optional(),
     isDeliveryReceiptRequested: z.boolean().optional(),

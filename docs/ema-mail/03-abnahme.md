@@ -1,5 +1,7 @@
 # EMA Mail – aktueller Implementierungs- und Abnahmestand
 
+Aktuelle Erweiterungsphase: Alle acht Alltagserweiterungen sind im Branch umgesetzt. Maßgeblich für Editor, Vorlagen, Projekte, Wiedervorlagen, Mitarbeitersignaturen und geplanten Versand ist [05-alltag-erweiterungen.md](05-alltag-erweiterungen.md). 71 Mailtests, 60 Bestandsprüfungen und SQL-Prüfung mit zwölf RLS-Tabellen bestanden; die neuen Migrationen/Scheduler bleiben in Produktion deaktiviert. Die folgenden Abschnitte dokumentieren auch die vorausgegangenen Ausbaustände.
+
 Stand: 14.11.2026. Branch: `feature/ema-mail`, Fortsetzung auf Basis von 073f69f. Keine Produktionsmigration, kein Merge nach main, keine Änderung produktiver Variablen, kein neuer produktiver Zeitplan. Keine echte E-Mail oder Test-Push an Benutzer versendet.
 
 ## Umsetzung der zehn Anforderungen
@@ -41,7 +43,7 @@ Stand: 14.11.2026. Branch: `feature/ema-mail`, Fortsetzung auf Basis von 073f69f
 1. Die neue Datenbank und der Worker sind in Produktion **nicht** eingerichtet. Vercel Preview und Produktion teilen im Bestand Variableneinträge; daher fehlt eine sicher isolierte, produktionsnahe Testinstanz mit eigenen Microsoft-Testpostfächern.
 2. Polling ist kein Echtzeit-Webhook. Durchsatz, Warteschlangenlatenz und Runtime-/Tarifgrenzen sind zu messen. Der Worker ist zunächst für kleine Teams begrenzt; Details in `04-hintergrundbetrieb.md`.
 3. Der bestehende Office-Import unterstützt die dort eingerichteten autorisierten Rechnungspostfächer, derzeit die beiden EMA-Adressen. Weitere Mitarbeiterpostfächer werden nicht automatisch zu Office-Rechnungspostfächern.
-4. Native Antworten sind umgesetzt. Weiterleitung übernimmt bislang Text; Originalanhänge müssen bewusst ergänzt werden. Anhänge beim Verfassen zusammen ca. 2,25 MB. Große Upload-Sessions, beliebige Unterordner/Regeln, Signaturen, Serien-/delegierte Kalender und Offline-/S/MIME-Unterstützung sind noch keine vollständige Outlook-Parität.
+4. Native Antworten sind umgesetzt. Weiterleitung übernimmt bislang Text; Originalanhänge müssen bewusst ergänzt werden. Anhänge beim Verfassen zusammen ca. 2,25 MB. Große Upload-Sessions, beliebige Unterordner/Regeln, Serien-/delegierte Kalender und Offline-/S/MIME-Unterstützung sind noch keine vollständige Outlook-Parität.
 5. Der neue Mail-Versand verlangt Freigabe. Ältere Versandwege anderer EMA-Module bleiben bestehen; für einen plattformweiten Ausschließlichkeitsnachweis müssen diese separat migriert werden.
 6. Datenaufbewahrung/Löschung für Entwürfe, Audit und KI-Cache sowie Belastungs-/Sicherheitsabnahme sind vor Live-Betrieb festzulegen. Eine Demo ersetzt diese Abnahmen nicht.
 
@@ -54,7 +56,7 @@ Isolierte Supabase-Testdatenbank und eigenes/shared Microsoft-Testpostfach anbin
 - Kompakte App-Leiste, Ordnernavigation, Nachrichtenliste, Lesebereich und zentrale Befehlsleiste; EMA-Farben bleiben erhalten.
 - Neues Schreibfenster am unteren rechten Rand, vergrößerbar und minimierbar; auf schmalen Geräten bildschirmfüllend.
 - Von/An/Betreff als kompakte Zeilen, Cc/Bcc zuschaltbar, Dateiablage, Entwurfsspeicherung und funktionale Textwerkzeuge für Listen/Einrückung.
-- Editor bleibt bewusst als „Nur Text“ gekennzeichnet. Rich-Text-Schriftformatierung ist noch nicht implementiert. Keine inaktiven Fett-/Kursiv-Schaltflächen.
+- Editor bleibt bewusst als „Nur Text“ gekennzeichnet. Rich-Text-Schriftformatierung wurde in der aktuellen Erweiterungsphase ergänzt (siehe 05). Fett, Kursiv, Schriftgrößen/-farben, Links und Basistabellen sind jetzt bedienbar.
 - „Senden“ öffnet weiterhin ausschließlich die Prüfung; der bestehende Freigabe-/Einmaltoken-Versandpfad wird unverändert verwendet.
 
 ## Helle und dunkle Ansicht (14.11.2026)

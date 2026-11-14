@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { sanitizeRichHtml, textHtml } from "./rich-text";
 import type { MailDraft } from "./model";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -72,12 +73,13 @@ export function graphMessage(draft: MailDraft, reference: string) {
   }
   return {
     subject: draft.subject,
-    body: draft.signatureId
-      ? {
-          contentType: "HTML",
-          content: `<div>${escapeHtml(draft.body).replace(/\r?\n/g, "<br>")}</div><br><img src="cid:${SIGNATURE_CID}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(SIGNATURE_ALT)}">`,
-        }
-      : { contentType: "Text", content: draft.body },
+    body:
+      draft.signatureId || draft.bodyHtml || draft.signatureText
+        ? {
+            contentType: "HTML",
+            content: `<div>${draft.bodyHtml ? sanitizeRichHtml(draft.bodyHtml) : textHtml(draft.body)}</div>${draft.signatureText ? `<br><div>${textHtml(draft.signatureText)}</div>` : ""}${draft.signatureId ? `<br><img src="cid:${SIGNATURE_CID}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(SIGNATURE_ALT)}">` : ""}`,
+          }
+        : { contentType: "Text", content: draft.body },
     isReadReceiptRequested: draft.isReadReceiptRequested === true,
     isDeliveryReceiptRequested: draft.isDeliveryReceiptRequested === true,
     toRecipients: recipients(draft.to),

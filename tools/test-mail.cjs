@@ -20,6 +20,15 @@ const fs = require("node:fs");
       {
         name: "isolated-mail-test-services",
         setup(build) {
+          build.onResolve({ filter: /^next\/(cache|navigation)$/ }, (args) => ({
+            path: args.path,
+            namespace: "mock-next",
+          }));
+          build.onLoad({ filter: /.*/, namespace: "mock-next" }, () => ({
+            contents:
+              'export const revalidatePath=()=>{}; export const redirect=(url)=>{throw new Error("Redirect: "+url)};',
+            loader: "js",
+          }));
           build.onResolve({ filter: /^@\/lib\/supabase\/server$/ }, (args) => ({
             path: args.path,
             namespace: "mock-db",

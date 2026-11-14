@@ -35,3 +35,7 @@ Keine der nachfolgenden Maßnahmen wurde auf Produktion ausgeführt:
 - https://learn.microsoft.com/en-us/graph/api/calendar-post-events?view=graph-rest-1.0
 - https://learn.microsoft.com/en-us/graph/api/event-update?view=graph-rest-1.0
 - https://learn.microsoft.com/en-us/graph/api/contact-update?view=graph-rest-1.0
+
+## Ergänzung: ausdrücklich freigegebener Terminversand
+
+Der bestehende KI-/Inbox-Worker bleibt ohne Sendefunktion. Der neue getrennte Endpunkt `/api/cron/ema-mail-dispatch` benötigt `EMA_MAIL_SCHEDULED_SEND_ENABLED=true` und `EMA_MAIL_ENABLED=true` außerhalb von Vercel Preview sowie das bestehende Cron-Secret. Er verwendet ausschließlich dauerhaft freigegebene, gehashte Versand-Snapshots und prüft Mitarbeiter-/Postfachrechte erneut. Die SQL-Vorlage `scheduler-test-approved-send-example.sql` richtet nur nach ausdrücklicher Auswahl einer isolierten Testumgebung einen Test-Cron ein und wurde nicht ausgeführt. Details und Grenzen in 05-alltag-erweiterungen.md.

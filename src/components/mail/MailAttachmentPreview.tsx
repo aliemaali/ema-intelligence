@@ -34,7 +34,13 @@ export function MailAttachmentPreview({
         if (!supported) return;
         let bytes: Uint8Array,
           mime = file.contentType.toLowerCase();
-        if (demo) {
+        if (file.contentBytes) {
+          if (file.contentBytes.length > 20_000_000)
+            throw new Error("Datei zu groß.");
+          bytes = Uint8Array.from(atob(file.contentBytes), (c) =>
+            c.charCodeAt(0),
+          );
+        } else if (demo) {
           const { jsPDF } = await import("jspdf");
           const pdf = new jsPDF();
           pdf.setTextColor(14, 92, 72);
@@ -112,6 +118,7 @@ export function MailAttachmentPreview({
     };
   }, [
     file.id,
+    file.contentBytes,
     file.contentType,
     file.name,
     mailbox,
