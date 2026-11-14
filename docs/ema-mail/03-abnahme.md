@@ -60,3 +60,7 @@ Isolierte Supabase-Testdatenbank und eigenes/shared Microsoft-Testpostfach anbin
 ## Helle und dunkle Ansicht (14.11.2026)
 
 EMA Mail startet standardmäßig mit weißen Flächen. Der Hell-/Dunkel-Schalter im Kopfbereich ist auf Desktop und Mobil sichtbar. Die Präferenz wird ausschließlich für EMA Mail unter `ema-mail-theme-v1` gespeichert; bei gesperrtem Browser-Speicher bleibt der Schalter für die Sitzung funktionsfähig. Andere EMA-Module werden nicht umgestellt. Schreibfenster, Dialoge, Kalender, Kontakte, Aufgaben und Einstellungen verwenden dieselbe lokale Ansicht.
+
+## Anhangvorschau und Logo (14.11.2026)
+
+PDF-/PNG-/JPEG-Anhänge öffnen per Klick in einem Dialog. Echte Dateien werden über den bestehenden authentifizierten, postfachgebundenen Anhang-Endpunkt abgerufen. Dateityp und Signatur werden vor der Darstellung geprüft, HTML/SVG/Office-Dateien werden nicht eingebettet. Temporäre Blob-URLs werden beim Schließen verworfen; keine externen Viewer oder öffentlichen Storage-Links. Browser-PDF-Unterstützung vorausgesetzt; „Im Browser öffnen“ und Download bleiben als Ausweichmöglichkeiten. Die Demo erzeugt eine ausdrücklich markierte Beispieldatei. Der Kopfbereich verwendet das vorhandene EMA-Wort-/Bildlogo aus `/brand/ema-logo.png`.

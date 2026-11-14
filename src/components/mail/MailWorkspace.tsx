@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { MailAttachmentPreview } from "./MailAttachmentPreview";
 import {
   Archive,
   ArrowLeft,
@@ -182,6 +184,11 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     [composer, setComposer] = useState<MailDraft | null>(null),
     [draftId, setDraftId] = useState<string | undefined>(),
     [review, setReview] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{
+    file: Attachment;
+    mailbox: string;
+    messageId: string;
+  } | null>(null);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [composeMinimized, setComposeMinimized] = useState(false);
   const [demoPim, setDemoPim] = useState<
@@ -667,9 +674,17 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     >
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
-          <span className={s.mark}>EMA</span>
+          <span className={s.brandLogo}>
+            <Image
+              src="/brand/ema-logo.png"
+              alt="EMA Enterprise GmbH"
+              width={96}
+              height={45}
+              priority
+            />
+          </span>
           <strong>
-            EMA <em>Mail</em>
+            <em>Mail</em>
           </strong>
         </Link>
         <label className={s.search}>
@@ -1154,15 +1169,27 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     </div>
                     {attachments.map((a) => (
                       <div key={a.id} className={s.attachment}>
-                        <div className={s.fileIcon}>
-                          <FileText size={21} />
-                        </div>
-                        <div>
-                          <strong>{a.name}</strong>
-                          <small>
-                            {Math.round(a.size / 1000)} KB · Originalanhang
-                          </small>
-                        </div>
+                        <button
+                          className={s.attachmentOpen}
+                          aria-label={`${a.name} Vorschau öffnen`}
+                          onClick={() =>
+                            setPreviewFile({
+                              file: a,
+                              mailbox,
+                              messageId: selected.id,
+                            })
+                          }
+                        >
+                          <span className={s.fileIcon}>
+                            <FileText size={21} />
+                          </span>
+                          <span>
+                            <strong>{a.name}</strong>
+                            <small>
+                              {Math.round(a.size / 1000)} KB · Vorschau öffnen
+                            </small>
+                          </span>
+                        </button>
                         <button
                           className={s.iconButton}
                           disabled={busy}
@@ -1486,6 +1513,14 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           </section>
         </div>
       ) : null}
+      {previewFile && (
+        <MailAttachmentPreview
+          key={`${previewFile.mailbox}:${previewFile.messageId}:${previewFile.file.id}`}
+          {...previewFile}
+          demo={demo}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
       {taskOpen ? (
         <div className={s.modalBackdrop}>
           <section

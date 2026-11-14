@@ -7,11 +7,13 @@ export function MailDialog({
   onClose,
   busy = false,
   children,
+  className = "",
 }: {
   title: string;
   onClose: () => void;
   busy?: boolean;
   children: React.ReactNode;
+  className?: string;
 }) {
   const ref = useRef<HTMLElement>(null),
     close = useRef(onClose);
@@ -54,7 +56,7 @@ export function MailDialog({
     <div className={s.modalBackdrop}>
       <section
         ref={ref}
-        className={s.modal}
+        className={`${s.modal} ${className}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
