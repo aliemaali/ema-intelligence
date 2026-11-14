@@ -1514,3 +1514,79 @@ test("actual analysis route caches only validated results under the current user
     else process.env.OPENAI_API_KEY = key;
   }
 });
+
+test("AI connection test never reads a mailbox, forwards client content or stores a real draft", async () => {
+  reset();
+  const key = process.env.OPENAI_API_KEY;
+  process.env.OPENAI_API_KEY = "test-only";
+  globalThis.__mailFixture.token = async () => {
+    throw new Error("Mailbox must not be accessed");
+  };
+  globalThis.__mailFixture.admin.rpc = async () => ({
+    data: true,
+    error: null,
+  });
+  const value = {
+    summary: "Fiktiver Termin.",
+    priority: "normal",
+    reason: "Test.",
+    invoiceCandidate: false,
+    suggestedReply: "Danke für den Vorschlag.",
+    tasks: ["Termin prüfen"],
+  };
+  let calls = 0;
+  globalThis.fetch = async (url, init) => {
+    calls++;
+    assert.equal(String(url), "https://api.openai.com/v1/responses");
+    const body = JSON.parse(String(init?.body));
+    assert.ok(!body.input.includes("PRIVATE MAIL"));
+    assert.match(body.input, /fiktive Testnachricht/);
+    return Response.json({
+      status: "completed",
+      output: [
+        {
+          type: "message",
+          content: [{ type: "output_text", text: JSON.stringify(value) }],
+        },
+      ],
+    });
+  };
+  try {
+    const response = await POST(
+      req("analyze-test", {
+        mailbox: "foreign@example.com",
+        body: "PRIVATE MAIL",
+      }),
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { analysis: value, test: true });
+    assert.equal(calls, 1);
+    assert.equal(rows.ema_mail_analysis, undefined);
+    assert.equal(rows.ema_mail_drafts, undefined);
+  } finally {
+    if (key === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = key;
+  }
+});
+test("AI connection test requires active staff, same origin, POST and the existing hourly budget", async () => {
+  reset();
+  globalThis.__mailFixture.admin.rpc = async () => ({
+    data: false,
+    error: null,
+  });
+  assert.equal((await POST(req("analyze-test", {}))).status, 429);
+  assert.equal(
+    (await GET(new NextRequest("https://ema.example/api/mail/analyze-test")))
+      .status,
+    405,
+  );
+  const cross = req("analyze-test", {});
+  cross.headers.set("origin", "https://evil.example");
+  assert.equal((await POST(cross)).status, 403);
+  user = null;
+  assert.equal((await POST(req("analyze-test", {}))).status, 401);
+  reset();
+  process.env.VERCEL_ENV = "preview";
+  assert.equal((await POST(req("analyze-test", {}))).status, 503);
+  assert.equal(graphCalls, 0);
+});
