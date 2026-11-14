@@ -26,3 +26,14 @@ export async function combinedInboxPage<T extends { id: string; receivedDateTime
   }
   return { messages, sources, hasMore: sources.some(s => s.items.length || s.cursor) };
 }
+
+/** Counters must be complete and nonnegative; never turn unavailable data into zero. */
+export function sumMailboxStats(rows: { unread: number; drafts: number }[]) {
+  return rows.reduce((total, row) => {
+    if (![row.unread, row.drafts].every(value => Number.isSafeInteger(value) && value >= 0))
+      throw new Error('Postfachzähler derzeit nicht verfügbar.');
+    const next = { unread: total.unread + row.unread, drafts: total.drafts + row.drafts };
+    if (!Object.values(next).every(Number.isSafeInteger)) throw new Error('Postfachzähler derzeit nicht verfügbar.');
+    return next;
+  }, { unread: 0, drafts: 0 });
+}

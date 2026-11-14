@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { combinedInboxPage } from '../src/lib/mail/combined-inbox';
+import { combinedInboxPage, sumMailboxStats } from '../src/lib/mail/combined-inbox';
 const msg = (id: string, n: number) => ({ id, receivedDateTime: new Date(n * 1000).toISOString() });
 const initial = () => ['me', 'team@example.com'].map(mailbox => ({ mailbox, items: [] as ReturnType<typeof msg>[], cursor: null, started: false }));
 test('combined pages refill an exhausted source before emitting older mail; same IDs remain distinct', async () => {
@@ -33,4 +33,11 @@ test('empty mailboxes do not prevent other messages or cause empty cursor loops'
   assert.equal(result.messages.length, 1);
   assert.equal(result.hasMore, false);
   assert.equal(calls, 2);
+});
+
+ test('dashboard totals include each mailbox and reject unavailable counters', () => {
+  assert.deepEqual(sumMailboxStats([{unread:2,drafts:1},{unread:7,drafts:3},{unread:0,drafts:2}]), {unread:9,drafts:6});
+  assert.throws(() => sumMailboxStats([{unread:-1,drafts:0}]));
+  assert.throws(() => sumMailboxStats([{unread:NaN,drafts:0}]));
+  assert.throws(() => sumMailboxStats([{unread:Number.MAX_SAFE_INTEGER,drafts:0},{unread:1,drafts:0}]));
 });
