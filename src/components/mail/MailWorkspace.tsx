@@ -1480,12 +1480,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     <Bell size={22} />
                     <h3>Auf deinem iPhone</h3>
                     <p>
-                      EMA in Safari öffnen und zum Home-Bildschirm hinzufügen.
-                      Push-Erlaubnis in der bestehenden Assistenz aktivieren.
+                      EMA Mail in Safari öffnen und zum Home-Bildschirm hinzufügen.
+                      Mitteilungen und App-Kennzeichen unten für eMail aktivieren.
                       Neue-Mail-Push lässt sich nach Einrichtung des
                       Hintergrundbetriebs pro Postfach einschalten.
                     </p>
-                    <Link href="/assistant">Benachrichtigungen einrichten</Link>
+                    <a href="#ema-mail-homescreen">eMail auf dem Home-Bildschirm einrichten</a>
                   </article>
                   <article>
                     <Sparkles size={22} />

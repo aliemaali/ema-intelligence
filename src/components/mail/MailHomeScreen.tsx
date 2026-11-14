@@ -60,7 +60,7 @@ export function MailHomeScreen({demo, visible, revision, background=false}: {dem
     finally {setBusy(false);}
   }
   if(!visible) return null;
-  return <section className={s.auxItem}>
+  return <section id="ema-mail-homescreen" className={s.auxItem}>
     <h3>eMail auf deinem Home-Bildschirm</h3>
     {/* The system overlays the live unread badge; it is never baked into the icon. */}
     {/* eslint-disable-next-line @next/next/no-img-element */}
