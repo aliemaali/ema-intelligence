@@ -903,3 +903,584 @@
     gap: 11px;
   }
 }
+
+/* Outlook-style workspace: app rail, compact folders, command ribbon. */
+.topbar {
+  height: 54px;
+  padding-inline: 18px;
+  background: #102b30;
+  gap: 35px;
+}
+.brand {
+  min-width: 242px;
+}
+.mark {
+  width: 29px;
+  height: 29px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+.brand strong {
+  font-size: 18px;
+}
+.search {
+  max-width: 660px;
+  padding: 7px 13px;
+  border-radius: 5px;
+  background: #e0f4f311;
+  border-color: #ffffff19;
+}
+.demoBanner {
+  padding: 6px 20px;
+  font-size: 10px;
+  background: #102421;
+}
+.ribbon {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 55px;
+  padding: 8px 20px 8px 75px;
+  border-bottom: 1px solid #ffffff14;
+  background: #14212b;
+}
+.ribbon button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d4e0e6;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 9px 12px;
+  white-space: nowrap;
+}
+.ribbon button:hover,
+.textTools button:hover,
+.composeCommands button:hover {
+  background: #ffffff10;
+}
+.ribbon .ribbonNew {
+  background: #65d7b7;
+  color: #092b22;
+  font-weight: 650;
+}
+.ribbonDivider {
+  width: 1px;
+  height: 25px;
+  background: #ffffff18;
+  margin: 0 8px;
+}
+.ribbon .ribbonRefresh {
+  margin-left: auto;
+}
+.body {
+  grid-template-columns: 54px 210px 340px minmax(300px, 1fr);
+  min-height: calc(100dvh - 136px);
+}
+.appRail {
+  background: #0c1721;
+  border-right: 1px solid #ffffff10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding-top: 16px;
+}
+.appRail button {
+  border: 0;
+  background: transparent;
+  color: #96a9b8;
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  position: relative;
+}
+.appRail button[aria-current="page"] {
+  color: #6ce3c3;
+  background: #263c43;
+}
+.appRail button[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  height: 22px;
+  width: 3px;
+  background: #6ce3c3;
+  border-radius: 2px;
+}
+.appRail button:last-child {
+  margin-top: auto;
+  margin-bottom: 15px;
+}
+.sidebar {
+  padding: 18px 10px;
+  gap: 24px;
+  background: #101b25;
+}
+.sidebar > .composeButton {
+  display: none;
+}
+.nav {
+  gap: 1px;
+}
+.nav button {
+  border-radius: 4px;
+  padding: 9px 12px;
+  color: #c2cdd6;
+}
+.nav .active {
+  background: #26423f;
+  color: #d6fff0;
+  font-weight: 600;
+}
+.label {
+  font-size: 11px;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  font-weight: 600;
+  color: #99aebd;
+}
+.sidebar section:nth-of-type(2) {
+  display: none;
+}
+.listHeader {
+  padding: 18px 18px 0;
+}
+.titleRow h1 {
+  font-size: 19px;
+  margin-right: auto;
+}
+.titleRow > button:first-child {
+  display: none;
+}
+.tabs {
+  gap: 20px;
+  margin-top: 20px;
+}
+.tabs button {
+  font-size: 12px;
+}
+.listMeta {
+  padding: 10px 18px;
+}
+.message {
+  padding: 13px 18px;
+  border-bottom-color: #ffffff0b;
+}
+.message.selected {
+  background: #203a43;
+}
+.senderRow {
+  margin-bottom: 5px;
+}
+.senderRow strong {
+  font-size: 13px;
+}
+.subject {
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+.preview {
+  -webkit-line-clamp: 1;
+  font-size: 12px;
+}
+.reader {
+  background: #111c27;
+}
+.toolbar {
+  height: 52px;
+  background: #14212b;
+  gap: 20px;
+  padding-inline: 23px;
+}
+.mailContent {
+  padding: 24px 30px;
+}
+.mailContent h2 {
+  font-size: 23px;
+}
+.aiCard {
+  border-radius: 6px;
+}
+.aux {
+  grid-column: 3/-1;
+}
+.composeBackdrop {
+  position: fixed;
+  z-index: 100;
+  bottom: 0;
+  right: 26px;
+  width: min(750px, calc(100vw - 40px));
+  pointer-events: none;
+}
+.composeWindow {
+  pointer-events: auto;
+  width: 100%;
+  max-height: min(800px, calc(100dvh - 80px));
+  height: min(760px, calc(100dvh - 80px));
+  border-radius: 8px 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  background: #15222e;
+  border: 1px solid #42605f;
+  box-shadow:
+    0 0 0 1px #0004,
+    0 15px 75px #0009;
+}
+.composeWindow > header {
+  min-height: 47px;
+  padding: 4px 13px 4px 20px;
+  background: #223942;
+  flex-shrink: 0;
+  border-bottom: 1px solid #ffffff10;
+}
+.composeWindow > header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.windowControls {
+  display: flex;
+  margin-left: 20px;
+}
+.composeCommands {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #ffffff0e;
+}
+.composeCommands button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 10px;
+  background: none;
+  color: #c1d1dd;
+  font-size: 12px;
+}
+.composeCommands .primary {
+  background: #65d7b7;
+  color: #092b22;
+  padding: 8px 16px;
+}
+.addressFields {
+  padding: 0 22px;
+}
+.composeWindow .addressRow {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  border-bottom: 1px solid #ffffff15;
+  margin: 0;
+  gap: 12px;
+  color: #a6bac9;
+  font-size: 12px;
+}
+.addressRow > label,
+.addressRow > span {
+  flex: 0 0 48px;
+  margin: 0;
+  font-size: 12px;
+}
+.composeWindow .addressRow input,
+.composeWindow .addressRow select {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 8px 0;
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  width: 0;
+  box-shadow: none;
+}
+.addressRow select option {
+  background: #15222e;
+}
+.recipientToggles {
+  display: flex;
+  gap: 8px;
+}
+.recipientToggles button {
+  border: 0;
+  background: transparent;
+  color: #8edec9;
+  padding: 6px;
+}
+.composeEditor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 200px;
+  overflow: auto;
+}
+.composeWindow .composeEditor textarea {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 20px 23px;
+  margin: 0;
+  flex: 1;
+  min-height: 200px;
+  resize: none;
+  line-height: 1.7;
+  font-size: 14px;
+}
+.composeFiles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 22px 16px;
+}
+.composeFiles > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #203643;
+  border: 1px solid #ffffff17;
+  border-radius: 4px;
+  max-width: 100%;
+}
+.composeFiles span {
+  overflow-wrap: anywhere;
+}
+.composeFiles small {
+  display: block;
+  color: #92a8b7;
+  font-size: 10px;
+}
+.textTools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  background: #192a37;
+  border-top: 1px solid #ffffff13;
+}
+.textTools > span {
+  color: #b7cad6;
+  margin-right: 8px;
+  font-size: 12px;
+}
+.textTools button {
+  background: none;
+  color: #b4c6d3;
+  border: 0;
+  padding: 6px;
+  border-radius: 3px;
+}
+.textTools i {
+  height: 18px;
+  width: 1px;
+  background: #ffffff20;
+  margin: 0 6px;
+}
+.composeStatus {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #91aaa9;
+  font-size: 10px;
+  line-height: 1.6;
+  padding: 9px 20px;
+  background: #11251f;
+}
+.composeWindow > p,
+.composeWindow > .review {
+  margin: 18px 22px;
+}
+.composeWindow > footer {
+  padding: 12px 22px 20px;
+  margin-top: auto;
+}
+.composeNotice {
+  padding: 9px 20px;
+  background: #3b321e;
+  color: #eedba9;
+  font-size: 12px;
+}
+.composeExpanded {
+  inset: 0;
+  width: auto;
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #02070d99;
+  pointer-events: auto;
+}
+.composeExpanded .composeWindow {
+  max-width: 1100px;
+  height: calc(100dvh - 60px);
+  max-height: none;
+  border-radius: 8px;
+}
+.composeMinimized .composeWindow {
+  height: 47px;
+  overflow: hidden;
+}
+.composeMinimized .composeWindow > :not(header) {
+  display: none;
+}
+@media (min-width: 1600px) {
+  .body {
+    grid-template-columns: 54px 230px 390px minmax(400px, 1fr);
+  }
+}
+@media (max-width: 1100px) {
+  .body {
+    grid-template-columns: 48px 180px 300px minmax(280px, 1fr);
+  }
+  .brand {
+    min-width: 195px;
+  }
+  .ribbon {
+    padding-left: 60px;
+  }
+  .ribbon button {
+    padding-inline: 8px;
+  }
+}
+@media (max-width: 950px) {
+  .body {
+    grid-template-columns: 48px 180px minmax(0, 1fr);
+  }
+  .reader {
+    display: none;
+  }
+  .reading .reader {
+    display: block;
+    grid-column: 3;
+  }
+  .reading .list {
+    display: none;
+  }
+  .aux {
+    grid-column: 3;
+  }
+  .mobileBack {
+    display: flex !important;
+  }
+  .ribbon {
+    gap: 2px;
+  }
+  .ribbonDivider {
+    margin-inline: 3px;
+  }
+  .ribbon button {
+    font-size: 11px;
+  }
+}
+@media (max-width: 650px) {
+  .appRail {
+    display: none;
+  }
+  .body {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none;
+  }
+  .sidebar.open {
+    inset: 142px 50px 0 0;
+  }
+  .sidebar section:nth-of-type(2),
+  .sidebar > .composeButton {
+    display: flex;
+  }
+  .sidebar section:nth-of-type(2) {
+    display: block;
+  }
+  .reading .reader,
+  .aux {
+    grid-column: 1;
+  }
+  .titleRow > button:first-child {
+    display: inline-flex;
+  }
+  .topbar {
+    height: 58px;
+    padding-inline: 14px;
+    gap: 14px;
+  }
+  .brand {
+    min-width: 0;
+  }
+  .search {
+    min-width: 0;
+  }
+  .ribbon {
+    padding: 6px 12px;
+    min-height: 49px;
+  }
+  .ribbon > button:not(.ribbonNew):not(.ribbonRefresh),
+  .ribbonDivider {
+    display: none;
+  }
+  .ribbon .ribbonNew {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+  .body {
+    min-height: calc(100dvh - 136px);
+  }
+  .composeBackdrop {
+    inset: 0;
+    padding: 0;
+    width: 100%;
+    pointer-events: auto;
+  }
+  .composeWindow,
+  .composeExpanded .composeWindow {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+  .composeCommands {
+    gap: 4px;
+    padding: 9px 12px;
+  }
+  .composeCommands button {
+    font-size: 11px;
+    padding-inline: 8px;
+  }
+  .addressFields {
+    padding-inline: 16px;
+  }
+  .composeWindow .addressRow input,
+  .composeWindow .addressRow select,
+  .composeWindow .composeEditor textarea {
+    font-size: 16px;
+  }
+  .composeWindow .composeEditor textarea {
+    padding-inline: 16px;
+  }
+  .composeStatus {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .composeMinimized {
+    top: auto;
+  }
+  .composeMinimized .composeWindow {
+    height: 47px;
+  }
+  .windowControls button {
+    min-width: 35px;
+    min-height: 38px;
+  }
+}

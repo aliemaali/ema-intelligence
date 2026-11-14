@@ -48,3 +48,11 @@ Stand: 14.11.2026. Branch: `feature/ema-mail`, Fortsetzung auf Basis von 073f69f
 ## Nächster notwendiger Abnahmeschritt
 
 Isolierte Supabase-Testdatenbank und eigenes/shared Microsoft-Testpostfach anbinden, beide Migrationen dort testen, den vorbereiteten Worker nur dort aktivieren und Office-/Exchange-/iPhone-Flüsse Ende zu Ende prüfen. Erst danach eine konkrete Live-Freigabe vorbereiten. Die Betriebsanleitung enthält keine bereits ausgeführte Produktivänderung.
+
+## Oberfläche nach Outlook-Vorbild (14.11.2026)
+
+- Kompakte App-Leiste, Ordnernavigation, Nachrichtenliste, Lesebereich und zentrale Befehlsleiste; EMA-Farben bleiben erhalten.
+- Neues Schreibfenster am unteren rechten Rand, vergrößerbar und minimierbar; auf schmalen Geräten bildschirmfüllend.
+- Von/An/Betreff als kompakte Zeilen, Cc/Bcc zuschaltbar, Dateiablage, Entwurfsspeicherung und funktionale Textwerkzeuge für Listen/Einrückung.
+- Editor bleibt bewusst als „Nur Text“ gekennzeichnet. Rich-Text-Schriftformatierung ist noch nicht implementiert. Keine inaktiven Fett-/Kursiv-Schaltflächen.
+- „Senden“ öffnet weiterhin ausschließlich die Prüfung; der bestehende Freigabe-/Einmaltoken-Versandpfad wird unverändert verwendet.

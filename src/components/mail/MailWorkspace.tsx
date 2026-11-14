@@ -17,6 +17,9 @@ import {
   Mail,
   Menu,
   MoreHorizontal,
+  Maximize2,
+  Minimize2,
+  Minus,
   Paperclip,
   PenLine,
   Plus,
@@ -41,6 +44,7 @@ import {
 import { demoMessages, demoReply } from "@/lib/mail/demo";
 import type { MailAnalysis } from "@/lib/mail/analysis";
 import s from "./mail.module.css";
+import { MailComposeFields } from "./MailComposeFields";
 import { MailTeam } from "./MailTeam";
 import { MailPim, type MailPimItem } from "./MailPim";
 import { MailAutomation } from "./MailAutomation";
@@ -152,6 +156,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     [composer, setComposer] = useState<MailDraft | null>(null),
     [draftId, setDraftId] = useState<string | undefined>(),
     [review, setReview] = useState(false);
+  const [composeExpanded, setComposeExpanded] = useState(false);
+  const [composeMinimized, setComposeMinimized] = useState(false);
   const [demoPim, setDemoPim] = useState<
     Partial<Record<"calendar" | "contacts" | "tasks", MailPimItem[]>>
   >({});
@@ -162,7 +168,41 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     detailVersion = useRef(0),
     composeVersion = useRef(0);
   const account = accounts.find((a) => a.mailbox === mailbox);
+  const hasComposer = Boolean(composer);
+  const composeRef = useRef<HTMLElement>(null);
   const openedLink = useRef(false);
+  useEffect(() => {
+    if (!review || !hasComposer) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = composeRef.current;
+    dialog?.querySelector<HTMLElement>("button:not(:disabled)")?.focus();
+    function trap(e: KeyboardEvent) {
+      if (e.key === "Escape" && !busy) {
+        e.preventDefault();
+        setReview(false);
+      }
+      if (e.key !== "Tab") return;
+      const fields = Array.from(
+        dialog?.querySelectorAll<HTMLElement>(
+          "button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled)",
+        ) ?? [],
+      ).filter((el) => el.getClientRects().length);
+      const first = fields[0],
+        last = fields[fields.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first?.focus();
+      }
+    }
+    document.addEventListener("keydown", trap);
+    return () => {
+      document.removeEventListener("keydown", trap);
+      previous?.isConnected && previous.focus();
+    };
+  }, [review, busy, hasComposer]);
   useEffect(() => {
     if (demo || !accounts.length || openedLink.current) return;
     openedLink.current = true;
@@ -316,6 +356,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           ? `\n\n--- Weitergeleitete Nachricht ---\nVon: ${selected.from.emailAddress.address}\nBetreff: ${selected.subject}\n\n${selected.body?.content || selected.bodyPreview}`
           : "");
     }
+    setComposeMinimized(false);
     setComposer(draft);
   }
   async function analyze() {
@@ -643,7 +684,74 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           </button>
         </div>
       ) : null}
+      <div className={s.ribbon} aria-label="Start">
+        <button
+          className={s.ribbonNew}
+          disabled={!account?.can_send}
+          onClick={() => newCompose()}
+        >
+          <Plus size={18} /> Neue E-Mail
+        </button>
+        <span className={s.ribbonDivider} />
+        <button
+          disabled={!selected || busy || !account?.can_write}
+          onClick={() => void messageAction("trash")}
+        >
+          <Trash2 size={17} /> Löschen
+        </button>
+        <button
+          disabled={!selected || busy || !account?.can_write}
+          onClick={() => void messageAction("archive")}
+        >
+          <Archive size={17} /> Archivieren
+        </button>
+        <span className={s.ribbonDivider} />
+        <button
+          disabled={!selected || !account?.can_send}
+          onClick={() => newCompose("reply")}
+        >
+          <Reply size={17} /> Antworten
+        </button>
+        <button
+          disabled={!selected || !account?.can_send}
+          onClick={() => newCompose("forward")}
+        >
+          <ArrowRight size={17} /> Weiterleiten
+        </button>
+        <button
+          className={s.ribbonRefresh}
+          disabled={busy}
+          onClick={() => void load()}
+          aria-label="Alle Ordner aktualisieren"
+        >
+          <RefreshCw size={16} />
+        </button>
+      </div>
       <div className={s.body}>
+        <nav className={s.appRail} aria-label="Anwendungen">
+          {(
+            [
+              { id: "mail", label: "E-Mail", icon: Mail },
+              { id: "calendar", label: "Kalender", icon: CalendarDays },
+              { id: "contacts", label: "Kontakte", icon: Users },
+              { id: "tasks", label: "Aufgaben", icon: ListTodo },
+              { id: "settings", label: "Einstellungen", icon: Settings },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              aria-label={item.label}
+              title={item.label}
+              aria-current={view === item.id ? "page" : undefined}
+              onClick={() => {
+                setView(item.id);
+                setNavOpen(false);
+              }}
+            >
+              <item.icon size={21} />
+            </button>
+          ))}
+        </nav>
         <aside
           className={`${s.sidebar} ${navOpen ? s.open : ""}`}
           aria-label="Postfach-Navigation"
@@ -800,6 +908,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                         onClick={() => {
                           composeVersion.current++;
                           setDraftId(d.id);
+                          setComposeMinimized(false);
                           setComposer(d.payload);
                           setReview(false);
                         }}
@@ -1193,27 +1302,74 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         )}
       </div>
       {composer ? (
-        <div className={s.modalBackdrop}>
+        <div
+          className={`${s.composeBackdrop} ${composeExpanded || review ? s.composeExpanded : ""} ${composeMinimized && !review ? s.composeMinimized : ""}`}
+        >
           <section
-            className={s.modal}
+            ref={composeRef}
+            className={`${s.modal} ${s.composeWindow}`}
             role="dialog"
-            aria-modal="true"
+            aria-modal={review ? "true" : undefined}
             aria-label={review ? "Versand prüfen" : "E-Mail verfassen"}
           >
             <header>
-              <h2>{review ? "Prüfen & freigeben" : "Neue E-Mail"}</h2>
-              <button
-                className={s.iconButton}
-                disabled={busy}
-                aria-label="Entwurf schließen"
-                onClick={() => {
-                  composeVersion.current++;
-                  setComposer(null);
-                }}
-              >
-                <X size={20} />
-              </button>
+              <h2>
+                {review
+                  ? "Prüfen & freigeben"
+                  : composer.subject || "Neue Nachricht"}
+              </h2>
+              <div className={s.windowControls}>
+                {!review && (
+                  <>
+                    <button
+                      className={s.iconButton}
+                      aria-label={
+                        composeMinimized
+                          ? "Entwurf wiederherstellen"
+                          : "Entwurf minimieren"
+                      }
+                      onClick={() => setComposeMinimized((v) => !v)}
+                    >
+                      <Minus size={17} />
+                    </button>
+                    <button
+                      className={s.iconButton}
+                      aria-label={
+                        composeExpanded
+                          ? "Entwurf verkleinern"
+                          : "Entwurf vergrößern"
+                      }
+                      onClick={() => {
+                        setComposeExpanded((v) => !v);
+                        setComposeMinimized(false);
+                      }}
+                    >
+                      {composeExpanded ? (
+                        <Minimize2 size={16} />
+                      ) : (
+                        <Maximize2 size={16} />
+                      )}
+                    </button>
+                  </>
+                )}
+                <button
+                  className={s.iconButton}
+                  disabled={busy}
+                  aria-label="Entwurf schließen"
+                  onClick={() => {
+                    composeVersion.current++;
+                    setComposer(null);
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </header>
+            {notice && (
+              <div className={s.composeNotice} role="status">
+                {notice}
+              </div>
+            )}
             {review ? (
               <>
                 <p>
@@ -1263,121 +1419,23 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                 </footer>
               </>
             ) : (
-              <>
-                <label>
-                  Absender
-                  <select
-                    disabled={busy}
-                    value={composer.mailbox}
-                    onChange={(e) => updateDraft({ mailbox: e.target.value })}
-                  >
-                    {accounts
-                      .filter((a) => a.can_send)
-                      .map((a) => (
-                        <option key={a.mailbox} value={a.mailbox}>
-                          {a.name || a.mailbox}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                {(["to", "cc", "bcc"] as const).map((field) => (
-                  <label key={field}>
-                    {field === "to" ? "An" : field.toUpperCase()}
-                    <input
-                      disabled={busy}
-                      value={composer[field].join("; ")}
-                      onChange={(e) =>
-                        updateDraft({
-                          [field]: e.target.value
-                            .split(/[;,]/)
-                            .map((v) => v.trim()),
-                        })
-                      }
-                      placeholder="name@firma.de"
-                    />
-                  </label>
-                ))}
-                <label>
-                  Betreff
-                  <input
-                    disabled={busy}
-                    value={composer.subject}
-                    onChange={(e) => updateDraft({ subject: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Nachricht
-                  <textarea
-                    disabled={busy}
-                    value={composer.body}
-                    onChange={(e) => updateDraft({ body: e.target.value })}
-                  />
-                </label>
-                <label>
-                  Anhänge hinzufügen (zusammen max. 2,25 MB)
-                  <input
-                    type="file"
-                    multiple
-                    disabled={busy}
-                    onChange={(e) => void addFiles(e.target.files)}
-                  />
-                </label>
-                {composer.attachments.map((a, i) => (
-                  <p key={i}>
-                    {a.name}
-                    <button
-                      className={s.iconButton}
-                      aria-label={`${a.name} entfernen`}
-                      onClick={() =>
-                        updateDraft({
-                          attachments: composer.attachments.filter(
-                            (_, j) => j !== i,
-                          ),
-                        })
-                      }
-                    >
-                      <X size={13} />
-                    </button>
-                  </p>
-                ))}
-                <p>
-                  KI-Antworten bitte inhaltlich prüfen. E-Mail-Inhalte werden
-                  erst nach deiner Freigabe versendet.
-                </p>
-                <footer>
-                  <button
-                    className={s.subtle}
-                    disabled={busy}
-                    onClick={() => void saveDraft()}
-                  >
-                    Entwurf speichern
-                  </button>
-                  <button
-                    className={s.primary}
-                    disabled={
-                      busy ||
-                      !composer.to.some(Boolean) ||
-                      !composer.subject.trim() ||
-                      !composer.body.trim()
-                    }
-                    onClick={() => {
-                      setComposer({
-                        ...composer,
-                        to: composer.to.filter(Boolean),
-                        cc: composer.cc.filter(Boolean),
-                        bcc: composer.bcc.filter(Boolean),
-                      });
-                      setReview(true);
-                    }}
-                  >
-                    <ShieldCheck
-                      size={14}
-                      style={{ display: "inline", marginRight: 8 }}
-                    />
-                    Versand prüfen
-                  </button>
-                </footer>
-              </>
+              <MailComposeFields
+                draft={composer}
+                accounts={accounts}
+                busy={busy}
+                update={updateDraft}
+                addFiles={(files) => void addFiles(files)}
+                save={() => void saveDraft()}
+                review={() => {
+                  setComposer({
+                    ...composer,
+                    to: composer.to.filter(Boolean),
+                    cc: composer.cc.filter(Boolean),
+                    bcc: composer.bcc.filter(Boolean),
+                  });
+                  setReview(true);
+                }}
+              />
             )}
           </section>
         </div>
