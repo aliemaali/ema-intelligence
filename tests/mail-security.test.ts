@@ -460,3 +460,13 @@ test("swipe delete distinguishes horizontal intent from taps, vertical scrolling
   assert.equal(swipeRelease(240, 390), "close");
   assert.equal(swipeRelease(-100, 100), "reveal");
 });
+
+test('Graph OData next links normalize while preserving mailbox boundaries', () => {
+  const personal = safeGraphUrl("https://graph.microsoft.com/v1.0/me/mailFolders('inbox')/messages?$skip=30", '/me');
+  assert.equal(new URL(personal).pathname, '/v1.0/me/mailFolders/inbox/messages');
+  assert.equal(new URL(personal).searchParams.get('$skip'), '30');
+  const root = mailboxRoot('team@example.com');
+  assert.equal(new URL(safeGraphUrl("https://graph.microsoft.com/v1.0/users('team%40example.com')/mailFolders('inbox')/messages?$skip=30", root)).pathname, `/v1.0${root}/mailFolders/inbox/messages`);
+  assert.throws(() => safeGraphUrl("https://graph.microsoft.com/v1.0/users('other@example.com')/mailFolders('inbox')/messages", root));
+  assert.throws(() => safeGraphUrl("https://evil.example/v1.0/users('team@example.com')/mailFolders('inbox')/messages", root));
+});

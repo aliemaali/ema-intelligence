@@ -1672,3 +1672,20 @@ test("dashboard statistics reject invalid counters and are unavailable in previe
   process.env.VERCEL_ENV="preview";
   assert.equal((await GET(new NextRequest("https://ema.example/api/mail/dashboard-stats"))).status,503);
 });
+
+test('message pagination accepts actual Graph OData folder links and rejects a different folder', async () => {
+  reset();
+  let calls = 0;
+  globalThis.fetch = async (url) => {
+    calls++;
+    assert.equal(new URL(String(url)).pathname, '/v1.0/me/mailFolders/inbox/messages');
+    return Response.json({value:[]});
+  };
+  const link = "https://graph.microsoft.com/v1.0/me/mailFolders('inbox')/messages?$skip=30";
+  const response = await GET(new NextRequest('https://ema.example/api/mail/messages?' + new URLSearchParams({cursor:link})));
+  assert.equal(response.status, 200);
+  assert.equal(calls, 1);
+  const denied = await GET(new NextRequest('https://ema.example/api/mail/messages?' + new URLSearchParams({cursor:link.replace("('inbox')", "('sentitems')")})));
+  assert.equal(denied.status, 400);
+  assert.equal(calls, 1);
+});
