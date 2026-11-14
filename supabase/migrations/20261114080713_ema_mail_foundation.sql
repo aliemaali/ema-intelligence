@@ -48,4 +48,17 @@ alter table public.ema_mail_audit enable row level security;
 alter table public.ema_mail_analysis enable row level security;
 revoke all on public.ema_mail_memberships,public.ema_mail_drafts,public.ema_mail_audit,public.ema_mail_analysis from public,anon,authenticated;
 grant all on public.ema_mail_memberships,public.ema_mail_drafts,public.ema_mail_audit,public.ema_mail_analysis to service_role;
+-- Serialize budget claims per user so concurrent requests cannot overspend.
+create function public.ema_mail_claim_analysis(p_user_id uuid,p_limit integer default 20)
+returns boolean language plpgsql security invoker set search_path=pg_catalog,public as $$
+begin
+  if p_limit < 1 or p_limit > 20 then return false; end if;
+  perform pg_advisory_xact_lock(hashtextextended('ema-mail-analysis:' || p_user_id::text,0));
+  if (select count(*) from public.ema_mail_audit where user_id=p_user_id and action='analysis_requested' and created_at > now()-interval '1 hour') >= p_limit then return false; end if;
+  insert into public.ema_mail_audit(user_id,action) values(p_user_id,'analysis_requested');
+  return true;
+end;
+$$;
+revoke all on function public.ema_mail_claim_analysis(uuid,integer) from public,anon,authenticated;
+grant execute on function public.ema_mail_claim_analysis(uuid,integer) to service_role;
 commit;

@@ -24,6 +24,26 @@ async function handle(request:NextRequest) {
     let input:Record<string,unknown>={}
     if(mutating) {const text=await request.text();if(text.length>4_000_000)throw new MailError(413,'Nachricht zu groß.');input=JSON.parse(text)}
     const admin=mailAdmin()
+    if(action==='team' || action==='memberships') {
+      const {data:profile}=await session.db.from('profiles').select('role').eq('id',session.user.id).maybeSingle()
+      if(!profile || !['admin','owner'].includes(profile.role)) throw new MailError(403,'Nur Administratoren verwalten Postfachrechte.')
+      if(action==='team' && !mutating) {
+        const [people,rights]=await Promise.all([admin.from('profiles').select('id,full_name,email,role,is_active').eq('is_active',true),admin.from('ema_mail_memberships').select('user_id,mailbox,can_read,can_write,can_send')])
+        if(people.error || rights.error) throw new MailError(503,'Teamrechte nicht verfügbar.')
+        return json({people:people.data,memberships:rights.data})
+      }
+      if(action==='memberships' && mutating) {
+        const values=z.object({userId:z.string().uuid(),mailbox:z.string().email().max(254).transform(v=>v.toLowerCase()),canRead:z.boolean(),canWrite:z.boolean(),canSend:z.boolean()}).strict().parse(input)
+        const {data:target}=await admin.from('profiles').select('role,is_active').eq('id',values.userId).maybeSingle()
+        if(!target || target.is_active!==true || !['owner','admin','manager','employee','user','staff'].includes(target.role))throw new MailError(400,'Kein aktiver interner Mitarbeiter.')
+        if(!values.canRead && (values.canWrite || values.canSend))throw new MailError(400,'Bearbeiten und Senden erfordern Leserechte.')
+        await audit(session.user.id,'mailbox_membership_changed',values.userId)
+        const {error}=await admin.from('ema_mail_memberships').upsert({user_id:values.userId,mailbox:values.mailbox,can_read:values.canRead,can_write:values.canWrite,can_send:values.canSend},{onConflict:'user_id,mailbox'})
+        if(error)throw new MailError(503,'Postfachrechte konnten nicht gespeichert werden.')
+        return json({ok:true})
+      }
+      throw new MailError(405,'Methode nicht erlaubt.')
+    }
     if(action==='mailboxes' && !mutating) {
       const {data,error}=await admin.from('ema_mail_memberships').select('mailbox,can_read,can_write,can_send').eq('user_id',session.user.id).eq('can_read',true)
       if(error) throw new MailError(503,'Mail-Datenbankschema noch nicht eingerichtet.')
@@ -53,7 +73,7 @@ async function handle(request:NextRequest) {
       if(action==='approve') {
         if(input.contentHash!==draft.content_hash || input.confirmed!==true || !['draft','approved'].includes(draft.status)) throw new MailError(409,'Bitte exakt diesen Entwurf prüfen und freigeben.')
         const approval=newApproval()
-        await audit(session.user.id,'draft_approved',id)
+        await audit(session.user.id,'draft_approval_requested',id)
         const {data,error}=await admin.from('ema_mail_drafts').update({status:'approved',approval_hash:approval.hash,approval_expires_at:approval.expires}).eq('id',id).eq('user_id',session.user.id).eq('content_hash',draft.content_hash).in('status',['draft','approved']).select('id').maybeSingle()
         if(error || !data) throw new MailError(409,'Entwurf wurde zwischenzeitlich verändert.')
         return json({id,approvalToken:approval.token,expiresAt:approval.expires})
@@ -121,10 +141,9 @@ async function handle(request:NextRequest) {
       const key=digest({mailbox,id,body:msg.body,subject:msg.subject})
       const {data:cached}=await admin.from('ema_mail_analysis').select('result').eq('user_id',session.user.id).eq('source_hash',key).maybeSingle()
       if(cached) return json({analysis:cached.result,cached:true})
-      const {count,error:countError}=await admin.from('ema_mail_audit').select('id',{count:'exact',head:true}).eq('user_id',session.user.id).eq('action','analysis_requested').gte('created_at',new Date(Date.now()-3600000).toISOString())
-      if(countError)throw new MailError(503,'Analyse-Limit nicht verfügbar.')
-      if((count ?? 0)>=20)throw new MailError(429,'Maximal 20 neue Analysen pro Stunde. Bitte später versuchen.')
-      await audit(session.user.id,'analysis_requested')
+      const {data:allowed,error:limitError}=await admin.rpc('ema_mail_claim_analysis',{p_user_id:session.user.id,p_limit:20})
+      if(limitError)throw new MailError(503,'Analyse-Limit nicht verfügbar.')
+      if(allowed!==true)throw new MailError(429,'Maximal 20 neue Analysen pro Stunde. Bitte später versuchen.')
       const analysis=await analyzeMessage(msg)
       const {error}=await admin.from('ema_mail_analysis').upsert({user_id:session.user.id,source_hash:key,result:analysis},{onConflict:'user_id,source_hash'})
       if(error)throw new MailError(503,'Analyse konnte nicht gespeichert werden.')
