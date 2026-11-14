@@ -2380,3 +2380,91 @@
   .body { position: relative; }
   .sidebar.open { position: absolute; inset: 0 50px 0 0; }
 }
+
+
+/* Give writing the available space; optional tools stay above the message. */
+.composeWindow {
+  overflow: hidden;
+}
+.composeCommands,
+.addressFields,
+.composeStatus,
+.composeNotice {
+  flex-shrink: 0;
+}
+.composeEditor {
+  min-height: 0;
+}
+.richEditor {
+  flex: 1 0 auto;
+  min-height: 390px;
+}
+.richToolbar {
+  flex-shrink: 0;
+}
+.richBody {
+  flex: 1;
+  min-height: 300px;
+}
+.composeWindow .receiptOptions {
+  gap: 4px 18px;
+  padding: 5px 15px;
+  border-top: 0;
+  border-bottom: 1px solid #ffffff15;
+}
+.composeWindow .receiptOptions label {
+  min-height: 30px;
+  font-size: 12px;
+}
+.composeStatus {
+  padding: 6px 15px;
+}
+.workspace[data-theme="light"] .composeWindow .receiptOptions {
+  border-bottom-color: #dce3e9;
+}
+@media (max-width: 650px) {
+  .composeCommands {
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding: 6px 10px;
+  }
+  .composeCommands button {
+    min-height: 36px;
+    gap: 5px;
+    padding-inline: 7px;
+    white-space: nowrap;
+  }
+  .composeCommands .primary {
+    padding-inline: 10px;
+  }
+  .richEditor {
+    min-height: max(380px, calc(100dvh - 280px));
+  }
+  .richToolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 6px 12px;
+  }
+  .richToolbar > * {
+    flex-shrink: 0;
+  }
+  .composeWindow .richToolbar select {
+    font-size: 16px;
+  }
+  .composeWindow .receiptOptions {
+    gap: 4px 12px;
+    padding: 3px 12px;
+  }
+  .composeWindow .receiptOptions label {
+    font-size: 11px;
+    gap: 6px;
+  }
+  .richBody {
+    font-size: 16px;
+    min-height: 300px;
+    padding: 14px 16px;
+  }
+  .composeStatus {
+    padding: 6px 12px max(6px, env(safe-area-inset-bottom));
+  }
+}

@@ -2,10 +2,8 @@
 import { useRef, useState } from "react";
 import { Paperclip, Save, Send, ShieldCheck, X } from "lucide-react";
 import type { MailDraft } from "@/lib/mail/model";
-import { builtInTemplates } from "@/lib/mail/productivity";
 import { MailRichEditor } from "./MailRichEditor";
 import { MailSignature } from "./MailSignature";
-import { localDateTime, type Template } from "./useMailProductivity";
 import s from "./mail.module.css";
 type Account = { mailbox: string; name?: string; can_send: boolean };
 export function MailComposeFields({
@@ -16,8 +14,6 @@ export function MailComposeFields({
   addFiles,
   save,
   review,
-  templates,
-  onSaveTemplate,
   onPreview,
 }: {
   draft: MailDraft;
@@ -27,15 +23,11 @@ export function MailComposeFields({
   addFiles: (files: FileList | null) => void;
   save: () => void;
   review: () => void;
-  templates: Template[];
-  onSaveTemplate: (title: string) => void;
   onPreview: (index: number) => void;
 }) {
   const [cc, setCc] = useState(draft.cc.some(Boolean)),
-    [bcc, setBcc] = useState(draft.bcc.some(Boolean)),
-    [title, setTitle] = useState("");
+    [bcc, setBcc] = useState(draft.bcc.some(Boolean));
   const file = useRef<HTMLInputElement>(null);
-  const options: Template[] = [...builtInTemplates, ...templates];
   return (
     <>
       <div
@@ -54,7 +46,7 @@ export function MailComposeFields({
           onClick={review}
         >
           <Send size={16} />
-          {draft.scheduledAt ? "Versand planen" : "Senden"}
+          Senden
           <ShieldCheck size={13} />
         </button>
         <button disabled={busy} onClick={() => file.current?.click()}>
@@ -64,46 +56,6 @@ export function MailComposeFields({
         <button disabled={busy} onClick={save}>
           <Save size={16} />
           Entwurf speichern
-        </button>
-      </div>
-      <div className={s.templateTools}>
-        <select
-          aria-label="Textvorlage auswählen"
-          defaultValue=""
-          disabled={busy}
-          onChange={(e) => {
-            const t = options.find((t) => t.id === e.target.value);
-            if (t)
-              update({
-                subject: t.subject,
-                body: t.body,
-                bodyHtml: t.body_html || undefined,
-              });
-            e.target.value = "";
-          }}
-        >
-          <option value="">Vorlage einsetzen …</option>
-          {options.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
-        <input
-          aria-label="Name der neuen Vorlage"
-          maxLength={100}
-          placeholder="Vorlagenname"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <button
-          disabled={busy || !title.trim() || !draft.body.trim()}
-          onClick={() => {
-            onSaveTemplate(title.trim());
-            setTitle("");
-          }}
-        >
-          Als Vorlage speichern
         </button>
       </div>
       <div className={s.addressFields}>
@@ -183,13 +135,38 @@ export function MailComposeFields({
           }
         }}
       >
-        <small className={s.dropHint}>
-          Dateien hierher ziehen oder „Datei anfügen“ wählen.
-        </small>
         <MailRichEditor
           body={draft.body}
           html={draft.bodyHtml}
           disabled={busy}
+          options={
+            <div className={s.receiptOptions} aria-label="Bestätigungen">
+              <label title="Lesebestätigung anfordern – abhängig vom Empfänger und dessen Mailsystem">
+                <input
+                  type="checkbox"
+                  disabled={busy}
+                  aria-label="Lesebestätigung anfordern"
+                  checked={draft.isReadReceiptRequested === true}
+                  onChange={(e) =>
+                    update({ isReadReceiptRequested: e.target.checked })
+                  }
+                />
+                Lesebestätigung
+              </label>
+              <label title="Empfangsbestätigung anfordern – abhängig vom Empfänger und dessen Mailsystem">
+                <input
+                  type="checkbox"
+                  disabled={busy}
+                  aria-label="Empfangsbestätigung anfordern"
+                  checked={draft.isDeliveryReceiptRequested === true}
+                  onChange={(e) =>
+                    update({ isDeliveryReceiptRequested: e.target.checked })
+                  }
+                />
+                Empfangsbestätigung
+              </label>
+            </div>
+          }
           onChange={(body, bodyHtml) => update({ body, bodyHtml })}
         />
         {draft.signatureText && (
@@ -230,67 +207,6 @@ export function MailComposeFields({
           </div>
         )}
       </div>
-      <div className={s.scheduleControls}>
-        <label>
-          <input
-            type="checkbox"
-            disabled={busy}
-            checked={!!draft.scheduledAt}
-            onChange={(e) =>
-              update({
-                scheduledAt: e.target.checked
-                  ? new Date(Date.now() + 3600000).toISOString()
-                  : undefined,
-              })
-            }
-          />
-          Später senden
-        </label>
-        {draft.scheduledAt && (
-          <label>
-            Versandtermin{" "}
-            <input
-              aria-label="Geplanter Versandtermin"
-              type="datetime-local"
-              disabled={busy}
-              value={localDateTime(new Date(draft.scheduledAt))}
-              onChange={(e) => {
-                if (e.target.value)
-                  update({
-                    scheduledAt: new Date(e.target.value).toISOString(),
-                  });
-              }}
-            />
-          </label>
-        )}
-      </div>
-      <div className={s.receiptOptions}>
-        <label>
-          <input
-            type="checkbox"
-            disabled={busy}
-            checked={draft.isReadReceiptRequested === true}
-            onChange={(e) =>
-              update({ isReadReceiptRequested: e.target.checked })
-            }
-          />
-          Lesebestätigung anfordern
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            disabled={busy}
-            checked={draft.isDeliveryReceiptRequested === true}
-            onChange={(e) =>
-              update({ isDeliveryReceiptRequested: e.target.checked })
-            }
-          />
-          Empfangsbestätigung anfordern
-        </label>
-        <small>
-          Bestätigungen hängen vom Empfänger und dessen Mailsystem ab.
-        </small>
-      </div>
       <input
         ref={file}
         className={s.srOnly}
@@ -305,10 +221,7 @@ export function MailComposeFields({
       />
       <div className={s.composeStatus}>
         <ShieldCheck size={13} />
-        <span>
-          „Senden“ und „Versand planen“ öffnen zuerst die Freigabe. Anhänge
-          zusammen max. 2,25 MB.
-        </span>
+        <span>Versand erst nach Freigabe · Anhänge zusammen max. 2,25 MB.</span>
       </div>
     </>
   );
