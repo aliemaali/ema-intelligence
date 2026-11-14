@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 export const metadata = {
   title: "EMA Mail – mobile Vorschau",
   robots: { index: false, follow: false },
@@ -6,15 +7,18 @@ export const metadata = {
 export default function MobilePreview() {
   return (
     <main
-      style={{
-        minHeight: "100dvh",
-        background: "#f3f6f8",
-        color: "#243947",
-        padding: "20px",
-        display: "grid",
-        justifyItems: "center",
-        gap: "16px",
-      }}
+      style={
+        {
+          "--ema-text": "#243947",
+          minHeight: "100dvh",
+          background: "#f3f6f8",
+          color: "#243947",
+          padding: "20px",
+          display: "grid",
+          justifyItems: "center",
+          gap: "16px",
+        } as CSSProperties
+      }
     >
       <header style={{ textAlign: "center" }}>
         <h1 style={{ fontSize: 20 }}>EMA Mail · mobile Vorschau</h1>
