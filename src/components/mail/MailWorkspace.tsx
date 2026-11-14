@@ -322,7 +322,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         if (folder === "drafts") {
           const data = await api("drafts");
           if (version === requestVersion.current) {
-            setDrafts(data.drafts);
+            setDrafts(data.drafts.filter((d: DraftRecord) => d.payload.mailbox === mailbox && ["draft", "approved"].includes(d.status)));
             setMessages([]);
           }
           return;
@@ -611,6 +611,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         },
       });
       if (version === composeVersion.current) setDraftId(result.id);
+      setOverviewRevision(v => v + 1);
       setNotice("Entwurf gespeichert.");
     } catch (e) {
       setNotice((e as Error).message);
@@ -642,6 +643,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       });
       setComposer(null);
       setReview(false);
+      setOverviewRevision(v => v + 1);
       setNotice(result.message);
     } catch (e) {
       setNotice((e as Error).message);
@@ -766,13 +768,16 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
         onCompose={() => newCompose()}
+        onFolder={(id) => { setQ(""); changeFolder(id); }}
+        onSearch={(query) => { navigate("mail"); setQ(query.trim().slice(0,180)); }}
+        demoDraftCount={drafts.filter(d => d.payload.mailbox === mailbox && ["draft", "approved"].includes(d.status)).length}
         onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar} notice={notice}
       /> : <>
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
           <span className={s.brandLogo}>
             <Image
-              src="/brand/ema-logo.png"
+              src={theme === "dark" ? "/brand/ema-mark-white.png" : "/brand/ema-logo.png"}
               alt="EMA Enterprise GmbH"
               width={96}
               height={45}
