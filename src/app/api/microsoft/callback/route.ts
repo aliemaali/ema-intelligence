@@ -5,6 +5,7 @@ import {
   graphFetch,
   MICROSOFT_STATE_COOKIE,
 } from '@/lib/microsoft/graph'
+import { MAIL_SCOPES } from '@/lib/mail/oauth'
 import { saveMicrosoftConnection } from '@/lib/microsoft/session'
 
 export async function GET(request: NextRequest) {
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const token = await exchangeAuthorizationCode(code)
+    const isMail = request.cookies.get('ema_ms_mail_flow')?.value === state
+    const token = await exchangeAuthorizationCode(code, isMail ? MAIL_SCOPES : undefined)
     if (!token.refresh_token) throw new Error('Microsoft hat kein Aktualisierungstoken geliefert.')
 
     let profile: { name?: string; email?: string } = {}
@@ -56,8 +58,9 @@ export async function GET(request: NextRequest) {
       expiresIn: token.expires_in,
     })
 
-    const response = NextResponse.redirect(new URL('/microsoft?connected=1', request.url))
+    const response = NextResponse.redirect(new URL(isMail ? '/mail?connected=1' : '/microsoft?connected=1', request.url))
     response.cookies.set(MICROSOFT_STATE_COOKIE, '', { path: '/', maxAge: 0 })
+    response.cookies.set('ema_ms_mail_flow', '', { path: '/', maxAge: 0 })
     return response
   } catch (tokenError) {
     destination.searchParams.set('error', tokenError instanceof Error ? tokenError.message : 'Microsoft-Anmeldung fehlgeschlagen.')

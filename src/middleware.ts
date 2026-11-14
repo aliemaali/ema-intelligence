@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
   const isPartnerRoute = pathname === '/partner' || pathname.startsWith('/partner/')
   const isMfaRoute = pathname === '/mfa'
   const isInternalRoute =
+    pathname === '/mail' || (pathname.startsWith('/mail/') && pathname !== '/mail/preview') ||
     pathname === '/smart-check' || pathname.startsWith('/smart-check/') || pathname.startsWith('/api/smart-check') ||
     pathname === '/apps' || pathname.startsWith('/apps/') ||
     pathname === '/data-center' || pathname.startsWith('/data-center/') ||

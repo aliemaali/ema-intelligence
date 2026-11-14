@@ -79,7 +79,7 @@ async function tokenRequest(params: URLSearchParams): Promise<TokenResponse> {
   return payload
 }
 
-export async function exchangeAuthorizationCode(code: string) {
+export async function exchangeAuthorizationCode(code: string, scopes = MICROSOFT_SCOPES) {
   const { clientId, clientSecret, redirectUri } = microsoftConfig()
   return tokenRequest(new URLSearchParams({
     client_id: clientId,
@@ -87,7 +87,7 @@ export async function exchangeAuthorizationCode(code: string) {
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
-    scope: MICROSOFT_SCOPES,
+    scope: scopes,
   }))
 }
 

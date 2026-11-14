@@ -22,7 +22,8 @@
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
     "pl:fonts": "pdffonts .tmp/EMA-Projektliste.pdf",
     "test:smart-check": "esbuild tests/smart-check.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/smart-check.test.cjs && node --test .tmp/smart-check.test.cjs",
-    "test:expose-import": "esbuild src/lib/expose/import.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/expose-import.test.cjs && node --test .tmp/expose-import.test.cjs"
+    "test:expose-import": "esbuild src/lib/expose/import.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/expose-import.test.cjs && node --test .tmp/expose-import.test.cjs",
+    "test:mail": "node tools/test-mail.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
