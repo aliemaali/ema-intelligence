@@ -172,7 +172,7 @@ export function MailComposeFields({
         {draft.signatureText && (
           <div className={s.textSignature}>{draft.signatureText}</div>
         )}
-        {draft.signatureId && <MailSignature />}
+        {draft.signatureId && <MailSignature signatureId={draft.signatureId} />}
         {!!draft.attachments.length && (
           <div className={s.composeFiles}>
             {draft.attachments.map((a, i) => (
