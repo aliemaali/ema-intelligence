@@ -586,8 +586,8 @@ export function MailPim({
                   ) : null}
                   {editor.isAllDay ? (
                     <p>
-                      Ganztägiger Termin: Beginn und Ende müssen um Mitternacht
-                      liegen; das Enddatum zählt nicht mit.
+                      Ganztägiger Termin: Der Zeitraum bleibt beim Bearbeiten
+                      erhalten. Teilnehmer und Teams kannst du hier ändern.
                     </p>
                   ) : null}
                 </>
@@ -620,7 +620,9 @@ export function MailPim({
                   }
                   <input
                     disabled={
-                      key === "notes" && editor?.isOnlineMeeting === true
+                      (key === "notes" && editor?.isOnlineMeeting === true) ||
+                      (["start", "end"].includes(key) &&
+                        editor?.isAllDay === true)
                     }
                     required={[
                       "subject",

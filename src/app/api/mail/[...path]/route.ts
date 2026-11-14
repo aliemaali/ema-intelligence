@@ -581,11 +581,12 @@ async function handle(request: NextRequest) {
           const event = await mailGraph<{
             isOrganizer?: boolean;
             isOnlineMeeting?: boolean;
+            isAllDay?: boolean;
             onlineMeetingProvider?: string;
             attendees?: { emailAddress: { address: string }; type: string }[];
           }>(
             token,
-            `${path}?$select=isOrganizer,isOnlineMeeting,onlineMeetingProvider,attendees`,
+            `${path}?$select=isOrganizer,isOnlineMeeting,isAllDay,onlineMeetingProvider,attendees`,
             {},
             "/me",
           );
@@ -595,6 +596,11 @@ async function handle(request: NextRequest) {
               "Nur der Organisator kann diesen Termin bearbeiten.",
             );
           const next = payload as ReturnType<typeof graphEvent>;
+          // Keep all-day boundaries in their original Exchange time zone.
+          if (event.isAllDay) {
+            delete (next as Partial<typeof next>).start;
+            delete (next as Partial<typeof next>).end;
+          }
           if (event.isOnlineMeeting) {
             if (
               next.isOnlineMeeting &&

@@ -1382,3 +1382,35 @@ test("Teams capability can be checked without creating an event or invitation", 
   assert.deepEqual(await response.json(), { teamsAvailable: true });
   assert.equal(method, "GET");
 });
+
+test("Teams conversion preserves all-day boundaries in the original Exchange timezone", async () => {
+  reset();
+  let patch: any;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === "PATCH") {
+      patch = JSON.parse(String(init.body));
+      return Response.json({ id: "event" });
+    }
+    return Response.json(
+      String(url).includes("/me/calendar?")
+        ? { allowedOnlineMeetingProviders: ["teamsForBusiness"] }
+        : { isOrganizer: true, isAllDay: true, isOnlineMeeting: false },
+    );
+  };
+  const response = await POST(
+    req("calendar", {
+      operation: "update",
+      id: "event",
+      confirmed: true,
+      value: {
+        ...meetingValue,
+        start: "2026-11-13T23:00:00Z",
+        end: "2026-11-14T23:00:00Z",
+      },
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(patch.start, undefined);
+  assert.equal(patch.end, undefined);
+  assert.equal(patch.isOnlineMeeting, true);
+});
