@@ -26,10 +26,13 @@ function applyTheme(theme: Theme) {
   const root = document.documentElement
   root.classList.remove('light', 'dark')
   root.classList.add(theme)
-  root.style.colorScheme = theme
+  const mailTheme = root.dataset.emaMailTheme
+  const chromeTheme = mailTheme === 'light' || mailTheme === 'dark' ? mailTheme : theme
+  root.style.colorScheme = chromeTheme
+  document.querySelectorAll<HTMLMetaElement>('meta[name="color-scheme"]').forEach(meta => { meta.content = chromeTheme })
   document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach(meta => {
     meta.removeAttribute('media')
-    meta.content = theme === 'light' ? '#f4f8f6' : '#061521'
+    meta.content = mailTheme ? (chromeTheme === 'light' ? '#ffffff' : '#0a111a') : (theme === 'light' ? '#f4f8f6' : '#061521')
   })
 }
 
@@ -54,10 +57,12 @@ export function ThemeRuntime({ children }: { children: React.ReactNode }) {
       if (event.key === 'theme' || event.key === null) sync()
     }
     sync()
+    window.addEventListener('ema:mail-chrome-change', sync)
     window.addEventListener('storage', storage)
     window.addEventListener('focus', sync)
     window.addEventListener('pageshow', sync)
     return () => {
+      window.removeEventListener('ema:mail-chrome-change', sync)
       window.removeEventListener('storage', storage)
       window.removeEventListener('focus', sync)
       window.removeEventListener('pageshow', sync)
