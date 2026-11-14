@@ -807,7 +807,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         background
         revision={messages}
       />
-      {view === "home" ? <MailDashboard
+      {view === "home" ? <MailDashboard key={mailbox}
         demo={demo} mailbox={mailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
