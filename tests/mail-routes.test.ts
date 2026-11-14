@@ -1127,3 +1127,39 @@ test("project documents include only own linked DMS records when mail is enabled
     ["direct"],
   );
 });
+
+test("badge sums authorized Inbox counts, excludes foreign and revoked mailboxes", async () => {
+  reset();
+  rows.ema_mail_memberships=[
+    {user_id:uid,mailbox:'team@example.com',can_read:true},
+    {user_id:uid,mailbox:'tester@example.com',can_read:true},
+    {user_id:uid,mailbox:'revoked@example.com',can_read:false},
+    {user_id:'other',mailbox:'foreign@example.com',can_read:true},
+  ];
+  const paths:string[]=[];
+  globalThis.fetch=async url=>{
+    paths.push(String(url));
+    return Response.json({unreadItemCount:String(url).includes('/me/')?4:7});
+  };
+  const response=await GET(new NextRequest('https://ema.example/api/mail/badge'));
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{count:11});
+  assert.equal(paths.length,2);
+  assert.ok(paths.every(path=>path.includes('/mailFolders/inbox?')));
+  assert.ok(!paths.some(path=>/foreign|revoked|tester/.test(path)));
+});
+test("badge refuses partial or invalid counts and stays gated in preview", async () => {
+  reset();
+  globalThis.fetch=async()=>Response.json({unreadItemCount:-1});
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/badge'))).status,502);
+  process.env.VERCEL_ENV='preview';
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/badge'))).status,503);
+});
+test("mail push registration rejects external endpoints and cross-origin writes", async () => {
+  reset();
+  assert.equal((await POST(req('push-subscription',{endpoint:'https://internal.example/push',keys:{p256dh:'test',auth:'test'}}))).status,400);
+  const bad=new NextRequest('https://ema.example/api/mail/push-subscription',{method:'POST',headers:{origin:'https://evil.example'},body:'{}'});
+  assert.equal((await POST(bad)).status,403);
+  assert.equal((await POST(req('push-subscription',{endpoint:'https://web.push.apple.com/test',keys:{p256dh:'test',auth:'test'}}))).status,200);
+  assert.equal(rows.ema_push_subscriptions[0].user_id,uid);
+});

@@ -1,0 +1,10 @@
+{
+  "id": "/mail", "name": "EMA Mail", "short_name": "eMail", "lang": "de",
+  "description": "E-Mails, Kalender und Kontakte von EMA Enterprise",
+  "start_url": "/mail", "scope": "/mail", "display": "standalone",
+  "background_color": "#ffffff", "theme_color": "#031122",
+  "icons": [
+    {"src":"/mail/icons/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},
+    {"src":"/mail/icons/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}
+  ]
+}

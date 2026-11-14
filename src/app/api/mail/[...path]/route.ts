@@ -1,3 +1,4 @@
+import { safePushEndpoint } from "@/lib/mail/push";
 import { productivityEndpoint, visibleProject } from "@/lib/mail/extensions";
 import { deliverMessage } from "@/lib/mail/deliver";
 import { NextRequest, NextResponse } from "next/server";
@@ -80,6 +81,40 @@ async function handle(request: NextRequest) {
       session,
     );
     if (extension) return extension;
+    if (action === "badge" && !mutating) {
+      const { data, error } = await admin.from("ema_mail_memberships")
+        .select("mailbox").eq("user_id", session.user.id).eq("can_read", true);
+      if (error) throw new MailError(503, "Postfachrechte nicht verfügbar.");
+      const own = await mailSenderAddress(session, "me");
+      const boxes = ["me", ...new Set((data || []).map(row => String(row.mailbox)).filter(box => box !== own))];
+      if (boxes.length > 50) throw new MailError(503, "Zu viele Postfächer für den Badge-Abgleich.");
+      let count = 0;
+      // All-or-nothing: never replace a correct badge with a partial mailbox count.
+      for (let i = 0; i < boxes.length; i += 5) {
+        const counts = await Promise.all(boxes.slice(i, i + 5).map(async box => {
+          const access = await mailboxAccess(session, box);
+          const folder = await mailGraph<{unreadItemCount: number}>(access.token,
+            `${mailboxRoot(access.mailbox)}/mailFolders/inbox?$select=unreadItemCount`);
+          if (!Number.isSafeInteger(folder.unreadItemCount) || folder.unreadItemCount < 0)
+            throw new MailError(502, "Ungültiger Ungelesen-Zähler.");
+          return folder.unreadItemCount;
+        }));
+        count += counts.reduce((a, b) => a + b, 0);
+      }
+      return json({count});
+    }
+    if (action === "push-subscription" && mutating) {
+      const subscription = z.object({endpoint: z.string().max(2048),
+        keys: z.object({p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(256)}).strict()}).strict().parse(input);
+      if (!safePushEndpoint(subscription.endpoint)) throw new MailError(400, "Ungültiger Push-Dienst.");
+      const {error} = await admin.from("ema_push_subscriptions").upsert({
+        user_id: session.user.id, endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh, auth_key: subscription.keys.auth,
+        device_label: "EMA Mail · Home-Bildschirm", last_seen_at: new Date().toISOString(),
+      }, {onConflict: "user_id,endpoint"});
+      if (error) throw new MailError(503, "Push-Gerät konnte nicht gespeichert werden.");
+      return json({ok:true});
+    }
     if (action === "team" || action === "memberships") {
       const { data: profile } = await session.db
         .from("profiles")

@@ -59,6 +59,7 @@ import { MailSignature } from "./MailSignature";
 import { MailComposeFields } from "./MailComposeFields";
 import { MailTeam } from "./MailTeam";
 import { MailPim, type MailPimItem } from "./MailPim";
+import { MailHomeScreen } from "./MailHomeScreen";
 import { MailAutomation } from "./MailAutomation";
 type Account = {
   mailbox: string;
@@ -767,6 +768,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       data-theme={theme}
       className={`${s.workspace} ${reading ? s.reading : ""}`}
     >
+      <MailHomeScreen demo={demo} visible={false} background revision={messages} />
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
           <span className={s.brandLogo}>
@@ -1495,6 +1497,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     </p>
                   </article>
                 </div>
+                <MailHomeScreen demo={demo} visible />
                 <MailAutomation demo={demo} mailbox={mailbox} />
                 {productivity.error && (
                   <p role="status">{productivity.error}</p>
