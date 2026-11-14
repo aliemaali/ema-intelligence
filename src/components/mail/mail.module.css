@@ -2530,9 +2530,6 @@
 .dashboardNav button { position:relative; border:0; background:transparent; color:#c6cfca; display:flex; flex-direction:column; align-items:center; gap:3px; padding:2px 12px 4px; flex:1; max-width:150px; min-height:44px; font-size:10px; }
 .dashboardNav button[aria-current="page"] { color:#25d694; }
 .dashboardNav button[aria-current="page"]::after { content:""; position:absolute; bottom:0; width:40px; height:3px; border-radius:3px; background:#37d99b; }
-.mailVoiceButton { position:fixed; bottom:calc(66px + env(safe-area-inset-bottom,0px)); right:20px; z-index:16; display:grid; place-items:center; width:45px; height:45px; background:#08754f; border:1px solid #2ba371; color:white; border-radius:50%; box-shadow:0 3px 12px #0004; }
-.voiceExamples { display:grid; gap:7px; margin:14px 0; }
-.voiceExamples button { text-align:left; font-size:12px; padding:9px 12px; }
 @media(max-width:850px) {
   .dashboardColumns { grid-template-columns:minmax(0,1fr); gap:22px; }
 }

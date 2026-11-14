@@ -16,7 +16,6 @@ import {
   Folder,
   Inbox,
   Home,
-  Mic,
   ListTodo,
   Mail,
   Menu,
@@ -79,8 +78,6 @@ type DraftRecord = {
   status: string;
 };
 import { MailDashboard, MailBottomNav, type MailView } from "./MailDashboard";
-import { MailVoice, speakMail } from "./MailVoice";
-import { parseMailVoice, type CalendarSeed } from "@/lib/mail/voice";
 type View = MailView;
 const folderIcons = [Inbox, Send, FileText, Archive, Trash2, Folder];
 const demoAccounts: Account[] = [
@@ -209,8 +206,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     mailbox: string;
     messageId: string;
   } | null>(null);
-  const [voiceOpen, setVoiceOpen] = useState(false);
-  const [calendarSeed, setCalendarSeed] = useState<CalendarSeed | null>(null);
   const [overviewRevision, setOverviewRevision] = useState(0);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [composeMinimized, setComposeMinimized] = useState(false);
@@ -744,48 +739,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }
   function navigate(next: View) {
     setView(next); setNavOpen(false); setReading(false);
-    window.speechSynthesis?.cancel();
     if (next === "mail") { setFolder("inbox"); setFilter("all"); setQ(""); }
-  }
-  async function voiceCommand(text: string): Promise<string> {
-    const command = parseMailVoice(text);
-    if (command.kind === "help") return command.message;
-    if (command.kind === "stop") { window.speechSynthesis?.cancel(); return "Vorlesen beendet."; }
-    if (command.kind === "navigate") { navigate(command.view); setVoiceOpen(false); return "Ansicht geöffnet."; }
-    if (command.kind === "search") {
-      navigate("mail"); setQ(command.query); setVoiceOpen(false); return "Suche geöffnet.";
-    }
-    if (command.kind === "event") {
-      setCalendarSeed({ ...command.seed, key: crypto.randomUUID() });
-      navigate("calendar"); setVoiceOpen(false); return "Termin zur Prüfung vorbereitet.";
-    }
-    if (command.kind === "compose" || command.kind === "reply") {
-      if (!account?.can_send) return "Für dieses Postfach fehlt die Sendeberechtigung.";
-      if (command.kind === "reply" && (!selected || !reading || view !== "mail")) return "Öffne zuerst die E-Mail, auf die du antworten möchtest.";
-      newCompose(command.kind === "reply" ? "reply" : "new", command.kind === "reply" ? command.body : undefined);
-      setVoiceOpen(false); return "Entwurf geöffnet. Bitte Empfänger und Inhalt prüfen.";
-    }
-    if (command.kind === "read") {
-      const list: Message[] = demo ? demoMessages : (await api(`messages?${new URLSearchParams({mailbox,folder:"inbox"})}`)).messages;
-      const unread = list.filter(m => !m.isRead).slice(0,5);
-      if (!unread.length) return "Keine ungelesenen E-Mails unter den neuesten 30 Nachrichten. Weitere Nachrichten findest du im Postfach.";
-      speakMail(`Ich lese ${unread.length} der neuesten ungelesenen E-Mails aus dem ausgewählten Postfach vor. ` + unread.map(m=>`Von ${m.from.emailAddress.name || m.from.emailAddress.address}. Betreff: ${m.subject}. ${m.bodyPreview}`).join(" "));
-      return "Die neuesten ungelesenen E-Mails werden vorgelesen (maximal fünf, jeweils als Vorschau).";
-    }
-    let target = selected && reading && view === "mail" ? selected : null;
-    if (command.query) {
-      const query = command.query;
-      const list: Message[] = demo ? demoMessages.filter(m=>`${m.from.emailAddress.name} ${m.from.emailAddress.address} ${m.subject}`.toLowerCase().includes(query.toLowerCase())) : (await api(`messages?${new URLSearchParams({mailbox,folder:"inbox",q:query})}`)).messages;
-      if (list.length !== 1) { navigate("mail"); setQ(query); setVoiceOpen(false); return "Bitte die gewünschte Nachricht aus den Suchergebnissen öffnen."; }
-      target = list[0];
-    }
-    if (!target) return "Öffne zuerst eine E-Mail oder nenne den Absender: Fasse die Mail von Mehmet zusammen.";
-    const result: MailAnalysis = demo ? {summary:target.bodyPreview,priority:"normal",reason:"Beispielanalyse",invoiceCandidate:false,suggestedReply:"Vielen Dank für die Nachricht.",tasks:[]} : (await api("analyze",{mailbox,id:target.id})).analysis;
-    await openMessage({...target,emaAnalysis:result});
-    setAnalysis(result);
-    setVoiceOpen(false);
-    setNotice(result.summary);
-    return "Zusammenfassung geöffnet.";
   }
   const visible = messages.filter((m) =>
     filter === "unread"
@@ -811,7 +765,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         demo={demo} mailbox={mailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
-        onCompose={() => newCompose()} onVoice={() => setVoiceOpen(true)}
+        onCompose={() => newCompose()}
         onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar} notice={notice}
       /> : <>
       <header className={s.topbar}>
@@ -1558,8 +1512,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
               <MailPim
                 key={view}
                 mode={view}
-                initialSeed={view === "calendar" ? calendarSeed : null}
-                onSeedConsumed={() => setCalendarSeed(null)}
                 demo={demo}
                 demoRecords={demoPim[view]}
                 onDemoChange={(items) =>
@@ -1572,8 +1524,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       </div>
       </>}
       <MailBottomNav view={view} onNavigate={navigate} />
-      {view !== "home" && !composer && <button className={s.mailVoiceButton} onClick={() => setVoiceOpen(true)} aria-label="Sprachsteuerung öffnen"><Mic size={20}/></button>}
-      {voiceOpen && <MailVoice onCommand={voiceCommand} onClose={() => setVoiceOpen(false)} />}
       {composer ? (
         <div
           className={`${s.composeBackdrop} ${composeExpanded || review ? s.composeExpanded : ""} ${composeMinimized && !review ? s.composeMinimized : ""}`}

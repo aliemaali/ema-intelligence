@@ -1,11 +1,11 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {CalendarDays,ChevronRight,Home,Mail,Mic,PenLine,RefreshCw,Settings,Users,Folder,Flag} from 'lucide-react';
+import {CalendarDays,ChevronRight,Home,Mail,PenLine,RefreshCw,Settings,Users,Folder,Flag} from 'lucide-react';
 import {demoMessages} from '@/lib/mail/demo';
 import {invoiceHint,type Message} from '@/lib/mail/model';
 import {graphDate,teamsJoinUrl} from '@/lib/mail/calendar';
 import {fromZonedTime} from 'date-fns-tz';
-import {berlinDay,todayRange} from '@/lib/mail/voice';
+import {berlinDay,todayRange} from '@/lib/mail/calendar';
 import type {MailPimItem} from './MailPim';
 import {MailSwipeRow} from './MailSwipeRow';
 import s from './mail.module.css';
@@ -15,7 +15,7 @@ export function MailBottomNav({view,onNavigate}:{view:MailView;onNavigate:(view:
 }
 export function priorityMail(m:Message){return m.importance==='high'||m.flag?.flagStatus==='flagged'||m.emaAnalysis?.priority==='high';}
 async function get(path:string,signal:AbortSignal){const r=await fetch('/api/mail/'+path,{cache:'no-store',signal});const d=await r.json();if(!r.ok)throw new Error(d.error||'Daten konnten nicht geladen werden.');return d;}
-export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onVoice,onTrash,revision,demoRecords,notice}:{demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onVoice:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[];notice?:string}) {
+export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onTrash,revision,demoRecords,notice}:{demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[];notice?:string}) {
   const [messages,setMessages]=useState<Message[]>([]),[events,setEvents]=useState<MailPimItem[]>([]),[busy,setBusy]=useState(true),[errors,setErrors]=useState<string[]>([]),[tab,setTab]=useState<'priority'|'all'|'events'>('priority'),[partial,setPartial]=useState(false),[swiped,setSwiped]=useState<string|null>(null),[today,setToday]=useState(new Date());
   const version=useRef(0), demoDeleted=useRef(new Set<string>());
   const refresh=useCallback(async(signal:AbortSignal)=>{
@@ -52,6 +52,6 @@ export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,
       {events.slice(0,tab==='events'?20:4).map(event=>{const join=teamsJoinUrl(event.onlineMeeting?.joinUrl);return <article className={s.dashboardEvent} key={event.id}><span className={s.dashboardDot}/><time>{event.isAllDay?'Ganztägig':event.start?graphDate(event.start.dateTime).toLocaleTimeString('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit'}):'–'}</time><div><button onClick={()=>onNavigate('calendar')}>{event.subject||'Termin'}</button><p>{event.isOnlineMeeting?'Microsoft Teams':event.location?.displayName||'Kalendertermin'}</p></div>{join&&<a href={join} target="_blank" rel="noopener noreferrer">Beitreten</a>}</article>;})}
       </section></div>
     </div>
-    <div className={s.dashboardActions}><button onClick={onVoice} aria-label="Sprachsteuerung öffnen"><Mic size={21}/></button><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={22}/></button></div>
+    <div className={s.dashboardActions}><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={22}/></button></div>
   </div>;
 }
