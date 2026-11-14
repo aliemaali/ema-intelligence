@@ -1,15 +1,19 @@
-'use server'
+"use server";
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import type { DocumentType } from '@/lib/types/database.types'
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { isMailEnabled } from "@/lib/mail/model";
+import { createClient } from "@/lib/supabase/server";
+import type { DocumentType } from "@/lib/types/database.types";
 
 async function requireUser() {
-  const supabase = await createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) redirect('/login')
-  return { supabase, userId: user.id }
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error || !user) redirect("/login");
+  return { supabase, userId: user.id };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,18 +21,43 @@ async function requireUser() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getDocuments(projectId: string) {
-  const { supabase, userId } = await requireUser()
+  const { supabase, userId } = await requireUser();
 
   const { data, error } = await supabase
-    .from('documents')
-    .select('*')
-    .eq('project_id', projectId)
-    .eq('user_id', userId)
-    .eq('is_archived', false)
-    .order('created_at', { ascending: false })
+    .from("documents")
+    .select("*")
+    .eq("project_id", projectId)
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .order("created_at", { ascending: false });
 
-  if (error) throw new Error(error.message)
-  return data ?? []
+  if (error) throw new Error(error.message);
+  if (!isMailEnabled()) return data ?? [];
+  const { data: links, error: linkError } = await supabase
+    .from("dms_document_links")
+    .select("document_id")
+    .eq("user_id", userId)
+    .eq("entity_type", "project")
+    .eq("entity_id", projectId);
+  if (linkError || !links?.length) return data ?? [];
+  const { data: linked, error: linkedError } = await supabase
+    .from("documents")
+    .select("*")
+    .in(
+      "id",
+      links.map((link) => link.document_id),
+    )
+    .eq("user_id", userId)
+    .eq("is_archived", false);
+  if (linkedError) throw new Error(linkedError.message);
+  return [
+    ...new Map(
+      [...(data ?? []), ...(linked ?? [])].map((document) => [
+        document.id,
+        document,
+      ]),
+    ).values(),
+  ].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -37,56 +66,59 @@ export async function getDocuments(projectId: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function createDocumentRecord(params: {
-  projectId:    string
-  displayName:  string
-  fileName:     string
-  filePath:     string
-  fileSizeBytes: number
-  mimeType:     string
-  documentType: DocumentType
+  projectId: string;
+  displayName: string;
+  fileName: string;
+  filePath: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  documentType: DocumentType;
 }) {
-  const { supabase, userId } = await requireUser()
+  const { supabase, userId } = await requireUser();
 
   // activity_log insert is handled by DB trigger on documents insert
   const { data, error } = await supabase
-    .from('documents')
+    .from("documents")
     .insert({
-      project_id:     params.projectId,
-      user_id:        userId,
-      document_type:  params.documentType,
-      display_name:   params.displayName,
-      file_name:      params.fileName,
-      file_path:      params.filePath,
+      project_id: params.projectId,
+      user_id: userId,
+      document_type: params.documentType,
+      display_name: params.displayName,
+      file_name: params.fileName,
+      file_path: params.filePath,
       file_size_bytes: params.fileSizeBytes,
-      mime_type:      params.mimeType,
-      version:        1,
+      mime_type: params.mimeType,
+      version: 1,
     } as never)
-    .select('id')
-    .single()
+    .select("id")
+    .single();
 
-  if (error) return { error: error.message }
+  if (error) return { error: error.message };
 
-  revalidatePath(`/projects/${params.projectId}/documents`)
-  return { success: true, documentId: data.id }
+  revalidatePath(`/projects/${params.projectId}/documents`);
+  return { success: true, documentId: data.id };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET SIGNED URL for download
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function getDocumentUrl(filePath: string, externalProvider?: string | null) {
-  const { supabase } = await requireUser()
-  const bucketName = externalProvider === 'project-imports'
-    ? 'project-imports'
-    : 'project-documents'
+export async function getDocumentUrl(
+  filePath: string,
+  externalProvider?: string | null,
+) {
+  const { supabase } = await requireUser();
+  const bucketName =
+    externalProvider === "project-imports"
+      ? "project-imports"
+      : "project-documents";
 
-  const { data, error } = await supabase
-    .storage
+  const { data, error } = await supabase.storage
     .from(bucketName)
-    .createSignedUrl(filePath, 3600) // 1 hour
+    .createSignedUrl(filePath, 3600); // 1 hour
 
-  if (error) return { error: error.message }
-  return { url: data.signedUrl }
+  if (error) return { error: error.message };
+  return { url: data.signedUrl };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,16 +126,16 @@ export async function getDocumentUrl(filePath: string, externalProvider?: string
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function archiveDocument(documentId: string, projectId: string) {
-  const { supabase, userId } = await requireUser()
+  const { supabase, userId } = await requireUser();
 
   const { error } = await supabase
-    .from('documents')
+    .from("documents")
     .update({ is_archived: true } as never)
-    .eq('id', documentId)
-    .eq('user_id', userId)
+    .eq("id", documentId)
+    .eq("user_id", userId);
 
-  if (error) return { error: error.message }
+  if (error) return { error: error.message };
 
-  revalidatePath(`/projects/${projectId}/documents`)
-  return { success: true }
+  revalidatePath(`/projects/${projectId}/documents`);
+  return { success: true };
 }

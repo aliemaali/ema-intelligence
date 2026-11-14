@@ -1,3 +1,4 @@
+import { isMailEnabled } from '@/lib/mail/model'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil } from 'lucide-react'
@@ -44,7 +45,8 @@ export default async function ProjectLayout(props: ProjectLayoutProps) {
 
   const tabs = project.project_type === 'rechenzentrum'
     ? [TABS[0], { key: 'site-check', label: 'Standortprüfung' }, ...TABS.slice(1)]
-    : TABS
+    : [...TABS]
+  if (isMailEnabled()) tabs.push({ key: 'mail', label: 'E-Mails' })
 
   return (
     <div className="flex min-h-full flex-col">

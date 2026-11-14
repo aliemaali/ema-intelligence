@@ -37,6 +37,7 @@ const nextConfig = {
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min', 'tesseract.js', 'tesseract.js-core', 'pdf-parse'],
 
   outputFileTracingIncludes: {
+    '/api/mail/*': ['./public/mail/signature-ali-unluer-v1.jpeg'],
     '/api/expose/import': ocrFiles,
     '/project-import': ocrFiles,
     '/api/smart-check/analyze': ['./public/fonts/inter/*.ttf'],
@@ -114,6 +115,14 @@ const nextConfig = {
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
           { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+      {
+        // Only fictitious Mail preview data can be embedded in its own mobile viewport.
+        source: '/mail/preview',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy + "; frame-ancestors 'self'" },
         ],
       },
       {

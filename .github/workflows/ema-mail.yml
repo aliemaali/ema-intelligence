@@ -1,0 +1,29 @@
+name: EMA Mail validation
+on:
+  push:
+    branches: ['feature/ema-mail']
+  pull_request:
+    branches: [main]
+    paths: ['src/**', 'tests/mail*', 'tools/test-mail.cjs', 'supabase/migrations/*ema_mail*', 'package.json', 'pnpm-lock.yaml', '.github/workflows/ema-mail.yml']
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:mail
+      - run: pnpm type-check
+      - run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: preview-placeholder
+          EMA_MAIL_ENABLED: 'false'

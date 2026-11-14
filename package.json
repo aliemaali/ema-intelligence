@@ -22,9 +22,11 @@
     "pl:check": "esbuild tools/check.ts --bundle --platform=node --target=node20 --outfile=.tmp/check.cjs && node .tmp/check.cjs",
     "pl:fonts": "pdffonts .tmp/EMA-Projektliste.pdf",
     "test:smart-check": "esbuild tests/smart-check.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/smart-check.test.cjs && node --test .tmp/smart-check.test.cjs",
-    "test:expose-import": "esbuild src/lib/expose/import.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/expose-import.test.cjs && node --test .tmp/expose-import.test.cjs"
+    "test:expose-import": "esbuild src/lib/expose/import.test.ts --bundle --platform=node --format=cjs --outfile=.tmp/expose-import.test.cjs && node --test .tmp/expose-import.test.cjs",
+    "test:mail": "node tools/test-mail.cjs"
   },
   "dependencies": {
+    "@apostrophecms/sanitize-html-stable": "2.17.10",
     "@hookform/resolvers": "^3.9.0",
     "@sparticuz/chromium-min": "149.0.0",
     "@supabase/ssr": "^0.5.1",
@@ -60,6 +62,7 @@
     "@types/numeral": "^2.0.5",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/sanitize-html": "^2.16.2",
     "@types/web-push": "^3.6.4",
     "@typescript-eslint/parser": "8.68.0",
     "autoprefixer": "^10.4.19",
