@@ -7,7 +7,21 @@ export const SIGNATURE_CID = "ema-signature-ali-unluer-v1";
 export const SIGNATURE_ALT =
   "Ali Ünlüer | Geschäftsführer | EMA Enterprise GmbH | +49 176 620 51 942 | unluer@ema-enterprise.de | Gabriel-von-Seidl-Str. 56, D-67550 Worms | www.ema-enterprise.de";
 export function signatureForAddress(address?: string) {
-  return address?.trim().toLowerCase() === SIGNATURE_ADDRESS
-    ? SIGNATURE_ID
-    : undefined;
+  return SIGNATURES.find(signature => signature.address === address?.trim().toLowerCase())?.id;
+}
+
+export const SIGNATURES = [
+  { id: SIGNATURE_ID, address: SIGNATURE_ADDRESS, image: SIGNATURE_IMAGE, sha256: SIGNATURE_SHA256, cid: SIGNATURE_CID, alt: SIGNATURE_ALT, filename: 'EMA-Signatur-Ali-Unluer.jpeg' },
+  {
+    id: 'tuba-unluer-v1',
+    address: 'tuba.unluer@ema-enterprise.de',
+    image: '/mail/signature-tuba-unluer-v1.jpeg',
+    sha256: '0b73b6977bc89901fa51d86cea4af97f15ed612b42e7c0251745fe0ff5a5f3ac',
+    cid: 'ema-signature-tuba-unluer-v1',
+    alt: 'Tuba Ünlüer | Prokuristin | EMA Enterprise GmbH | tuba.unluer@ema-enterprise.de | Gabriel-von-Seidl-Str. 56, D-67550 Worms | www.ema-enterprise.de',
+    filename: 'EMA-Signatur-Tuba-Unluer.jpeg',
+  },
+] as const;
+export function signatureById(id?: string) {
+  return SIGNATURES.find(signature => signature.id === id);
 }

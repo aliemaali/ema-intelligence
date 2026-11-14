@@ -4,10 +4,7 @@ import type { MailDraft } from "./model";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
-  SIGNATURE_CID,
-  SIGNATURE_IMAGE,
-  SIGNATURE_SHA256,
-  SIGNATURE_ALT,
+  signatureById,
   signatureForAddress,
 } from "./signature";
 import { MailError } from "./graph";
@@ -53,20 +50,22 @@ export function graphMessage(draft: MailDraft, reference: string) {
   const recipients = (addresses: string[]) =>
     addresses.map((address) => ({ emailAddress: { address } }));
   const signatureAttachments = [];
-  if (draft.signatureId) {
+  const signature = signatureById(draft.signatureId);
+  if (draft.signatureId && !signature) throw new MailError(400, "Unbekannte Signatur.");
+  if (signature) {
     const bytes = readFileSync(
-      path.join(process.cwd(), "public", SIGNATURE_IMAGE),
+      path.join(process.cwd(), "public", signature.image),
     );
-    if (createHash("sha256").update(bytes).digest("hex") !== SIGNATURE_SHA256)
+    if (createHash("sha256").update(bytes).digest("hex") !== signature.sha256)
       throw new MailError(
         503,
         "Signaturdatei wurde verändert. Bitte Entwurf erneut prüfen.",
       );
     signatureAttachments.push({
       "@odata.type": "#microsoft.graph.fileAttachment",
-      name: "EMA-Signatur-Ali-Unluer.jpeg",
+      name: signature.filename,
       contentType: "image/jpeg",
-      contentId: SIGNATURE_CID,
+      contentId: signature.cid,
       isInline: true,
       contentBytes: bytes.toString("base64"),
     });
@@ -77,7 +76,7 @@ export function graphMessage(draft: MailDraft, reference: string) {
       draft.signatureId || draft.bodyHtml || draft.signatureText
         ? {
             contentType: "HTML",
-            content: `<div>${draft.bodyHtml ? sanitizeRichHtml(draft.bodyHtml) : textHtml(draft.body)}</div>${draft.signatureText ? `<br><div>${textHtml(draft.signatureText)}</div>` : ""}${draft.signatureId ? `<br><img src="cid:${SIGNATURE_CID}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(SIGNATURE_ALT)}">` : ""}`,
+            content: `<div>${draft.bodyHtml ? sanitizeRichHtml(draft.bodyHtml) : textHtml(draft.body)}</div>${draft.signatureText ? `<br><div>${textHtml(draft.signatureText)}</div>` : ""}${signature ? `<br><img src="cid:${signature.cid}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(signature.alt)}">` : ""}`,
           }
         : { contentType: "Text", content: draft.body },
     isReadReceiptRequested: draft.isReadReceiptRequested === true,

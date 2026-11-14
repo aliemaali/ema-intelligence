@@ -1,17 +1,19 @@
 import Image from "next/image";
-import { SIGNATURE_ALT, SIGNATURE_IMAGE } from "@/lib/mail/signature";
+import { signatureById } from "@/lib/mail/signature";
 import s from "./mail.module.css";
-export function MailSignature() {
+export function MailSignature({ signatureId }: { signatureId: string }) {
+  const signature = signatureById(signatureId);
+  if (!signature) return null;
   return (
     <div className={s.mailSignature}>
       <Image
-        src={SIGNATURE_IMAGE}
-        alt={SIGNATURE_ALT}
+        src={signature.image}
+        alt={signature.alt}
         width={320}
         height={191}
         unoptimized
       />
-      <small>Signatur für unluer@ema-enterprise.de · wird mitgesendet</small>
+      <small>Signatur für {signature.address} · wird mitgesendet</small>
     </div>
   );
 }

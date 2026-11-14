@@ -1662,7 +1662,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       {composer.signatureText}
                     </div>
                   )}
-                  {composer.signatureId && <MailSignature />}
+                  {composer.signatureId && <MailSignature signatureId={composer.signatureId} />}
                   <hr />
                   <b>Lesebestätigung:</b>{" "}
                   {composer.isReadReceiptRequested ? "Anfordern" : "Nein"}

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -469,4 +470,22 @@ test('Graph OData next links normalize while preserving mailbox boundaries', () 
   assert.equal(new URL(safeGraphUrl("https://graph.microsoft.com/v1.0/users('team%40example.com')/mailFolders('inbox')/messages?$skip=30", root)).pathname, `/v1.0${root}/mailFolders/inbox/messages`);
   assert.throws(() => safeGraphUrl("https://graph.microsoft.com/v1.0/users('other@example.com')/mailFolders('inbox')/messages", root));
   assert.throws(() => safeGraphUrl("https://evil.example/v1.0/users('team@example.com')/mailFolders('inbox')/messages", root));
+});
+
+test('Tuba signature is bound to her address and sent inline at the same width as Ali', async () => {
+  const { signatureForAddress } = await import('../src/lib/mail/signature');
+  const { assertSignatureSender } = await import('../src/lib/mail/security');
+  const d = draftSchema.parse({...draft(), mailbox:'tuba.unluer@ema-enterprise.de',signatureId:'tuba-unluer-v1'});
+  assert.equal(signatureForAddress(' TUBA.UNLUER@ema-enterprise.de '), 'tuba-unluer-v1');
+  assert.doesNotThrow(() => assertSignatureSender(d, 'tuba.unluer@ema-enterprise.de'));
+  assert.throws(() => assertSignatureSender(d, 'unluer@ema-enterprise.de'));
+  assert.throws(() => assertSignatureSender({...d,signatureId:'ali-unluer-v1'}, 'tuba.unluer@ema-enterprise.de'));
+  const message = graphMessage(d, 'tuba-test');
+  assert.match(message.body.content, /width="320"/);
+  assert.match(message.body.content, /cid:ema-signature-tuba-unluer-v1/);
+  assert.match(message.body.content, /Tuba Ünlüer/);
+  const attachment = message.attachments[0] as any;
+  assert.equal(attachment.contentId, 'ema-signature-tuba-unluer-v1');
+  assert.equal(attachment.isInline, true);
+  assert.equal(createHash('sha256').update(Buffer.from(attachment.contentBytes,'base64')).digest('hex'), '0b73b6977bc89901fa51d86cea4af97f15ed612b42e7c0251745fe0ff5a5f3ac');
 });
