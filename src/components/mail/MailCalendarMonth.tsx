@@ -157,7 +157,7 @@ export function MailCalendarMonth({
                     >
                       {day.getDate()}
                     </button>
-                    {entries.slice(0, 2).map((item) => (
+                    {entries.slice(0, 1).map((item) => (
                       <button
                         type="button"
                         className={c.chip}
@@ -178,13 +178,22 @@ export function MailCalendarMonth({
                         {item.subject}
                       </button>
                     ))}
-                    {entries.length > 2 ? (
+                    {entries.length > 1 ? (
                       <button
                         type="button"
                         className={c.more}
-                        onClick={() => onSelect(day)}
+                        aria-label={`Weitere ${entries.length - 1} Termine am ${day.toLocaleDateString("de-DE")}`}
+                        onClick={() => {
+                          onSelect(day);
+                          document
+                            .getElementById("calendar-day-agenda")
+                            ?.scrollIntoView({
+                              block: "nearest",
+                              behavior: "smooth",
+                            });
+                        }}
                       >
-                        +{entries.length - 2}
+                        +{entries.length - 1}
                       </button>
                     ) : null}
                   </>
