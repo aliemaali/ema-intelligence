@@ -1,11 +1,82 @@
-import type { Message } from './model'
-const make=(id:string,name:string,email:string,subject:string,body:string,time:string,extra:Partial<Message>={}):Message=>({id,subject,bodyPreview:body,body:{contentType:'text',content:body},from:{emailAddress:{name,address:email}},toRecipients:[{emailAddress:{address:'team@example.com'}}],receivedDateTime:`2026-11-14T${time}:00+01:00`,isRead:false,hasAttachments:false,...extra})
-export const demoMessages:Message[]=[
-make('demo-1','Lena Berger','lena.berger@example.com','Freigabe für den nächsten Projektschritt','Guten Morgen,\n\nanbei die aktualisierte Übersicht für unser gemeinsames Projekt. Bitte prüft die Unterlagen und gebt uns bis Montag eine kurze Rückmeldung.\n\nKönnen wir am Dienstag um 10:00 Uhr die nächsten Schritte besprechen?\n\nVielen Dank und viele Grüße\nLena Berger','09:42',{importance:'high',hasAttachments:true,flag:{flagStatus:'flagged'}}),
-make('demo-2','Nordlicht Energie','rechnung@example.com','Rechnung RE-2026-0148 · Planung','Guten Tag,\n\nanbei erhalten Sie unsere Rechnung für die abgeschlossene Vorplanung. Bitte prüfen Sie die Rechnung vor der Freigabe.\n\nFreundliche Grüße\nIhr Nordlicht-Team','09:18',{hasAttachments:true}),
-make('demo-3','David Weber','david.weber@example.com','Terminabstimmung · Projektgespräch','Hallo zusammen, passt euch der kommende Mittwoch für ein kurzes Projektgespräch? Ich freue mich auf eure Rückmeldung.\n\nViele Grüße\nDavid','08:56'),
-make('demo-4','Mara Klein','mara.klein@example.com','Aktualisierte Unterlagen sind bereit','Die neuen Planungsunterlagen stehen zur Prüfung bereit. Die Änderungen haben wir in der Übersicht zusammengefasst.','08:31',{isRead:true,hasAttachments:true}),
-make('demo-5','Projektteam','projekt@example.com','Wochenupdate · Alles auf einen Blick','Guten Morgen, hier kommt das wöchentliche Update. Alle offenen Punkte und Zuständigkeiten sind in der Übersicht enthalten.','08:10',{isRead:true}),
-make('demo-6','Jonas Fischer','jonas.fischer@example.com','Vielen Dank für das Gespräch','Vielen Dank für den angenehmen Austausch gestern. Wir freuen uns auf die Zusammenarbeit.','07:48',{isRead:true}),
-]
-export const demoReply='Guten Morgen Frau Berger,\n\nvielen Dank für die aktualisierten Unterlagen. Wir prüfen die Übersicht und melden uns zu den offenen Punkten. Den vorgeschlagenen Termin stimmen wir intern ab.\n\nFreundliche Grüße\nEMA Enterprise'
+import type { Message } from "./model";
+const make = (
+  id: string,
+  name: string,
+  email: string,
+  subject: string,
+  body: string,
+  time: string,
+  extra: Partial<Message> = {},
+): Message => ({
+  id,
+  subject,
+  bodyPreview: body,
+  body: { contentType: "text", content: body },
+  from: { emailAddress: { name, address: email } },
+  toRecipients: [{ emailAddress: { address: "team@example.com" } }],
+  receivedDateTime: `2026-11-14T${time}:00+01:00`,
+  isRead: false,
+  hasAttachments: false,
+  ...extra,
+});
+export const demoMessages: Message[] = [
+  make(
+    "demo-1",
+    "Lena Berger",
+    "lena.berger@example.com",
+    "Freigabe für den nächsten Projektschritt",
+    "Guten Morgen,\n\nanbei die aktualisierte Übersicht für unser gemeinsames Projekt. Bitte prüft die Unterlagen und gebt uns bis Montag eine kurze Rückmeldung.\n\nKönnen wir am Dienstag um 10:00 Uhr die nächsten Schritte besprechen?\n\nVielen Dank und viele Grüße\nLena Berger",
+    "09:42",
+    {
+      importance: "high",
+      hasAttachments: true,
+      flag: { flagStatus: "flagged" },
+    },
+  ),
+  make(
+    "demo-2",
+    "Nordlicht Energie",
+    "rechnung@example.com",
+    "Rechnung RE-2026-0148 · Planung",
+    "Guten Tag,\n\nanbei erhalten Sie unsere Rechnung für die abgeschlossene Vorplanung. Bitte prüfen Sie die Rechnung vor der Freigabe.\n\nFreundliche Grüße\nIhr Nordlicht-Team",
+    "09:18",
+    { hasAttachments: true },
+  ),
+  make(
+    "demo-3",
+    "David Weber",
+    "david.weber@example.com",
+    "Terminabstimmung · Projektgespräch",
+    "Hallo zusammen, passt euch der kommende Mittwoch für ein kurzes Projektgespräch? Ich freue mich auf eure Rückmeldung.\n\nViele Grüße\nDavid",
+    "08:56",
+  ),
+  make(
+    "demo-4",
+    "Mara Klein",
+    "mara.klein@example.com",
+    "Aktualisierte Unterlagen sind bereit",
+    "Die neuen Planungsunterlagen stehen zur Prüfung bereit. Die Änderungen haben wir in der Übersicht zusammengefasst.",
+    "08:31",
+    { isRead: true, hasAttachments: true },
+  ),
+  make(
+    "demo-5",
+    "Projektteam",
+    "projekt@example.com",
+    "Wochenupdate · Alles auf einen Blick",
+    "Guten Morgen, hier kommt das wöchentliche Update. Alle offenen Punkte und Zuständigkeiten sind in der Übersicht enthalten.",
+    "08:10",
+    { isRead: true },
+  ),
+  make(
+    "demo-6",
+    "Jonas Fischer",
+    "jonas.fischer@example.com",
+    "Vielen Dank für das Gespräch",
+    "Vielen Dank für den angenehmen Austausch gestern. Wir freuen uns auf die Zusammenarbeit.",
+    "07:48",
+    { isRead: true },
+  ),
+];
+export const demoReply =
+  "Guten Morgen Frau Berger,\n\nvielen Dank für die aktualisierten Unterlagen. Wir prüfen die Übersicht und melden uns zu den offenen Punkten. Den vorgeschlagenen Termin stimmen wir intern ab.\n\nFreundliche Grüße\nEMA Enterprise";

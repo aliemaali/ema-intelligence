@@ -39,3 +39,9 @@ Keine Exchange-Admin-Konfiguration und keine tatsächlichen Entra-Consent-Grants
 - https://learn.microsoft.com/en-us/graph/outlook-share-messages-folders – Shared-Mail benötigt delegierte Rechte; Shared-Change-Notifications benötigen Application-Rechte.
 - https://learn.microsoft.com/en-us/graph/api/user-sendmail – 202 bedeutet angenommen, nicht zugestellt.
 - https://supabase.com/changelog.md – geprüft; keine Bibliotheks-Upgrades vorgenommen.
+
+## Nachprüfung für die Fortsetzung
+
+Am 14.11.2026 erneut geprüft: Der Remote-Branch entspricht 073f69f; die Live-Domain verweist weiterhin auf das bisherige Deployment dpl_8YW939H5npyjJijnjLyp9Zx9uUze. Die produktive Datenbank besitzt Microsoft-Verbindungen, aber weder EMA-Mail-Entwurfs- noch Sync-/Jobtabellen. Die neuen Migrationen wurden dort nicht ausgeführt. Vercel nutzt weiterhin dieselben Variableneinträge für Produktion und Preview; beide neuen Mail-Schalter fehlen. Deshalb bleiben die geschützten Vorschauen strikt Demo und sämtliche neuen Mail-/Worker-APIs dort gesperrt.
+
+Für die Fortsetzung wurden Microsofts aktuelle Graph-Dokumente zu Delta, createReply, Kalenderanlage/-änderung und Kontaktänderung geprüft. Der Hintergrundbetrieb verwendet delegierten Inbox-Delta-Abgleich statt neuer tenantweiter Application-Rechte. Kalender-Updates können Einladungen auslösen; der Bearbeitungsdialog verlangt deshalb eine eigene ausdrückliche Freigabe. Online-Meeting-Texte bleiben bei Updates erhalten.

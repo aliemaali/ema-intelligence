@@ -1,17 +1,75 @@
-const esbuild=require('esbuild')
-const {spawnSync}=require('node:child_process')
-const fs=require('node:fs')
-;(async()=>{
-fs.mkdirSync('.tmp',{recursive:true})
-await esbuild.build({entryPoints:['tests/mail-security.test.ts'],bundle:true,platform:'node',format:'cjs',outfile:'.tmp/mail-security.test.cjs'})
-await esbuild.build({entryPoints:['tests/mail-routes.test.ts'],bundle:true,platform:'node',format:'cjs',outfile:'.tmp/mail-routes.test.cjs',plugins:[{name:'isolated-mail-test-services',setup(build){
-  build.onResolve({filter:/^@\/lib\/supabase\/server$/},args=>({path:args.path,namespace:'mock-db'}))
-  build.onResolve({filter:/^@supabase\/supabase-js$/},args=>({path:args.path,namespace:'mock-admin'}))
-  build.onResolve({filter:/^@\/lib\/microsoft\/session$/},args=>({path:args.path,namespace:'mock-token'}))
-  build.onLoad({filter:/.*/,namespace:'mock-db'},()=>({contents:'export async function createClient(){return globalThis.__mailFixture.db}',loader:'js'}))
-  build.onLoad({filter:/.*/,namespace:'mock-admin'},()=>({contents:'export function createClient(){return globalThis.__mailFixture.admin}',loader:'js'}))
-  build.onLoad({filter:/.*/,namespace:'mock-token'},()=>({contents:'export async function getMicrosoftAccessToken(){return globalThis.__mailFixture.token()}',loader:'js'}))
-}}]})
-const result=spawnSync(process.execPath,['--test','.tmp/mail-security.test.cjs','.tmp/mail-routes.test.cjs'],{stdio:'inherit'})
-process.exit(result.status??1)
-})().catch(e=>{console.error(e);process.exit(1)})
+const esbuild = require("esbuild");
+const { spawnSync } = require("node:child_process");
+const fs = require("node:fs");
+(async () => {
+  fs.mkdirSync(".tmp", { recursive: true });
+  await esbuild.build({
+    entryPoints: ["tests/mail-security.test.ts"],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    outfile: ".tmp/mail-security.test.cjs",
+  });
+  await esbuild.build({
+    entryPoints: ["tests/mail-routes.test.ts"],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    outfile: ".tmp/mail-routes.test.cjs",
+    plugins: [
+      {
+        name: "isolated-mail-test-services",
+        setup(build) {
+          build.onResolve({ filter: /^@\/lib\/supabase\/server$/ }, (args) => ({
+            path: args.path,
+            namespace: "mock-db",
+          }));
+          build.onResolve({ filter: /^@supabase\/supabase-js$/ }, (args) => ({
+            path: args.path,
+            namespace: "mock-admin",
+          }));
+          build.onResolve(
+            { filter: /^@\/lib\/microsoft\/session$/ },
+            (args) => ({ path: args.path, namespace: "mock-token" }),
+          );
+          build.onLoad({ filter: /.*/, namespace: "mock-db" }, () => ({
+            contents:
+              "export async function createClient(){return globalThis.__mailFixture.db}",
+            loader: "js",
+          }));
+          build.onLoad({ filter: /.*/, namespace: "mock-admin" }, () => ({
+            contents:
+              "export function createClient(){return globalThis.__mailFixture.admin}",
+            loader: "js",
+          }));
+          build.onLoad({ filter: /.*/, namespace: "mock-token" }, () => ({
+            contents:
+              "export async function getMicrosoftAccessToken(){return globalThis.__mailFixture.token()}",
+            loader: "js",
+          }));
+        },
+      },
+    ],
+  });
+  await esbuild.build({
+    entryPoints: ["tests/mail-automation.test.ts"],
+    bundle: true,
+    platform: "node",
+    format: "cjs",
+    outfile: ".tmp/mail-automation.test.cjs",
+  });
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--test",
+      ".tmp/mail-security.test.cjs",
+      ".tmp/mail-routes.test.cjs",
+      ".tmp/mail-automation.test.cjs",
+    ],
+    { stdio: "inherit" },
+  );
+  process.exit(result.status ?? 1);
+})().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

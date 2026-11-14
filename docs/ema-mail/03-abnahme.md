@@ -1,40 +1,50 @@
-# EMA Mail – Implementierungs- und Abnahmestand
+# EMA Mail – aktueller Implementierungs- und Abnahmestand
 
-Stand: 14.11.2026. Branch: feature/ema-mail. Kein Merge, keine Produktionsmigration, kein produktives Environment geändert, keine echte E-Mail gesendet.
+Stand: 14.11.2026. Branch: `feature/ema-mail`, Fortsetzung auf Basis von 073f69f. Keine Produktionsmigration, kein Merge nach main, keine Änderung produktiver Variablen, kein neuer produktiver Zeitplan. Keine echte E-Mail oder Test-Push an Benutzer versendet.
 
-## Umgesetzt im Feature-Branch
+## Umsetzung der zehn Anforderungen
 
-- Eigenes Modul mit dunklem EMA-Design, Desktop-Dreispaltenansicht, responsiver Liste/Lesen-Ansicht, Postfachwechsel, Suchfeld, Ordnern und Pagination.
-- Graph-Adapter für Nachrichten/Textinhalt, Lesen/Ungelesen, Markierung, Archiv/Papierkorb, Anhänge. Kein fremdes HTML oder Trackingbild eingebettet.
-- Verfassen/Antwortentwurf/Weiterleiten als Text, An/CC/BCC, kleine Anhänge (zusammen maximal ca. 2,25 MB), gespeicherte EMA-Entwürfe. Antwort derzeit neue Mail mit Re-Betreff, kein nativer Graph-Reply mit Conversation-Zuordnung; Weiterleitung übernimmt Text, Anhänge müssen bewusst ergänzt werden.
-- Serverseitige einmalige Freigabe des gespeicherten Inhalts: SHA-256, kurzlebiges Token, Eigentümerprüfung, atomarer Claim, keine Wiederholung bei unklarem Versand.
-- Aktive interne Mitarbeiter, MFA-Prüfung in der API, je Nutzer persönliche Microsoft-Verbindung; Shared-Mail zusätzlich nach Lesen/Bearbeiten/Senden zugeordnet. Administrationsoberfläche für bestehende Teammitglieder, keine neue Benutzerverwaltung parallel zum Bestand.
-- Eigener Microsoft-Mail-Consent-Einstieg. Zusätzliche Scopes werden nur dort angefragt. Keine Entra-Einstellungen geändert.
-- Optionale strukturierte KI-Analyse mit Antwort- und Aufgabenvorschlag, zwischengespeichert, begrenzte Eingabe/Ausgabe; ohne Tools oder Versandrecht. Atomarer DB-Claim begrenzt neue Analysen auf 20 pro Nutzer/Stunde, auch bei parallelen Anfragen.
-- Regelbasierter Rechnungshinweis und Anstoß des bestehenden autorisierten Office-Abgleichs. Kein neuer Buchungsautomat und keine automatische Zahlung.
-- Private DMS-Übernahme von PDF/JPEG/PNG-Anhängen mit Hash-Dublettenprüfung; bestehendes Dokumentmodell und Storage-RLS.
-- Kalender-/Kontakt-Leseansicht, persönliche Erinnerungen über bestehenden EMA-Reminder-Dispatcher.
-- Sichere Demo mit erfundenen Personen und example.com-Adressen. Mail-APIs ohne Aktivierungsflag gesperrt; in Vercel-Previews unabhängig vom Flag gesperrt.
+| Anforderung | Im Branch vorhanden | Noch zu prüfen |
+|---|---|---|
+| EMA-Oberfläche | Dunkles Design, türkise/grüne Akzente, Suche, Ordner, Pagination, Lesen, Entwürfe, Anhänge, Desktop/Mobil | Physisches iPhone |
+| Microsoft Graph | Mail lesen/bearbeiten/senden, native createReply-Antworten, Kalender und Kontakte anlegen/bearbeiten/entfernen | Eigene und gemeinsame echte Testpostfächer |
+| Mitarbeiter | Bestehende Anmeldung, aktive interne Rollen, MFA, eigene Microsoft-Verbindung pro Mitarbeiter | Mehrbenutzer-Echttest |
+| Gemeinsame Postfächer | Administratorzuordnung Lesen/Bearbeiten/Senden plus zusätzliche Exchange-Prüfung | Send-As/Send-on-Behalf und Rechteentzug in Exchange |
+| KI-Agent | Opt-in-Hintergrundanalyse, Prioritäts- und Rechnungshinweise in der Mail-Liste, private Analyse, dauerhafter Antwortentwurf, gemeinsames atomar begrenztes Stundenbudget | Qualität und Kosten mit realen Testnachrichten |
+| Rechnungseingang | Automatischer bestehender Office-Delta-Import bleibt verantwortlich, Rechnungshinweise und autorisierter Office-Abgleich in Mail | Reale Office-Sitzung, vorhandene Intake-Konfiguration und Dubletten |
+| DMS | Private Originalablage, Hash-Dublettenprüfung und Prüfung echter PDF-/PNG-/JPEG-Dateisignaturen | Gesamter Storage-/RLS-Fluss in Test-Supabase |
+| Aufgaben/Hintergrund | Erinnerungen anlegen/erledigen/wieder öffnen; persistente Inbox-Cursor, Warteschlange, Leases, Backoff, Wiederaufnahme, Opt-out | Scheduler und Lasttest in isolierter Umgebung |
+| iPhone/Push | Responsives Layout und eigene mobile Demo; bestehende PWA-/Geräteabonnements, generischer Neue-Mail-Push, Nachrichten-Deep-Link | Home-Screen-Installation, Erlaubnis und Zustellung auf Gerät |
+| Versandfreigabe | Gespeicherter Inhalt und Reply-Quelle gehasht, fünfminütiges Einmaltoken, atomarer Claim, erneute Postfachprüfung, kein automatisches Wiederholen bei unklarem Status | Echte Exchange-Zustellung/Threading und parallele Fremdclient-Änderungen |
 
-## Nachweis
+## Schutzmaßnahmen
 
-- 24 Unit-/Route-Tests bestanden. Tatsächliche Session-Prüfung, Rollen/MFA, Shared-Rechte, CSRF, fremde Graph-Pagination, Entwurfsänderung, Freigabe/Parallelversand/Replay, unklarer Versand und Textausgabe.
-- Bestandsregressionen: 16 Push-Status-Tests und 44 Smart-Check-Tests bestanden.
-- TypeScript-Prüfung bestanden.
-- Vollständiger Next.js-Produktionsbuild erfolgreich; vorhandene Warnungen bleiben. Neue Mail-Komponenten lint-geprüft.
-- Neue Migration lokal mit PGlite/Postgres geprüft: vier Tabellen mit RLS, direkte Lesezugriffe für anon/authenticated auf allen vier Tabellen verweigert, Servicezugriff erlaubt, ungültige Freigabezustände verworfen, paralleler Versand-Claim nur einmal erfolgreich; 25 gleichzeitige KI-Budget-Anfragen lassen genau 20 Aufrufe zu. Keine Live-Datenbank verändert. Reproduzierbarer Test: tools/test-mail-schema.cjs mit separat installiertem @electric-sql/pglite (EMA_MAIL_PGLITE_PATH); keine zusätzliche App-Abhängigkeit. Das ersetzt keine Migration gegen einen kompletten isolierten Supabase-Klon.
-- Vercel-Preview-Deployment erstellt. HTTP-Vorschau hinter Vercel-Schutz erfolgreich abgerufen. Desktop-Sichtprüfung und interaktiver Ablauf Analyse → Antwortentwurf → Inhaltsprüfung → Demo-Freigabe erfolgreich im Browser beobachtet. Mobile Geräte-/Viewport-Prüfung und physisches iPhone noch offen.
+- Mail und Worker sind standardmäßig abgeschaltet. Neue APIs bleiben in Vercel-Previews unabhängig vom Schalter gesperrt; die Demo verwendet nur erfundene Daten.
+- Jede interaktive API prüft verifizierten Benutzer, aktives internes Profil, MFA, Herkunft und Eingaben. Hintergrundzugriff benötigt zusätzlich Cron-Secret, gesonderten Worker-Schalter und Postfach-Opt-in.
+- Der Worker besitzt keine Freigabe- oder Sendefunktion. Er kann nur lesen, analysieren, nicht freigegebene Antwortentwürfe speichern und generische Push-Hinweise auslösen.
+- RLS/Tabellenrechte verweigern sämtliche direkten Browserzugriffe auf die sieben Mail-Tabellen. Der Server schränkt jeden Zugriff auf den aktuellen Benutzer und das zugeordnete Postfach ein.
+- Delta-Links sind an Graph-Host, Postfach und Inbox-ID gebunden. Der Cursor wird erst nach dauerhafter, eindeutiger Jobanlage fortgeschrieben.
+- Rechteentzug und Opt-out werden zwischen Verarbeitungsschritten erneut geprüft; laufende Leases werden beim Opt-out ungültig. Keine Zustellungswiederholung nach unklarem Push-Status.
+- Kontaktänderungen erhalten zusätzliche Adressen/Telefonnummern. Kalenderänderungen erfordern Freigabe; bestehende Online-Meeting-Texte bleiben erhalten, um Einwahllinks nicht zu beschädigen.
+- Fremdes aktives HTML und Trackingbilder werden nicht eingebettet. DMS-Dateisignaturen sind keine Virenprüfung.
 
-## Noch offen – deshalb noch kein vollständiger Outlook-Ersatz
+## Durchgeführte Prüfungen
 
-1. Vollständige Graph-Echttests mit isolierten eigenen und gemeinsamen Testpostfächern; erneuter Consent, Exchange Send-As/Send-on-Behalf, Rechteentzug und Tokenrotation.
-2. Allgemeiner dauerhafter Mail-Hintergrundabgleich, automatische KI-Analyse nach Opt-in, Delta-Cursor/Queue/Webhook-Lifecycle und Neue-Mail-Push. Der bestehende Office-Rechnungsabgleich und Erinnerungs-Push werden wiederverwendet; sie sind kein allgemeiner Mail-Push.
-3. Kalender-/Kontakt-CRUD direkt in EMA Mail, Terminserien/Einladungen und Delegation. Aktuell Leseansichten; vorhandene Kalender-/Kontaktmodule bleiben erhalten.
-4. Vollständige Thread-/Reply-Semantik, beliebige Unterordner, Regeln, Signaturen, große Anhänge/Upload-Sessions, S/MIME/Offline-Sync. Der sichere Text-Client deckt diese Outlook-Funktionen noch nicht ab.
-5. Test echter Office-Sitzung/Berechtigungen, Import/Dubletten/DMS und iPhone-Web-Push auf einem physischen Gerät.
-6. Sicherheitsabnahme der Bestands-Sender: Der neue Versandpfad erzwingt Freigabe; ältere Microsoft-/Acquisition-/Office-Sender wurden nicht stillschweigend umgestellt. Plattformweiter Ausschließlichkeitsnachweis erfordert gesonderte Migration.
-7. Datenhaltungs-/Löschkonzept für gespeicherte Entwürfe, KI-Cache und Audit vor Live-Betrieb festlegen; keine pauschale Compliance-Zusage.
+- **52 Unit-/API-/Worker-Tests bestanden:** tatsächliche Session-/Rollen-/MFA-Prüfung, CSRF, Postfachrechte, Replay/Parallelversand, native Antwortfreigabe, Kalender-/Kontaktänderungen, fremde Erinnerungen, Worker-Schalter, Cursor-Bindung, historische Nachrichten, Teilfehler, Rechteentzug, Wiederaufnahme, Budgets und sichere Push-Endpunkte.
+- **SQL lokal mit PGlite/Postgres bestanden:** beide Migrationen, sieben RLS-Tabellen; anon/authenticated verweigert; nur Service-Rolle auf neue Mailtabellen/Funktionen; einmaliger Versand-Claim; genau 20 von 25 parallelen Budget-Claims; nur ein Sync-/Job-Claim; doppelte Jobs abgewiesen; verlassene Leases wieder aufgenommen; ausgeschöpfte Jobs als fehlgeschlagen markiert.
+- **Bestandsregressionen erneut bestanden:** 16 Push-Status- und 44 Smart-Check-Tests.
+- **TypeScript und Next.js-Produktionsbuild bestanden**, Mail-Komponenten ohne neue Lint-Fehler. Keine Runtime-Abhängigkeit hinzugefügt; Quellcode für Prüfung lesbar formatiert.
+- Vorherige Desktop-Demo inkl. Analyse/Entwurf/Freigabe im Browser geprüft. Erweiterte PIM- und Mobil-Vorschau werden im Browser zusätzlich geprüft; physische Geräte- und Graph-Echttests sind davon getrennt.
 
-## Freigabegrenze
+## Bewusste Grenzen vor vollständigem Outlook-Ersatz
 
-Vorschau kann ohne Echtdaten geprüft werden. Ein produktionsnaher Test braucht getrennte Datenbank und Testpostfächer; diese sind noch nicht für EMA Mail eingerichtet. Vor produktiver Aktivierung sind die obigen Abnahmen sowie ausdrückliche Live-Freigabe erforderlich. Keine Aufforderung zur Live-Freigabe allein aufgrund dieser Demo.
+1. Die neue Datenbank und der Worker sind in Produktion **nicht** eingerichtet. Vercel Preview und Produktion teilen im Bestand Variableneinträge; daher fehlt eine sicher isolierte, produktionsnahe Testinstanz mit eigenen Microsoft-Testpostfächern.
+2. Polling ist kein Echtzeit-Webhook. Durchsatz, Warteschlangenlatenz und Runtime-/Tarifgrenzen sind zu messen. Der Worker ist zunächst für kleine Teams begrenzt; Details in `04-hintergrundbetrieb.md`.
+3. Der bestehende Office-Import unterstützt die dort eingerichteten autorisierten Rechnungspostfächer, derzeit die beiden EMA-Adressen. Weitere Mitarbeiterpostfächer werden nicht automatisch zu Office-Rechnungspostfächern.
+4. Native Antworten sind umgesetzt. Weiterleitung übernimmt bislang Text; Originalanhänge müssen bewusst ergänzt werden. Anhänge beim Verfassen zusammen ca. 2,25 MB. Große Upload-Sessions, beliebige Unterordner/Regeln, Signaturen, Serien-/delegierte Kalender und Offline-/S/MIME-Unterstützung sind noch keine vollständige Outlook-Parität.
+5. Der neue Mail-Versand verlangt Freigabe. Ältere Versandwege anderer EMA-Module bleiben bestehen; für einen plattformweiten Ausschließlichkeitsnachweis müssen diese separat migriert werden.
+6. Datenaufbewahrung/Löschung für Entwürfe, Audit und KI-Cache sowie Belastungs-/Sicherheitsabnahme sind vor Live-Betrieb festzulegen. Eine Demo ersetzt diese Abnahmen nicht.
+
+## Nächster notwendiger Abnahmeschritt
+
+Isolierte Supabase-Testdatenbank und eigenes/shared Microsoft-Testpostfach anbinden, beide Migrationen dort testen, den vorbereiteten Worker nur dort aktivieren und Office-/Exchange-/iPhone-Flüsse Ende zu Ende prüfen. Erst danach eine konkrete Live-Freigabe vorbereiten. Die Betriebsanleitung enthält keine bereits ausgeführte Produktivänderung.

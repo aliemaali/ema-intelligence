@@ -31,3 +31,15 @@ Bestehenden Office-Rechnungsabgleich und Reminder-Dispatcher weiterverwenden. Al
 ## Kosten
 
 Bestehende Next/Vercel/Supabase/Microsoft/Web-Push-Systeme verwenden. Keine neuen Abonnements angelegt. KI-Aufrufe sind verbrauchsabhängig; keine pauschale Kostenfreiheit versprechen. Lizenz- und Hostinggrenzen vor echter Hintergrundaktivierung anhand des vorhandenen Tarifs prüfen.
+
+## Fortsetzung: Automatisierung und täglicher Mailbetrieb
+
+Auf Basis des geprüften Branchs 073f69f vom 14.11.2026:
+
+1. Kalender und Kontakte im Modul anlegen, bearbeiten und entfernen; Kalenderänderungen mit Teilnehmern ausdrücklich im Dialog freigeben. Aufgaben abschließen/wieder öffnen.
+2. Graph-Reply-Entwürfe für echte Konversationen; auch deren Versand bleibt hinter derselben Inhaltsfreigabe. Keine automatischen Sender im Worker.
+3. Pro Nutzer und Postfach einzeln einschaltbarer Inbox-Delta-Abgleich. Anfangsbestand ohne historische Benachrichtigungsflut; Cursor nur nach dauerhafter Übernahme der Jobs fortschreiben. Leasing, Wiederaufnahme, begrenzte Versuche und Backoff, erneute Rechteprüfung vor jedem Zugriff.
+4. KI-Analyse mit bestehendem Stundenbudget, Cache, dauerhaftem Antwortentwurf und Rechnungshinweis. Bestehender Office-Import bleibt Buchungsautorität; keine zweite Rechnungsdatenbank.
+5. Neue-Mail-Push über vorhandene Geräteabonnements. Standardmäßig nur allgemeiner Hinweis, keine Betreff-/Absenderdaten auf dem Sperrbildschirm. Push-Claim vor Versand, damit Wiederholungen keine Benachrichtigungsflut auslösen. Fehlende Abonnements und unklare Zustellung sichtbar ausweisen.
+6. Migration und Cron-Einstieg nur im Branch vorbereiten. Kein produktiver Zeitplan, Consent oder Schalter wird geändert. Vor Echttests fehlen weiterhin eine isolierte Datenbank und Microsoft-Testpostfächer.
+7. Negativtests für Rollen, Fremdzugriff, Cursor-Bindung, Opt-out/Rechteentzug, Leasing, Duplikate, Budgets, Replay und Hintergrund-Versandsperre; SQL und Build erneut prüfen. Erweiterte Demo für die neuen Abläufe bereitstellen.

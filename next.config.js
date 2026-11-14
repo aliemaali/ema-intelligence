@@ -117,6 +117,14 @@ const nextConfig = {
         ],
       },
       {
+        // Only fictitious Mail preview data can be embedded in its own mobile viewport.
+        source: '/mail/preview',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Content-Security-Policy', value: contentSecurityPolicy + "; frame-ancestors 'self'" },
+        ],
+      },
+      {
         source: '/manifest.json',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
