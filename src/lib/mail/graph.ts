@@ -20,6 +20,13 @@ export function safeGraphUrl(path: string, root?: string) {
     !url.pathname.startsWith("/v1.0/")
   )
     throw new MailError(400, "Ungültiges Graph-Ziel.");
+  // Graph nextLink uses OData key syntax even when the request used REST paths.
+  // Normalize only the known collection keys, then apply the same mailbox guard.
+  url.pathname = url.pathname
+    .replace(/^\/v1\.0\/users\('([^']+)'\)(?=\/)/,
+      (_, user: string) => `/v1.0/users/${encodeURIComponent(decodeURIComponent(user))}`)
+    .replace(/\/mailFolders\('([^']+)'\)(?=\/)/,
+      (_, folder: string) => `/mailFolders/${encodeURIComponent(decodeURIComponent(folder))}`);
   if (root && !url.pathname.startsWith(`/v1.0${root}/`))
     throw new MailError(400, "Die Seite gehört nicht zu diesem Postfach.");
   return url.href;
