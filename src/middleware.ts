@@ -4,6 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server'
 const PARTNER_ROLES = new Set(['partner', 'sales_partner', 'vertriebspartner'])
 
 export async function middleware(request: NextRequest) {
+  // Public install assets contain no user data; never redirect them to login.
+  if (request.nextUrl.pathname === '/mail/manifest.webmanifest' || request.nextUrl.pathname === '/mail/sw.js') {
+    return NextResponse.next({ request })
+  }
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient<any>(

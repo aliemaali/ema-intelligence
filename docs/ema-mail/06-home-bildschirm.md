@@ -26,6 +26,6 @@ Hintergrundabgleich benötigt den bereits vorbereiteten Mail-Worker, einen autor
 
 ## Prüfung
 
-74 Mail-Tests bestanden, darunter drei neue API-Tests zu autorisierten Summen, ungültigen Zählern/Preview-Sperre sowie Push-Endpunkten/Origin. Vier zusätzliche PWA-Tests prüfen absolute Zähler bei wiederholtem Push, Null-/Sitzungs-/Fehlerverhalten, externe Klickziele und Manifest-/Icon-Dimensionen. TypeScript-Prüfung bestanden.
+74 Mail-Tests bestanden, darunter drei neue API-Tests zu autorisierten Summen, ungültigen Zählern/Preview-Sperre sowie Push-Endpunkten/Origin. Fünf zusätzliche PWA-Tests prüfen absolute Zähler bei wiederholtem Push, Null-/Sitzungs-/Fehlerverhalten, externe Klickziele und Manifest-/Icon-Dimensionen sowie die öffentliche Auslieferung ausschließlich der zwei exakten Installationsdateien durch die Auth-Middleware. TypeScript-Prüfung und Vercel-Build bestanden. Lokaler Build mit isolierten Platzhalterwerten für die öffentlichen Supabase-Konfigurationsfelder bestanden; ohne diese vorhandenen Pflichtfelder scheitert die bestehende Seite /partners beim Prerendern.
 
 Echter Badge-/Push-Test auf einem physischen iPhone und mit isoliertem Microsoft-Testpostfach steht aus. Eine Vorschau allein kann diesen Systemtest nicht ersetzen. Keine echten E-Mails oder Push-Mitteilungen wurden versendet.
