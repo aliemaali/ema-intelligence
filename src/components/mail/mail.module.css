@@ -2468,3 +2468,9 @@
     padding: 6px 12px max(6px, env(safe-area-inset-bottom));
   }
 }
+
+.swipeRow { position:relative; overflow:hidden; background:#c33039; }
+.swipeContent { position:relative; z-index:1; width:100%; background:#111c27; touch-action:pan-y pinch-zoom; transition:transform 180ms ease-out; }
+.swipeDelete { position:absolute; inset:0 0 0 auto; width:88px; border:0; background:#c33039; color:white; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; font-weight:600; }
+.workspace[data-theme="light"] .swipeContent { background:#fff; }
+@media(prefers-reduced-motion:reduce) { .swipeContent { transition:none; } }
