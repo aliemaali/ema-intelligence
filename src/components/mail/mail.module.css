@@ -1852,3 +1852,23 @@
     margin-left: 0;
   }
 }
+/* Keep platform heading/form tokens scoped to the selected mail theme. */
+.workspace[data-theme="light"] {
+  --ema-text: #182c3b;
+  --ema-muted: #526575;
+  --ema-input: #fff;
+  --ema-border: #dce3e9;
+  --ema-accent: #087e66;
+  --ema-color-scheme: light;
+  --ema-inset: none;
+  --ema-shadow: none;
+  --intel-glass-muted: #526575;
+}
+.workspace :is(h1, h2, h3, h4) {
+  color: inherit !important;
+}
+.workspace input,
+.workspace textarea,
+.workspace select {
+  color-scheme: inherit;
+}
