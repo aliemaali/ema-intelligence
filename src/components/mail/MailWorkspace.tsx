@@ -439,25 +439,25 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     setComposer(draft);
   }
   async function analyze() {
-    if (!selected) return;
+    if (!selected || analysisBusy) return;
+    const version = detailVersion.current;
+    setNotice("");
     setAnalysisBusy(true);
     try {
-      if (demo)
-        setAnalysis({
-          summary:
-            "Die aktualisierte Übersicht liegt zur Prüfung vor. Eine Rückmeldung wird bis Montag erbeten. Für Dienstag ist ein Projektgespräch vorgeschlagen.",
-          priority: "high",
-          reason: "Rückmeldung und Terminabstimmung erforderlich.",
-          invoiceCandidate: invoiceHint(selected),
-          suggestedReply: demoReply,
-          tasks: ["Unterlagen prüfen und Rückmeldung vorbereiten"],
-        });
-      else
-        setAnalysis(
-          (await api("analyze", { mailbox, id: selected.id })).analysis,
-        );
+      const result: MailAnalysis = demo
+        ? {
+            summary:
+              "Die aktualisierte Übersicht liegt zur Prüfung vor. Eine Rückmeldung wird bis Montag erbeten. Für Dienstag ist ein Projektgespräch vorgeschlagen.",
+            priority: "high",
+            reason: "Rückmeldung und Terminabstimmung erforderlich.",
+            invoiceCandidate: invoiceHint(selected),
+            suggestedReply: demoReply,
+            tasks: ["Unterlagen prüfen und Rückmeldung vorbereiten"],
+          }
+        : (await api("analyze", { mailbox, id: selected.id })).analysis;
+      if (version === detailVersion.current) setAnalysis(result);
     } catch (e) {
-      setNotice((e as Error).message);
+      if (version === detailVersion.current) setNotice((e as Error).message);
     } finally {
       setAnalysisBusy(false);
     }

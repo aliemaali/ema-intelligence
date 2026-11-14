@@ -74,6 +74,40 @@ async function handle(request: NextRequest) {
       input = JSON.parse(text);
     }
     const admin = mailAdmin();
+    // Explicit connection test: fixed fictional input only; no mailbox access.
+    if (action === "analyze-test") {
+      if (!mutating)
+        throw new MailError(
+          405,
+          "Den KI-Test bitte über die Testseite starten.",
+        );
+      const { data: allowed, error } = await admin.rpc(
+        "ema_mail_claim_analysis",
+        { p_user_id: session.user.id, p_limit: 20 },
+      );
+      if (error) throw new MailError(503, "Analyse-Limit nicht verfügbar.");
+      if (allowed !== true)
+        throw new MailError(
+          429,
+          "Maximal 20 neue Analysen pro Stunde. Bitte später versuchen.",
+        );
+      const analysis = await analyzeMessage({
+        id: "fictional-connection-test",
+        subject: "Fiktiver Test: Projektgespräch abstimmen",
+        from: {
+          emailAddress: {
+            address: "demo@example.com",
+            name: "Fiktiver Absender",
+          },
+        },
+        bodyPreview:
+          "Guten Tag, können wir am Dienstag um 10:00 Uhr ein Projektgespräch führen? Die Unterlagen sind noch zu prüfen. Viele Grüße. Dies ist eine fiktive Testnachricht.",
+        receivedDateTime: "2026-01-01T09:00:00Z",
+        isRead: true,
+        hasAttachments: false,
+      });
+      return json({ analysis, test: true });
+    }
     const extension = await productivityEndpoint(
       request,
       action,
