@@ -12,7 +12,7 @@ test('received images reject script, vector, local and app URLs; strip tracking 
   for (const url of ['javascript:alert(1)','data:image/svg+xml;base64,PHN2Zz4=','https://127.0.0.1/a','https://localhost/a','https://example.local/a','https://app.ema-enterprise.de/api/mail/connect','https://user:pass@example.com/a','/api/mail/connect']) assert.equal(safeMailImage(url,{}), '');
   assert.equal(safeMailImage('//cdn.example.com/logo.png',{}), 'https://cdn.example.com/logo.png');
   assert.equal(safeMailImage('cid:bad',{bad:'data:text/html;base64,YQ=='}), '');
-  assert.ok(!sanitizeReceivedHtml('<img src="https://cdn.example.com/pixel" width="1" height="1">').includes('src='));
+  assert.ok(!sanitizeReceivedHtml('<img src="https://cdn.example.com/pixel" width="1" height="1">').includes('<img'));
   assert.ok(!sanitizeReceivedHtml('<img srcset="https://evil.test/x 2x" src="javascript:x">').includes('srcset'));
 });
 test('mail document blocks scripts, forms and connections and validates raster attachments', () => {

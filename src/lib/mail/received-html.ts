@@ -33,6 +33,7 @@ export function sanitizeReceivedHtml(html: string, inline: Record<string,string>
     allowedSchemes: ['https','http','mailto','tel','data'],
     allowedSchemesByTag: { img:['https','data'], a:['https','http','mailto','tel'] },
     allowProtocolRelative: false,
+    exclusiveFilter: frame => frame.tag === 'img' && !frame.attribs.src,
     nestingLimit: 40,
     allowedStyles: { '*': {
       color:[/^#[0-9a-f]{3,8}$/i,/^[a-z]{3,20}$/i,/^rgba?\([\d\s,.%]+\)$/i],
