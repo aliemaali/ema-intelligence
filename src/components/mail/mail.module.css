@@ -2423,12 +2423,6 @@
   border-bottom-color: #dce3e9;
 }
 @media (max-width: 650px) {
-  .composeWindow,
-  .composeExpanded .composeWindow {
-    box-sizing: border-box;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
   .composeCommands {
     flex-wrap: nowrap;
     gap: 2px;
@@ -2471,6 +2465,6 @@
     padding: 14px 16px;
   }
   .composeStatus {
-    padding: 6px 12px;
+    padding: 6px 12px max(6px, env(safe-area-inset-bottom));
   }
 }
