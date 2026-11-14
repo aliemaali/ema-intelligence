@@ -57,6 +57,7 @@ import { signatureForAddress } from "@/lib/mail/signature";
 import { MailSignature } from "./MailSignature";
 import { MailComposeFields } from "./MailComposeFields";
 import { MailTeam } from "./MailTeam";
+import { MailSwipeRow } from "./MailSwipeRow";
 import { MailPim, type MailPimItem } from "./MailPim";
 import { MailHomeScreen } from "./MailHomeScreen";
 import { MailAutomation } from "./MailAutomation";
@@ -192,6 +193,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     [notice, setNotice] = useState("");
   const [reading, setReading] = useState(false),
     [navOpen, setNavOpen] = useState(false);
+  const [swipedId, setSwipedId] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<MailAnalysis | null>(null),
     [analysisBusy, setAnalysisBusy] = useState(false);
   const [drafts, setDrafts] = useState<DraftRecord[]>([]),
@@ -462,19 +464,33 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       setAnalysisBusy(false);
     }
   }
-  async function messageAction(operation: string) {
-    if (!selected) return;
+  async function messageAction(
+    operation: string,
+    target: Message | null = selected,
+  ) {
+    if (!target || busy) return;
+    const listVersion = requestVersion.current;
+    const selectionVersion = detailVersion.current;
+    setSwipedId(null);
     setBusy(true);
     try {
       if (!demo)
-        await api("message-action", { mailbox, id: selected.id, operation });
+        await api("message-action", { mailbox, id: target.id, operation });
+      if (listVersion !== requestVersion.current) return;
       if (["archive", "trash"].includes(operation)) {
-        setMessages((old) => old.filter((m) => m.id !== selected.id));
-        setSelected(null);
-        setReading(false);
+        setMessages((old) => old.filter((m) => m.id !== target.id));
+        if (
+          selected?.id === target.id &&
+          selectionVersion === detailVersion.current
+        ) {
+          detailVersion.current++;
+          setSelected(null);
+          setAnalysis(null);
+          setReading(false);
+        }
       } else {
         const update = (m: Message) =>
-          m.id !== selected.id
+          m.id !== target.id
             ? m
             : {
                 ...m,
@@ -488,12 +504,14 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     }),
               };
         setMessages((old) => old.map(update));
-        setSelected(update(selected));
+        setSelected((old) => (old ? update(old) : old));
       }
       setNotice(
         demo
           ? "In der Demo geändert. Kein echtes Postfach verändert."
-          : "Nachricht aktualisiert.",
+          : operation === "trash"
+            ? "Nachricht in den Papierkorb verschoben."
+            : "Nachricht aktualisiert.",
       );
     } catch (e) {
       setNotice((e as Error).message);
@@ -1061,48 +1079,60 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       </button>
                     ))
                   : visible.map((m) => (
-                      <button
-                        key={m.id}
-                        className={`${s.message} ${selected?.id === m.id ? s.selected : ""}`}
-                        onClick={() => void openMessage(m)}
+                      <MailSwipeRow
+                        key={`${mailbox}:${folder}:${m.id}`}
+                        subject={m.subject || "Nachricht"}
+                        disabled={
+                          busy ||
+                          !account?.can_write ||
+                          folder === "deleteditems"
+                        }
+                        open={swipedId === m.id}
+                        onOpenChange={(open) => setSwipedId(open ? m.id : null)}
+                        onDelete={() => messageAction("trash", m)}
                       >
-                        <div className={s.senderRow}>
-                          <strong>
-                            {m.from.emailAddress.name ||
-                              m.from.emailAddress.address}
-                          </strong>
-                          <time>{formatTime(m.receivedDateTime)}</time>
-                        </div>
-                        <div className={s.subject}>
-                          {!m.isRead ? <span className={s.dot} /> : null}
-                          {m.subject}
-                        </div>
-                        <div className={s.preview}>{m.bodyPreview}</div>
-                        {m.hasAttachments ||
-                        m.importance === "high" ||
-                        m.emaAnalysis?.priority === "high" ? (
-                          <div className={s.badges}>
-                            {m.importance === "high" ||
-                            m.emaAnalysis?.priority === "high" ? (
-                              <span className={`${s.badge} ${s.amber}`}>
-                                <Flag size={9} />
-                                Hohe Priorität
-                              </span>
-                            ) : null}
-                            {invoiceHint(m) ? (
-                              <span className={s.badge}>
-                                <FileText size={9} />
-                                Rechnung prüfen
-                              </span>
-                            ) : m.hasAttachments ? (
-                              <span className={`${s.badge} ${s.purple}`}>
-                                <Paperclip size={9} />
-                                Anhang
-                              </span>
-                            ) : null}
+                        <button
+                          className={`${s.message} ${selected?.id === m.id ? s.selected : ""}`}
+                          onClick={() => void openMessage(m)}
+                        >
+                          <div className={s.senderRow}>
+                            <strong>
+                              {m.from.emailAddress.name ||
+                                m.from.emailAddress.address}
+                            </strong>
+                            <time>{formatTime(m.receivedDateTime)}</time>
                           </div>
-                        ) : null}
-                      </button>
+                          <div className={s.subject}>
+                            {!m.isRead ? <span className={s.dot} /> : null}
+                            {m.subject}
+                          </div>
+                          <div className={s.preview}>{m.bodyPreview}</div>
+                          {m.hasAttachments ||
+                          m.importance === "high" ||
+                          m.emaAnalysis?.priority === "high" ? (
+                            <div className={s.badges}>
+                              {m.importance === "high" ||
+                              m.emaAnalysis?.priority === "high" ? (
+                                <span className={`${s.badge} ${s.amber}`}>
+                                  <Flag size={9} />
+                                  Hohe Priorität
+                                </span>
+                              ) : null}
+                              {invoiceHint(m) ? (
+                                <span className={s.badge}>
+                                  <FileText size={9} />
+                                  Rechnung prüfen
+                                </span>
+                              ) : m.hasAttachments ? (
+                                <span className={`${s.badge} ${s.purple}`}>
+                                  <Paperclip size={9} />
+                                  Anhang
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </button>
+                      </MailSwipeRow>
                     ))}
                 {!busy && !visible.length && folder !== "drafts" ? (
                   <p className={s.empty}>Hier sind keine Nachrichten.</p>

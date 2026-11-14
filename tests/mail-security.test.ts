@@ -447,3 +447,16 @@ test("meeting join URLs reject scripts, credentials, insecure and lookalike doma
     "https://teams.microsoft.com/l/meetup-join/test",
   );
 });
+
+import { swipeAxis, swipeRelease } from "../src/lib/mail/swipe";
+test("swipe delete distinguishes horizontal intent from taps, vertical scrolling and diagonal drags", () => {
+  assert.equal(swipeAxis(-5, 2), null);
+  assert.equal(swipeAxis(-80, 8), "horizontal");
+  assert.equal(swipeAxis(-10, 80), "vertical");
+  assert.equal(swipeAxis(-50, 50), "vertical");
+  assert.equal(swipeRelease(-30, 390), "close");
+  assert.equal(swipeRelease(-100, 390), "reveal");
+  assert.equal(swipeRelease(-240, 390), "delete");
+  assert.equal(swipeRelease(240, 390), "close");
+  assert.equal(swipeRelease(-100, 100), "reveal");
+});

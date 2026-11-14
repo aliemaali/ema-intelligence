@@ -1590,3 +1590,49 @@ test("AI connection test requires active staff, same origin, POST and the existi
   assert.equal((await POST(req("analyze-test", {}))).status, 503);
   assert.equal(graphCalls, 0);
 });
+
+test("swipe-compatible trash action moves the exact message into deleteditems without permanent deletion", async () => {
+  reset();
+  let captured: any;
+  globalThis.fetch = async (url, init) => {
+    captured = {
+      url: String(url),
+      method: init?.method,
+      body: JSON.parse(String(init?.body)),
+    };
+    return Response.json({ id: "moved" });
+  };
+  const response = await POST(
+    req("message-action", {
+      mailbox: "me",
+      id: "swiped-message",
+      operation: "trash",
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(captured.method, "POST");
+  assert.equal(
+    captured.url,
+    "https://graph.microsoft.com/v1.0/me/messages/swiped-message/move",
+  );
+  assert.deepEqual(captured.body, { destinationId: "deleteditems" });
+  reset();
+  rows.ema_mail_memberships = [
+    {
+      user_id: uid,
+      mailbox: "team@example.com",
+      can_read: true,
+      can_write: false,
+      can_send: false,
+    },
+  ];
+  const denied = await POST(
+    req("message-action", {
+      mailbox: "team@example.com",
+      id: "swiped-message",
+      operation: "trash",
+    }),
+  );
+  assert.equal(denied.status, 403);
+  assert.equal(graphCalls, 0);
+});
