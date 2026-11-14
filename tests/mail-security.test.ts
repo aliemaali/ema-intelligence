@@ -276,6 +276,7 @@ test("signature uses the supplied immutable image as CID and escapes mail text",
   });
   const m = graphMessage(d, "id");
   assert.equal(m.body.contentType, "HTML");
+  assert.ok(m.body.content.includes('width="320"'));
   assert.ok(m.body.content.includes("&lt;script&gt;"));
   assert.ok(m.body.content.includes("<br>Hello &amp; goodbye"));
   assert.ok(!m.body.content.includes("<script>"));

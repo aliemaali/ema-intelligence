@@ -7,8 +7,8 @@ export function MailSignature() {
       <Image
         src={SIGNATURE_IMAGE}
         alt={SIGNATURE_ALT}
-        width={600}
-        height={357}
+        width={320}
+        height={191}
         unoptimized
       />
       <small>Signatur für unluer@ema-enterprise.de · wird mitgesendet</small>

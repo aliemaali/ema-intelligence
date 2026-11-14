@@ -2013,7 +2013,7 @@
 }
 .mailSignature img {
   display: block;
-  width: min(100%, 520px);
+  width: min(100%, 320px);
   height: auto;
   border-radius: 5px;
 }

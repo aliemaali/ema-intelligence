@@ -75,7 +75,7 @@ export function graphMessage(draft: MailDraft, reference: string) {
     body: draft.signatureId
       ? {
           contentType: "HTML",
-          content: `<div>${escapeHtml(draft.body).replace(/\r?\n/g, "<br>")}</div><br><img src="cid:${SIGNATURE_CID}" width="600" style="max-width:100%;height:auto" alt="${escapeHtml(SIGNATURE_ALT)}">`,
+          content: `<div>${escapeHtml(draft.body).replace(/\r?\n/g, "<br>")}</div><br><img src="cid:${SIGNATURE_CID}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(SIGNATURE_ALT)}">`,
         }
       : { contentType: "Text", content: draft.body },
     isReadReceiptRequested: draft.isReadReceiptRequested === true,

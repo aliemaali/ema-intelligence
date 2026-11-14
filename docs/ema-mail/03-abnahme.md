@@ -72,3 +72,5 @@ PDF-/PNG-/JPEG-Anhänge öffnen per Klick in einem Dialog. Echte Dateien werden 
 - Das Bild wird als Inline-CID-Anhang versendet, ohne externen Bildabruf. Der Nachrichtentext bleibt im Editor Klartext und wird für die Signatur-Mail vor der HTML-Ausgabe escaped. Native Antworten erhalten denselben Inhalt und Inline-Anhang.
 - Lesebestätigung und Empfangs-/Zustellbestätigung sind unabhängig wählbar und standardmäßig aus. `isReadReceiptRequested` und `isDeliveryReceiptRequested` werden an Graph übergeben und sind Teil der Freigabe. Eine Rückmeldung wird nur angefordert; Empfänger-/Serversysteme können sie unterdrücken.
 - 56 Mailtests bestanden, darunter CID-Bild und Escaping, optionale Bestätigungen, Freigabe-Hash, falscher/geänderter Absender und der native Antwortpfad mit beiden Bestätigungen. Kein echter Versand ausgeführt. Exchange-Zustellung und reale Bestätigungsantworten bleiben Bestandteil der isolierten Abnahme.
+
+Auf Benutzerwunsch wird die Signatur kompakt mit 320 px Breite dargestellt und mit dieser Breite versendet; auf schmalen Bildschirmen maximal 100 % der verfügbaren Breite.
