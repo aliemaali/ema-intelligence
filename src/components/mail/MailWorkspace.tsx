@@ -812,7 +812,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
         onCompose={() => newCompose()} onVoice={() => setVoiceOpen(true)}
-        onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar}
+        onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar} notice={notice}
       /> : <>
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>

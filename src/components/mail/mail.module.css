@@ -2507,7 +2507,7 @@
 .dashboardSectionTitle { display:flex; justify-content:space-between; align-items:center; margin:0 0 10px; }
 .dashboardSectionTitle h2 { margin:0; font-size:23px; font-weight:650; letter-spacing:-.4px; }
 .dashboardMailWrap { border:1px solid #343b37; background:linear-gradient(120deg,#242a27,#1a201d); border-radius:17px; overflow:hidden; margin-bottom:12px; }
-.dashboardMailWrap .swipeContent { background:transparent; }
+.dashboardMailWrap .swipeContent { background:linear-gradient(120deg,#242a27,#1a201d); }
 .dashboardMail { width:100%; display:flex; align-items:flex-start; text-align:left; gap:14px; padding:18px; border:0; background:transparent; color:#f1f4f2; }
 .dashboardAvatar { display:grid; place-items:center; flex:0 0 43px; height:43px; border-radius:50%; background:#245340; color:#d0f4e0; font-size:20px; }
 .dashboardAvatar[data-color="1"] { background:#324a43; }

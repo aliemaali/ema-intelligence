@@ -4,7 +4,8 @@ import {CalendarDays,ChevronRight,Home,Mail,Mic,PenLine,RefreshCw,Settings,Spark
 import {demoMessages} from '@/lib/mail/demo';
 import {invoiceHint,type Message} from '@/lib/mail/model';
 import {graphDate,teamsJoinUrl} from '@/lib/mail/calendar';
-import {todayRange} from '@/lib/mail/voice';
+import {fromZonedTime} from 'date-fns-tz';
+import {berlinDay,todayRange} from '@/lib/mail/voice';
 import type {MailPimItem} from './MailPim';
 import {MailSwipeRow} from './MailSwipeRow';
 import s from './mail.module.css';
@@ -14,12 +15,12 @@ export function MailBottomNav({view,onNavigate}:{view:MailView;onNavigate:(view:
 }
 export function priorityMail(m:Message){return m.importance==='high'||m.flag?.flagStatus==='flagged'||m.emaAnalysis?.priority==='high';}
 async function get(path:string,signal:AbortSignal){const r=await fetch('/api/mail/'+path,{cache:'no-store',signal});const d=await r.json();if(!r.ok)throw new Error(d.error||'Daten konnten nicht geladen werden.');return d;}
-export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onVoice,onTrash,revision,demoRecords}:{demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onVoice:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[]}) {
+export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onVoice,onTrash,revision,demoRecords,notice}:{demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onVoice:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[];notice?:string}) {
   const [messages,setMessages]=useState<Message[]>([]),[events,setEvents]=useState<MailPimItem[]>([]),[unread,setUnread]=useState<number|null>(null),[busy,setBusy]=useState(true),[errors,setErrors]=useState<string[]>([]),[tab,setTab]=useState<'priority'|'all'|'events'>('priority'),[partial,setPartial]=useState(false),[swiped,setSwiped]=useState<string|null>(null),[today,setToday]=useState(new Date());
   const version=useRef(0), demoDeleted=useRef(new Set<string>());
   const refresh=useCallback(async(signal:AbortSignal)=>{
     const current=++version.current;setBusy(true);
-    if(demo){const day=new Date();day.setHours(14,0,0,0);setMessages(demoMessages.filter(m=>!demoDeleted.current.has(m.id)));setUnread(demoMessages.filter(m=>!m.isRead).length);setEvents(demoRecords??[{id:'demo-overview',subject:'Projektbesprechung Chemnitz',start:{dateTime:day.toISOString()},end:{dateTime:new Date(day.getTime()+1800000).toISOString()},location:{displayName:'Microsoft Teams'}}]);setBusy(false);return;}
+    if(demo){const day=fromZonedTime(`${berlinDay()}T14:00:00`,'Europe/Berlin');setMessages(demoMessages.filter(m=>!demoDeleted.current.has(m.id)));setUnread(demoMessages.filter(m=>!m.isRead&&!demoDeleted.current.has(m.id)).length);setEvents(demoRecords??[{id:'demo-overview',subject:'Projektbesprechung Chemnitz',start:{dateTime:day.toISOString()},end:{dateTime:new Date(day.getTime()+1800000).toISOString()},location:{displayName:'Microsoft Teams'}}]);setBusy(false);return;}
     setMessages([]);setEvents([]);setUnread(null);setErrors([]);setPartial(false);setToday(new Date());
     const range=todayRange();
     const results=await Promise.allSettled([get(`messages?${new URLSearchParams({mailbox,folder:'inbox'})}`,signal),get(`calendar?${new URLSearchParams(range)}`,signal),get('badge',signal)]);
@@ -38,8 +39,9 @@ export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,
       <header className={s.dashboardHeader}><a href="/apps" className={s.dashboardBrand}><i>e</i><span>EMA Mail</span></a><div><button onClick={()=>void refresh(new AbortController().signal)} disabled={busy} aria-label="Dashboard aktualisieren"><RefreshCw size={18}/></button><button onClick={()=>onNavigate('settings')} aria-label="Einstellungen"><Settings size={19}/></button></div></header>
       {demo&&<p className={s.dashboardDemo}>Designvorschau · Beispieldaten</p>}
       <div className={s.dashboardTitle}><p>{today.toLocaleDateString('de-DE',{timeZone:'Europe/Berlin',weekday:'long',day:'numeric',month:'long'})}</p><h1>Dein Überblick</h1></div>
-      <section className={s.dashboardHero} aria-label="Tagesüberblick"><Sparkles size={29}/><div><h2>Alles im Blick</h2><p>{busy?'Dein Tag wird geladen …':`${unread===null?'–':unread} ungelesene E-Mails. ${events.length} Termine heute.`}</p><small>Ungelesen: alle freigegebenen Postfächer</small><p className={s.dashboardInsight}>{tasks?`${tasks} Aufgabenvorschläge in den analysierten E-Mails.`:'Wichtige Nachrichten und Termine an einem Ort.'}</p></div></section>
+      <section className={s.dashboardHero} aria-label="Tagesüberblick"><Sparkles size={29}/><div><h2>Alles im Blick</h2><p>{busy?'Dein Tag wird geladen …':`${unread===null?'–':unread} ungelesen · ${events.length} ${events.length===1?'Termin':'Termine'} heute`}</p><small>Ungelesen: alle freigegebenen Postfächer</small><p className={s.dashboardInsight}>{tasks?`${tasks} Aufgabenvorschläge in den analysierten E-Mails.`:'Wichtige Nachrichten und Termine an einem Ort.'}</p></div></section>
       <label className={s.dashboardMailbox}><span>Postfach</span><select value={mailbox} onChange={e=>onMailbox(e.target.value)} aria-label="Postfach auswählen">{accounts.length?accounts.map(a=><option key={a.mailbox} value={a.mailbox}>{a.name||a.address||a.mailbox}</option>):<option value="me">Mein Postfach</option>}</select></label>
+      {notice&&<p className={s.dashboardFootnote} role="status">{notice}</p>}
       {errors.length>0&&<div className={s.dashboardErrors} role="status">{errors.map(error=><p key={error}>{error}</p>)}<button onClick={()=>void refresh(new AbortController().signal)}>Erneut laden</button></div>}
       <div className={s.dashboardTabs} role="group" aria-label="Übersicht filtern">{([{id:'priority',label:'Priorität'},{id:'all',label:'Alle E-Mails'},{id:'events',label:'Termine'}]as const).map(t=><button key={t.id} aria-pressed={tab===t.id} onClick={()=>setTab(t.id)}>{t.label}</button>)}</div>
       <div className={s.dashboardColumns}>
