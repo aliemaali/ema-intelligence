@@ -18,13 +18,6 @@ export type ProductivityData = {
     state: string;
     last_error?: string;
   }[];
-  followups: {
-    id: string;
-    title: string;
-    run_at: string;
-    state: string;
-    last_error?: string;
-  }[];
   schedulerConfigured: boolean;
 };
 export const emptyProductivity: ProductivityData = {
@@ -32,7 +25,6 @@ export const emptyProductivity: ProductivityData = {
   signatureText: "",
   projects: [],
   schedules: [],
-  followups: [],
   schedulerConfigured: false,
 };
 export function useMailProductivity(demo: boolean, mailbox: string) {

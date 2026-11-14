@@ -1,43 +1,28 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { Message } from "@/lib/mail/model";
-import { mailPost, localDateTime } from "./useMailProductivity";
+import { mailPost } from "./useMailProductivity";
 import s from "./mail.module.css";
 export function MailMessageTools({
   demo,
   message,
   mailbox,
-  ownAddress,
   projects,
   onProject,
-  onFollowup,
-  onReminder,
 }: {
   demo: boolean;
   message: Message;
   mailbox: string;
-  ownAddress: string;
   projects: { id: string; project_name: string }[];
   onProject: (id: string) => void;
-  onReminder: (value: { title: string; due_at: string }) => void;
-  onFollowup: (value: {
-    id: string;
-    title: string;
-    run_at: string;
-    state: string;
-  }) => void;
 }) {
-  const messageKey = `${mailbox}:${message.id}`;
-  const [reminderChoice, setReminderChoice] = useState({ key: messageKey, enabled: false });
-  const reminderEnabled = reminderChoice.key === messageKey && reminderChoice.enabled;
   const [project, setProject] = useState(""),
     [linked, setLinked] = useState<string[]>([]),
     [notice, setNotice] = useState(""),
     [thread, setThread] = useState<Message[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [threadOpen, setThreadOpen] = useState(false),
-    [busy, setBusy] = useState(false),
-    [due, setDue] = useState(localDateTime(new Date(Date.now() + 86400000)));
+    [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
     setProject("");
@@ -116,8 +101,8 @@ export function MailMessageTools({
     });
   }
   return (
-    <section className={s.messageTools} aria-label="Projekt und Wiedervorlage">
-      <h3>Projekt & Wiedervorlage</h3>
+    <section className={s.messageTools} aria-label="Projekt und Gesprächsverlauf">
+      <h3>Projekt & Gesprächsverlauf</h3>
       <div className={s.toolRow}>
         <select
           aria-label="Projekt für diese Mail"
@@ -176,97 +161,6 @@ export function MailMessageTools({
           </button>
         )}
       </div>
-      <div className={s.toolRow}>
-        <label>
-          Wiedervorlage:{" "}
-          <select
-            aria-label="Wiedervorlage aktivieren"
-            value={reminderEnabled ? "yes" : "no"}
-            disabled={busy}
-            onChange={(event) => setReminderChoice({ key: messageKey, enabled: event.target.value === "yes" })}
-          >
-            <option value="no">Nein</option>
-            <option value="yes">Ja</option>
-          </select>
-        </label>
-      </div>
-      {reminderEnabled && (
-        <>
-          <div className={s.toolRow}>
-            <button
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  tomorrow.setHours(9, 0, 0, 0);
-                  if (!demo)
-                    await mailPost("reminders", {
-                      mailbox,
-                      messageId: message.id,
-                      title: `Nachfassen: ${message.subject}`.slice(0, 200),
-                      dueAt: tomorrow.toISOString(),
-                    });
-                  else
-                    onReminder({
-                      title: `Nachfassen: ${message.subject}`.slice(0, 200),
-                      due_at: tomorrow.toISOString(),
-                    });
-                  setNotice(
-                    demo
-                      ? "Demo: Erinnerung für morgen 09:00 Uhr vorgemerkt."
-                      : "Erinnerung für morgen 09:00 Uhr angelegt.",
-                  );
-                })
-              }
-            >
-              Morgen erinnern
-            </button>
-            <input
-              aria-label="Zeitpunkt für Antwortbeobachtung"
-              type="datetime-local"
-              value={due}
-              onChange={(e) => setDue(e.target.value)}
-            />
-            <button
-              disabled={
-                busy ||
-                message.from.emailAddress.address.toLowerCase() !==
-                  ownAddress.toLowerCase()
-              }
-              title="Für eigene gesendete Mails"
-              onClick={() =>
-                void run(async () => {
-                  const value = {
-                    id: crypto.randomUUID(),
-                    title: `Antwort prüfen: ${message.subject}`,
-                    run_at: new Date(due).toISOString(),
-                    state: "pending",
-                  };
-                  if (!demo)
-                    await mailPost("followup", {
-                      mailbox,
-                      messageId: message.id,
-                      dueAt: value.run_at,
-                    });
-                  else onFollowup(value);
-                  setNotice(
-                    demo
-                      ? "Demo-Beobachtung vorgemerkt. Kein Hintergrundauftrag aktiv."
-                      : "Erinnerung nur dann, wenn bis zum Termin keine Antwort erkannt wird.",
-                  );
-                })
-              }
-            >
-              Erinnern, wenn keine Antwort
-            </button>
-          </div>
-          <small>
-            Antwortbeobachtung gilt für eigene gesendete Nachrichten. Alias-Adressen
-            und automatische Antworten bitte im Verlauf prüfen.
-          </small>
-        </>
-      )}
       <div className={s.toolRow}>
         <button
           disabled={busy}

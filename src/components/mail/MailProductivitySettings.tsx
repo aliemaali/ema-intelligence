@@ -10,9 +10,6 @@ const labels: Record<string, string> = {
   uncertain: "Status unklar – Gesendet-Ordner prüfen",
   blocked: "Manuelle Prüfung erforderlich",
   cancelled: "Abgebrochen",
-  answered: "Antwort erkannt",
-  reminded: "Erinnerung angelegt",
-  checking: "Antwort wird geprüft",
 };
 export function MailProductivitySettings({
   demo,
@@ -145,38 +142,6 @@ export function MailProductivitySettings({
               }
             >
               Geplanten Versand abbrechen
-            </button>
-          )}
-        </div>
-      ))}
-      <h3>Antwortbeobachtung</h3>
-      {data.followups.map((j) => (
-        <div className={s.queueItem} key={j.id}>
-          <strong>{j.title}</strong>
-          <span>
-            {new Date(j.run_at).toLocaleString("de-DE")} ·{" "}
-            {labels[j.state] || j.state}
-          </span>
-          {j.last_error && <small>{j.last_error}</small>}
-          {j.state === "pending" && (
-            <button
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  if (!demo) {
-                    await mailPost("cancel-followup", { mailbox, id: j.id });
-                    await refresh();
-                  } else
-                    update((d) => ({
-                      ...d,
-                      followups: d.followups.map((v) =>
-                        v.id === j.id ? { ...v, state: "cancelled" } : v,
-                      ),
-                    }));
-                })
-              }
-            >
-              Beobachtung abbrechen
             </button>
           )}
         </div>
