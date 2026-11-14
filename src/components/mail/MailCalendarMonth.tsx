@@ -88,12 +88,22 @@ export function MailCalendarMonth({
           >
             <ChevronRight size={20} />
           </button>
+          <button
+            type="button"
+            aria-label="Neuen Termin erstellen"
+            title="Neuer Termin"
+            disabled={busy}
+            onClick={onNew}
+          >
+            <Plus size={20} />
+          </button>
         </div>
       </header>
       <div
         className={c.grid}
         style={{
           gridTemplateRows: `34px repeat(${days.length / 7}, minmax(76px, 1fr))`,
+          minHeight: 34 + (days.length / 7) * 76,
         }}
       >
         <span className={c.weekHeading} title="Kalenderwoche">
