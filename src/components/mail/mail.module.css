@@ -2308,3 +2308,51 @@
     flex-wrap: wrap;
   }
 }
+
+/* Fit installed iPhone Mail to the viewport; scroll content, keep controls reachable. */
+@media (max-width: 650px) {
+  .workspace {
+    box-sizing: border-box;
+    height: 100dvh;
+    min-height: 0;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .topbar { height: 48px; flex: 0 0 48px; padding-inline: 10px; gap: 9px; }
+  .brand { gap: 5px; flex-shrink: 0; }
+  .brand strong { font-size: 14px; }
+  .brandLogo img { width: 54px; height: 29px; }
+  .search { flex: 1; width: 0; min-width: 0; padding: 6px 8px; gap: 5px; }
+  .search input { min-width: 0; width: 100%; font-size: 16px; }
+  .themeToggle { flex-shrink: 0; padding: 7px; }
+  .ribbon { flex: 0 0 auto; min-height: 42px; padding: 4px 10px; }
+  .ribbon .ribbonNew { padding: 7px 10px; }
+  .body { flex: 1; min-height: 0; overflow: hidden; }
+  .list { min-height: 0; overflow: hidden; }
+  .listHeader { flex-shrink: 0; padding: 9px 14px 0; }
+  .titleRow h1 { font-size: 18px; letter-spacing: -.3px; }
+  .titleRow button { min-height: 34px; min-width: 34px; }
+  .tabs { margin-top: 7px; gap: 19px; }
+  .tabs button { padding-bottom: 8px; }
+  .listMeta { flex-shrink: 0; padding: 7px 14px; font-size: 10px; }
+  .messages { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+  .message { padding: 10px 14px; }
+  .senderRow { margin-bottom: 3px; }
+  .senderRow strong { font-size: 13px; }
+  .subject { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-bottom: 2px; font-size: 12px; }
+  .preview { font-size: 11px; line-height: 1.4; }
+  .listMore { flex-shrink: 0; padding: 6px 12px; }
+  .reader, .aux { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+  .sidebar.open { top: calc(90px + env(safe-area-inset-top, 0px)); bottom: env(safe-area-inset-bottom, 0px); }
+  .composeWindow, .composeExpanded .composeWindow { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
+@media (max-width: 360px) {
+  .brand strong { display: none; }
+  .tabs { gap: 14px; }
+}
