@@ -288,11 +288,16 @@ async function handle(request: NextRequest) {
       const signature = (box: string) =>
         (settings.data || []).find((s) => s.mailbox === box)?.signature_text ||
         "";
+      const displayName = (address: string) => ({
+        "tuba.unluer@ema-enterprise.de": "Tuba",
+        "unluer@ema-enterprise.de": "Ali",
+        "info@ema-enterprise.de": "info",
+      } as Record<string, string>)[address.toLowerCase()] || address;
       return json({
         mailboxes: [
           {
             mailbox: "me",
-            name: senderAddress,
+            name: displayName(senderAddress),
             address: senderAddress,
             signatureText: signature("me"),
             can_read: true,
@@ -301,6 +306,8 @@ async function handle(request: NextRequest) {
           },
           ...(data || []).map((a) => ({
             ...a,
+            name: displayName(a.mailbox),
+            address: a.mailbox,
             signatureText: signature(a.mailbox),
           })),
         ],
