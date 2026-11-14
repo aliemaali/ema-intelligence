@@ -746,8 +746,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       setTaskOpen(false);
       setNotice(
         demo
-          ? "Demo-Erinnerung angelegt. Es wird kein Push versendet."
-          : "Erinnerung angelegt. Push folgt über deine eingerichtete EMA-Benachrichtigung.",
+          ? "Demo-Aufgabe angelegt."
+          : "Aufgabe angelegt.",
       );
     } catch (e) {
       setNotice((e as Error).message);
@@ -1212,16 +1212,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       <Flag size={15} />
                     </button>
                     <button
-                      aria-label="Erinnern"
-                      onClick={() => {
-                        setTaskTitle(selected.subject);
-                        setTaskOpen(true);
-                      }}
-                    >
-                      <Bell size={15} />
-                      <span>Erinnern</span>
-                    </button>
-                    <button
                       onClick={() => setView("settings")}
                       aria-label="Postfacheinstellungen"
                     >
@@ -1324,24 +1314,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       demo={demo}
                       message={selected}
                       mailbox={mailbox}
-                      ownAddress={account?.address || mailbox}
                       projects={productivity.data.projects}
                       onProject={setSelectedProject}
-                      onReminder={(value) =>
-                        setDemoPim((old) => ({
-                          ...old,
-                          tasks: [
-                            ...(old.tasks || []),
-                            { id: crypto.randomUUID(), ...value },
-                          ],
-                        }))
-                      }
-                      onFollowup={(value) =>
-                        productivity.update((d) => ({
-                          ...d,
-                          followups: [value, ...d.followups],
-                        }))
-                      }
                     />
                     <section className={s.aiCard}>
                       <div className={s.aiHeader}>
@@ -1773,10 +1747,10 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
             className={s.modal}
             role="dialog"
             aria-modal="true"
-            aria-label="Erinnerung anlegen"
+            aria-label="Aufgabe anlegen"
           >
             <header>
-              <h2>Erinnerung anlegen</h2>
+              <h2>Aufgabe anlegen</h2>
               <button
                 className={s.iconButton}
                 onClick={() => setTaskOpen(false)}
@@ -1806,7 +1780,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                 disabled={busy}
                 onClick={() => void createTask()}
               >
-                Erinnerung speichern
+                Aufgabe speichern
               </button>
             </footer>
           </section>

@@ -1010,72 +1010,29 @@ test("dispatch route is disabled in previews even with scheduler flag", async ()
   );
   assert.equal(graphCalls, 0);
 });
-test("answer observation only accepts own sent mail; no arbitrary incoming watch", async () => {
+test("retired followup endpoints reject stale clients without writes", async () => {
   reset();
   process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
-  globalThis.fetch = async () =>
-    Response.json({
-      id: "incoming",
-      subject: "s",
-      from: { emailAddress: { address: "external@example.com" } },
-      toRecipients: [{ emailAddress: { address: "tester@example.com" } }],
-      conversationId: "c",
-      receivedDateTime: new Date().toISOString(),
-    });
-  assert.equal(
-    (
-      await POST(
-        req("followup", {
-          mailbox: "me",
-          messageId: "incoming",
-          dueAt: new Date(Date.now() + 3600000).toISOString(),
-        }),
-      )
-    ).status,
-    400,
-  );
+  for (const action of ["followup", "cancel-followup"]) {
+    const response = await POST(req(action, {mailbox:"me", messageId:"incoming", id}));
+    assert.equal(response.status,410);
+  }
+  assert.equal(graphCalls,0);
   assert.ok(!rows.ema_mail_followups);
 });
-test("answer followup creates a private reminder only if no expected recipient replied", async () => {
-  for (const answered of [false, true]) {
-    reset();
-    process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
-    const watch: any = {
-      id,
-      user_id: uid,
-      mailbox: "me",
-      message_id: "sent",
-      conversation_id: "c",
-      reference_at: new Date(Date.now() - 3600000).toISOString(),
-      expected_repliers: ["recipient@example.com"],
-      title: "Follow up",
-      state: "pending",
-    };
-    rows.ema_mail_followups = [watch];
-    globalThis.__mailFixture.admin.rpc = async (name: string) => {
-      if (name === "ema_mail_claim_followup" && watch.state === "pending") {
-        watch.state = "checking";
-        return { data: [{ ...watch }], error: null };
-      }
-      return { data: [], error: null };
-    };
-    globalThis.fetch = async () =>
-      Response.json({
-        value: answered
-          ? [
-              {
-                id: "reply",
-                from: { emailAddress: { address: "recipient@example.com" } },
-              },
-            ]
-          : [],
-      });
-    await runApprovedDispatch();
-    assert.equal(watch.state, answered ? "answered" : "reminded");
-    assert.equal(rows.ema_reminders?.length || 0, answered ? 0 : 1);
-    await runApprovedDispatch();
-    assert.equal(rows.ema_reminders?.length || 0, answered ? 0 : 1);
-  }
+test("scheduled dispatcher ignores legacy followups and creates no reminders", async () => {
+  reset();
+  process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED = "true";
+  rows.ema_mail_followups = [{id,user_id:uid,mailbox:"me",state:"pending"}];
+  const calls:string[]=[];
+  globalThis.__mailFixture.admin.rpc = async (name:string) => {
+    calls.push(name);
+    return {data:[],error:null};
+  };
+  assert.deepEqual(await runApprovedDispatch(),{scheduled:0});
+  assert.deepEqual(calls,["ema_mail_claim_scheduled"]);
+  assert.equal(rows.ema_mail_followups[0].state,"pending");
+  assert.ok(!rows.ema_reminders?.length);
 });
 test("project documents include only own linked DMS records when mail is enabled", async () => {
   reset();

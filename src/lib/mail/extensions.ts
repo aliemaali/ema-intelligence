@@ -35,6 +35,8 @@ export async function productivityEndpoint(
   input: Record<string, unknown>,
   session: MailSession,
 ): Promise<NextResponse | null> {
+  if (action === "followup" || action === "cancel-followup")
+    throw new MailError(410, "Wiedervorlage wurde entfernt.");
   const actions = [
     "productivity",
     "template",
@@ -44,8 +46,6 @@ export async function productivityEndpoint(
     "thread",
     "schedule",
     "cancel-schedule",
-    "followup",
-    "cancel-followup",
   ];
   if (!actions.includes(action)) return null;
   const post = request.method === "POST",
@@ -58,7 +58,7 @@ export async function productivityEndpoint(
   );
   const root = mailboxRoot(mailbox);
   if (action === "productivity" && !post) {
-    const [templates, settings, projects, schedules, followups] =
+    const [templates, settings, projects, schedules] =
       await Promise.all([
         db
           .from("ema_mail_templates")
@@ -85,16 +85,9 @@ export async function productivityEndpoint(
           .eq("mailbox", mailbox)
           .order("run_at", { ascending: false })
           .limit(50),
-        db
-          .from("ema_mail_followups")
-          .select("id,title,run_at,state,last_error")
-          .eq("user_id", uid)
-          .eq("mailbox", mailbox)
-          .order("run_at", { ascending: false })
-          .limit(50),
       ]);
     if (
-      [templates, settings, projects, schedules, followups].some((r) => r.error)
+      [templates, settings, projects, schedules].some((r) => r.error)
     )
       throw new MailError(503, "Mail-Erweiterungen noch nicht eingerichtet.");
     return reply({
@@ -108,7 +101,6 @@ export async function productivityEndpoint(
         subject: j.payload?.subject,
         last_error: j.last_error,
       })),
-      followups: followups.data,
       schedulerConfigured:
         process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED === "true",
     });
@@ -318,70 +310,6 @@ export async function productivityEndpoint(
       throw new MailError(
         409,
         "Versand bereits beansprucht oder nicht gefunden. Status prüfen.",
-      );
-    return reply({ ok: true });
-  }
-  if (action === "followup" && post) {
-    if (process.env.EMA_MAIL_SCHEDULED_SEND_ENABLED !== "true")
-      throw new MailError(
-        503,
-        "Antwortbeobachtung ist noch nicht freigeschaltet.",
-      );
-    const messageId = id.parse(input.messageId),
-      runAt = checkSchedule(
-        z.string().datetime({ offset: true }).parse(input.dueAt),
-      );
-    const m = await mailGraph<Message & { sentDateTime?: string }>(
-      token,
-      `${messagePath(mailbox, messageId)}?$select=id,subject,from,toRecipients,ccRecipients,conversationId,receivedDateTime,sentDateTime`,
-      {},
-      root,
-    );
-    const own = await mailSenderAddress(session, mailbox);
-    if (m.from.emailAddress.address.toLowerCase() !== own || !m.conversationId)
-      throw new MailError(
-        400,
-        "Antwortbeobachtung ist nur für eigene gesendete Nachrichten möglich.",
-      );
-    const addresses = [
-      ...new Set(
-        [...(m.toRecipients || []), ...(m.ccRecipients || [])]
-          .map((a) => a.emailAddress.address.toLowerCase())
-          .filter((a) => a !== own),
-      ),
-    ];
-    if (!addresses.length)
-      throw new MailError(400, "Keine externen Empfänger vorhanden.");
-    const { error } = await db.from("ema_mail_followups").insert({
-      user_id: uid,
-      mailbox,
-      message_id: messageId,
-      conversation_id: m.conversationId,
-      reference_at: m.sentDateTime || m.receivedDateTime,
-      expected_repliers: addresses,
-      title: `Antwort prüfen: ${m.subject}`.slice(0, 200),
-      run_at: runAt,
-    });
-    if (error)
-      throw new MailError(
-        409,
-        "Beobachtung nicht angelegt oder bereits vorhanden.",
-      );
-    return reply({ ok: true });
-  }
-  if (action === "cancel-followup" && post) {
-    const { data, error } = await db
-      .from("ema_mail_followups")
-      .update({ state: "cancelled" })
-      .eq("id", uuid.parse(input.id))
-      .eq("user_id", uid)
-      .eq("state", "pending")
-      .select("id")
-      .maybeSingle();
-    if (error || !data)
-      throw new MailError(
-        409,
-        "Beobachtung bereits in Bearbeitung oder nicht gefunden.",
       );
     return reply({ ok: true });
   }
