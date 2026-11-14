@@ -44,7 +44,7 @@ import {
   invoiceHint,
   type Attachment,
   type MailDraft,
-  type Message,
+  type Message as BaseMessage,
 } from "@/lib/mail/model";
 import { demoMessages, demoReply } from "@/lib/mail/demo";
 import type { MailAnalysis } from "@/lib/mail/analysis";
@@ -62,6 +62,9 @@ import { MailSwipeRow } from "./MailSwipeRow";
 import { MailPim, type MailPimItem } from "./MailPim";
 import { MailHomeScreen } from "./MailHomeScreen";
 import { MailAutomation } from "./MailAutomation";
+import { combinedInboxPage, type MailboxPage } from "@/lib/mail/combined-inbox";
+type Message = BaseMessage & { sourceMailbox?: string };
+const messageKey = (m: Message) => `${m.sourceMailbox || ""}:${m.id}`;
 type Account = {
   mailbox: string;
   address?: string;
@@ -167,6 +170,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       new CustomEvent("ema:mail-theme-change", { detail: next }),
     );
   }
+  const [allMailboxes, setAllMailboxes] = useState(false);
+  const combinedPages = useRef<MailboxPage<Message>[]>([]);
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
     [folder, setFolder] = useState("inbox"),
@@ -284,6 +289,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     async (next?: string) => {
       const version = ++requestVersion.current;
       setBusy(true);
+      if (!next) { setMessages([]); setCursor(null); }
       try {
         if (demo) {
           setMessages(
@@ -322,8 +328,18 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         if (folder === "drafts") {
           const data = await api("drafts");
           if (version === requestVersion.current) {
-            setDrafts(data.drafts.filter((d: DraftRecord) => d.payload.mailbox === mailbox && ["draft", "approved"].includes(d.status)));
+            setDrafts(data.drafts.filter((d: DraftRecord) => (allMailboxes || d.payload.mailbox === mailbox) && ["draft", "approved"].includes(d.status)));
             setMessages([]);
+          }
+          return;
+        }
+        if (allMailboxes) {
+          const sources = next ? combinedPages.current : accounts.filter(a => a.can_read).map(a => ({ mailbox: a.mailbox, items: [], cursor: null, started: false }));
+          const data = await combinedInboxPage(sources, (box, page) => api(`messages?${new URLSearchParams({ mailbox: box, folder, q, ...(page ? { cursor: page } : {}) })}`));
+          if (version === requestVersion.current) {
+            combinedPages.current = data.sources;
+            setMessages(old => next ? [...old, ...data.messages] : data.messages);
+            setCursor(data.hasMore ? "combined" : null);
           }
           return;
         }
@@ -342,7 +358,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         if (version === requestVersion.current) setBusy(false);
       }
     },
-    [demo, folder, mailbox, q],
+    [demo, folder, mailbox, q, allMailboxes, accounts],
   );
   useEffect(() => {
     if (!demo)
@@ -359,6 +375,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     };
   }, [load]);
   async function openMessage(message: Message) {
+    const source = message.sourceMailbox || mailbox;
+    if (message.sourceMailbox) setMailbox(source);
     const version = ++detailVersion.current;
     setView("mail");
     setSelected(message);
@@ -381,15 +399,15 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     }
     try {
       const [detail, files] = await Promise.all([
-        api(`message?${new URLSearchParams({ mailbox, id: message.id })}`),
+        api(`message?${new URLSearchParams({ mailbox: source, id: message.id })}`),
         message.hasAttachments
           ? api(
-              `attachments?${new URLSearchParams({ mailbox, id: message.id })}`,
+              `attachments?${new URLSearchParams({ mailbox: source, id: message.id })}`,
             )
           : Promise.resolve({ attachments: [] }),
       ]);
       if (version === detailVersion.current) {
-        setSelected(detail.message);
+        setSelected({ ...detail.message, sourceMailbox: message.sourceMailbox });
         setAnalysis(detail.analysis ?? null);
         setAttachments(files.attachments);
       }
@@ -479,12 +497,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     setBusy(true);
     try {
       if (!demo)
-        await api("message-action", { mailbox, id: target.id, operation });
+        await api("message-action", { mailbox: target.sourceMailbox || mailbox, id: target.id, operation });
       if (listVersion !== requestVersion.current) return;
       if (["archive", "trash"].includes(operation)) {
-        setMessages((old) => old.filter((m) => m.id !== target.id));
+        setMessages((old) => old.filter((m) => messageKey(m) !== messageKey(target)));
         if (
-          selected?.id === target.id &&
+          selected && messageKey(selected) === messageKey(target) &&
           selectionVersion === detailVersion.current
         ) {
           detailVersion.current++;
@@ -494,7 +512,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         }
       } else {
         const update = (m: Message) =>
-          m.id !== target.id
+          messageKey(m) !== messageKey(target)
             ? m
             : {
                 ...m,
@@ -741,6 +759,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }
   function navigate(next: View) {
     setView(next); setNavOpen(false); setReading(false);
+    if (next !== "mail") setAllMailboxes(false);
+    if (next === "mail" && view !== "mail") setAllMailboxes(accounts.length > 1);
     if (next === "mail") { setFolder("inbox"); setFilter("all"); setQ(""); }
   }
   const visible = messages.filter((m) =>
@@ -770,7 +790,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         onCompose={() => newCompose()}
         onFolder={(id) => { setQ(""); changeFolder(id); }}
         onSearch={(query) => { navigate("mail"); setQ(query.trim().slice(0,180)); }}
-        demoDraftCount={drafts.filter(d => d.payload.mailbox === mailbox && ["draft", "approved"].includes(d.status)).length}
+        demoDraftCount={drafts.filter(d => (allMailboxes || d.payload.mailbox === mailbox) && ["draft", "approved"].includes(d.status)).length}
         onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar} notice={notice}
       /> : <>
       <header className={s.topbar}>
@@ -907,8 +927,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
               title={item.label}
               aria-current={view === item.id ? "page" : undefined}
               onClick={() => {
-                setView(item.id);
-                setNavOpen(false);
+                navigate(item.id);
               }}
             >
               <item.icon size={21} />
@@ -953,12 +972,14 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           <section>
             <p className={s.label}>Deine Postfächer</p>
             <div className={s.accounts}>
+              {accounts.length > 1 && <button className={allMailboxes ? s.accountActive : ""} onClick={() => { detailVersion.current++; setAllMailboxes(true); setView("mail"); setSelected(null); setReading(false); setNavOpen(false); }}><Mail size={14} />Alle Postfächer</button>}
               {accounts.map((a) => (
                 <button
                   key={a.mailbox}
-                  className={a.mailbox === mailbox ? s.accountActive : ""}
+                  className={!allMailboxes && a.mailbox === mailbox ? s.accountActive : ""}
                   onClick={() => {
                     detailVersion.current++;
+                    setAllMailboxes(false);
                     setMailbox(a.mailbox);
                     setSelected(null);
                     setReading(false);
@@ -986,8 +1007,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                   key={item.id}
                   className={view === item.id ? s.active : ""}
                   onClick={() => {
-                    setView(item.id);
-                    setNavOpen(false);
+                    navigate(item.id);
                   }}
                 >
                   <item.icon size={16} />
@@ -1034,6 +1054,13 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     <RefreshCw size={15} />
                   </button>
                 </div>
+                <label className={s.mailboxPicker}>
+                  <span>Postfach</span>
+                  <select aria-label="Postfachansicht" value={allMailboxes ? "all" : mailbox} onChange={e => { detailVersion.current++; setSelected(null); setReading(false); setMessages([]); setCursor(null); setAllMailboxes(e.target.value === "all"); if (e.target.value !== "all") setMailbox(e.target.value); }}>
+                    {accounts.length > 1 && <option value="all">Alle Postfächer</option>}
+                    {accounts.map(a => <option key={a.mailbox} value={a.mailbox}>{a.name || a.address || a.mailbox}</option>)}
+                  </select>
+                </label>
                 <div className={s.tabs}>
                   {[
                     ["all", "Alle Nachrichten"],
@@ -1102,19 +1129,19 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     ))
                   : visible.map((m) => (
                       <MailSwipeRow
-                        key={`${mailbox}:${folder}:${m.id}`}
+                        key={`${m.sourceMailbox || mailbox}:${folder}:${m.id}`}
                         subject={m.subject || "Nachricht"}
                         disabled={
                           busy ||
-                          !account?.can_write ||
+                          !accounts.find(a => a.mailbox === (m.sourceMailbox || mailbox))?.can_write ||
                           folder === "deleteditems"
                         }
-                        open={swipedId === m.id}
-                        onOpenChange={(open) => setSwipedId(open ? m.id : null)}
+                        open={swipedId === messageKey(m)}
+                        onOpenChange={(open) => setSwipedId(open ? messageKey(m) : null)}
                         onDelete={() => messageAction("trash", m)}
                       >
                         <button
-                          className={`${s.message} ${selected?.id === m.id ? s.selected : ""}`}
+                          className={`${s.message} ${selected && messageKey(selected) === messageKey(m) ? s.selected : ""}`}
                           onClick={() => void openMessage(m)}
                         >
                           <div className={s.senderRow}>
@@ -1129,6 +1156,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                             {m.subject}
                           </div>
                           <div className={s.preview}>{m.bodyPreview}</div>
+                          {allMailboxes && <span className={s.badge}>{accounts.find(a => a.mailbox === m.sourceMailbox)?.address || m.sourceMailbox}</span>}
                           {m.hasAttachments ||
                           m.importance === "high" ||
                           m.emaAnalysis?.priority === "high" ? (
