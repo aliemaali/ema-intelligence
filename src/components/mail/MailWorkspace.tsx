@@ -48,12 +48,15 @@ import {
 import { demoMessages, demoReply } from "@/lib/mail/demo";
 import type { MailAnalysis } from "@/lib/mail/analysis";
 import s from "./mail.module.css";
+import { signatureForAddress } from "@/lib/mail/signature";
+import { MailSignature } from "./MailSignature";
 import { MailComposeFields } from "./MailComposeFields";
 import { MailTeam } from "./MailTeam";
 import { MailPim, type MailPimItem } from "./MailPim";
 import { MailAutomation } from "./MailAutomation";
 type Account = {
   mailbox: string;
+  address?: string;
   name?: string;
   can_read: boolean;
   can_write: boolean;
@@ -70,7 +73,8 @@ const folderIcons = [Inbox, Send, FileText, Archive, Trash2, Folder];
 const demoAccounts: Account[] = [
   {
     mailbox: "me",
-    name: "Mein Postfach",
+    name: "unluer@ema-enterprise.de · Demo",
+    address: "unluer@ema-enterprise.de",
     can_read: true,
     can_write: true,
     can_send: true,
@@ -374,6 +378,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     setReview(false);
     setDraftId(undefined);
     const draft = blank(mailbox);
+    draft.signatureId = signatureForAddress(account?.address || mailbox);
     if (selected && mode !== "new") {
       draft.to =
         mode === "reply"
@@ -499,8 +504,13 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     }
   }
   function updateDraft(update: Partial<MailDraft>) {
-    if (update.mailbox && update.mailbox !== composer?.mailbox)
+    if (update.mailbox && update.mailbox !== composer?.mailbox) {
       update.replyToMessageId = undefined;
+      update.signatureId = signatureForAddress(
+        accounts.find((a) => a.mailbox === update.mailbox)?.address ||
+          update.mailbox,
+      );
+    }
     composeVersion.current++;
     setComposer((old) => (old ? { ...old, ...update } : null));
     setReview(false);
@@ -970,7 +980,14 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                           composeVersion.current++;
                           setDraftId(d.id);
                           setComposeMinimized(false);
-                          setComposer(d.payload);
+                          setComposer({
+                            ...d.payload,
+                            signatureId: signatureForAddress(
+                              accounts.find(
+                                (a) => a.mailbox === d.payload.mailbox,
+                              )?.address || d.payload.mailbox,
+                            ),
+                          });
                           setReview(false);
                         }}
                       >
@@ -1453,7 +1470,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                 <div className={s.review}>
                   <b>Von:</b>{" "}
                   {composer.mailbox === "me"
-                    ? "Mein Microsoft-Postfach"
+                    ? accounts.find((a) => a.mailbox === "me")?.address ||
+                      "Mein Microsoft-Postfach"
                     : composer.mailbox}
                   <br />
                   <b>An:</b> {composer.to.join(", ")}
@@ -1465,7 +1483,14 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                   <b>Betreff:</b> {composer.subject}
                   <hr />
                   {composer.body}
+                  {composer.signatureId && <MailSignature />}
                   <hr />
+                  <b>Lesebestätigung:</b>{" "}
+                  {composer.isReadReceiptRequested ? "Anfordern" : "Nein"}
+                  <br />
+                  <b>Empfangsbestätigung:</b>{" "}
+                  {composer.isDeliveryReceiptRequested ? "Anfordern" : "Nein"}
+                  <br />
                   <b>Anhänge:</b>{" "}
                   {composer.attachments.map((a) => a.name).join(", ") ||
                     "Keine"}

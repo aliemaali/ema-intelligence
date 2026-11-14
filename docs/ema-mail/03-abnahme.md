@@ -64,3 +64,11 @@ EMA Mail startet standardmäßig mit weißen Flächen. Der Hell-/Dunkel-Schalter
 ## Anhangvorschau und Logo (14.11.2026)
 
 PDF-/PNG-/JPEG-Anhänge öffnen per Klick in einem Dialog. Echte Dateien werden über den bestehenden authentifizierten, postfachgebundenen Anhang-Endpunkt abgerufen. Dateityp und Signatur werden vor der Darstellung geprüft, HTML/SVG/Office-Dateien werden nicht eingebettet. Temporäre Blob-URLs werden beim Schließen verworfen; keine externen Viewer oder öffentlichen Storage-Links. Browser-PDF-Unterstützung vorausgesetzt; „Im Browser öffnen“ und Download bleiben als Ausweichmöglichkeiten. Die Demo erzeugt eine ausdrücklich markierte Beispieldatei. Der Kopfbereich verwendet das vorhandene EMA-Wort-/Bildlogo aus `/brand/ema-logo.png`.
+
+## Absendersignatur und Bestätigungen (14.11.2026)
+
+- Für `unluer@ema-enterprise.de` wird die vom Benutzer gelieferte Signaturdatei eingebunden. Beim Verfassen und vor der Freigabe ist sie sichtbar. Andere Absender erhalten diese Signatur nicht. Die eigene Adresse wird aus der gespeicherten Microsoft-Verbindung bezogen; gemeinsame Postfächer behalten die vorhandene Rechteprüfung.
+- Der Server prüft die Zuordnung beim Speichern, Freigeben und Senden erneut. Die versionierte Signatur ist Teil des Freigabe-Hashes; die exakten Bildbytes werden vor dem Versand zusätzlich per SHA-256 geprüft. Ältere Entwürfe müssen bei abweichender Signatur erneut geöffnet und gespeichert werden.
+- Das Bild wird als Inline-CID-Anhang versendet, ohne externen Bildabruf. Der Nachrichtentext bleibt im Editor Klartext und wird für die Signatur-Mail vor der HTML-Ausgabe escaped. Native Antworten erhalten denselben Inhalt und Inline-Anhang.
+- Lesebestätigung und Empfangs-/Zustellbestätigung sind unabhängig wählbar und standardmäßig aus. `isReadReceiptRequested` und `isDeliveryReceiptRequested` werden an Graph übergeben und sind Teil der Freigabe. Eine Rückmeldung wird nur angefordert; Empfänger-/Serversysteme können sie unterdrücken.
+- 56 Mailtests bestanden, darunter CID-Bild und Escaping, optionale Bestätigungen, Freigabe-Hash, falscher/geänderter Absender und der native Antwortpfad mit beiden Bestätigungen. Kein echter Versand ausgeführt. Exchange-Zustellung und reale Bestätigungsantworten bleiben Bestandteil der isolierten Abnahme.

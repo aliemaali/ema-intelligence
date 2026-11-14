@@ -37,6 +37,9 @@ export const draftSchema = z
       .max(500)
       .regex(/^[^\r\n]+$/),
     body: z.string().trim().min(1).max(100_000),
+    signatureId: z.literal("ali-unluer-v1").optional(),
+    isReadReceiptRequested: z.boolean().optional(),
+    isDeliveryReceiptRequested: z.boolean().optional(),
     replyToMessageId: z.string().min(1).max(1500).optional(),
     attachments: z.array(attachmentSchema).max(10).default([]),
   })

@@ -4,6 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   mailAdmin,
   mailSession,
+  mailSenderAddress,
   mailboxAccess,
   audit,
 } from "@/lib/mail/server";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/mail/graph";
 import {
   assertOrigin,
+  assertSignatureSender,
   digest,
   newApproval,
   submitApprovedDraft,
@@ -162,11 +164,13 @@ async function handle(request: NextRequest) {
           503,
           "Mail-Datenbankschema noch nicht eingerichtet.",
         );
+      const senderAddress = await mailSenderAddress(session, "me");
       return json({
         mailboxes: [
           {
             mailbox: "me",
-            name: "Mein Postfach",
+            name: senderAddress,
+            address: senderAddress,
             can_read: true,
             can_write: true,
             can_send: true,
@@ -265,6 +269,10 @@ async function handle(request: NextRequest) {
     if (action === "drafts" && mutating) {
       const payload = draftSchema.parse(input.payload);
       await mailboxAccess(session, payload.mailbox, "send");
+      assertSignatureSender(
+        payload,
+        await mailSenderAddress(session, payload.mailbox),
+      );
       const values = {
         payload,
         content_hash: digest(payload),
@@ -304,6 +312,10 @@ async function handle(request: NextRequest) {
       if (error || !draft) throw new MailError(404, "Entwurf nicht gefunden.");
       const payload = draftSchema.parse(draft.payload);
       const { token } = await mailboxAccess(session, payload.mailbox, "send");
+      assertSignatureSender(
+        payload,
+        await mailSenderAddress(session, payload.mailbox),
+      );
       if (draft.content_hash !== digest(payload))
         throw new MailError(409, "Entwurf wurde verändert.");
       if (action === "approve") {

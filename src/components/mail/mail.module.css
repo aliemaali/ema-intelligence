@@ -2007,3 +2007,58 @@
 .previewDocument {
   position: relative;
 }
+.mailSignature {
+  padding: 12px 22px 18px;
+  flex-shrink: 0;
+}
+.mailSignature img {
+  display: block;
+  width: min(100%, 520px);
+  height: auto;
+  border-radius: 5px;
+}
+.mailSignature small {
+  display: block;
+  font-size: 10px;
+  color: #93b1bf;
+  margin-top: 7px;
+  line-height: 1.5;
+}
+.review .mailSignature {
+  padding: 12px 0;
+  white-space: normal;
+}
+.receiptOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 10px 20px;
+  border-top: 1px solid #ffffff15;
+  flex-shrink: 0;
+}
+.composeWindow .receiptOptions label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 11px;
+}
+.composeWindow .receiptOptions input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  accent-color: #087e66;
+}
+.receiptOptions small {
+  width: 100%;
+  font-size: 10px;
+  color: #91aaa9;
+}
+.workspace[data-theme="light"] .receiptOptions {
+  border-top-color: #dce3e9;
+}
+.workspace[data-theme="light"] .mailSignature small,
+.workspace[data-theme="light"] .receiptOptions small {
+  color: #526575;
+}

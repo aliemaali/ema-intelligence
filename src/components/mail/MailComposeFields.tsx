@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import type { MailDraft } from "@/lib/mail/model";
+import { MailSignature } from "./MailSignature";
 import s from "./mail.module.css";
 
 type Account = { mailbox: string; name?: string; can_send: boolean };
@@ -163,6 +164,7 @@ export function MailComposeFields({
           placeholder="Schreibe deine Nachricht …"
           onChange={(e) => update({ body: e.target.value })}
         />
+        {draft.signatureId && <MailSignature />}
         {draft.attachments.length > 0 && (
           <div className={s.composeFiles}>
             {draft.attachments.map((a, i) => (
@@ -190,6 +192,33 @@ export function MailComposeFields({
             ))}
           </div>
         )}
+      </div>
+      <div className={s.receiptOptions}>
+        <label>
+          <input
+            type="checkbox"
+            disabled={busy}
+            checked={draft.isReadReceiptRequested === true}
+            onChange={(e) =>
+              update({ isReadReceiptRequested: e.target.checked })
+            }
+          />{" "}
+          Lesebestätigung anfordern
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            disabled={busy}
+            checked={draft.isDeliveryReceiptRequested === true}
+            onChange={(e) =>
+              update({ isDeliveryReceiptRequested: e.target.checked })
+            }
+          />{" "}
+          Empfangsbestätigung anfordern
+        </label>
+        <small>
+          Bestätigungen hängen vom Empfänger und dessen Mailsystem ab.
+        </small>
       </div>
       <div className={s.textTools} role="toolbar" aria-label="Textwerkzeuge">
         <span>Nur Text</span>

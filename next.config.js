@@ -37,6 +37,7 @@ const nextConfig = {
   serverExternalPackages: ['puppeteer-core', '@sparticuz/chromium-min', 'tesseract.js', 'tesseract.js-core', 'pdf-parse'],
 
   outputFileTracingIncludes: {
+    '/api/mail/*': ['./public/mail/signature-ali-unluer-v1.jpeg'],
     '/api/expose/import': ocrFiles,
     '/project-import': ocrFiles,
     '/api/smart-check/analyze': ['./public/fonts/inter/*.ttf'],

@@ -253,3 +253,38 @@ test("approval hash includes the source message of a native reply", () => {
     digest({ ...d, replyToMessageId: "two" }),
   );
 });
+
+test("receipt requests are opt-in, reach Graph independently and are bound to approval", () => {
+  const d = draft();
+  assert.equal(graphMessage(d, "id").isReadReceiptRequested, false);
+  assert.equal(graphMessage(d, "id").isDeliveryReceiptRequested, false);
+  for (const field of [
+    "isReadReceiptRequested",
+    "isDeliveryReceiptRequested",
+  ] as const) {
+    const next = draftSchema.parse({ ...d, [field]: true });
+    assert.equal(graphMessage(next, "id")[field], true);
+    assert.notEqual(digest(next), digest(d));
+    assert.throws(() => draftSchema.parse({ ...d, [field]: "true" }));
+  }
+});
+test("signature uses the supplied immutable image as CID and escapes mail text", () => {
+  const d = draftSchema.parse({
+    ...draft(),
+    signatureId: "ali-unluer-v1",
+    body: '<script>alert("x")</script>\nHello & goodbye',
+  });
+  const m = graphMessage(d, "id");
+  assert.equal(m.body.contentType, "HTML");
+  assert.ok(m.body.content.includes("&lt;script&gt;"));
+  assert.ok(m.body.content.includes("<br>Hello &amp; goodbye"));
+  assert.ok(!m.body.content.includes("<script>"));
+  assert.ok(m.body.content.includes('src="cid:ema-signature-ali-unluer-v1"'));
+  assert.equal(m.attachments.length, 1);
+  const a = m.attachments[0] as any;
+  assert.equal(a.isInline, true);
+  assert.equal(a.contentId, "ema-signature-ali-unluer-v1");
+  assert.equal(a.contentType, "image/jpeg");
+  assert.ok(Buffer.from(a.contentBytes, "base64").byteLength > 0);
+  assert.notEqual(digest(d), digest(draft()));
+});

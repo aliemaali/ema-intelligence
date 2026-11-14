@@ -92,7 +92,11 @@ function reset() {
   process.env.VERCEL_ENV = "development";
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test";
-  rows = {};
+  rows = {
+    microsoft_connections: [
+      { user_id: uid, microsoft_email: "tester@example.com" },
+    ],
+  };
   profile = { role: "employee", is_active: true };
   user = { id: uid };
   assurance = { currentLevel: "aal1", nextLevel: "aal1" };
@@ -513,10 +517,16 @@ test("completing a foreign reminder cannot modify it", async () => {
 });
 test("native reply is created, patched and sent only after the one-time approval", async () => {
   reset();
+  rows.microsoft_connections = [
+    { user_id: uid, microsoft_email: "unluer@ema-enterprise.de" },
+  ];
   const payload = draftSchema.parse({
     to: ["reply@example.com"],
     subject: "Re: Original",
     body: "Approved answer",
+    signatureId: "ali-unluer-v1",
+    isReadReceiptRequested: true,
+    isDeliveryReceiptRequested: true,
     replyToMessageId: "source-id",
   });
   rows.ema_mail_drafts = [
@@ -552,14 +562,20 @@ test("native reply is created, patched and sent only after the one-time approval
     )
   ).json();
   assert.equal((await POST(req("send", { id, approvalToken }))).status, 200);
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 4);
   assert.match(calls[0].url, /source-id\/createReply$/);
-  assert.equal(calls[1].body.body.content, "Approved answer");
+  assert.ok(calls[1].body.body.content.includes("Approved answer"));
+  assert.equal(calls[1].body.body.contentType, "HTML");
+  assert.equal(calls[1].body.isReadReceiptRequested, true);
+  assert.equal(calls[1].body.isDeliveryReceiptRequested, true);
+  assert.equal(calls[2].body.isInline, true);
+  assert.equal(calls[2].body.contentId, "ema-signature-ali-unluer-v1");
   assert.equal(
     calls[1].body.toRecipients[0].emailAddress.address,
     "reply@example.com",
   );
-  assert.match(calls[2].url, /reply-id\/send$/);
+  assert.match(calls[2].url, /reply-id\/attachments$/);
+  assert.match(calls[3].url, /reply-id\/send$/);
   assert.equal(rows.ema_mail_drafts[0].provider_draft_id, "reply-id");
 });
 
@@ -597,6 +613,125 @@ test("worker refuses preview, disabled flag, missing/wrong secret and unicode mi
   assert.equal(graphCalls, 0);
 });
 
-test('actual worker sync persists jobs and cursor without any email send capability',async()=>{reset();const state={user_id:uid,mailbox:'me',enabled:true,analyze:false,push:false,enabled_since:'2026-11-14T08:00:00Z',cursor:null,lease_id:'lease',folder_id:'inbox'};rows.ema_mail_sync=[{...state}];globalThis.__mailFixture.admin.rpc=async(name:string)=>({data:name==='ema_mail_claim_sync'?[{...state}]:[],error:null});const urls:string[]=[];globalThis.fetch=async(url,init)=>{urls.push(String(url));assert.equal(init?.method,undefined);return Response.json({value:[{id:'new',receivedDateTime:'2026-11-14T09:00:00Z'}],'@odata.deltaLink':'https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages/delta?$deltatoken=next'})};assert.equal((await runMailWorker()).synced,1);assert.equal(rows.ema_mail_jobs[0].message_id,'new');assert.match(rows.ema_mail_sync[0].cursor,/deltatoken=next/);assert.equal(urls.length,1)})
-test('actual worker rechecks disabled staff before loading a Microsoft token',async()=>{reset();profile={role:'employee',is_active:false};let tokens=0;globalThis.__mailFixture.token=async()=>{tokens++;return 'token'};const state={user_id:uid,mailbox:'me',enabled:true,analyze:true,push:true,enabled_since:new Date().toISOString(),cursor:null,lease_id:'lease'};rows.ema_mail_sync=[{...state}];globalThis.__mailFixture.admin.rpc=async(name:string)=>({data:name==='ema_mail_claim_sync'?[{...state}]:[],error:null});assert.equal((await runMailWorker()).errors,1);assert.equal(tokens,0);assert.equal(graphCalls,0);assert.equal(rows.ema_mail_sync[0].enabled,false)})
-test('actual worker with no analysis or push finishes job without Graph or AI calls',async()=>{reset();rows.ema_mail_sync=[{user_id:uid,mailbox:'me',enabled:true,analyze:false,push:false}];const job={id,user_id:uid,mailbox:'me',message_id:'msg',state:'processing',attempts:1,lease_id:'lease',leased_until:new Date(Date.now()+60000).toISOString(),analysis_done:false,push_state:'pending'};rows.ema_mail_jobs=[{...job}];globalThis.__mailFixture.admin.rpc=async(name:string)=>({data:name==='ema_mail_claim_job'?[{...job}]:[],error:null});assert.equal((await runMailWorker()).jobs,1);assert.equal(rows.ema_mail_jobs[0].state,'done');assert.equal(graphCalls,0)})
+test("actual worker sync persists jobs and cursor without any email send capability", async () => {
+  reset();
+  const state = {
+    user_id: uid,
+    mailbox: "me",
+    enabled: true,
+    analyze: false,
+    push: false,
+    enabled_since: "2026-11-14T08:00:00Z",
+    cursor: null,
+    lease_id: "lease",
+    folder_id: "inbox",
+  };
+  rows.ema_mail_sync = [{ ...state }];
+  globalThis.__mailFixture.admin.rpc = async (name: string) => ({
+    data: name === "ema_mail_claim_sync" ? [{ ...state }] : [],
+    error: null,
+  });
+  const urls: string[] = [];
+  globalThis.fetch = async (url, init) => {
+    urls.push(String(url));
+    assert.equal(init?.method, undefined);
+    return Response.json({
+      value: [{ id: "new", receivedDateTime: "2026-11-14T09:00:00Z" }],
+      "@odata.deltaLink":
+        "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages/delta?$deltatoken=next",
+    });
+  };
+  assert.equal((await runMailWorker()).synced, 1);
+  assert.equal(rows.ema_mail_jobs[0].message_id, "new");
+  assert.match(rows.ema_mail_sync[0].cursor, /deltatoken=next/);
+  assert.equal(urls.length, 1);
+});
+test("actual worker rechecks disabled staff before loading a Microsoft token", async () => {
+  reset();
+  profile = { role: "employee", is_active: false };
+  let tokens = 0;
+  globalThis.__mailFixture.token = async () => {
+    tokens++;
+    return "token";
+  };
+  const state = {
+    user_id: uid,
+    mailbox: "me",
+    enabled: true,
+    analyze: true,
+    push: true,
+    enabled_since: new Date().toISOString(),
+    cursor: null,
+    lease_id: "lease",
+  };
+  rows.ema_mail_sync = [{ ...state }];
+  globalThis.__mailFixture.admin.rpc = async (name: string) => ({
+    data: name === "ema_mail_claim_sync" ? [{ ...state }] : [],
+    error: null,
+  });
+  assert.equal((await runMailWorker()).errors, 1);
+  assert.equal(tokens, 0);
+  assert.equal(graphCalls, 0);
+  assert.equal(rows.ema_mail_sync[0].enabled, false);
+});
+test("actual worker with no analysis or push finishes job without Graph or AI calls", async () => {
+  reset();
+  rows.ema_mail_sync = [
+    { user_id: uid, mailbox: "me", enabled: true, analyze: false, push: false },
+  ];
+  const job = {
+    id,
+    user_id: uid,
+    mailbox: "me",
+    message_id: "msg",
+    state: "processing",
+    attempts: 1,
+    lease_id: "lease",
+    leased_until: new Date(Date.now() + 60000).toISOString(),
+    analysis_done: false,
+    push_state: "pending",
+  };
+  rows.ema_mail_jobs = [{ ...job }];
+  globalThis.__mailFixture.admin.rpc = async (name: string) => ({
+    data: name === "ema_mail_claim_job" ? [{ ...job }] : [],
+    error: null,
+  });
+  assert.equal((await runMailWorker()).jobs, 1);
+  assert.equal(rows.ema_mail_jobs[0].state, "done");
+  assert.equal(graphCalls, 0);
+});
+
+test("signature policy rejects missing signature, wrong sender and changed sender before send", async () => {
+  reset();
+  rows.microsoft_connections = [
+    { user_id: uid, microsoft_email: "unluer@ema-enterprise.de" },
+  ];
+  const plain = draftSchema.parse({
+    to: ["test@example.com"],
+    subject: "Test",
+    body: "Test",
+  });
+  assert.equal((await POST(req("drafts", { payload: plain }))).status, 409);
+  const payload = draftSchema.parse({ ...plain, signatureId: "ali-unluer-v1" });
+  assert.equal((await POST(req("drafts", { payload }))).status, 201);
+  rows.microsoft_connections[0].microsoft_email = "other@example.com";
+  assert.equal((await POST(req("drafts", { payload }))).status, 409);
+  rows.ema_mail_drafts = [
+    {
+      id,
+      user_id: uid,
+      payload,
+      content_hash: digest(payload),
+      status: "draft",
+    },
+  ];
+  assert.equal(
+    (
+      await POST(
+        req("approve", { id, contentHash: digest(payload), confirmed: true }),
+      )
+    ).status,
+    409,
+  );
+  assert.equal(graphCalls, 0);
+});

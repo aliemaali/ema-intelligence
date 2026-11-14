@@ -71,3 +71,18 @@ export async function audit(
     .insert({ user_id: userId, action, resource_id: resourceId ?? null });
   if (error) throw new MailError(503, "Sicherheitsprotokoll nicht verfügbar.");
 }
+
+export async function mailSenderAddress(session: MailSession, mailbox: string) {
+  if (mailbox !== "me") return mailbox;
+  const { data, error } = await mailAdmin()
+    .from("microsoft_connections")
+    .select("microsoft_email")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error || !data?.microsoft_email)
+    throw new MailError(
+      409,
+      "Microsoft-Absender unbekannt. Bitte Microsoft-Verbindung prüfen.",
+    );
+  return String(data.microsoft_email).toLowerCase();
+}
