@@ -2356,3 +2356,27 @@
   .brand strong { display: none; }
   .tabs { gap: 14px; }
 }
+
+/* Separate branding from search on phones so neither is compressed. */
+@media (max-width: 650px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-rows: 38px 40px;
+    height: auto;
+    flex: 0 0 auto;
+    padding: 16px 14px 12px;
+    gap: 8px 12px;
+    overflow: visible;
+    background: #0a111a;
+  }
+  .workspace[data-theme="light"] .topbar { background: #ffffff; }
+  .brand { grid-column: 1; grid-row: 1; justify-self: start; gap: 9px; }
+  .brand strong { display: block; font-size: 16px; }
+  .brandLogo img { width: 67px; height: 32px; }
+  .themeToggle { grid-column: 2; grid-row: 1; width: 38px; height: 38px; margin: 0; justify-self: end; }
+  .search { grid-column: 1 / -1; grid-row: 2; box-sizing: border-box; width: 100%; max-width: none; height: 40px; padding: 8px 11px; gap: 8px; }
+  .search input { font-size: 16px; }
+  .body { position: relative; }
+  .sidebar.open { position: absolute; inset: 0 50px 0 0; }
+}

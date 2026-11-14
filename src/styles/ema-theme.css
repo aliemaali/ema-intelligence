@@ -257,3 +257,14 @@ html.light .app-content [class~="bg-amber-50"], html.light .fixed [class~="bg-am
   .app-header .mobile-header-action, .app-header .ema-theme-toggle { width:36px; min-width:36px; height:40px; flex-basis:36px; }
   .app-header .ema-brand-logo { width:3.5rem; flex-basis:3.5rem; }
 }
+
+/* The installed Mail window paints its own theme behind iOS browser chrome.
+   The attribute is removed when leaving Mail; platform preferences are preserved. */
+html[data-ema-mail-theme="light"], html[data-ema-mail-theme="light"] body {
+  background: #ffffff !important;
+  color-scheme: light;
+}
+html[data-ema-mail-theme="dark"], html[data-ema-mail-theme="dark"] body {
+  background: #0a111a !important;
+  color-scheme: dark;
+}

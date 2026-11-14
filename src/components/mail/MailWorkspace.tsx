@@ -162,6 +162,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     } catch {
       /* Session-only preference. */
     }
+    window.dispatchEvent(new CustomEvent("ema:mail-theme-change", { detail: next }));
   }
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
