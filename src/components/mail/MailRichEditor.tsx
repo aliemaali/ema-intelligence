@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   Bold,
   Italic,
   Underline,
-  Link2,
   List,
   ListOrdered,
   Table2,
@@ -18,15 +17,16 @@ export function MailRichEditor({
   html,
   disabled,
   onChange,
+  options,
 }: {
   body: string;
   html?: string;
   disabled: boolean;
   onChange: (body: string, html: string) => void;
+  options?: ReactNode;
 }) {
   const editor = useRef<HTMLDivElement>(null),
     selection = useRef<Range | null>(null);
-  const [link, setLink] = useState("");
   useEffect(() => {
     const value = html || textHtml(body);
     if (editor.current && sanitizeRichHtml(editor.current.innerHTML) !== value)
@@ -143,27 +143,7 @@ export function MailRichEditor({
           <Table2 size={17} />
         </button>
       </div>
-      <div className={s.linkTools}>
-        <Link2 size={14} />
-        <input
-          aria-label="Link-Adresse"
-          placeholder="https://…"
-          value={link}
-          disabled={disabled}
-          onFocus={remember}
-          onChange={(e) => setLink(e.target.value)}
-        />
-        <button
-          type="button"
-          disabled={disabled || !/^https?:\/\//i.test(link)}
-          onClick={() => {
-            command("createLink", link);
-            setLink("");
-          }}
-        >
-          Link einsetzen
-        </button>
-      </div>
+      {options}
       <div
         ref={editor}
         className={s.richBody}

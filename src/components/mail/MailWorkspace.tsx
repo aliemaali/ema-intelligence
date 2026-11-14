@@ -50,8 +50,8 @@ import type { MailAnalysis } from "@/lib/mail/analysis";
 import s from "./mail.module.css";
 import { validateComposeFiles } from "@/lib/mail/attachments";
 import { sanitizeRichHtml } from "@/lib/mail/rich-text";
-import { replyAllRecipients, checkSchedule } from "@/lib/mail/productivity";
-import { useMailProductivity, mailPost } from "./useMailProductivity";
+import { replyAllRecipients } from "@/lib/mail/productivity";
+import { useMailProductivity } from "./useMailProductivity";
 import { MailProductivitySettings } from "./MailProductivitySettings";
 import { signatureForAddress } from "@/lib/mail/signature";
 import { MailSignature } from "./MailSignature";
@@ -161,7 +161,9 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     } catch {
       /* Session-only preference. */
     }
-    window.dispatchEvent(new CustomEvent("ema:mail-theme-change", { detail: next }));
+    window.dispatchEvent(
+      new CustomEvent("ema:mail-theme-change", { detail: next }),
+    );
   }
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
@@ -597,27 +599,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     if (!composer) return;
     setBusy(true);
     try {
-      if (demo && composer.scheduledAt) {
-        checkSchedule(composer.scheduledAt);
-        productivity.update((d) => ({
-          ...d,
-          schedules: [
-            {
-              id: crypto.randomUUID(),
-              subject: composer.subject,
-              run_at: composer.scheduledAt!,
-              state: "pending",
-            },
-            ...d.schedules,
-          ],
-        }));
-        setComposer(null);
-        setReview(false);
-        setNotice(
-          "Demo-Versand eingeplant. Es wird keine echte Mail gesendet.",
-        );
-        return;
-      }
       if (demo) {
         setNotice(
           "Freigabe in der Demo geprüft. Es wurde keine E-Mail versendet.",
@@ -627,20 +608,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         return;
       }
       const saved = await api("drafts", { id: draftId, payload: composer });
-      if (composer.scheduledAt) {
-        checkSchedule(composer.scheduledAt);
-        const result = await api("schedule", {
-          id: saved.id,
-          contentHash: saved.content_hash,
-          confirmed: true,
-          mailbox: composer.mailbox,
-        });
-        setComposer(null);
-        setReview(false);
-        setNotice(result.message);
-        await productivity.refresh();
-        return;
-      }
       const approval = await api("approve", {
         id: saved.id,
         contentHash: saved.content_hash,
@@ -740,11 +707,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           ],
         }));
       setTaskOpen(false);
-      setNotice(
-        demo
-          ? "Demo-Aufgabe angelegt."
-          : "Aufgabe angelegt.",
-      );
+      setNotice(demo ? "Demo-Aufgabe angelegt." : "Aufgabe angelegt.");
     } catch (e) {
       setNotice((e as Error).message);
     } finally {
@@ -765,7 +728,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       data-theme={theme}
       className={`${s.workspace} ${reading ? s.reading : ""}`}
     >
-      <MailHomeScreen demo={demo} visible={false} background revision={messages} />
+      <MailHomeScreen
+        demo={demo}
+        visible={false}
+        background
+        revision={messages}
+      />
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
           <span className={s.brandLogo}>
@@ -1066,6 +1034,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                           setComposeMinimized(false);
                           setComposer({
                             ...d.payload,
+                            scheduledAt: undefined,
                             signatureText:
                               d.payload.signatureText ||
                               accounts.find(
@@ -1078,6 +1047,11 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                               )?.address || d.payload.mailbox,
                             ),
                           });
+                          setNotice(
+                            d.payload.scheduledAt
+                              ? "Die Versandplanung wurde entfernt. Dieser Entwurf wird erst nach deiner erneuten Freigabe direkt gesendet."
+                              : "",
+                          );
                           setReview(false);
                         }}
                       >
@@ -1443,12 +1417,15 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     <Bell size={22} />
                     <h3>Auf deinem iPhone</h3>
                     <p>
-                      EMA Mail in Safari öffnen und zum Home-Bildschirm hinzufügen.
-                      Mitteilungen und App-Kennzeichen unten für eMail aktivieren.
-                      Neue-Mail-Push lässt sich nach Einrichtung des
-                      Hintergrundbetriebs pro Postfach einschalten.
+                      EMA Mail in Safari öffnen und zum Home-Bildschirm
+                      hinzufügen. Mitteilungen und App-Kennzeichen unten für
+                      eMail aktivieren. Neue-Mail-Push lässt sich nach
+                      Einrichtung des Hintergrundbetriebs pro Postfach
+                      einschalten.
                     </p>
-                    <a href="#ema-mail-homescreen">eMail auf dem Home-Bildschirm einrichten</a>
+                    <a href="#ema-mail-homescreen">
+                      eMail auf dem Home-Bildschirm einrichten
+                    </a>
                   </article>
                   <article>
                     <Sparkles size={22} />
@@ -1606,13 +1583,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                   )}
                   {composer.signatureId && <MailSignature />}
                   <hr />
-                  {composer.scheduledAt && (
-                    <>
-                      <b>Versandtermin:</b>{" "}
-                      {new Date(composer.scheduledAt).toLocaleString("de-DE")}
-                      <br />
-                    </>
-                  )}
                   <b>Lesebestätigung:</b>{" "}
                   {composer.isReadReceiptRequested ? "Anfordern" : "Nein"}
                   <br />
@@ -1640,16 +1610,13 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                       ? "Wird verarbeitet …"
                       : demo
                         ? "Freigabe demonstrieren"
-                        : composer.scheduledAt
-                          ? "Freigeben und einplanen"
-                          : "Freigeben und senden"}
+                        : "Freigeben und senden"}
                   </button>
                 </footer>
               </>
             ) : (
               <MailComposeFields
                 draft={composer}
-                templates={productivity.data.templates}
                 onPreview={(index) => {
                   const a = composer.attachments[index];
                   setPreviewFile({
@@ -1662,52 +1629,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                     messageId: "",
                   });
                 }}
-                onSaveTemplate={(title) => {
-                  void (async () => {
-                    try {
-                      if (!demo) {
-                        await mailPost("template", {
-                          mailbox: composer.mailbox,
-                          title,
-                          subject: composer.subject,
-                          body: composer.body,
-                          bodyHtml: composer.bodyHtml,
-                        });
-                        await productivity.refresh();
-                      } else
-                        productivity.update((d) => ({
-                          ...d,
-                          templates: [
-                            ...d.templates,
-                            {
-                              id: crypto.randomUUID(),
-                              title,
-                              subject: composer.subject,
-                              body: composer.body,
-                              body_html: composer.bodyHtml,
-                            },
-                          ],
-                        }));
-                      setNotice("Vorlage gespeichert.");
-                    } catch (e) {
-                      setNotice((e as Error).message);
-                    }
-                  })();
-                }}
                 accounts={accounts}
                 busy={busy}
                 update={updateDraft}
                 addFiles={(files) => void addFiles(files)}
                 save={() => void saveDraft()}
                 review={() => {
-                  if (composer.scheduledAt) {
-                    try {
-                      checkSchedule(composer.scheduledAt);
-                    } catch (e) {
-                      setNotice((e as Error).message);
-                      return;
-                    }
-                  }
                   setComposer({
                     ...composer,
                     to: composer.to.filter(Boolean),
