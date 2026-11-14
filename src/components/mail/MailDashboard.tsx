@@ -1,6 +1,7 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {CalendarDays,ChevronRight,Home,Mail,PenLine,RefreshCw,Settings,Users,Folder,Flag} from 'lucide-react';
+import Image from 'next/image';
+import {CalendarDays,ChevronRight,Home,Mail,PenLine,RefreshCw,Settings,Sun,Moon,Users,Folder,Flag} from 'lucide-react';
 import {demoMessages} from '@/lib/mail/demo';
 import {invoiceHint,type Message} from '@/lib/mail/model';
 import {graphDate,teamsJoinUrl} from '@/lib/mail/calendar';
@@ -15,7 +16,7 @@ export function MailBottomNav({view,onNavigate}:{view:MailView;onNavigate:(view:
 }
 export function priorityMail(m:Message){return m.importance==='high'||m.flag?.flagStatus==='flagged'||m.emaAnalysis?.priority==='high';}
 async function get(path:string,signal:AbortSignal){const r=await fetch('/api/mail/'+path,{cache:'no-store',signal});const d=await r.json();if(!r.ok)throw new Error(d.error||'Daten konnten nicht geladen werden.');return d;}
-export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onTrash,revision,demoRecords,notice}:{demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[];notice?:string}) {
+export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,onNavigate,onOpen,onCompose,onTrash,revision,demoRecords,notice,theme,onToggleTheme}:{theme:"light"|"dark";onToggleTheme:()=>void;demo:boolean;mailbox:string;accounts:{mailbox:string;name?:string;address?:string}[];canSend:boolean;canWrite:boolean;onMailbox:(mailbox:string)=>void;onNavigate:(view:MailView)=>void;onOpen:(m:Message)=>void;onCompose:()=>void;onTrash:(m:Message)=>Promise<void>;revision:unknown;demoRecords?:MailPimItem[];notice?:string}) {
   const [messages,setMessages]=useState<Message[]>([]),[events,setEvents]=useState<MailPimItem[]>([]),[busy,setBusy]=useState(true),[errors,setErrors]=useState<string[]>([]),[tab,setTab]=useState<'priority'|'all'|'events'>('priority'),[partial,setPartial]=useState(false),[swiped,setSwiped]=useState<string|null>(null),[today,setToday]=useState(new Date());
   const version=useRef(0), demoDeleted=useRef(new Set<string>());
   const refresh=useCallback(async(signal:AbortSignal)=>{
@@ -34,7 +35,7 @@ export function MailDashboard({demo,mailbox,accounts,canSend,canWrite,onMailbox,
   const important=messages.filter(priorityMail),list=tab==='priority'?important:messages;
   return <div className={s.dashboard}>
     <div className={s.dashboardScroll}>
-      <header className={s.dashboardHeader}><a href="/apps" className={s.dashboardBrand}><i>e</i><span>EMA Mail</span></a><div><button onClick={()=>void refresh(new AbortController().signal)} disabled={busy} aria-label="Dashboard aktualisieren"><RefreshCw size={18}/></button><button onClick={()=>onNavigate('settings')} aria-label="Einstellungen"><Settings size={19}/></button></div></header>
+      <header className={s.dashboardHeader}><a href="/apps" className={s.dashboardBrand}><span className={s.dashboardLogo}><Image src="/brand/ema-logo.png" alt="EMA Enterprise GmbH" width={96} height={45} priority /></span><strong>Mail</strong></a><div><button onClick={onToggleTheme} aria-label={theme==='light'?'Dunkle Ansicht aktivieren':'Helle Ansicht aktivieren'} title={theme==='light'?'Zum Dunkelmodus wechseln':'Zum Hellmodus wechseln'}>{theme==='light'?<Moon size={19}/>:<Sun size={19}/>}</button><button onClick={()=>void refresh(new AbortController().signal)} disabled={busy} aria-label="Dashboard aktualisieren"><RefreshCw size={18}/></button><button onClick={()=>onNavigate('settings')} aria-label="Einstellungen"><Settings size={19}/></button></div></header>
       {demo&&<p className={s.dashboardDemo}>Designvorschau · Beispieldaten</p>}
       <div className={s.dashboardTitle}><p>{today.toLocaleDateString('de-DE',{timeZone:'Europe/Berlin',weekday:'long',day:'numeric',month:'long'})}</p><h1>Dein Überblick</h1></div>
       <label className={s.dashboardMailbox}><span>Postfach</span><select value={mailbox} onChange={e=>onMailbox(e.target.value)} aria-label="Postfach auswählen">{accounts.length?accounts.map(a=><option key={a.mailbox} value={a.mailbox}>{a.name||a.address||a.mailbox}</option>):<option value="me">Mein Postfach</option>}</select></label>
