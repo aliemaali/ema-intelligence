@@ -15,6 +15,8 @@ import {
   Flag,
   Folder,
   Inbox,
+  Home,
+  Mic,
   ListTodo,
   Mail,
   Menu,
@@ -76,7 +78,10 @@ type DraftRecord = {
   content_hash: string;
   status: string;
 };
-type View = "mail" | "calendar" | "contacts" | "tasks" | "settings";
+import { MailDashboard, MailBottomNav, type MailView } from "./MailDashboard";
+import { MailVoice, speakMail } from "./MailVoice";
+import { parseMailVoice, type CalendarSeed } from "@/lib/mail/voice";
+type View = MailView;
 const folderIcons = [Inbox, Send, FileText, Archive, Trash2, Folder];
 const demoAccounts: Account[] = [
   {
@@ -139,17 +144,16 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 export function MailWorkspace({ demo }: { demo: boolean }) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("dark");
   useEffect(() => {
     try {
-      if (localStorage.getItem("ema-mail-theme-v1") === "dark")
-        setTheme("dark");
+      setTheme(localStorage.getItem("ema-mail-theme-v2") === "light" ? "light" : "dark");
     } catch {
       /* Mail remains usable when browser storage is blocked. */
     }
     function syncTheme(event: StorageEvent) {
-      if (event.key === "ema-mail-theme-v1")
-        setTheme(event.newValue === "dark" ? "dark" : "light");
+      if (event.key === "ema-mail-theme-v2")
+        setTheme(event.newValue === "light" ? "light" : "dark");
     }
     window.addEventListener("storage", syncTheme);
     return () => window.removeEventListener("storage", syncTheme);
@@ -158,7 +162,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     const next = theme === "light" ? "dark" : "light";
     setTheme(next);
     try {
-      localStorage.setItem("ema-mail-theme-v1", next);
+      localStorage.setItem("ema-mail-theme-v2", next);
     } catch {
       /* Session-only preference. */
     }
@@ -169,7 +173,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
     [folder, setFolder] = useState("inbox"),
-    [view, setView] = useState<View>("mail");
+    [view, setView] = useState<View>("home");
   const [messages, setMessages] = useState<Message[]>(demo ? demoMessages : []),
     [selected, setSelected] = useState<Message | null>(
       demo ? demoMessages[0] : null,
@@ -205,6 +209,9 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     mailbox: string;
     messageId: string;
   } | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [calendarSeed, setCalendarSeed] = useState<CalendarSeed | null>(null);
+  const [overviewRevision, setOverviewRevision] = useState(0);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [composeMinimized, setComposeMinimized] = useState(false);
   const [demoPim, setDemoPim] = useState<
@@ -262,6 +269,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     if (!id || id.length > 1500 || !accounts.some((a) => a.mailbox === target))
       return;
     setMailbox(target);
+    setView("mail");
     const version = ++detailVersion.current;
     void Promise.all([
       api(`message?${new URLSearchParams({ mailbox: target, id })}`),
@@ -357,6 +365,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }, [load]);
   async function openMessage(message: Message) {
     const version = ++detailVersion.current;
+    setView("mail");
     setSelected(message);
     setAnalysis(message.emaAnalysis ?? null);
     setReading(true);
@@ -506,6 +515,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         setMessages((old) => old.map(update));
         setSelected((old) => (old ? update(old) : old));
       }
+      setOverviewRevision((v) => v + 1);
       setNotice(
         demo
           ? "In der Demo geändert. Kein echtes Postfach verändert."
@@ -732,6 +742,51 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       setBusy(false);
     }
   }
+  function navigate(next: View) {
+    setView(next); setNavOpen(false); setReading(false);
+    window.speechSynthesis?.cancel();
+    if (next === "mail") { setFolder("inbox"); setFilter("all"); setQ(""); }
+  }
+  async function voiceCommand(text: string): Promise<string> {
+    const command = parseMailVoice(text);
+    if (command.kind === "help") return command.message;
+    if (command.kind === "stop") { window.speechSynthesis?.cancel(); return "Vorlesen beendet."; }
+    if (command.kind === "navigate") { navigate(command.view); setVoiceOpen(false); return "Ansicht geöffnet."; }
+    if (command.kind === "search") {
+      navigate("mail"); setQ(command.query); setVoiceOpen(false); return "Suche geöffnet.";
+    }
+    if (command.kind === "event") {
+      setCalendarSeed({ ...command.seed, key: crypto.randomUUID() });
+      navigate("calendar"); setVoiceOpen(false); return "Termin zur Prüfung vorbereitet.";
+    }
+    if (command.kind === "compose" || command.kind === "reply") {
+      if (!account?.can_send) return "Für dieses Postfach fehlt die Sendeberechtigung.";
+      if (command.kind === "reply" && (!selected || !reading || view !== "mail")) return "Öffne zuerst die E-Mail, auf die du antworten möchtest.";
+      newCompose(command.kind === "reply" ? "reply" : "new", command.kind === "reply" ? command.body : undefined);
+      setVoiceOpen(false); return "Entwurf geöffnet. Bitte Empfänger und Inhalt prüfen.";
+    }
+    if (command.kind === "read") {
+      const list: Message[] = demo ? demoMessages : (await api(`messages?${new URLSearchParams({mailbox,folder:"inbox"})}`)).messages;
+      const unread = list.filter(m => !m.isRead).slice(0,5);
+      if (!unread.length) return "Keine ungelesenen E-Mails unter den neuesten 30 Nachrichten. Weitere Nachrichten findest du im Postfach.";
+      speakMail(`Ich lese ${unread.length} der neuesten ungelesenen E-Mails aus dem ausgewählten Postfach vor. ` + unread.map(m=>`Von ${m.from.emailAddress.name || m.from.emailAddress.address}. Betreff: ${m.subject}. ${m.bodyPreview}`).join(" "));
+      return "Die neuesten ungelesenen E-Mails werden vorgelesen (maximal fünf, jeweils als Vorschau).";
+    }
+    let target = selected && reading && view === "mail" ? selected : null;
+    if (command.query) {
+      const query = command.query;
+      const list: Message[] = demo ? demoMessages.filter(m=>`${m.from.emailAddress.name} ${m.from.emailAddress.address} ${m.subject}`.toLowerCase().includes(query.toLowerCase())) : (await api(`messages?${new URLSearchParams({mailbox,folder:"inbox",q:query})}`)).messages;
+      if (list.length !== 1) { navigate("mail"); setQ(query); setVoiceOpen(false); return "Bitte die gewünschte Nachricht aus den Suchergebnissen öffnen."; }
+      target = list[0];
+    }
+    if (!target) return "Öffne zuerst eine E-Mail oder nenne den Absender: Fasse die Mail von Mehmet zusammen.";
+    const result: MailAnalysis = demo ? {summary:target.bodyPreview,priority:"normal",reason:"Beispielanalyse",invoiceCandidate:false,suggestedReply:"Vielen Dank für die Nachricht.",tasks:[]} : (await api("analyze",{mailbox,id:target.id})).analysis;
+    await openMessage({...target,emaAnalysis:result});
+    setAnalysis(result);
+    setVoiceOpen(false);
+    setNotice(result.summary);
+    return "Zusammenfassung geöffnet.";
+  }
   const visible = messages.filter((m) =>
     filter === "unread"
       ? !m.isRead
@@ -744,7 +799,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   return (
     <main
       data-theme={theme}
-      className={`${s.workspace} ${reading ? s.reading : ""}`}
+      className={`${s.workspace} ${s.withDashboardNav} ${view === "home" ? s.homeWorkspace : ""} ${reading ? s.reading : ""}`}
     >
       <MailHomeScreen
         demo={demo}
@@ -752,6 +807,13 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         background
         revision={messages}
       />
+      {view === "home" ? <MailDashboard
+        demo={demo} mailbox={mailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
+        onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
+        onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
+        onCompose={() => newCompose()} onVoice={() => setVoiceOpen(true)}
+        onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar}
+      /> : <>
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
           <span className={s.brandLogo}>
@@ -872,6 +934,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         <nav className={s.appRail} aria-label="Anwendungen">
           {(
             [
+              { id: "home", label: "Start", icon: Home },
               { id: "mail", label: "E-Mail", icon: Mail },
               { id: "calendar", label: "Kalender", icon: CalendarDays },
               { id: "contacts", label: "Kontakte", icon: Users },
@@ -1495,6 +1558,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
               <MailPim
                 key={view}
                 mode={view}
+                initialSeed={view === "calendar" ? calendarSeed : null}
+                onSeedConsumed={() => setCalendarSeed(null)}
                 demo={demo}
                 demoRecords={demoPim[view]}
                 onDemoChange={(items) =>
@@ -1505,6 +1570,10 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           </section>
         )}
       </div>
+      </>}
+      <MailBottomNav view={view} onNavigate={navigate} />
+      {view !== "home" && !composer && <button className={s.mailVoiceButton} onClick={() => setVoiceOpen(true)} aria-label="Sprachsteuerung öffnen"><Mic size={20}/></button>}
+      {voiceOpen && <MailVoice onCommand={voiceCommand} onClose={() => setVoiceOpen(false)} />}
       {composer ? (
         <div
           className={`${s.composeBackdrop} ${composeExpanded || review ? s.composeExpanded : ""} ${composeMinimized && !review ? s.composeMinimized : ""}`}
