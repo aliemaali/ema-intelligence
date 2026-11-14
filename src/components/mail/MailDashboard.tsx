@@ -173,7 +173,7 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
         <div className={s.inboxMessageList}>
           {!busy && !list.length && <p className={s.dashboardEmpty}>{errors.some(error => error.startsWith("Posteingang:")) ? "Posteingang konnte nicht geladen werden." : unreadOnly ? "Keine ungelesenen E-Mails unter den neuesten Nachrichten." : "Dein Posteingang ist leer."}</p>}
           {busy && !messages.length && <p className={s.dashboardEmpty}>E-Mails werden geladen …</p>}
-          {list.slice(0, 6).map((message, index) => <MailSwipeRow key={message.id} open={swiped === message.id} disabled={!canWrite || busy} subject={message.subject} onOpenChange={open => setSwiped(open ? message.id : null)} onDelete={async () => {
+          {list.slice(0, 5).map((message, index) => <MailSwipeRow key={message.id} open={swiped === message.id} disabled={!canWrite || busy} subject={message.subject} onOpenChange={open => setSwiped(open ? message.id : null)} onDelete={async () => {
             if (demo) demoDeleted.current.add(message.id);
             await onTrash(message);
             setSwiped(null);
@@ -186,7 +186,7 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
             </button>
           </MailSwipeRow>)}
         </div>
-        {(partial || list.length > 6) && <p className={s.inboxMore}>Weitere Nachrichten findest du im <button onClick={() => onNavigate("mail")}>Postfach</button>.</p>}
+        {(partial || list.length > 5) && <p className={s.inboxMore}>Weitere Nachrichten findest du im <button onClick={() => onNavigate("mail")}>Postfach</button>.</p>}
       </section>
     </div>
     <div className={s.dashboardActions}><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={21} /><span>Neue E-Mail</span></button></div>
