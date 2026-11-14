@@ -1484,3 +1484,371 @@
     min-height: 38px;
   }
 }
+
+/* A mail-local theme, independent of the other EMA modules. */
+.workspace {
+  color-scheme: dark;
+}
+.workspace[data-theme="light"] {
+  --mint: #087e66;
+  --muted: #526575;
+  color-scheme: light;
+  background: #fff;
+  color: #182c3b;
+}
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 7px;
+  color: #d9eee8;
+  background: #ffffff0d;
+  border: 1px solid #ffffff26;
+  border-radius: 5px;
+  min-height: 36px;
+  padding: 6px 10px;
+  margin-left: auto;
+}
+.profile {
+  margin-left: 0;
+}
+.workspace[data-theme="light"] .topbar {
+  background: #fff;
+  border-bottom-color: #dbe3e8;
+}
+.workspace[data-theme="light"] .brand {
+  color: #173746;
+}
+.workspace[data-theme="light"] .brand em {
+  color: #087e66;
+}
+.workspace[data-theme="light"] .search {
+  background: #f2f5f7;
+  color: #526575;
+  border-color: #d7e0e7;
+}
+.workspace[data-theme="light"] .search input {
+  color: #182c3b;
+}
+.workspace[data-theme="light"] input::placeholder,
+.workspace[data-theme="light"] textarea::placeholder {
+  color: #657987;
+  opacity: 1;
+}
+.workspace[data-theme="light"] .profile {
+  color: #526575;
+}
+.workspace[data-theme="light"] .avatar {
+  background: #dcefe9;
+  color: #176951;
+}
+.workspace[data-theme="light"] .themeToggle {
+  color: #244354;
+  background: #f4f7f8;
+  border-color: #d5e0e6;
+}
+.workspace[data-theme="light"] .demoBanner {
+  color: #23654f;
+  background: #edf8f3;
+  border-bottom: 1px solid #dbece4;
+}
+.workspace[data-theme="light"] .ribbon {
+  background: #f8fafb;
+  border-bottom-color: #dce3e9;
+}
+.workspace[data-theme="light"] .ribbon button {
+  color: #354e5e;
+}
+.workspace[data-theme="light"] .ribbon .ribbonNew,
+.workspace[data-theme="light"] .composeCommands .primary,
+.workspace[data-theme="light"] .primary {
+  background: #087e66;
+  color: #fff;
+}
+.workspace[data-theme="light"] .ribbon button:hover,
+.workspace[data-theme="light"] .textTools button:hover,
+.workspace[data-theme="light"] .composeCommands button:hover {
+  background: #e3efe9;
+}
+.workspace[data-theme="light"] .ribbon .ribbonNew:hover,
+.workspace[data-theme="light"] .composeCommands .primary:hover {
+  background: #066551;
+}
+.workspace[data-theme="light"] .ribbonDivider,
+.workspace[data-theme="light"] .textTools i {
+  background: #cdd8df;
+}
+.workspace[data-theme="light"] .appRail {
+  background: #f1f5f7;
+  border-right-color: #dbe3e8;
+}
+.workspace[data-theme="light"] .appRail button {
+  color: #526575;
+}
+.workspace[data-theme="light"] .appRail button[aria-current="page"] {
+  background: #dceee7;
+  color: #06694f;
+}
+.workspace[data-theme="light"] .appRail button[aria-current="page"]::before {
+  background: #087e66;
+}
+.workspace[data-theme="light"] .sidebar {
+  background: #f9fbfc;
+  border-right-color: #dbe3e8;
+}
+.workspace[data-theme="light"] .nav button {
+  color: #3c5363;
+}
+.workspace[data-theme="light"] .nav .active {
+  color: #075a46;
+  background: #dcefe7;
+}
+.workspace[data-theme="light"] .label {
+  color: #526575;
+}
+.workspace[data-theme="light"] .accounts button {
+  color: #4b6170;
+}
+.workspace[data-theme="light"] .accounts .accountActive {
+  background: #eaf0f3;
+  color: #243f50;
+}
+.workspace[data-theme="light"] .dot {
+  background: #087e66;
+}
+.workspace[data-theme="light"] .sideFooter {
+  border-top-color: #dbe3e8;
+}
+.workspace[data-theme="light"] .sideFooter a,
+.workspace[data-theme="light"] .iconButton,
+.workspace[data-theme="light"] .titleRow button {
+  color: #526575;
+}
+.workspace[data-theme="light"] .list {
+  background: #fff;
+  border-right-color: #dbe3e8;
+}
+.workspace[data-theme="light"] .listHeader {
+  border-bottom-color: #e4eaef;
+}
+.workspace[data-theme="light"] .tabs button {
+  color: #526575;
+}
+.workspace[data-theme="light"] .tabs .tabActive {
+  color: #06694f;
+  border-bottom-color: #087e66;
+}
+.workspace[data-theme="light"] .listMeta {
+  color: #607584;
+}
+.workspace[data-theme="light"] .message {
+  color: #243c4d;
+  border-bottom-color: #e4eaef;
+}
+.workspace[data-theme="light"] .message:hover {
+  background: #f1f7f5;
+}
+.workspace[data-theme="light"] .message.selected {
+  background: #e5f3ec;
+  border-left-color: #087e66;
+}
+.workspace[data-theme="light"] .senderRow time,
+.workspace[data-theme="light"] .preview {
+  color: #586e7c;
+}
+.workspace[data-theme="light"] .badge {
+  background: #deeee5;
+  color: #226549;
+}
+.workspace[data-theme="light"] .badge.amber {
+  background: #fff0cd;
+  color: #80540e;
+}
+.workspace[data-theme="light"] .badge.purple {
+  background: #eee8f9;
+  color: #66528a;
+}
+.workspace[data-theme="light"] .reader {
+  background: #fff;
+}
+.workspace[data-theme="light"] .toolbar {
+  background: #fafcfd;
+  border-bottom-color: #e1e8ed;
+}
+.workspace[data-theme="light"] .toolbar button {
+  color: #526575;
+}
+.workspace[data-theme="light"] .senderDetail .avatar {
+  background: #e2edf5;
+  color: #345671;
+}
+.workspace[data-theme="light"] .senderDetail small,
+.workspace[data-theme="light"] .senderDetail time {
+  color: #607584;
+}
+.workspace[data-theme="light"] .mailBody {
+  color: #314b5d;
+}
+.workspace[data-theme="light"] .attachment {
+  border-color: #dbe3e8;
+  background: #f9fbfc;
+}
+.workspace[data-theme="light"] .attachment small {
+  color: #607584;
+}
+.workspace[data-theme="light"] .fileIcon {
+  color: #a24451;
+  background: #f6e6ea;
+}
+.workspace[data-theme="light"] .aiCard {
+  background: #f0f8f4;
+  border-color: #cce4d7;
+}
+.workspace[data-theme="light"] .aiHeader {
+  color: #1e654d;
+}
+.workspace[data-theme="light"] .aiHeader span {
+  color: #547569;
+}
+.workspace[data-theme="light"] .aiCard p {
+  color: #49665c;
+}
+.workspace[data-theme="light"] .aiActions button,
+.workspace[data-theme="light"] .subtle {
+  background: #e5f2eb;
+  color: #235b45;
+  border-color: #c8dfd2;
+}
+.workspace[data-theme="light"] .replyActions button {
+  background: #f4f7f9;
+  color: #415c6e;
+  border-color: #d6e1e7;
+}
+.workspace[data-theme="light"] .replyActions button:first-child {
+  background: #e1f0e7;
+  color: #235b45;
+  border-color: #c8dfd2;
+}
+.workspace[data-theme="light"] .notice,
+.workspace[data-theme="light"] .composeNotice {
+  background: #fff6df;
+  color: #77531b;
+  border-color: #e7d9b7;
+}
+.workspace[data-theme="light"] .empty,
+.workspace[data-theme="light"] .aux p {
+  color: #526b7d;
+}
+.workspace[data-theme="light"] .aux {
+  background: #fff;
+}
+.workspace[data-theme="light"] .auxItem,
+.workspace[data-theme="light"] .settingsGrid article {
+  background: #f7fafb;
+  border-color: #dce5eb;
+}
+.workspace[data-theme="light"] .auxItem small {
+  color: #607584;
+}
+.workspace[data-theme="light"] .settingsGrid h3 {
+  color: #245c49;
+}
+.workspace[data-theme="light"] .checkLabel {
+  color: #355264;
+}
+.workspace[data-theme="light"] .checkLabel input {
+  accent-color: #087e66;
+}
+.workspace[data-theme="light"] .modal {
+  background: #fff;
+  color: #182c3b;
+  border-color: #c3d2dc;
+  box-shadow: 0 16px 70px #233d4d33;
+}
+.workspace[data-theme="light"] .modal label {
+  color: #526575;
+}
+.workspace[data-theme="light"] .modal input,
+.workspace[data-theme="light"] .modal textarea,
+.workspace[data-theme="light"] .modal select,
+.workspace[data-theme="light"] .auxItem > label > select,
+.workspace[data-theme="light"] .auxItem > label > input:not([type="checkbox"]) {
+  background: #fff;
+  color: #203e50;
+  border-color: #cddae3;
+}
+.workspace[data-theme="light"] .modal p {
+  color: #526575;
+}
+.workspace[data-theme="light"] .review {
+  background: #f6faf8;
+  border-color: #cddfd5;
+}
+.workspace[data-theme="light"] .composeWindow > header {
+  background: #edf4f6;
+  border-bottom-color: #dbe3e8;
+}
+.workspace[data-theme="light"] .composeCommands {
+  border-bottom-color: #e0e7ec;
+}
+.workspace[data-theme="light"] .composeCommands button {
+  color: #415b6c;
+}
+.workspace[data-theme="light"] .composeWindow .addressRow {
+  color: #526575;
+  border-bottom-color: #dce5eb;
+}
+.workspace[data-theme="light"] .composeWindow .addressRow input,
+.workspace[data-theme="light"] .composeWindow .addressRow select,
+.workspace[data-theme="light"] .composeWindow .composeEditor textarea {
+  background: transparent;
+}
+.workspace[data-theme="light"] .addressRow select option {
+  background: #fff;
+}
+.workspace[data-theme="light"] .recipientToggles button {
+  color: #087e66;
+}
+.workspace[data-theme="light"] .composeFiles > div {
+  background: #f0f5f8;
+  border-color: #d2e0e8;
+}
+.workspace[data-theme="light"] .composeFiles small {
+  color: #607584;
+}
+.workspace[data-theme="light"] .textTools {
+  background: #f6f9fb;
+  border-top-color: #dce5eb;
+}
+.workspace[data-theme="light"] .textTools > span,
+.workspace[data-theme="light"] .textTools button {
+  color: #526575;
+}
+.workspace[data-theme="light"] .composeStatus {
+  background: #eef7f2;
+  color: #416957;
+}
+@media (max-width: 850px) {
+  .themeToggle > span {
+    display: none;
+  }
+  .themeToggle {
+    padding: 8px;
+    min-width: 36px;
+  }
+}
+@media (max-width: 650px) {
+  .topbar {
+    gap: 9px;
+  }
+  .brand strong {
+    font-size: 15px;
+  }
+  .brand {
+    gap: 7px;
+  }
+  .themeToggle {
+    margin-left: 0;
+  }
+}

@@ -56,3 +56,7 @@ Isolierte Supabase-Testdatenbank und eigenes/shared Microsoft-Testpostfach anbin
 - Von/An/Betreff als kompakte Zeilen, Cc/Bcc zuschaltbar, Dateiablage, Entwurfsspeicherung und funktionale Textwerkzeuge für Listen/Einrückung.
 - Editor bleibt bewusst als „Nur Text“ gekennzeichnet. Rich-Text-Schriftformatierung ist noch nicht implementiert. Keine inaktiven Fett-/Kursiv-Schaltflächen.
 - „Senden“ öffnet weiterhin ausschließlich die Prüfung; der bestehende Freigabe-/Einmaltoken-Versandpfad wird unverändert verwendet.
+
+## Helle und dunkle Ansicht (14.11.2026)
+
+EMA Mail startet standardmäßig mit weißen Flächen. Der Hell-/Dunkel-Schalter im Kopfbereich ist auf Desktop und Mobil sichtbar. Die Präferenz wird ausschließlich für EMA Mail unter `ema-mail-theme-v1` gespeichert; bei gesperrtem Browser-Speicher bleibt der Schalter für die Sitzung funktionsfähig. Andere EMA-Module werden nicht umgestellt. Schreibfenster, Dialoge, Kalender, Kontakte, Aufgaben und Einstellungen verwenden dieselbe lokale Ansicht.

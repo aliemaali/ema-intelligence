@@ -8,8 +8,8 @@ export default function MobilePreview() {
     <main
       style={{
         minHeight: "100dvh",
-        background: "#071019",
-        color: "#c5d7df",
+        background: "#f3f6f8",
+        color: "#243947",
         padding: "20px",
         display: "grid",
         justifyItems: "center",
@@ -21,7 +21,7 @@ export default function MobilePreview() {
         <p style={{ fontSize: 12, marginTop: 8 }}>
           390 × 844 · Demo ohne echte E-Mails
         </p>
-        <Link href="/mail/preview" style={{ fontSize: 12, color: "#74dfb7" }}>
+        <Link href="/mail/preview" style={{ fontSize: 12, color: "#087b63" }}>
           Desktop-Vorschau öffnen
         </Link>
       </header>
@@ -32,9 +32,9 @@ export default function MobilePreview() {
         height="844"
         style={{
           maxWidth: "100%",
-          border: "1px solid #2d4b53",
+          border: "1px solid #cbd5dd",
           borderRadius: 20,
-          background: "#0b141e",
+          background: "#ffffff",
         }}
       />
     </main>

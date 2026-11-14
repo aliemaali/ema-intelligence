@@ -20,6 +20,8 @@ import {
   Maximize2,
   Minimize2,
   Minus,
+  Moon,
+  Sun,
   Paperclip,
   PenLine,
   Plus,
@@ -123,6 +125,30 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 export function MailWorkspace({ demo }: { demo: boolean }) {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("ema-mail-theme-v1") === "dark")
+        setTheme("dark");
+    } catch {
+      /* Mail remains usable when browser storage is blocked. */
+    }
+    function syncTheme(event: StorageEvent) {
+      if (event.key === "ema-mail-theme-v1")
+        setTheme(event.newValue === "dark" ? "dark" : "light");
+    }
+    window.addEventListener("storage", syncTheme);
+    return () => window.removeEventListener("storage", syncTheme);
+  }, []);
+  function toggleTheme() {
+    const next = theme === "light" ? "dark" : "light";
+    setTheme(next);
+    try {
+      localStorage.setItem("ema-mail-theme-v1", next);
+    } catch {
+      /* Session-only preference. */
+    }
+  }
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
     [folder, setFolder] = useState("inbox"),
@@ -635,7 +661,10 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         : true,
   );
   return (
-    <main className={`${s.workspace} ${reading ? s.reading : ""}`}>
+    <main
+      data-theme={theme}
+      className={`${s.workspace} ${reading ? s.reading : ""}`}
+    >
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
           <span className={s.mark}>EMA</span>
@@ -652,6 +681,23 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
             placeholder="E-Mails durchsuchen …"
           />
         </label>
+        <button
+          className={s.themeToggle}
+          onClick={toggleTheme}
+          aria-label={
+            theme === "light"
+              ? "Dunkle Ansicht aktivieren"
+              : "Helle Ansicht aktivieren"
+          }
+          title={
+            theme === "light"
+              ? "Zur dunklen Ansicht wechseln"
+              : "Zur hellen Ansicht wechseln"
+          }
+        >
+          {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+          <span>{theme === "light" ? "Dunkel" : "Hell"}</span>
+        </button>
         <div className={s.profile}>
           <ShieldCheck size={17} />
           <span>{demo ? "Demo-Arbeitsplatz" : "Microsoft 365"}</span>
