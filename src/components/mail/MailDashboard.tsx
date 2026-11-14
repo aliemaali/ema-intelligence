@@ -3,12 +3,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CalendarDays, Home, Mail, PenLine, RefreshCw, Search, Settings, Sun, Moon, Users } from "lucide-react";
 import { demoMessages } from "@/lib/mail/demo";
-import type { Message } from "@/lib/mail/model";
+import type { Message as BaseMessage } from "@/lib/mail/model";
 import { berlinDay, graphDate, teamsJoinUrl, todayRange } from "@/lib/mail/calendar";
 import { fromZonedTime } from "date-fns-tz";
 import type { MailPimItem } from "./MailPim";
 import { MailSwipeRow } from "./MailSwipeRow";
 import s from "./mail.module.css";
+
+import { combinedInboxPage, sumMailboxStats } from "@/lib/mail/combined-inbox";
+type Message = BaseMessage & { sourceMailbox?: string };
+const messageKey = (m: Message) => `${m.sourceMailbox || ""}:${m.id}`;
 
 export type MailView = "home" | "mail" | "calendar" | "contacts" | "tasks" | "settings";
 export function MailBottomNav({ view, onNavigate }: { view: MailView; onNavigate: (view: MailView) => void }) {
@@ -36,7 +40,7 @@ type Props = {
   onToggleTheme: () => void;
   demo: boolean;
   mailbox: string;
-  accounts: { mailbox: string; name?: string; address?: string }[];
+  accounts: { mailbox: string; name?: string; address?: string; can_write?: boolean }[];
   canSend: boolean;
   canWrite: boolean;
   onMailbox: (mailbox: string) => void;
@@ -85,10 +89,19 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
       setBusy(false);
       return;
     }
+    if (mailbox === "all" && !accounts.length) return;
+    setMessages([]);
+    setStats(null);
+    const boxes = mailbox === "all" ? accounts.map(a => a.mailbox) : [mailbox];
+    const messagesRequest = mailbox === "all"
+      ? combinedInboxPage<Message>(boxes.map(box => ({ mailbox: box, items: [], cursor: null, started: false })), (box, cursor) => get(`messages?${new URLSearchParams({ mailbox: box, folder: "inbox", ...(cursor ? { cursor } : {}) })}`, request.signal))
+          .then(data => ({ messages: data.messages, cursor: data.hasMore }))
+      : get(`messages?${new URLSearchParams({ mailbox, folder: "inbox" })}`, request.signal);
+    const statsRequest = Promise.all(boxes.map(box => get(`dashboard-stats?${new URLSearchParams({ mailbox: box })}`, request.signal))).then(sumMailboxStats);
     const results = await Promise.allSettled([
-      get(`messages?${new URLSearchParams({ mailbox, folder: "inbox" })}`, request.signal),
+      messagesRequest,
       get(`calendar?${new URLSearchParams(todayRange())}`, request.signal),
-      get(`dashboard-stats?${new URLSearchParams({ mailbox })}`, request.signal),
+      statsRequest,
     ]);
     if (request.signal.aborted || version.current !== current) return;
     const problems: string[] = [];
@@ -104,7 +117,7 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
     else problems.push("Übersicht: " + results[2].reason.message);
     setErrors(problems);
     setBusy(false);
-  }, [demo, mailbox, demoRecords, demoDraftCount]);
+  }, [demo, mailbox, accounts, demoRecords, demoDraftCount]);
   useEffect(() => {
     void refresh();
     const update = () => { if (!document.hidden) void refresh(); };
@@ -146,7 +159,7 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
         <h1>Dein Postfach</h1>
         <button className={`${s.syncPill} ${errors.length ? s.syncWarning : ""}`} disabled={busy} onClick={() => void refresh()} aria-label="Dashboard aktualisieren"><RefreshCw size={12} />{busy ? "Wird geladen" : errors.length ? "Bitte prüfen" : "Alles aktuell"}</button>
       </div>
-      {accounts.length > 1 && <label className={s.inboxMailbox}><span className={s.srOnly}>Postfach auswählen</span><select value={mailbox} onChange={event => onMailbox(event.target.value)} aria-label="Postfach auswählen">{accounts.map(account => <option key={account.mailbox} value={account.mailbox}>{account.name || account.address || account.mailbox}</option>)}</select></label>}
+      {accounts.length > 1 && <label className={s.inboxMailbox}><span className={s.srOnly}>Postfach auswählen</span><select value={mailbox} onChange={event => onMailbox(event.target.value)} aria-label="Postfach auswählen"><option value="all">Alle Postfächer</option>{accounts.map(account => <option key={account.mailbox} value={account.mailbox}>{account.name || account.address || account.mailbox}</option>)}</select></label>}
       {accounts.length <= 1 && box && <p className={s.inboxAddress}>{box.address || box.name || "Mein Postfach"}</p>}
       <form className={s.inboxSearch} onSubmit={event => { event.preventDefault(); if (query.trim()) onSearch(query); }}>
         <Search size={19} aria-hidden="true" /><input aria-label="E-Mails durchsuchen" placeholder="E-Mails durchsuchen" maxLength={180} value={query} onChange={event => setQuery(event.target.value)} />
@@ -173,7 +186,7 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
         <div className={s.inboxMessageList}>
           {!busy && !list.length && <p className={s.dashboardEmpty}>{errors.some(error => error.startsWith("Posteingang:")) ? "Posteingang konnte nicht geladen werden." : unreadOnly ? "Keine ungelesenen E-Mails unter den neuesten Nachrichten." : "Dein Posteingang ist leer."}</p>}
           {busy && !messages.length && <p className={s.dashboardEmpty}>E-Mails werden geladen …</p>}
-          {list.slice(0, 5).map((message, index) => <MailSwipeRow key={message.id} open={swiped === message.id} disabled={!canWrite || busy} subject={message.subject} onOpenChange={open => setSwiped(open ? message.id : null)} onDelete={async () => {
+          {list.slice(0, 5).map((message, index) => <MailSwipeRow key={messageKey(message)} open={swiped === messageKey(message)} disabled={!(message.sourceMailbox ? accounts.find(a => a.mailbox === message.sourceMailbox)?.can_write : canWrite) || busy} subject={message.subject} onOpenChange={open => setSwiped(open ? messageKey(message) : null)} onDelete={async () => {
             if (demo) demoDeleted.current.add(message.id);
             await onTrash(message);
             setSwiped(null);
@@ -182,7 +195,7 @@ export function MailDashboard({ demo, mailbox, accounts, canSend, canWrite, onMa
           }}>
             <button className={s.inboxMessage} data-unread={!message.isRead} onClick={() => onOpen(message)}>
               <span className={s.inboxAvatar} data-color={index % 5}>{(message.from.emailAddress.name || message.from.emailAddress.address).split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase()}</span>
-              <span className={s.inboxMessageBody}><span className={s.inboxSender}><strong>{message.from.emailAddress.name || message.from.emailAddress.address}</strong><time>{berlinDay(new Date(message.receivedDateTime)) === berlinDay(now) ? clock(message.receivedDateTime) : new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" })}</time>{!message.isRead && <i aria-label="Ungelesen" />}</span><strong className={s.inboxSubject}>{message.subject || "(Kein Betreff)"}</strong><span className={s.inboxPreview}>{message.bodyPreview}</span></span>
+              <span className={s.inboxMessageBody}><span className={s.inboxSender}><strong>{message.from.emailAddress.name || message.from.emailAddress.address}</strong><time>{berlinDay(new Date(message.receivedDateTime)) === berlinDay(now) ? clock(message.receivedDateTime) : new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" })}</time>{!message.isRead && <i aria-label="Ungelesen" />}</span><strong className={s.inboxSubject}>{message.subject || "(Kein Betreff)"}</strong><span className={s.inboxPreview}>{message.bodyPreview}</span>{mailbox === "all" && message.sourceMailbox && <small className={s.inboxSource}>{accounts.find(a => a.mailbox === message.sourceMailbox)?.address || message.sourceMailbox}</small>}</span>
             </button>
           </MailSwipeRow>)}
         </div>

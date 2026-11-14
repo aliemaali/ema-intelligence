@@ -170,7 +170,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       new CustomEvent("ema:mail-theme-change", { detail: next }),
     );
   }
-  const [allMailboxes, setAllMailboxes] = useState(false);
+  const [allMailboxes, setAllMailboxes] = useState(true);
   const combinedPages = useRef<MailboxPage<Message>[]>([]);
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
@@ -759,8 +759,6 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }
   function navigate(next: View) {
     setView(next); setNavOpen(false); setReading(false);
-    if (next !== "mail") setAllMailboxes(false);
-    if (next === "mail" && view !== "mail") setAllMailboxes(accounts.length > 1);
     if (next === "mail") { setFolder("inbox"); setFilter("all"); setQ(""); }
   }
   const visible = messages.filter((m) =>
@@ -772,6 +770,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           m.emaAnalysis?.priority === "high"
         : true,
   );
+  const dashboardMailbox = allMailboxes && accounts.length > 1 ? "all" : mailbox;
   return (
     <main
       data-theme={theme}
@@ -783,9 +782,9 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         background
         revision={messages}
       />
-      {view === "home" ? <MailDashboard key={mailbox}
-        theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={mailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
-        onMailbox={(value) => { setMailbox(value); setSelected(null); setQ(""); setFolder("inbox"); }}
+      {view === "home" ? <MailDashboard key={dashboardMailbox}
+        theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={dashboardMailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
+        onMailbox={(value) => { detailVersion.current++; setAllMailboxes(value === "all"); if (value !== "all") setMailbox(value); setSelected(null); setReading(false); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
         onCompose={() => newCompose()}
         onFolder={(id) => { setQ(""); changeFolder(id); }}
