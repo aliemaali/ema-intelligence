@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeReceivedHtml, receivedDocument, referencedCids, safeMailImage, validMailImage } from '../src/lib/mail/received-html';
+import { fitMailLayout, sanitizeReceivedHtml, receivedDocument, referencedCids, safeMailImage, validMailImage } from '../src/lib/mail/received-html';
 const png = 'data:image/png;base64,iVBORw0KGgo=';
 test('received HTML keeps image layouts and maps CID resources without active content', () => {
   const html = sanitizeReceivedHtml('<table><tr><td style="background-color:#fff">Hello<img src="cid:LOGO%40mail" onerror="alert(1)" alt="Logo"></td></tr></table><script>evil()</script><form action="https://evil.test"><input></form><iframe src="https://evil.test"></iframe><svg onload="evil()"></svg><style>body{background:url(https://evil.test)}</style>', {'logo@mail':png});
@@ -22,4 +22,14 @@ test('mail document blocks scripts, forms and connections and validates raster a
   assert.ok(validMailImage(new Uint8Array([255,216,255,1]),'image/jpeg'));
   assert.ok(!validMailImage(new TextEncoder().encode('<svg>'),'image/jpeg'));
   assert.ok(!validMailImage(new TextEncoder().encode('<svg>'),'image/svg+xml'));
+});
+
+test('fixed newsletter layouts fit narrow screens with proportional height and no upscaling', () => {
+  const narrow = fitMailLayout(304, 680, 1200);
+  assert.ok(narrow.width * narrow.scale <= 304);
+  assert.equal(narrow.height, Math.ceil(1200 * 304 / 680));
+  assert.deepEqual(fitMailLayout(700, 600, 500), {width:700,scale:1,height:500});
+  const html = receivedDocument('<table width="680"><tr><td>News</td></tr></table>');
+  assert.match(html,/id="ema-mail-content"/);
+  assert.match(html,/max-width:100%!important/);
 });

@@ -2768,3 +2768,8 @@
 .receivedPhoto { margin: 18px 0; }
 .receivedPhoto img { display: block; max-width: 100%; height: auto; border-radius: 6px; }
 .receivedPhoto figcaption { color: var(--muted); font-size: 11px; margin-top: 5px; }
+.receivedMail, .receivedPhoto { min-width: 0; max-width: 100%; }
+.receivedMail { width: 100%; overflow-x: hidden; }
+.receivedFrame { max-width: 100%; }
+.mailBody { overflow-wrap: anywhere; }
+.senderDetail > div { min-width: 0; overflow-wrap: anywhere; }
