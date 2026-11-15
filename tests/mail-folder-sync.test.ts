@@ -125,6 +125,7 @@ test('old unsigned pagination failure obtains a new scoped page without erasing 
     return path.startsWith('messages?') ? {messages:[message('new'),message('old')],cursor:'signed-page'} : {changes:[],next:null,delta:'new-checkpoint'};
   },'me','inbox','','legacy-page');
   assert.deepEqual(repaired.messages.map(m=>m.id),['new','old']);
+  assert.equal(repaired.cursor,'signed-page','the invalid legacy cursor must not be reused');
 });
 test('head reconciliation removes stale newer ghosts while retaining already loaded historical mail',()=>{
   const ghost={...message('ghost'),receivedDateTime:'2026-11-16T10:00:00Z'};

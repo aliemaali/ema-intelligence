@@ -68,7 +68,7 @@ export class MailFolderSync {
     try { return await request; }
     finally { if (this.pending.get(pendingKey) === request) this.pending.delete(pendingKey); }
   }
-  private async fetchPage(get: Get, key: string, params: URLSearchParams, cursor: string | undefined, generation: number, force: boolean): Promise<Page> {
+  private async fetchPage(get: Get, key: string, params: URLSearchParams, cursor: string | undefined, generation: number, force: boolean, resetCursor = false): Promise<Page> {
     let snapshot = this.cache.get(key);
     const save = (value: Snapshot) => { if (generation === this.generation) this.cache.set(key, value); };
     if (cursor) {
@@ -78,7 +78,7 @@ export class MailFolderSync {
         if (![400,410].includes((error as {status?: number}).status || 0)) throw error;
         // Discard a legacy continuation, not the saved mail, and obtain a newly scoped cursor.
         const restart = new URLSearchParams(params); restart.delete('cursor');
-        return this.fetchPage(get, key, restart, undefined, generation, true);
+        return this.fetchPage(get, key, restart, undefined, generation, true, true);
       }
       snapshot = this.cache.get(key);
       if (snapshot) {
@@ -95,7 +95,7 @@ export class MailFolderSync {
       const page: Page = await get(`messages?${params}`);
       const headIds = new Set(page.messages.map(message => message.id));
       snapshot = snapshot
-        ? { ...snapshot, messages: reconcileMailHead(snapshot.messages, page.messages) }
+        ? { ...snapshot, cursor: resetCursor ? page.cursor : snapshot.cursor, messages: reconcileMailHead(snapshot.messages, page.messages) }
         : { ...page, sync: null, baseline: true, baselineIds: page.messages.map(m => m.id), seen: [], checkedAt: 0 };
       save(snapshot);
       // A bounded bootstrap avoids a long blocking full-mailbox request. Later rounds use delta only.
