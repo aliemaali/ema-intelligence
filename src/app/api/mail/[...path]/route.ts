@@ -1,5 +1,5 @@
-import { getMicrosoftAccessToken } from "@/lib/microsoft/session";
-import { canReadAliContacts, SHARED_CONTACT_OWNER, assertPersonalContactId, sharedContactsPage } from "@/lib/mail/shared-contacts";
+import { sharedContactAccess } from "@/lib/mail/shared-contact-access";
+import { canReadAliContacts, sharedContactUpdateId, sharedContactsPage } from "@/lib/mail/shared-contacts";
 import { safePushEndpoint } from "@/lib/mail/push";
 import { sealDeltaCursor, openDeltaCursor } from "@/lib/mail/delta-cursor";
 import { productivityEndpoint, visibleProject } from "@/lib/mail/extensions";
@@ -590,7 +590,6 @@ async function handle(request: NextRequest) {
       mutating
     ) {
       assertPimConfirmation(input.confirmed);
-      if (action === "contacts") assertPersonalContactId(input.id);
       if (action === "reminder-action") {
         const id = uuid.parse(input.id),
           complete = z.boolean().parse(input.complete);
@@ -604,16 +603,22 @@ async function handle(request: NextRequest) {
         if (error || !data) throw new MailError(404, "Aufgabe nicht gefunden.");
         return json({ ok: true });
       }
-      // PIM uses the current user's connection; never use a client-supplied Graph URL.
-      const { token } = await mailboxAccess(session, "me");
       const operation = z
         .enum(["create", "update", "delete"])
         .parse(input.operation);
+      const sharedContactId = action === "contacts"
+        ? sharedContactUpdateId(session.user.id, input.id, operation)
+        : undefined;
+      // Personal PIM uses the current connection. Shared edits use only the fixed,
+      // explicitly authorized owner after checking current write membership.
+      const { token } = sharedContactId
+        ? await sharedContactAccess(session, "write")
+        : await mailboxAccess(session, "me");
       const collection = action === "calendar" ? "events" : "contacts";
       const path =
         operation === "create"
           ? `/me/${collection}`
-          : `/me/${collection}/${encodeURIComponent(resourceId.parse(input.id))}`;
+          : `/me/${collection}/${encodeURIComponent(resourceId.parse(sharedContactId ?? input.id))}`;
       let payload: unknown;
       if (operation !== "delete")
         payload =
@@ -711,7 +716,7 @@ async function handle(request: NextRequest) {
           );
       }
       // Do not blindly retry creates or changes which may generate invitations.
-      await audit(session.user.id, `${collection}_${operation}_requested`);
+      await audit(session.user.id, `${collection}_${sharedContactId ? "shared_" : ""}${operation}_requested`, sharedContactId);
       const result = await mailGraph(
         token,
         path,
@@ -1155,26 +1160,15 @@ async function handle(request: NextRequest) {
     }
     if (action === "contacts" && !mutating) {
       if (canReadAliContacts(session.user.id)) {
-        // Sharing also requires Tuba's existing access to Ali's mailbox.
-        await mailboxAccess(session, 'unluer@ema-enterprise.de');
+        const sharedAccess = await sharedContactAccess(session);
         return json(await sharedContactsPage({
           userId: session.user.id,
           cursor: request.nextUrl.searchParams.get('cursor'),
           secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          getPage: async (source, path) => {
-            if (source === 'personal') return mailGraph(token, path);
-            const [owner, connection] = await Promise.all([
-              admin.from('profiles').select('is_active,email').eq('id', SHARED_CONTACT_OWNER).maybeSingle(),
-              admin.from('microsoft_connections').select('microsoft_email').eq('user_id', SHARED_CONTACT_OWNER).maybeSingle(),
-            ]);
-            if (owner.error || connection.error || owner.data?.is_active !== true ||
-                owner.data?.email?.toLowerCase() !== 'unluer@ema-enterprise.de' ||
-                connection.data?.microsoft_email?.toLowerCase() !== 'unluer@ema-enterprise.de')
-              throw new MailError(403, 'Die Kontaktfreigabe von Ali ist derzeit nicht verfügbar.');
-            const sharedToken = await getMicrosoftAccessToken(SHARED_CONTACT_OWNER);
-            if (!sharedToken) throw new MailError(409, 'Ali muss seine Microsoft-Verbindung erneuern.');
-            return mailGraph(sharedToken, path);
-          },
+          getPage: async (source, path) => mailGraph(
+            source === 'personal' ? token : sharedAccess.token,
+            path,
+          ),
         }));
       }
 

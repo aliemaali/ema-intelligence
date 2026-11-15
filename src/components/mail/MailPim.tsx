@@ -7,6 +7,7 @@ import { monthDays, teamsJoinUrl } from "@/lib/mail/calendar";
 type Item = {
   id: string;
   readOnly?: boolean;
+  canDelete?: boolean;
   sharedBy?: string;
   subject?: string;
   displayName?: string;
@@ -462,7 +463,7 @@ export function MailPim({
                   >
                     Bearbeiten
                   </button>
-                  <button disabled={busy || item.readOnly === true} onClick={() => setDeleting(item)}>
+                  <button disabled={busy || item.readOnly === true || item.canDelete === false} onClick={() => setDeleting(item)}>
                     {mode === "calendar"
                       ? "Termin entfernen"
                       : "Kontakt entfernen"}

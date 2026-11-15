@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHARED_CONTACT_READER, SHARED_CONTACT_OWNER, canReadAliContacts, assertPersonalContactId, sharedContactsPage } from '../src/lib/mail/shared-contacts';
+import { SHARED_CONTACT_READER, SHARED_CONTACT_OWNER, canReadAliContacts, sharedContactUpdateId, sharedContactsPage } from '../src/lib/mail/shared-contacts';
 import { sealDeltaCursor } from '../src/lib/mail/delta-cursor';
 const secret = 'test-only-contact-cursor-secret';
 test('only the explicitly granted reader may access Ali contacts', async () => {
@@ -10,7 +10,7 @@ test('only the explicitly granted reader may access Ali contacts', async () => {
   await assert.rejects(sharedContactsPage({userId:'another-user', secret, getPage:async()=>{called=true;return {value:[]};}}));
   assert.equal(called, false);
 });
-test('shared pages retain all addresses, are read-only, then continue to personal contacts', async () => {
+test('shared pages retain all addresses, allow edits, then continue to personal contacts', async () => {
   const calls: string[] = [];
   const getPage = async (source: 'shared'|'personal', path: string) => {
     calls.push(source);
@@ -20,16 +20,17 @@ test('shared pages retain all addresses, are read-only, then continue to persona
       '@odata.nextLink':'https://graph.microsoft.com/v1.0/users/owner-id/contacts?$skiptoken=next'};
   };
   const first = await sharedContactsPage({userId:SHARED_CONTACT_READER, secret,getPage});
-  assert.equal(first.value[0].readOnly,true);
+  assert.equal(first.value[0].readOnly,false);
+  assert.equal(first.value[0].canDelete,false);
   assert.equal(first.value[0].sharedBy,'Ali');
   assert.equal((first.value[0].emailAddresses as unknown[]).length,2);
-  assert.throws(()=>assertPersonalContactId(first.value[0].id));
+  assert.equal(sharedContactUpdateId(SHARED_CONTACT_READER,first.value[0].id,'update'),'same');
   const second = await sharedContactsPage({userId:SHARED_CONTACT_READER, secret,getPage,cursor:first['@odata.nextLink']});
   const third = await sharedContactsPage({userId:SHARED_CONTACT_READER, secret,getPage,cursor:second['@odata.nextLink']});
   assert.deepEqual(calls,['shared','shared','personal']);
   assert.equal(third.value[0].id,'same');
   assert.notEqual(first.value[0].id,third.value[0].id);
-  assert.doesNotThrow(()=>assertPersonalContactId(third.value[0].id));
+  assert.equal(sharedContactUpdateId(SHARED_CONTACT_READER,third.value[0].id,'update'),undefined);
   assert.equal(third['@odata.nextLink'],undefined);
 });
 test('tampered, foreign, raw and non-contact cursors never invoke Graph', async () => {
@@ -47,4 +48,17 @@ test('tampered, foreign, raw and non-contact cursors never invoke Graph', async 
 });
 test('upstream continuation may only stay in the contacts collection', async () => {
   await assert.rejects(sharedContactsPage({userId:SHARED_CONTACT_READER,secret,getPage:async()=>({value:[], '@odata.nextLink':'https://graph.microsoft.com/v1.0/me/messages'})}));
+});
+
+test('shared updates are scoped to the granted editor and preserve the opaque Graph ID', () => {
+  const id='ema-shared-contact:AAMk/abc+=';
+  assert.equal(sharedContactUpdateId(SHARED_CONTACT_READER,id,'update'),'AAMk/abc+=');
+  assert.throws(()=>sharedContactUpdateId('another-user',id,'update'));
+  assert.throws(()=>sharedContactUpdateId(SHARED_CONTACT_OWNER,id,'update'));
+  assert.throws(()=>sharedContactUpdateId(SHARED_CONTACT_READER,id,'delete'));
+  assert.throws(()=>sharedContactUpdateId(SHARED_CONTACT_READER,id,'create'));
+  assert.throws(()=>sharedContactUpdateId(SHARED_CONTACT_READER,'ema-shared-contact:','update'));
+  assert.throws(()=>sharedContactUpdateId(SHARED_CONTACT_READER,'ema-shared-contact:'+'x'.repeat(1501),'update'));
+  assert.equal(sharedContactUpdateId(SHARED_CONTACT_READER,'personal-id','update'),undefined);
+  assert.equal(sharedContactUpdateId(SHARED_CONTACT_READER,undefined,'create'),undefined);
 });
