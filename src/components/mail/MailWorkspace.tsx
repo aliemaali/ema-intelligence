@@ -211,6 +211,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
     [composer, setComposer] = useState<MailDraft | null>(null),
     [draftId, setDraftId] = useState<string | undefined>(),
     [review, setReview] = useState(false);
+  const deletingDraft = useRef(false);
   const [previewFile, setPreviewFile] = useState<{
     file: Attachment;
     mailbox: string;
@@ -690,6 +691,39 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
     setComposer((old) => (old ? { ...old, ...update } : null));
     setReview(false);
   }
+  async function deleteDraft(id?: string, sourceMailbox = composer?.mailbox || mailbox) {
+    if (busy || deletingDraft.current) return;
+    deletingDraft.current = true;
+    setBusy(true);
+    try {
+      if (id && !demo) await api('draft-delete', { id });
+      if (id) {
+        // Invalidate any older list response before updating local snapshots and counters.
+        requestVersion.current++;
+        listLoading.current = false;
+        setDrafts(old => old.filter(d => d.id !== id));
+        listCache.update(snapshot => ({ ...snapshot, drafts: snapshot.drafts.filter(d => d.id !== id) }));
+        dashboardCache.update((snapshot, key) => {
+          const box = JSON.parse(key)[1];
+          return box === 'all' || box === sourceMailbox
+            ? { ...snapshot, stats: { ...snapshot.stats, drafts: Math.max(0, snapshot.stats.drafts - 1) } }
+            : snapshot;
+        });
+        setOverviewRevision(v => v + 1);
+      }
+      if (!id || draftId === id) {
+        composeVersion.current++;
+        setComposer(null); setDraftId(undefined); setReview(false); setComposeMinimized(false);
+      }
+      setSwipedId(null);
+      setNotice(id ? 'Entwurf gelöscht.' : 'Entwurf verworfen.');
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      deletingDraft.current = false;
+      setBusy(false);
+    }
+  }
   async function saveDraft() {
     if (!composer) return;
     const version = composeVersion.current;
@@ -1168,7 +1202,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                 <span>
                   {busy
                     ? "Wird geladen …"
-                    : `${visible.length} Nachrichten geladen`}
+                    : folder === 'drafts' ? `${drafts.length} Entwürfe` : `${visible.length} Nachrichten geladen`}
                 </span>
                 <span>
                   Neueste zuerst{" "}
@@ -1178,10 +1212,15 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
               <div className={s.messages}>
                 {folder === "drafts"
                   ? drafts.map((d) => (
+                    <MailSwipeRow key={d.id} subject={d.payload.subject || 'Entwurf'}
+                      deleteLabel={`Entwurf ${d.payload.subject || 'ohne Betreff'} löschen`}
+                      disabled={busy} open={swipedId === `draft:${d.id}`}
+                      onOpenChange={open => setSwipedId(open ? `draft:${d.id}` : null)}
+                      onDelete={() => deleteDraft(d.id, d.payload.mailbox)}>
+                    <div className={s.draftRow}>
                       <button
-                        key={d.id}
                         className={s.message}
-                        disabled={!["draft", "approved"].includes(d.status)}
+                        disabled={busy || !["draft", "approved"].includes(d.status)}
                         onClick={() => {
                           composeVersion.current++;
                           setDraftId(d.id);
@@ -1213,6 +1252,11 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                         <p className={s.preview}>{d.payload.body}</p>
                         <span className={s.badge}>{d.status}</span>
                       </button>
+                      <button type="button" className={`${s.iconButton} ${s.draftDelete}`} disabled={busy}
+                        aria-label={`Entwurf ${d.payload.subject || 'ohne Betreff'} löschen`}
+                        title="Entwurf löschen" onClick={() => void deleteDraft(d.id, d.payload.mailbox)}><Trash2 size={18} /></button>
+                    </div>
+                    </MailSwipeRow>
                     ))
                   : visible.map((m) => (
                       <MailSwipeRow
@@ -1271,6 +1315,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                         </button>
                       </MailSwipeRow>
                     ))}
+                {!busy && folder === 'drafts' && !drafts.length && <p className={s.empty}>Keine gespeicherten Entwürfe.</p>}
                 {!busy && !visible.length && folder !== "drafts" ? (
                   <p className={s.empty}>Hier sind keine Nachrichten.</p>
                 ) : null}
@@ -1658,6 +1703,9 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                   : composer.subject || "Neue Nachricht"}
               </h2>
               <div className={s.windowControls}>
+                {!review && <button type="button" className={s.iconButton} disabled={busy}
+                  aria-label={draftId ? 'Entwurf löschen' : 'Entwurf verwerfen'} title={draftId ? 'Entwurf löschen' : 'Entwurf verwerfen'}
+                  onClick={() => void deleteDraft(draftId, composer.mailbox)}><Trash2 size={18} /></button>}
                 {!review && (
                   <>
                     <button

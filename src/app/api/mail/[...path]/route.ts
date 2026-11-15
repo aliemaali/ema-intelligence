@@ -402,6 +402,23 @@ async function handle(request: NextRequest) {
       if (error) throw new MailError(503, "Entwürfe nicht verfügbar.");
       return json({ drafts: data });
     }
+    if (action === "draft-delete" && mutating) {
+      const { id } = z.object({ id: uuid }).strict().parse(input);
+      // These are the caller's private EMA drafts, not Microsoft mailbox items.
+      // The status predicate is also the atomic guard against concurrent sending.
+      const { data: draft, error: readError } = await admin.from('ema_mail_drafts')
+        .select('id,status').eq('id', id).eq('user_id', session.user.id).maybeSingle();
+      if (readError) throw new MailError(503, 'Entwurf konnte nicht geprüft werden.');
+      if (!draft) throw new MailError(404, 'Entwurf nicht gefunden.');
+      if (!['draft','approved'].includes(draft.status)) throw new MailError(409, 'Dieser Entwurf ist bereits im Versand und kann nicht gelöscht werden.');
+      await audit(session.user.id, 'draft_delete_requested', id);
+      const { data: deleted, error } = await admin.from('ema_mail_drafts').delete()
+        .eq('id', id).eq('user_id', session.user.id).in('status', ['draft','approved'])
+        .select('id').maybeSingle();
+      if (error) throw new MailError(503, 'Entwurf konnte nicht gelöscht werden.');
+      if (!deleted) throw new MailError(409, 'Der Entwurf wurde inzwischen geändert. Bitte die Liste aktualisieren.');
+      return json({ ok: true, id });
+    }
     if (action === "drafts" && mutating) {
       const payload = draftSchema.parse(input.payload);
       await mailboxAccess(session, payload.mailbox, "send");

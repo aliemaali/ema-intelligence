@@ -18,6 +18,7 @@ export function MailSwipeRow({
   open,
   onOpenChange,
   onDelete,
+  deleteLabel,
 }: {
   children: ReactNode;
   subject: string;
@@ -25,6 +26,7 @@ export function MailSwipeRow({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDelete: () => Promise<void>;
+  deleteLabel?: string;
 }) {
   const [offset, setOffset] = useState(0),
     [dragging, setDragging] = useState(false);
@@ -140,7 +142,7 @@ export function MailSwipeRow({
         disabled={disabled}
         tabIndex={revealed ? 0 : -1}
         aria-hidden={!revealed}
-        aria-label={`${subject} in den Papierkorb verschieben`}
+        aria-label={deleteLabel || `${subject} in den Papierkorb verschieben`}
         onClick={() => void remove()}
       >
         <Trash2 size={21} />
