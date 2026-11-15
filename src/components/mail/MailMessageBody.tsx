@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Attachment, Message } from '@/lib/mail/model';
-import { imageTypes, normalizeCid, receivedDocument, referencedCids, validMailImage } from '@/lib/mail/received-html';
+import { fitMailLayout, imageTypes, normalizeCid, receivedDocument, referencedCids, validMailImage } from '@/lib/mail/received-html';
 import s from './mail.module.css';
 
 export function MailMessageBody({ message, attachments, mailbox }: { message: Message; attachments: Attachment[]; mailbox: string }) {
@@ -47,21 +47,36 @@ export function MailMessageBody({ message, attachments, mailbox }: { message: Me
     if (!iframe || !html) return;
     let observer: ResizeObserver | undefined;
     let body: HTMLElement | undefined;
+    let content: HTMLElement | null = null;
+    let animation = 0;
     const resize = () => {
-      if (body) iframe.style.height = `${Math.min(20000,Math.max(120,body.scrollHeight + 20))}px`;
+      if (!body || !content || iframe.clientWidth <= 0) return;
+      const available = Math.max(1, iframe.clientWidth - 16);
+      // Reflow normally first; scale only layouts that retain a fixed minimum width.
+      content.style.transform = 'none';
+      content.style.width = '100%';
+      const width = Math.max(available, content.scrollWidth);
+      content.style.width = `${width}px`;
+      const fit = fitMailLayout(available, Math.max(width, content.scrollWidth), content.scrollHeight);
+      content.style.transform = `scale(${fit.scale})`;
+      body.style.height = `${fit.height + 16}px`;
+      iframe.style.height = `${Math.max(120,fit.height + 20)}px`;
     };
+    const schedule = () => { cancelAnimationFrame(animation); animation = requestAnimationFrame(resize); };
     const loaded = () => {
       observer?.disconnect();
-      body?.removeEventListener('load',resize,true);
+      body?.removeEventListener('load',schedule,true);
       body = iframe.contentDocument?.body;
-      if (!body) return;
+      content = iframe.contentDocument?.getElementById('ema-mail-content') || null;
+      if (!body || !content) return;
       resize();
-      observer = new ResizeObserver(resize); observer.observe(body);
-      body.addEventListener('load',resize,true);
+      observer = new ResizeObserver(schedule);
+      observer.observe(content); observer.observe(iframe);
+      body.addEventListener('load',schedule,true);
     };
     iframe.addEventListener('load',loaded);
     if (iframe.contentDocument?.readyState === 'complete') loaded();
-    return () => { iframe.removeEventListener('load',loaded); body?.removeEventListener('load',resize,true); observer?.disconnect(); };
+    return () => { cancelAnimationFrame(animation); iframe.removeEventListener('load',loaded); body?.removeEventListener('load',schedule,true); observer?.disconnect(); };
   }, [html,document]);
   return <div className={s.receivedMail}>
     {html ? <iframe ref={frame} title="E-Mail-Inhalt" srcDoc={document} sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerPolicy="no-referrer" className={s.receivedFrame} /> : <div className={s.mailBody}>{content}</div>}
