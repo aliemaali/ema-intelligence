@@ -80,7 +80,6 @@ export function MailComposeAi({ draft, demo, busy, update }: {
     {error && !briefingOpen && <p role="alert" className={s.translationHint}>{error}</p>}
     {briefingOpen && preview && <MailDialog title="Was soll die E-Mail sagen?" busy={!!working} onClose={closeBriefing} className={s.aiWorkshop}>
       <form autoComplete="off" onSubmit={event => { event.preventDefault(); void run("formulate"); }}>
-      <p>Oben gibst du Anweisungen. Unten siehst du den Entwurf und kannst ihn auch selbst bearbeiten. Weitere Wünsche überarbeiten den aktuellen Text.</p>
       <section className={s.aiInstructions} aria-label="Anweisungen an die KI">
       <label>Anweisung oder Stichpunkte
         <textarea className={s.briefingInput} name="briefing" autoComplete="off" inputMode="text" autoCapitalize="sentences"
