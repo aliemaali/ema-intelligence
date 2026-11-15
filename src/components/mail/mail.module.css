@@ -465,6 +465,15 @@
   color: #bdcbd6;
   min-height: 180px;
 }
+.translationControls { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+.translationControls button { display:inline-flex; align-items:center; gap:7px; min-height:40px; padding:7px 11px; border:1px solid #738c9d66; border-radius:9px; background:transparent; color:inherit; font-size:12px; cursor:pointer; }
+.translationControls button[aria-pressed="true"] { border-color:#0b9c80; background:#0b9c801a; }
+.translationControls button:focus-visible { outline:2px solid #0b9c80; outline-offset:2px; }
+.translationControls button:disabled { opacity:.6; cursor:wait; }
+.translationControls > span, .translationHint { font-size:11px; line-height:1.5; opacity:.8; }
+.translationHint { margin:0 0 12px; }
+.translationSubject { font-size:15px; line-height:1.5; margin:0 0 12px; overflow-wrap:anywhere; }
+.translationText { overflow-wrap:anywhere; }
 .attachment {
   display: flex;
   gap: 12px;

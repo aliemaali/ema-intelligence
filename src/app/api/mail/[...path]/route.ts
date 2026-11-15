@@ -45,6 +45,7 @@ import {
   resourceId,
 } from "@/lib/mail/pim";
 import { analyzeMessage } from "@/lib/mail/analysis";
+import { translateMessage, translationSchema } from "@/lib/mail/translation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -957,6 +958,28 @@ async function handle(request: NextRequest) {
         );
       await audit(session.user.id, `message_${operation}`);
       return json({ ok: true });
+    }
+    if (action === "translate") {
+      if (!mutating) throw new MailError(405, "Bitte eine Übersetzungssprache auswählen.");
+      const id = idSchema.parse(input.id);
+      const target = z.enum(["de", "en"]).parse(input.target);
+      // Fetch the authorized original from Microsoft; never translate browser-supplied mail text.
+      const message = await mailGraph<Message>(token, messagePath(mailbox, id), {}, root);
+      const key = digest({ kind: "translation-v1", target, model: process.env.EMA_MAIL_AI_MODEL || "gpt-5-mini", mailbox, id, body: message.body, preview: message.bodyPreview, subject: message.subject });
+      const { data: cached, error: cacheError } = await admin.from("ema_mail_analysis").select("result")
+        .eq("user_id", session.user.id).eq("source_hash", key).maybeSingle();
+      if (cacheError) throw new MailError(503, "Übersetzungsspeicher ist nicht verfügbar.");
+      const saved = translationSchema.safeParse(cached?.result);
+      if (saved.success) return json({ translation: saved.data, target, cached: true });
+      const { data: allowed, error } = await admin.rpc("ema_mail_claim_analysis", { p_user_id: session.user.id, p_limit: 20 });
+      if (error) throw new MailError(503, "KI-Limit ist nicht verfügbar.");
+      if (allowed !== true) throw new MailError(429, "Maximal 20 neue KI-Abfragen pro Stunde. Bitte später versuchen.");
+      await audit(session.user.id, `message_translate_${target}_requested`, id);
+      const translation = await translateMessage(message, target);
+      const { error: saveError } = await admin.from("ema_mail_analysis")
+        .upsert({ user_id: session.user.id, source_hash: key, result: translation }, { onConflict: "user_id,source_hash" });
+      if (saveError) throw new MailError(503, "Übersetzung konnte nicht gespeichert werden. Bitte erneut versuchen.");
+      return json({ translation, target, cached: false });
     }
     if (action === "analyze" && mutating) {
       const id = idSchema.parse(input.id);

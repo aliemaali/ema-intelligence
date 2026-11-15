@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { MailMessageBody } from "./MailMessageBody";
+import { MailTranslation } from "./MailTranslation";
 import {
   Archive,
   ArrowLeft,
@@ -1478,7 +1479,9 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                         {formatTime(selected.receivedDateTime)}
                       </time>
                     </div>
-                    <MailMessageBody key={`${mailbox}:${selected.id}`} message={selected} attachments={attachments} mailbox={mailbox} />
+                    <MailTranslation key={`${contactScope}:${mailbox}:${selected.id}`} message={selected} mailbox={mailbox} demo={demo}>
+                      <MailMessageBody key={`${mailbox}:${selected.id}`} message={selected} attachments={attachments} mailbox={mailbox} />
+                    </MailTranslation>
                     {attachments.map((a) => (
                       <div key={a.id} className={s.attachment}>
                         <button

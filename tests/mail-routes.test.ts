@@ -1886,3 +1886,46 @@ test('reading a message requests HTML while retaining immutable IDs and mailbox 
   const denied = await GET(new NextRequest('https://ema.example/api/mail/message?id=img-test&mailbox=foreign%40example.com'));
   assert.equal(denied.status,403); assert.equal(calls,1);
 });
+
+test('translation is cached per user, language and source, using only the authorized Microsoft message', async () => {
+  reset(); const previousKey=process.env.OPENAI_API_KEY; process.env.OPENAI_API_KEY='test-only';
+  let providerCalls=0, limitCalls=0;
+  globalThis.__mailFixture.admin.rpc=async()=>{limitCalls++;return {data:true,error:null};};
+  const requests:string[]=[];
+  globalThis.fetch=async(url,init)=>{
+    requests.push(String(url));
+    if(String(url).startsWith('https://graph.microsoft.com/')) {
+      assert.equal(init?.method,undefined);
+      return Response.json({id:'message',subject:'Original subject',body:{contentType:'text',content:'Original body'}});
+    }
+    providerCalls++;
+    const input=JSON.parse(JSON.parse(String(init?.body)).input);
+    assert.deepEqual(input,{subject:'Original subject',body:'Original body'});
+    return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({subject:'Betreff',body:'Übersetzung'})}]}]});
+  };
+  try {
+    const call=(target:string)=>POST(req('translate',{mailbox:'me',id:'message',target,body:'Untrusted browser text'}));
+    const first=await call('de'); assert.equal(first.status,200); assert.equal((await first.json()).cached,false);
+    const cached=await call('de'); assert.equal(cached.status,200); assert.equal((await cached.json()).cached,true); assert.equal(providerCalls,1);
+    assert.equal((await call('en')).status,200); assert.equal(providerCalls,2);
+    user={id:'33333333-3333-4333-8333-333333333333'};
+    assert.equal((await call('de')).status,200); assert.equal(providerCalls,3); assert.equal(limitCalls,3);
+    assert.equal(rows.ema_mail_analysis[0].user_id,uid);
+    assert.equal(rows.ema_mail_analysis.length,3);
+    assert.equal(rows.ema_mail_drafts,undefined); assert.equal(rows.ema_mail_insights,undefined);
+    assert.ok(requests.every(url=>!url.includes('/send')));
+  } finally { if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey; }
+});
+test('translation requires POST, valid targets, mailbox access, a user session and the existing AI budget', async () => {
+  reset();
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/translate'))).status,405);
+  assert.equal((await POST(req('translate',{mailbox:'me',id:'message',target:'fr'}))).status,400);
+  assert.equal((await POST(req('translate',{mailbox:'foreign@example.com',id:'message',target:'de'}))).status,403);
+  assert.equal(graphCalls,0);
+  user=null;
+  assert.equal((await POST(req('translate',{mailbox:'me',id:'message',target:'de'}))).status,401);
+  reset(); globalThis.__mailFixture.admin.rpc=async()=>({data:false,error:null});
+  globalThis.fetch=async(url)=>{assert.ok(String(url).startsWith('https://graph.microsoft.com/'));graphCalls++;return Response.json({id:'message',subject:'Original',bodyPreview:'Body'});};
+  assert.equal((await POST(req('translate',{mailbox:'me',id:'message',target:'de'}))).status,429);
+  assert.equal(graphCalls,1); assert.equal(rows.ema_mail_analysis,undefined);
+});
