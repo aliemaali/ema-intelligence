@@ -1215,6 +1215,17 @@
   display: flex;
   gap: 8px;
 }
+.recipientInput { position:relative; min-width:0; flex:1; }
+.composeWindow .addressRow .recipientInput input { width:100%; box-sizing:border-box; }
+.recipientSuggestions { position:absolute; z-index:60; top:calc(100% + 4px); left:0; right:0; min-width:0; max-height:240px; overflow-y:auto; border:1px solid #49606d; border-radius:10px; background:#1b2a35; box-shadow:0 8px 24px #0005; padding:4px; }
+.recipientSuggestion { display:flex; flex-direction:column; align-items:flex-start; text-align:left; gap:3px; width:100%; min-height:48px; border:0; border-radius:7px; padding:10px 12px; background:transparent; color:#e6edf3; }
+.recipientSuggestion strong,.recipientSuggestion small { max-width:100%; overflow-wrap:anywhere; }
+.recipientSuggestion small { color:#aebcc8; }
+.recipientSuggestion[aria-selected="true"],.recipientSuggestion:hover { background:#28564c; }
+.workspace[data-theme="light"] .recipientSuggestions { background:#fff; border-color:#d4dee5; }
+.workspace[data-theme="light"] .recipientSuggestion { color:#182c3b; }
+.workspace[data-theme="light"] .recipientSuggestion small { color:#526878; }
+.workspace[data-theme="light"] .recipientSuggestion[aria-selected="true"],.workspace[data-theme="light"] .recipientSuggestion:hover { background:#e0f4ec; }
 .recipientToggles button {
   border: 0;
   background: transparent;

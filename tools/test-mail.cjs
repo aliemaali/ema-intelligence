@@ -79,6 +79,7 @@ const fs = require("node:fs");
   await esbuild.build({ entryPoints: ["tests/mail-session-cache.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-session-cache.test.cjs" });
   await esbuild.build({ entryPoints: ["tests/mail-folder-sync.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-folder-sync.test.cjs" });
   await esbuild.build({ entryPoints: ["tests/mail-contact-names.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-contact-names.test.cjs" });
+  await esbuild.build({ entryPoints: ["tests/mail-recipient-contacts.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-recipient-contacts.test.cjs" });
   const result = spawnSync(
     process.execPath,
     [
@@ -89,6 +90,7 @@ const fs = require("node:fs");
       ".tmp/mail-session-cache.test.cjs",
       ".tmp/mail-folder-sync.test.cjs",
       ".tmp/mail-contact-names.test.cjs",
+      ".tmp/mail-recipient-contacts.test.cjs",
       ".tmp/mail-routes.test.cjs",
       ".tmp/mail-automation.test.cjs",
       ".tmp/mail-analysis.test.cjs",
