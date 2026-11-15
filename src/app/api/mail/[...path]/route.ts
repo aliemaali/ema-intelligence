@@ -745,9 +745,10 @@ async function handle(request: NextRequest) {
       let path: string;
       if (cursor) {
         try {
-          const url = new URL(safeGraphUrl(openDeltaCursor(cursor, scope, secret), root));
-          const suffix = url.pathname.slice(`/v1.0${root}`.length);
-          if (!/^\/mailFolders\/[^/]+\/messages\/delta$/.test(suffix)) throw new Error('Invalid delta path');
+          // Microsoft can canonicalize /me or a mailbox address to /users/{id}.
+          // Only server-signed URLs from a previous authorized Graph response may use that alias.
+          const url = new URL(safeGraphUrl(openDeltaCursor(cursor, scope, secret)));
+          if (!/^\/v1\.0\/(?:me|users\/[^/]+)\/mailFolders\/[^/]+\/messages\/delta$/.test(url.pathname)) throw new Error('Invalid delta path');
           path = url.href;
         } catch { throw new MailError(400, 'Ungültiger Abgleichsstand.'); }
       } else {
@@ -757,11 +758,17 @@ async function handle(request: NextRequest) {
         });
         path = `${root}/mailFolders/${folder}/messages/delta?${query}`;
       }
-      const result = await mailGraph<{ value: (Partial<Message> & { id: string; '@removed'?: { reason?: string } })[]; '@odata.nextLink'?: string; '@odata.deltaLink'?: string }>(token, path, {}, root);
+      const result = await mailGraph<{ value: (Partial<Message> & { id: string; '@removed'?: { reason?: string } })[]; '@odata.nextLink'?: string; '@odata.deltaLink'?: string }>(token, path);
+      const continuation = (link: string | undefined) => {
+        if (!link) return null;
+        const url = new URL(safeGraphUrl(link));
+        if (!/^\/v1\.0\/(?:me|users\/[^/]+)\/mailFolders\/[^/]+\/messages\/delta$/.test(url.pathname)) throw new MailError(502, 'Ungültige Microsoft-Abgleichsseite.');
+        return sealDeltaCursor(url.href, scope, secret);
+      };
       return json({
         changes: result.value || [],
-        next: result['@odata.nextLink'] ? sealDeltaCursor(safeGraphUrl(result['@odata.nextLink'], root), scope, secret) : null,
-        delta: result['@odata.deltaLink'] ? sealDeltaCursor(safeGraphUrl(result['@odata.deltaLink'], root), scope, secret) : null,
+        next: continuation(result['@odata.nextLink']),
+        delta: continuation(result['@odata.deltaLink']),
       });
     }
     if (action === "messages" && !mutating) {

@@ -43,6 +43,35 @@ test('delta route rejects signed URLs for non-delta resources and preserves expi
   globalThis.fetch=async()=>new Response(null,{status:410});
   assert.equal((await GET(new NextRequest('https://ema.example/api/mail/message-delta?mailbox=me&folder=inbox'))).status,410);
 });
+test('delta follows server-signed canonical user-ID links for me and shared mailbox aliases',async()=>{
+  for(const mailbox of ['me','team@example.com']) {
+    reset();
+    rows.ema_mail_memberships=[{user_id:uid,mailbox:'team@example.com',can_read:true,can_write:false,can_send:false}];
+    const canonical='https://graph.microsoft.com/v1.0/users(\'33333333-3333-4333-8333-333333333333\')/mailFolders(\'opaque-folder\')/messages/delta?$skiptoken=next';
+    let requested='';
+    globalThis.fetch=async input=>{
+      graphCalls++; requested=String(input);
+      return Response.json({value:[{id:'old',isRead:true}],'@odata.nextLink':canonical});
+    };
+    const query=new URLSearchParams({mailbox,folder:'inbox'});
+    const first=await GET(new NextRequest(`https://ema.example/api/mail/message-delta?${query}`));
+    assert.equal(first.status,200,`canonical continuation must be accepted for ${mailbox}`);
+    const data=await first.json(); assert.ok(data.next);
+    query.set('cursor',data.next);
+    assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/message-delta?${query}`))).status,200);
+    assert.ok(requested.includes('/users/33333333-3333-4333-8333-333333333333/mailFolders/opaque-folder/messages/delta?'));
+    const before=graphCalls; query.set('mailbox',mailbox==='me'?'team@example.com':'me');
+    assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/message-delta?${query}`))).status,400);
+    assert.equal(graphCalls,before,'signed links cannot be replayed under another mailbox scope');
+  }
+});
+test('delta never signs a returned link to a foreign host or a non-delta resource',async()=>{
+  for(const link of ['https://example.com/v1.0/me/mailFolders/inbox/messages/delta','https://graph.microsoft.com/v1.0/users/other/messages']) {
+    reset(); globalThis.fetch=async()=>Response.json({value:[],'@odata.nextLink':link});
+    const response=await GET(new NextRequest('https://ema.example/api/mail/message-delta?mailbox=me&folder=inbox'));
+    assert.ok(response.status>=400); const data=await response.json(); assert.equal(data.next,undefined);
+  }
+});
 const uid = "11111111-1111-4111-8111-111111111111",
   id = "22222222-2222-4222-8222-222222222222";
 let rows: Record<string, any[]> = {},

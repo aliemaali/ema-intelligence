@@ -362,12 +362,18 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         }
         if (allMailboxes) {
           const sources = next ? combinedPages.current : accounts.filter(a => a.can_read).map(a => ({ mailbox: a.mailbox, items: [], cursor: null, started: false }));
-          const data = await combinedInboxPage(sources, (box, page) => folderSync.page(api, box, folder, q, page, force));
+          let syncWarning: string | undefined;
+          const data = await combinedInboxPage(sources, async (box, page) => {
+            const result = await folderSync.page(api, box, folder, q, page, force);
+            syncWarning ||= result.syncWarning;
+            return result;
+          });
           if (version === requestVersion.current) {
             combinedPages.current = data.sources;
             const records = next ? [...new Map([...messagesRef.current, ...data.messages].map(m => [messageKey(m), m])).values()] : data.messages;
             const cursor = data.hasMore ? 'combined' : null;
             setMessages(records); setCursor(cursor);
+            setNotice(old => syncWarning || (old.startsWith('Hintergrundabgleich ') ? '' : old));
             listCache.set(listKey,{messages:records,drafts:[],cursor,sources:data.sources});
           }
           return;
@@ -376,6 +382,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         if (version === requestVersion.current) {
           const records = next ? [...new Map([...messagesRef.current, ...data.messages].map(m => [messageKey(m), m])).values()] : data.messages;
           setMessages(records); setCursor(data.cursor);
+          setNotice(old => data.syncWarning || (old.startsWith('Hintergrundabgleich ') ? '' : old));
           listCache.set(listKey,{messages:records,drafts:[],cursor:data.cursor,sources:[]});
         }
       } catch (e) {

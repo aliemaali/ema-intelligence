@@ -38,7 +38,8 @@ test('deduplicates concurrent Start/Postfach requests and preserves loaded older
 test('expired delta is reset without erasing visible messages; a fresh baseline reconciles removed mail', async()=>{
   const sync = new MailFolderSync();
   await sync.page(async path=>path.startsWith('messages?') ? {messages:[message('old'),message('gone')],cursor:null} : {changes:[message('old'),message('gone')],next:null,delta:'expired'},'me','inbox');
-  await assert.rejects(sync.page(async()=>{throw Object.assign(new Error('expired'),{status:410});},'me','inbox','',undefined,true));
+  const fallback=await sync.page(async()=>{throw Object.assign(new Error('expired'),{status:410});},'me','inbox','',undefined,true);
+  assert.ok(fallback.syncWarning); assert.equal(fallback.messages.length,2);
   assert.equal(sync.cache.get(JSON.stringify(['me','inbox']))?.messages.length,2);
   const result=await sync.page(async path=>path.startsWith('messages?') ? {messages:[message('old')],cursor:null} : {changes:[message('old')],next:null,delta:'valid'},'me','inbox','',undefined,true);
   assert.deepEqual(result.messages.map(m=>m.id),['old']);
@@ -75,4 +76,23 @@ test('large change rounds retain a continuation checkpoint and stay marked as pe
   assert.equal(calls,3); assert.equal(first.pending,true);
   const last=await sync.page(async path=>{assert.ok(path.includes('page-3'));return {changes:[message('new')],next:null,delta:'complete'};},'me','inbox','',undefined,true);
   assert.equal(last.pending,false); assert.equal(last.messages[0].id,'new');
+});
+test('first successful folder page remains visible and persists when the delta bootstrap fails',async()=>{
+  const disk=storage(); const sync=new MailFolderSync(); sync.cache.bindStorage(disk,'user');
+  const result=await sync.page(async path=>{
+    if(path.startsWith('messages?'))return {messages:[message('old')],cursor:'older-page'};
+    throw Object.assign(new Error('Die Seite gehört nicht zu diesem Postfach.'),{status:400});
+  },'me','inbox');
+  assert.equal(result.messages[0].id,'old'); assert.ok(result.syncWarning);
+  const reopened=new MailFolderSync(); reopened.cache.bindStorage(disk,'user');
+  const cached=await reopened.page(async()=>{throw new Error('must reuse cached folder');},'me','inbox');
+  assert.equal(cached.messages[0].id,'old'); assert.ok(cached.syncWarning);
+});
+test('delta access revocation still clears every stored folder and rejects instead of displaying fallback',async()=>{
+  const sync=new MailFolderSync();
+  await assert.rejects(sync.page(async path=>{
+    if(path.startsWith('messages?'))return {messages:[message('old')],cursor:null};
+    throw Object.assign(new Error('forbidden'),{status:403});
+  },'me','inbox'));
+  assert.equal(sync.cache.keys().length,0);
 });
