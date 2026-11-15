@@ -684,6 +684,7 @@ test("native reply is created, patched and sent only after the one-time approval
     to: ["reply@example.com"],
     subject: "Re: Original",
     body: "Approved answer",
+    replyQuote: { from: "Original Sender <sender@example.com>", to: ["unluer@ema-enterprise.de"], cc: [], date: "2026-11-15T08:00:00Z", subject: "Original", body: "Quoted original thread" },
     signatureId: "ali-unluer-v1",
     isReadReceiptRequested: true,
     isDeliveryReceiptRequested: true,
@@ -725,6 +726,8 @@ test("native reply is created, patched and sent only after the one-time approval
   assert.equal(calls.length, 4);
   assert.match(calls[0].url, /source-id\/createReply$/);
   assert.ok(calls[1].body.body.content.includes("Approved answer"));
+  assert.equal(calls[1].body.body.content.split("Quoted original thread").length - 1, 1);
+  assert.ok(calls[1].body.body.content.indexOf("cid:ema-signature-ali-unluer-v1") < calls[1].body.body.content.indexOf("Quoted original thread"));
   assert.equal(calls[1].body.body.contentType, "HTML");
   assert.equal(calls[1].body.isReadReceiptRequested, true);
   assert.equal(calls[1].body.isDeliveryReceiptRequested, true);

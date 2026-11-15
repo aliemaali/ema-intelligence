@@ -9,6 +9,7 @@ import {
   invoiceHint,
 } from "../src/lib/mail/model";
 import { safeGraphUrl, mailGraph } from "../src/lib/mail/graph";
+import { makeReplyQuote, replyQuoteHtml } from "../src/lib/mail/reply-quote";
 import {
   assertOrigin,
   digest,
@@ -253,6 +254,31 @@ test("approval hash includes the source message of a native reply", () => {
     digest({ ...d, replyToMessageId: "one" }),
     digest({ ...d, replyToMessageId: "two" }),
   );
+});
+test('reply history survives draft storage, is bound to approval and appears after the answer and signature',()=>{
+  const quote={from:'Sender <sender@example.com>',to:['recipient@example.com'],cc:[],date:'2026-11-15T09:00:00Z',subject:'Original subject',body:'Original conversation\nPrevious response'};
+  const value=draftSchema.parse({...draft(),replyToMessageId:'original-id',replyQuote:quote,body:'My answer',signatureText:'My signature'});
+  const restored=draftSchema.parse(JSON.parse(JSON.stringify(value)));
+  assert.deepEqual(restored.replyQuote,quote);
+  assert.notEqual(digest(value),digest({...value,replyQuote:{...quote,body:'Changed history'}}));
+  const sent=graphMessage(value,'reply-draft');
+  assert.equal(sent.body.contentType,'HTML');
+  assert.ok(sent.body.content.indexOf('My answer')<sent.body.content.indexOf('My signature'));
+  assert.ok(sent.body.content.indexOf('My signature')<sent.body.content.indexOf('Original conversation'));
+  assert.equal(sent.body.content.split('Original conversation').length-1,1);
+  assert.equal(draftSchema.safeParse({...draft(),replyQuote:quote}).success,false);
+});
+test('quoted headers and content cannot inject HTML or execute scripts in a sent reply',()=>{
+  const quote={from:'<img src=x onerror=alert(1)>',to:['<script>bad()</script>'],cc:[],date:'not a date',subject:'<svg onload=alert(1)>',body:'<script>steal()</script>\nOriginal text & details'};
+  const html=replyQuoteHtml(quote);
+  assert.ok(!/<script|<svg|<img/.test(html));
+  assert.match(html,/&lt;script&gt;/);assert.match(html,/Original text &amp; details/);
+});
+test('reply quoting takes the complete thread and original sent date and never includes hidden recipients',()=>{
+  const quote=makeReplyQuote({id:'source',subject:'Subject',from:{emailAddress:{name:'Sender',address:'sender@example.com'}},toRecipients:[{emailAddress:{address:'to@example.com'}}],ccRecipients:[{emailAddress:{address:'cc@example.com'}}],sentDateTime:'2026-11-15T08:00:00Z',receivedDateTime:'2026-11-15T09:00:00Z',bodyPreview:'Short preview',isRead:true,hasAttachments:false},'Full original text\n\nOlder quoted message');
+  assert.equal(quote.from,'Sender <sender@example.com>');assert.equal(quote.date,'2026-11-15T08:00:00Z');
+  assert.deepEqual(quote.cc,['cc@example.com']);assert.match(quote.body,/Older quoted message/);
+  assert.throws(()=>makeReplyQuote({id:'source',subject:'Subject',from:{emailAddress:{address:'sender@example.com'}},receivedDateTime:'2026-11-15T09:00:00Z',bodyPreview:'Preview',isRead:true,hasAttachments:false},'x'.repeat(500001)));
 });
 
 test("receipt requests are opt-in, reach Graph independently and are bound to approval", () => {

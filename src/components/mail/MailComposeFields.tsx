@@ -5,6 +5,7 @@ import type { MailDraft } from "@/lib/mail/model";
 import { MailRichEditor } from "./MailRichEditor";
 import { MailComposeAi } from "./MailComposeAi";
 import { MailSignature } from "./MailSignature";
+import { MailReplyQuote } from "./MailReplyQuote";
 import { MailRecipientInput } from "./MailRecipientInput";
 import type { ContactNames } from "@/lib/mail/contact-names";
 import s from "./mail.module.css";
@@ -175,6 +176,7 @@ export function MailComposeFields({
           <div className={s.textSignature}>{draft.signatureText}</div>
         )}
         {draft.signatureId && <MailSignature signatureId={draft.signatureId} />}
+        {draft.replyQuote && <MailReplyQuote quote={draft.replyQuote} />}
         {!!draft.attachments.length && (
           <div className={s.composeFiles}>
             {draft.attachments.map((a, i) => (

@@ -5,6 +5,8 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { MailMessageBody } from "./MailMessageBody";
 import { MailTranslation } from "./MailTranslation";
+import { MailReplyQuote } from "./MailReplyQuote";
+import { makeReplyQuote } from "@/lib/mail/reply-quote";
 import {
   Archive,
   ArrowLeft,
@@ -520,37 +522,57 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
     setNavOpen(false);
     setFilter("all");
   }
-  function newCompose(
+  async function newCompose(
     mode: "new" | "reply" | "replyAll" | "forward" = "new",
     body?: string,
   ) {
-    composeVersion.current++;
+    const version = ++composeVersion.current;
     setReview(false);
     setNotice("");
     setDraftId(undefined);
+    let original = selected;
+    if (original && (mode === "reply" || mode === "replyAll") && !original.body && !demo) {
+      const selectionVersion = detailVersion.current;
+      setNotice("Originalnachricht wird geladen …");
+      try {
+        const result = await api(`message?${new URLSearchParams({ mailbox: original.sourceMailbox || mailbox, id: original.id })}`);
+        if (version !== composeVersion.current || selectionVersion !== detailVersion.current) return;
+        original = result.message;
+        if (!original?.body) throw new Error("Der vollständige Nachrichtentext ist noch nicht verfügbar. Bitte erneut versuchen.");
+        setNotice("");
+      } catch (error) { if (version === composeVersion.current) setNotice((error as Error).message); return; }
+    }
     const draft = blank(mailbox);
     draft.signatureId = signatureForAddress(account?.address || mailbox);
     draft.signatureText = draft.signatureId
       ? undefined
       : account?.signatureText || undefined;
-    if (selected && mode !== "new") {
+    if (original && mode !== "new") {
       draft.to =
         mode !== "forward"
-          ? selected.replyTo?.length
-            ? selected.replyTo.map((r) => r.emailAddress.address)
-            : [selected.from.emailAddress.address]
+          ? original.replyTo?.length
+            ? original.replyTo.map((r) => r.emailAddress.address)
+            : [original.from.emailAddress.address]
           : [];
-      if (mode !== "forward") draft.replyToMessageId = selected.id;
+      if (mode !== "forward") {
+        const content = original.body?.content || original.bodyPreview || "";
+        const sourceText = original.body?.contentType.toLowerCase() === "html"
+          ? new DOMParser().parseFromString(sanitizeRichHtml(content).replace(/<br\s*\/?\s*>/gi, "\n").replace(/<\/(?:p|div|li|h[1-6]|tr)>/gi, "$&\n"), "text/html").body.textContent || ""
+          : content;
+        try { draft.replyQuote = makeReplyQuote(original, sourceText); }
+        catch { setNotice("Die Originalnachricht ist für den Antwortverlauf zu groß oder unvollständig."); return; }
+        draft.replyToMessageId = original.id;
+      }
       if (mode === "replyAll")
         Object.assign(
           draft,
-          replyAllRecipients(selected, account?.address || mailbox),
+          replyAllRecipients(original, account?.address || mailbox),
         );
-      draft.subject = `${mode !== "forward" ? "Re:" : "WG:"} ${selected.subject.replace(/^(Re:|WG:)\s*/i, "")}`;
+      draft.subject = `${mode !== "forward" ? "Re:" : "WG:"} ${original.subject.replace(/^(Re:|WG:)\s*/i, "")}`;
       draft.body =
         body ||
         (mode === "forward"
-          ? `\n\n--- Weitergeleitete Nachricht ---\nVon: ${selected.from.emailAddress.address}\nBetreff: ${selected.subject}\n\n${(selected.body?.contentType.toLowerCase() === "html" ? new DOMParser().parseFromString(sanitizeRichHtml(selected.body.content), "text/html").body.textContent : selected.body?.content) || selected.bodyPreview}`
+          ? `\n\n--- Weitergeleitete Nachricht ---\nVon: ${original.from.emailAddress.address}\nBetreff: ${original.subject}\n\n${(original.body?.contentType.toLowerCase() === "html" ? new DOMParser().parseFromString(sanitizeRichHtml(original.body.content), "text/html").body.textContent : original.body?.content) || original.bodyPreview}`
           : "");
     }
     setComposeMinimized(false);
@@ -704,6 +726,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
   function updateDraft(update: Partial<MailDraft>) {
     if (update.mailbox && update.mailbox !== composer?.mailbox) {
       update.replyToMessageId = undefined;
+      update.replyQuote = undefined;
       update.signatureId = signatureForAddress(
         accounts.find((a) => a.mailbox === update.mailbox)?.address ||
           update.mailbox,
@@ -909,6 +932,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
     }
   }
   function navigate(next: View) {
+    detailVersion.current++;
     setView(next); setNavOpen(false); setReading(false);
     if (next === "mail") { setFolder("inbox"); setFilter("all"); setQ(""); }
   }
@@ -1832,6 +1856,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                     </div>
                   )}
                   {composer.signatureId && <MailSignature signatureId={composer.signatureId} />}
+                  {composer.replyQuote && <MailReplyQuote quote={composer.replyQuote} />}
                   <hr />
                   <b>Lesebestätigung:</b>{" "}
                   {composer.isReadReceiptRequested ? "Anfordern" : "Nein"}

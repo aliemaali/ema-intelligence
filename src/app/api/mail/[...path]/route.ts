@@ -896,7 +896,7 @@ async function handle(request: NextRequest) {
       const id = idSchema.parse(request.nextUrl.searchParams.get("id"));
       const message = await mailGraph<Message>(
         token,
-        `${messagePath(mailbox, id)}?$select=id,subject,body,bodyPreview,from,toRecipients,ccRecipients,receivedDateTime,isRead,importance,hasAttachments,flag,conversationId,replyTo`,
+        `${messagePath(mailbox, id)}?$select=id,subject,body,bodyPreview,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,isRead,importance,hasAttachments,flag,conversationId,replyTo`,
         {},
         root,
         "html",

@@ -8,6 +8,7 @@ import {
   signatureForAddress,
 } from "./signature";
 import { MailError } from "./graph";
+import { replyQuoteHtml } from "./reply-quote";
 export const digest = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export const tokenHash = (value: string) =>
@@ -73,10 +74,10 @@ export function graphMessage(draft: MailDraft, reference: string) {
   return {
     subject: draft.subject,
     body:
-      draft.signatureId || draft.bodyHtml || draft.signatureText
+      draft.signatureId || draft.bodyHtml || draft.signatureText || draft.replyQuote
         ? {
             contentType: "HTML",
-            content: `<div>${draft.bodyHtml ? sanitizeRichHtml(draft.bodyHtml) : textHtml(draft.body)}</div>${draft.signatureText ? `<br><div>${textHtml(draft.signatureText)}</div>` : ""}${signature ? `<br><img src="cid:${signature.cid}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(signature.alt)}">` : ""}`,
+            content: `<div>${draft.bodyHtml ? sanitizeRichHtml(draft.bodyHtml) : textHtml(draft.body)}</div>${draft.signatureText ? `<br><div>${textHtml(draft.signatureText)}</div>` : ""}${signature ? `<br><img src="cid:${signature.cid}" width="320" style="max-width:100%;height:auto" alt="${escapeHtml(signature.alt)}">` : ""}${draft.replyQuote ? replyQuoteHtml(draft.replyQuote) : ""}`,
           }
         : { contentType: "Text", content: draft.body },
     isReadReceiptRequested: draft.isReadReceiptRequested === true,

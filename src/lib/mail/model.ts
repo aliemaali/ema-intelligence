@@ -25,6 +25,15 @@ export const attachmentSchema = z
       ),
   })
   .strict();
+export const replyQuoteSchema = z.object({
+  from: z.string().max(1000),
+  to: z.array(z.string().max(500)).max(100),
+  cc: z.array(z.string().max(500)).max(100).default([]),
+  date: z.string().max(100),
+  subject: z.string().max(2000),
+  body: z.string().max(500000),
+}).strict();
+export type ReplyQuote = z.infer<typeof replyQuoteSchema>;
 export const draftSchema = z
   .object({
     mailbox: mailboxSchema.default("me"),
@@ -49,10 +58,13 @@ export const draftSchema = z
     isReadReceiptRequested: z.boolean().optional(),
     isDeliveryReceiptRequested: z.boolean().optional(),
     replyToMessageId: z.string().min(1).max(1500).optional(),
+    replyQuote: replyQuoteSchema.optional(),
     attachments: z.array(attachmentSchema).max(10).default([]),
   })
   .strict()
   .superRefine((draft, ctx) => {
+    if (draft.replyQuote && !draft.replyToMessageId)
+      ctx.addIssue({ code: "custom", path: ["replyQuote"], message: "Der zitierte Verlauf benötigt eine Originalnachricht." });
     if (
       draft.attachments.reduce((sum, a) => sum + a.contentBytes.length, 0) >
       3_000_000
@@ -71,6 +83,7 @@ export type Message = {
   bodyPreview: string;
   body?: { contentType: string; content: string };
   receivedDateTime: string;
+  sentDateTime?: string;
   isRead: boolean;
   importance?: string;
   hasAttachments: boolean;
