@@ -67,12 +67,12 @@ type Props = {
   notice?: string;
 };
 const clock = (value: string) => graphDate(value).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
-export function MailDashboard({ firstName, cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
+export function MailDashboard({ firstName, cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
   const cacheKey = JSON.stringify([demo,mailbox,mailAccountScope(accounts)]);
   const cached = cache.get(cacheKey);
   const [messages, setMessages] = useState<Message[]>(() => cached?.messages || []);
   const [events, setEvents] = useState<MailPimItem[]>(() => cached?.events || []);
-  const [stats, setStats] = useState<{ unread: number; drafts: number } | null>(() => cached?.stats || null);
+  const [, setStats] = useState<{ unread: number; drafts: number } | null>(() => cached?.stats || null);
   const [busy, setBusy] = useState(!cached);
   const [calendarLoading, setCalendarLoading] = useState(!cached);
   const [syncing, setSyncing] = useState(false);
@@ -219,14 +219,12 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
   }, [refresh, revision]);
   const list = unreadOnly ? messages.filter(m => !m.isRead) : messages;
   const hasCalendarError = errors.some(error => error.startsWith("Kalender:"));
-  const hasStatsError = errors.some(error => error.startsWith("Übersicht:"));
   const upcoming = events.filter(event => demo || (event.end && graphDate(event.end.dateTime).getTime() > now.getTime()))
     .sort((a, b) => (a.start ? graphDate(a.start.dateTime).getTime() : 0) - (b.start ? graphDate(b.start.dateTime).getTime() : 0));
   const next = upcoming[0];
   const join = teamsJoinUrl(next?.onlineMeeting?.joinUrl);
   const nextMinutes = next?.start && next.end ? Math.round((graphDate(next.end.dateTime).getTime() - graphDate(next.start.dateTime).getTime()) / 60000) : null;
   const box = accounts.find(account => account.mailbox === mailbox);
-  const count = (value: number | undefined, failed: boolean) => failed || value === undefined ? "–" : value;
   return <div className={`${s.dashboard} ${s.inboxDashboard}`}>
     <div className={s.dashboardScroll}>
       <header className={s.dashboardHeader}>
@@ -250,11 +248,6 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
         <Search size={19} aria-hidden="true" /><input aria-label="E-Mails durchsuchen" placeholder="E-Mails durchsuchen" maxLength={180} value={query} onChange={event => setQuery(event.target.value)} />
         {query.trim() && <button type="submit" aria-label="Suche starten"><Search size={17} /></button>}
       </form>
-      <section className={s.inboxStats} aria-label="Postfachübersicht">
-        <button onClick={() => { setUnreadOnly(true); listRef.current?.scrollIntoView({ block: "nearest" }); }}><span><Mail size={21} /></span><div><strong>{count(stats?.unread, hasStatsError)}</strong><small>Ungelesen</small></div></button>
-        <button onClick={() => onFolder("drafts")} title="Gespeicherte Entwürfe"><span><PenLine size={21} /></span><div><strong>{count(stats?.drafts, hasStatsError)}</strong><small>Entwürfe</small></div></button>
-        <button onClick={() => onNavigate("calendar")} title="Termine heute im persönlichen Kalender"><span><CalendarDays size={21} /></span><div><strong>{calendarLoading && !events.length ? "–" : hasCalendarError ? "–" : `${events.length}${calendarPartial ? "+" : ""}`}</strong><small>Termine</small></div></button>
-      </section>
       {notice && <p className={s.dashboardFootnote} role="status">{notice}</p>}
       {errors.length > 0 && <div className={s.dashboardErrors} role="status">{errors.map(error => <p key={error}>{error}</p>)}<button onClick={() => void refresh(true)}>Erneut laden</button></div>}
       <section className={s.inboxNext} aria-label="Nächster Termin">
