@@ -71,15 +71,17 @@ export function MailComposeAi({ draft, demo, busy, update }: {
     </div>
     {error && <p role="alert" className={s.translationHint}>{error}</p>}
     {briefingOpen && <MailDialog title="Was soll die E-Mail sagen?" onClose={() => setBriefingOpen(false)}>
+      <form autoComplete="off" onSubmit={event => { event.preventDefault(); void run("formulate"); }}>
       <p>Beschreibe kurz den Inhalt und den gewünschten Ton. Stichpunkte reichen. Du kannst auch „auf Englisch“ dazuschreiben.</p>
       <label>Anweisung oder Stichpunkte
-        <textarea className={s.briefingInput} rows={6} maxLength={4000} value={briefing} onChange={event => setBriefing(event.target.value)}
-          placeholder="Zum Beispiel: Den Kunden freundlich um die fehlenden Projektunterlagen bitten. Kurz und professionell." />
+        <textarea className={s.briefingInput} name="briefing" autoComplete="off" inputMode="text" autoCapitalize="sentences"
+          rows={6} maxLength={4000} value={briefing} onChange={event => setBriefing(event.target.value)} />
       </label>
       <footer>
         <button type="button" className={s.subtle} onClick={() => setBriefingOpen(false)}>Abbrechen</button>
-        <button type="button" className={s.primary} disabled={busy || !briefing.trim()} onClick={() => void run("formulate")}>Text erstellen</button>
+        <button type="submit" className={s.primary} disabled={busy || !briefing.trim()}>Text erstellen</button>
       </footer>
+      </form>
     </MailDialog>}
     {preview && <MailDialog title="KI-Vorschlag prüfen" onClose={() => setPreview(null)}>
       <p>{demo ? "Beispielvorschlag für Projektunterlagen (Demo)." : "Bitte den Vorschlag prüfen. Mit Übernehmen ersetzt du Betreff und Nachrichtentext."}</p>
