@@ -1787,6 +1787,25 @@ test('message pagination accepts actual Graph OData folder links and rejects a d
   assert.equal(denied.status, 400);
   assert.equal(calls, 1);
 });
+test('normal pagination signs canonical user and folder IDs and binds replay to user, mailbox, folder and search',async()=>{
+  reset(); let requested='';
+  globalThis.fetch=async input=>{
+    graphCalls++; requested=String(input);
+    return Response.json({value:[], '@odata.nextLink':"https://graph.microsoft.com/v1.0/users('33333333-3333-4333-8333-333333333333')/mailFolders('opaque-inbox')/messages?$skiptoken=next"});
+  };
+  const first=await GET(new NextRequest('https://ema.example/api/mail/messages?mailbox=me&folder=inbox'));
+  assert.equal(first.status,200); const data=await first.json(); assert.ok(data.cursor); assert.ok(!data.cursor.startsWith('https://'));
+  const query=new URLSearchParams({mailbox:'me',folder:'inbox',cursor:data.cursor});
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/messages?${query}`))).status,200);
+  assert.ok(requested.includes('/users/33333333-3333-4333-8333-333333333333/mailFolders/opaque-inbox/messages?'));
+  const before=graphCalls;
+  query.set('folder','sentitems'); assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/messages?${query}`))).status,400);
+  query.set('folder','inbox');query.set('q','other'); assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/messages?${query}`))).status,400);
+  assert.equal(graphCalls,before);
+  query.delete('q'); user={id:'44444444-4444-4444-8444-444444444444'};
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/messages?${query}`))).status,400);
+  assert.equal(graphCalls,before);
+});
 
 test('reading a message requests HTML while retaining immutable IDs and mailbox authorization', async () => {
   reset();

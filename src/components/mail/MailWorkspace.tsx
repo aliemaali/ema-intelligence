@@ -228,6 +228,11 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
   }, [listCache, dashboardCache, folderSync]);
   const messagesRef = useRef(messages); messagesRef.current = messages;
   const displayedList = useRef('');
+  const loadNotice = useRef('');
+  const showLoadNotice = useCallback((next = '') => {
+    const previous = loadNotice.current; loadNotice.current = next;
+    setNotice(old => next || (old === previous || old.startsWith('Hintergrundabgleich ') ? '' : old));
+  }, []);
   const listKey = JSON.stringify([demo,allMailboxes ? 'all' : mailbox,folder,q,mailAccountScope(accounts)]);
   const [overviewRevision, setOverviewRevision] = useState(0);
   const [composeExpanded, setComposeExpanded] = useState(false);
@@ -314,7 +319,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         combinedPages.current = cached?.sources || [];
         displayedList.current = listKey;
       }
-      if (!next && !force && listCache.get(listKey,55000)) { setBusy(false); return; }
+      if (!next && !force && (folder === 'drafts' || q) && listCache.get(listKey,55000)) { setBusy(false); return; }
       listLoading.current = true;
       setBusy(true);
       try {
@@ -368,13 +373,13 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
             const result = await folderSync.page(api, box, folder, q, page, force);
             syncWarning ||= result.syncWarning;
             return result;
-          });
+          }, next ? 30 : Math.max(30, cached?.messages.length || 0));
           if (version === requestVersion.current) {
             combinedPages.current = data.sources;
             const records = next ? [...new Map([...messagesRef.current, ...data.messages].map(m => [messageKey(m), m])).values()] : data.messages;
             const cursor = data.hasMore ? 'combined' : null;
             setMessages(records); setCursor(cursor);
-            setNotice(old => syncWarning || (old.startsWith('Hintergrundabgleich ') ? '' : old));
+            showLoadNotice(syncWarning);
             listCache.set(listKey,{messages:records,drafts:[],cursor,sources:data.sources});
           }
           return;
@@ -383,7 +388,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         if (version === requestVersion.current) {
           const records = next ? [...new Map([...messagesRef.current, ...data.messages].map(m => [messageKey(m), m])).values()] : data.messages;
           setMessages(records); setCursor(data.cursor);
-          setNotice(old => data.syncWarning || (old.startsWith('Hintergrundabgleich ') ? '' : old));
+          showLoadNotice(data.syncWarning);
           listCache.set(listKey,{messages:records,drafts:[],cursor:data.cursor,sources:[]});
         }
       } catch (e) {
@@ -391,13 +396,13 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
           if ([401,403].includes((e as Error & { status?: number }).status || 0)) {
             listCache.clear(); dashboardCache.clear(); folderSync.clear(); setMessages([]); setDrafts([]); setCursor(null);
           }
-          setNotice((e as Error).message);
+          showLoadNotice((e as Error).message);
         }
       } finally {
         if (version === requestVersion.current) { listLoading.current = false; setBusy(false); }
       }
     },
-    [demo, folder, mailbox, q, allMailboxes, accounts, listCache, listKey, folderSync, dashboardCache],
+    [demo, folder, mailbox, q, allMailboxes, accounts, listCache, listKey, folderSync, dashboardCache, showLoadNotice],
   );
   useEffect(() => {
     if (demo) return;
@@ -412,10 +417,10 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
       if (!active) return;
       if (cacheUser && d.cacheOwner === cacheUser) {
         try {
-          const prefix = 'ema-mail-cache-v1:';
+          const prefix = 'ema-mail-cache-v2:';
           const namespace = `${prefix}${cacheUser}:${mailAccountScope(d.mailboxes)}:`;
           // Purge previous users and obsolete rights before restoring any snapshots.
-          for (const key of Object.keys(localStorage)) if (key.startsWith(prefix) && !key.startsWith(namespace)) localStorage.removeItem(key);
+          for (const key of Object.keys(localStorage)) if (key.startsWith('ema-mail-cache-') && !key.startsWith(namespace)) localStorage.removeItem(key);
           listCache.bindStorage(localStorage, namespace + 'lists');
           dashboardCache.bindStorage(localStorage, namespace + 'dashboard');
           folderSync.cache.bindStorage(localStorage, namespace + 'folders');

@@ -20,11 +20,29 @@ export function mergeMailChanges(previous: Message[], changes: MessageChange[], 
   return [...items.values()].sort((a,b) => Date.parse(b.receivedDateTime) - Date.parse(a.receivedDateTime) || a.id.localeCompare(b.id));
 }
 
+/** The latest normal folder page is authoritative; delta history must never replace the inbox head. */
+export function reconcileMailHead(previous: Message[], head: Message[]) {
+  if (!head.length) return [];
+  const ids = new Set(head.map(message => message.id));
+  const oldest = Math.min(...head.map(message => Date.parse(message.receivedDateTime)));
+  return mergeMailChanges(previous.filter(message => ids.has(message.id) || Date.parse(message.receivedDateTime) <= oldest), head, true);
+}
+
 /** Shared by Start and Postfach; cursors and changes survive an app restart. */
 export class MailFolderSync {
   readonly cache = new MailSessionCache<Snapshot>(24);
   private pending = new Map<string, Promise<Page>>();
   private generation = 0;
+  cachedInbox(mailboxes: string[], limit = 30): Page | undefined {
+    const pages = mailboxes.map(mailbox => this.cache.get(JSON.stringify([mailbox, 'inbox'])));
+    if (!pages.length || pages.some(page => !page || Date.now() - page.checkedAt >= 55000)) return;
+    const available = pages as Snapshot[];
+    const messages = available.flatMap((page, index) => page.messages.map(message => ({...message, sourceMailbox: mailboxes[index]})))
+      .sort((a,b) => Date.parse(b.receivedDateTime) - Date.parse(a.receivedDateTime) || a.sourceMailbox.localeCompare(b.sourceMailbox) || a.id.localeCompare(b.id));
+    return { messages: messages.slice(0, limit), cursor: messages.length > limit || available.some(page => page.cursor) ? 'cached' : null,
+      pending: available.some(page => page.baseline || page.continuing || page.syncWarning),
+      syncWarning: [...new Set(available.map(page => page.syncWarning).filter(Boolean))].join(' ') || undefined };
+  }
   clear() { this.generation++; this.pending.clear(); this.cache.clear(); }
   mutate(mailbox: string, id: string, operation: string) {
     this.generation++; this.pending.clear();
@@ -54,7 +72,14 @@ export class MailFolderSync {
     let snapshot = this.cache.get(key);
     const save = (value: Snapshot) => { if (generation === this.generation) this.cache.set(key, value); };
     if (cursor) {
-      const page: Page = await get(`messages?${params}`);
+      let page: Page;
+      try { page = await get(`messages?${params}`); }
+      catch (error) {
+        if (![400,410].includes((error as {status?: number}).status || 0)) throw error;
+        // Discard a legacy continuation, not the saved mail, and obtain a newly scoped cursor.
+        const restart = new URLSearchParams(params); restart.delete('cursor');
+        return this.fetchPage(get, key, restart, undefined, generation, true);
+      }
       snapshot = this.cache.get(key);
       if (snapshot) {
         // Preserve already loaded older pages when refreshing the folder later.
@@ -63,15 +88,16 @@ export class MailFolderSync {
       }
       return page;
     }
-    if (!force && snapshot && Date.now() - snapshot.checkedAt < 55000) return { ...snapshot, pending: snapshot.baseline || snapshot.continuing };
+    if (!force && snapshot && Date.now() - snapshot.checkedAt < 55000) return { ...snapshot, pending: Boolean(snapshot.baseline || snapshot.continuing || snapshot.syncWarning) };
     try {
-    if (!snapshot || snapshot.baseline) {
+      // One small head request checks ordering and repairs a stale/partial delta baseline.
+      // Already loaded historical pages remain cached; they are not downloaded again.
       const page: Page = await get(`messages?${params}`);
+      const headIds = new Set(page.messages.map(message => message.id));
       snapshot = snapshot
-        ? { ...snapshot, messages: mergeMailChanges(snapshot.messages, page.messages, true) }
+        ? { ...snapshot, messages: reconcileMailHead(snapshot.messages, page.messages) }
         : { ...page, sync: null, baseline: true, baselineIds: page.messages.map(m => m.id), seen: [], checkedAt: 0 };
       save(snapshot);
-    }
       // A bounded bootstrap avoids a long blocking full-mailbox request. Later rounds use delta only.
       for (let i = 0; i < 3; i++) {
         const query = new URLSearchParams(params);
@@ -93,7 +119,7 @@ export class MailFolderSync {
           if (!delta.delta) throw new Error('Microsoft hat keinen gültigen Abgleichsstand geliefert.');
           if (snapshot.baseline) {
             const baseline = new Set(snapshot.baselineIds);
-            snapshot.messages = snapshot.messages.filter(m => !baseline.has(m.id) || seen.has(m.id));
+            snapshot.messages = snapshot.messages.filter(m => !baseline.has(m.id) || seen.has(m.id) || headIds.has(m.id));
           }
           snapshot = { ...snapshot, baseline: false, baselineIds: [], seen: [], checkedAt: Date.now() };
           save(snapshot); return { ...snapshot, pending: false };

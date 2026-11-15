@@ -10,7 +10,8 @@ export async function combinedInboxPage<T extends { id: string; receivedDateTime
   async function refill(s: MailboxPage<T>) {
     if (s.items.length || (s.started && !s.cursor)) return;
     const page = await fetchPage(s.mailbox, s.cursor || undefined);
-    s.items = page.messages;
+    // The folder sync cache owns this array. Consuming a combined page must not drain it.
+    s.items = [...page.messages];
     s.cursor = page.cursor;
     s.started = true;
     // Avoid cursor loops from a malformed provider response.

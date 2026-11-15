@@ -794,19 +794,30 @@ async function handle(request: NextRequest) {
         throw new MailError(400, "Ungültiger Ordner.");
       const base = `${root}/mailFolders/${folder}/messages`;
       const cursor = request.nextUrl.searchParams.get("cursor");
+      const q = (request.nextUrl.searchParams.get('q') || '').trim();
+      if (q.length > 180) throw new MailError(400, 'Suchtext zu lang.');
+      const pageScope = JSON.stringify([session.user.id, mailbox, folder, 'messages', q]);
+      const pageSecret = process.env.SUPABASE_SERVICE_ROLE_KEY!;
       let path: string;
       if (cursor) {
-        const url = new URL(safeGraphUrl(cursor, root));
-        if (url.pathname !== `/v1.0${base}`)
-          throw new MailError(400, "Ungültige Postfachseite.");
-        path = url.href;
+        try {
+          if (cursor.startsWith('https://')) {
+            // Compatibility for older clients: unsigned links retain the exact mailbox/folder guard.
+            const url = new URL(safeGraphUrl(cursor, root));
+            if (url.pathname !== `/v1.0${base}`) throw new Error('Invalid legacy page');
+            path = url.href;
+          } else {
+            const url = new URL(safeGraphUrl(openDeltaCursor(cursor, pageScope, pageSecret)));
+            if (!/^\/v1\.0\/(?:me|users\/[^/]+)\/mailFolders\/[^/]+\/messages$/.test(url.pathname)) throw new Error('Invalid message page');
+            path = url.href;
+          }
+        } catch { throw new MailError(400, 'Ungültige oder veraltete Postfachseite. Bitte den Posteingang aktualisieren.'); }
       } else {
         const params = new URLSearchParams({
           $top: "30",
           $select:
             "id,subject,bodyPreview,receivedDateTime,isRead,from,toRecipients,ccRecipients,importance,hasAttachments,flag,conversationId,replyTo",
         });
-        const q = (request.nextUrl.searchParams.get("q") || "").trim();
         if (q) {
           if (q.length > 180) throw new MailError(400, "Suchtext zu lang.");
           params.set("$search", `"${q.replace(/["\\\r\n]/g, " ")}"`);
@@ -816,7 +827,7 @@ async function handle(request: NextRequest) {
       const result = await mailGraph<{
         value: Message[];
         "@odata.nextLink"?: string;
-      }>(token, path, {}, root);
+      }>(token, path);
       const ids = (result.value ?? []).map((m) => m.id);
       const { data: insights } = ids.length
         ? await admin
@@ -831,9 +842,15 @@ async function handle(request: NextRequest) {
         emaAnalysis:
           insights?.find((i) => i.message_id === m.id)?.result ?? null,
       }));
+      let nextPage: string | null = null;
+      if (result['@odata.nextLink']) {
+        const url = new URL(safeGraphUrl(result['@odata.nextLink']!));
+        if (!/^\/v1\.0\/(?:me|users\/[^/]+)\/mailFolders\/[^/]+\/messages$/.test(url.pathname)) throw new MailError(502, 'Ungültige Microsoft-Postfachseite.');
+        nextPage = sealDeltaCursor(url.href, pageScope, pageSecret);
+      }
       return json({
         messages: mapped,
-        cursor: result["@odata.nextLink"] ?? null,
+        cursor: nextPage,
       });
     }
     if (action === "message" && !mutating) {

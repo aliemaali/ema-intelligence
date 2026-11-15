@@ -85,7 +85,14 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
   const refresh = useCallback(async (force = false) => {
     if (!demo && !accounts.length) return;
     const fresh = cache.get(cacheKey, 55000);
-    if (!force && fresh && Object.is(fresh.revision, revision)) { setBusy(false); return; }
+    if (!demo && !force && fresh && Object.is(fresh.revision, revision)) {
+      const shared = folderSync.cachedInbox(mailbox === 'all' ? accounts.map(account => account.mailbox) : [mailbox]);
+      if (shared) {
+        setMessages(shared.messages); setPartial(Boolean(shared.cursor)); setSyncPending(Boolean(shared.pending));
+        setErrors(shared.syncWarning ? [shared.syncWarning] : []);
+        setBusy(false); return;
+      }
+    }
     if (controller.current && !force) return;
     controller.current?.abort();
     const request = new AbortController();
