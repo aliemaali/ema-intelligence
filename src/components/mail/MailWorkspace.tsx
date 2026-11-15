@@ -755,9 +755,9 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         id: draftId,
         payload: {
           ...composer,
-          to: composer.to.filter(Boolean),
-          cc: composer.cc.filter(Boolean),
-          bcc: composer.bcc.filter(Boolean),
+          to: composer.to.map(address=>address.trim()).filter(Boolean),
+          cc: composer.cc.map(address=>address.trim()).filter(Boolean),
+          bcc: composer.bcc.map(address=>address.trim()).filter(Boolean),
         },
       });
       if (version === composeVersion.current) setDraftId(result.id);
@@ -1839,6 +1839,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
               </>
             ) : (
               <MailComposeFields
+                contactNames={contactNames}
                 draft={composer}
                 onPreview={(index) => {
                   const a = composer.attachments[index];
@@ -1860,9 +1861,9 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                 review={() => {
                   setComposer({
                     ...composer,
-                    to: composer.to.filter(Boolean),
-                    cc: composer.cc.filter(Boolean),
-                    bcc: composer.bcc.filter(Boolean),
+                    to: composer.to.map(address=>address.trim()).filter(Boolean),
+                    cc: composer.cc.map(address=>address.trim()).filter(Boolean),
+                    bcc: composer.bcc.map(address=>address.trim()).filter(Boolean),
                   });
                   setReview(true);
                 }}

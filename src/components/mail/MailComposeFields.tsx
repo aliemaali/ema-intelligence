@@ -4,11 +4,14 @@ import { Paperclip, Save, Send, ShieldCheck, X } from "lucide-react";
 import type { MailDraft } from "@/lib/mail/model";
 import { MailRichEditor } from "./MailRichEditor";
 import { MailSignature } from "./MailSignature";
+import { MailRecipientInput } from "./MailRecipientInput";
+import type { ContactNames } from "@/lib/mail/contact-names";
 import s from "./mail.module.css";
 type Account = { mailbox: string; name?: string; can_send: boolean };
 export function MailComposeFields({
   draft,
   accounts,
+  contactNames,
   busy,
   update,
   addFiles,
@@ -18,6 +21,7 @@ export function MailComposeFields({
 }: {
   draft: MailDraft;
   accounts: Account[];
+  contactNames: ContactNames;
   busy: boolean;
   update: (value: Partial<MailDraft>) => void;
   addFiles: (files: FileList | null) => void;
@@ -39,7 +43,8 @@ export function MailComposeFields({
           className={s.primary}
           disabled={
             busy ||
-            !draft.to.some(Boolean) ||
+            !draft.to.some(value=>Boolean(value.trim())) ||
+            [...draft.to,...draft.cc,...draft.bcc].some(value=>value.trim()&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) ||
             !draft.subject.trim() ||
             !draft.body.trim()
           }
@@ -89,17 +94,13 @@ export function MailComposeFields({
               <label htmlFor={`compose-${f}`}>
                 {f === "to" ? "An" : f === "cc" ? "Cc" : "Bcc"}
               </label>
-              <input
+              <MailRecipientInput
                 id={`compose-${f}`}
+                label={f === 'to' ? 'An' : f === 'cc' ? 'Cc' : 'Bcc'}
                 disabled={busy}
-                value={draft[f].join("; ")}
-                onChange={(e) =>
-                  update({
-                    [f]: e.target.value.split(/[;,]/).map((v) => v.trim()),
-                  })
-                }
-                placeholder="E-Mail-Adresse hinzufügen"
-                autoComplete="off"
+                values={draft[f]}
+                contacts={contactNames}
+                onChange={addresses => update({ [f]: addresses })}
               />
               {f === "to" && (
                 <div className={s.recipientToggles}>
