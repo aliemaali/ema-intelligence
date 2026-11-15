@@ -1215,6 +1215,7 @@
   display: flex;
   gap: 8px;
 }
+.recipientToggles .recipientExpand { display:grid; place-items:center; min-width:44px; min-height:44px; padding:8px; }
 .recipientInput { position:relative; min-width:0; flex:1; }
 .composeWindow .addressRow .recipientInput input { width:100%; box-sizing:border-box; }
 .recipientSuggestions { position:absolute; z-index:60; top:calc(100% + 4px); left:0; right:0; min-width:0; max-height:240px; overflow-y:auto; border:1px solid #49606d; border-radius:10px; background:#1b2a35; box-shadow:0 8px 24px #0005; padding:4px; }

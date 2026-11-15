@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Paperclip, Save, Send, ShieldCheck, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Paperclip, Save, Send, ShieldCheck, X } from "lucide-react";
 import type { MailDraft } from "@/lib/mail/model";
 import { MailRichEditor } from "./MailRichEditor";
 import { MailSignature } from "./MailSignature";
@@ -29,8 +29,9 @@ export function MailComposeFields({
   review: () => void;
   onPreview: (index: number) => void;
 }) {
-  const [cc, setCc] = useState(draft.cc.some(Boolean)),
-    [bcc, setBcc] = useState(draft.bcc.some(Boolean));
+  const [recipientsExpanded, setRecipientsExpanded] = useState(() =>
+    [...draft.cc,...draft.bcc].some(value => Boolean(value.trim())),
+  );
   const file = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -82,15 +83,9 @@ export function MailComposeFields({
           </select>
         </label>
         {(["to", "cc", "bcc"] as const)
-          .filter(
-            (f) =>
-              f === "to" ||
-              (f === "cc"
-                ? cc || draft.cc.some(Boolean)
-                : bcc || draft.bcc.some(Boolean)),
-          )
+          .filter(f => f === 'to' || recipientsExpanded)
           .map((f) => (
-            <div className={s.addressRow} key={f}>
+            <div className={s.addressRow} key={f} id={f === 'to' ? undefined : `compose-${f}-row`}>
               <label htmlFor={`compose-${f}`}>
                 {f === "to" ? "An" : f === "cc" ? "Cc" : "Bcc"}
               </label>
@@ -104,11 +99,13 @@ export function MailComposeFields({
               />
               {f === "to" && (
                 <div className={s.recipientToggles}>
-                  <button aria-pressed={cc} onClick={() => setCc((v) => !v)}>
-                    Cc
-                  </button>
-                  <button aria-pressed={bcc} onClick={() => setBcc((v) => !v)}>
-                    Bcc
+                  <button type="button" className={s.recipientExpand} disabled={busy}
+                    aria-expanded={recipientsExpanded}
+                    aria-controls={recipientsExpanded ? 'compose-cc-row compose-bcc-row' : undefined}
+                    aria-label={recipientsExpanded ? 'Cc und Bcc zuklappen' : 'Cc und Bcc aufklappen'}
+                    title={recipientsExpanded ? 'Cc und Bcc zuklappen' : 'Cc und Bcc aufklappen'}
+                    onClick={() => setRecipientsExpanded(value => !value)}>
+                    {recipientsExpanded ? <ChevronUp size={19} /> : <ChevronDown size={19} />}
                   </button>
                 </div>
               )}
