@@ -1,5 +1,5 @@
 import { sharedContactAccess } from "@/lib/mail/shared-contact-access";
-import { canReadAliContacts, sharedContactUpdateId, sharedContactsPage } from "@/lib/mail/shared-contacts";
+import { canReadAliContacts, SHARED_CONTACT_OWNER, SHARED_CONTACT_PREFIX, sharedContactUpdateId, sharedContactsPage } from "@/lib/mail/shared-contacts";
 import { safePushEndpoint } from "@/lib/mail/push";
 import { sealDeltaCursor, openDeltaCursor } from "@/lib/mail/delta-cursor";
 import { productivityEndpoint, visibleProject } from "@/lib/mail/extensions";
@@ -609,9 +609,15 @@ async function handle(request: NextRequest) {
       const sharedContactId = action === "contacts"
         ? sharedContactUpdateId(session.user.id, input.id, operation)
         : undefined;
+      const sharedCreate = action === "contacts" && input.target === "shared";
+      if (sharedCreate && (operation !== "create" ||
+          (session.user.id !== SHARED_CONTACT_OWNER && !canReadAliContacts(session.user.id))))
+        throw new MailError(403, "Keine Berechtigung zum Anlegen gemeinsamer Kontakte.");
+      const useSharedConnection = Boolean(sharedContactId) ||
+        (sharedCreate && canReadAliContacts(session.user.id));
       // Personal PIM uses the current connection. Shared edits use only the fixed,
       // explicitly authorized owner after checking current write membership.
-      const { token } = sharedContactId
+      const { token } = useSharedConnection
         ? await sharedContactAccess(session, "write")
         : await mailboxAccess(session, "me");
       const collection = action === "calendar" ? "events" : "contacts";
@@ -716,7 +722,7 @@ async function handle(request: NextRequest) {
           );
       }
       // Do not blindly retry creates or changes which may generate invitations.
-      await audit(session.user.id, `${collection}_${sharedContactId ? "shared_" : ""}${operation}_requested`, sharedContactId);
+      await audit(session.user.id, `${collection}_${useSharedConnection ? "shared_" : ""}${operation}_requested`, sharedContactId);
       const result = await mailGraph(
         token,
         path,
@@ -731,7 +737,10 @@ async function handle(request: NextRequest) {
         },
         "/me",
       );
-      return json({ ok: true, item: result });
+      return json({ ok: true, item: useSharedConnection && operation === "create"
+        ? { ...(result as object), id: SHARED_CONTACT_PREFIX + (result as { id: string }).id,
+            readOnly: false, canDelete: false, sharedBy: "Ali" }
+        : result });
     }
     const permission =
       mutating && action === "message-action" ? "write" : "read";

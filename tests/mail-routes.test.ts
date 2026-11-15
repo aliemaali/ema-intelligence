@@ -11,6 +11,7 @@ import { GET as cronGet } from "../src/app/api/cron/ema-mail/route";
 import { runMailWorker, cronAuthorized } from "../src/lib/mail/background";
 import { digest } from "../src/lib/mail/security";
 import { sealDeltaCursor } from "../src/lib/mail/delta-cursor";
+import { SHARED_CONTACT_OWNER, SHARED_CONTACT_READER, SHARED_CONTACT_PREFIX } from "../src/lib/mail/shared-contacts";
 declare global {
   var __mailFixture: any;
 }
@@ -209,6 +210,49 @@ function req(action: string, body: any) {
     body: JSON.stringify(body),
   });
 }
+test('sender contact creation writes to the shared owner for both Ali and Tuba', async () => {
+  for (const userId of [SHARED_CONTACT_OWNER, SHARED_CONTACT_READER]) {
+    reset();
+    user = { id: userId };
+    profile = { role: 'employee', is_active: true, email: 'unluer@ema-enterprise.de' };
+    rows.microsoft_connections = [{ user_id: SHARED_CONTACT_OWNER, microsoft_email: 'unluer@ema-enterprise.de' }];
+    rows.ema_mail_memberships = [{ user_id: SHARED_CONTACT_READER, mailbox: 'unluer@ema-enterprise.de', can_read: true, can_write: true }];
+    const tokenOwners: string[] = [];
+    globalThis.__mailFixture.token = async (owner: string) => { tokenOwners.push(owner); return `token-${owner}`; };
+    let authorization = '', path = '', sent: any;
+    globalThis.fetch = async (input, init) => {
+      graphCalls++; path = String(input);
+      authorization = new Headers(init?.headers).get('authorization') || '';
+      sent = JSON.parse(init?.body as string);
+      return Response.json({ id: 'created-contact', ...sent }, { status: 201 });
+    };
+    const response = await POST(req('contacts', { operation: 'create', target: 'shared', confirmed: true,
+      value: { displayName: 'New Sender', email: 'sender@example.com', companyName: 'Company', phone: '+49 123' } }));
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal(graphCalls, 1);
+    assert.equal(path, 'https://graph.microsoft.com/v1.0/me/contacts');
+    assert.equal(authorization, `Bearer token-${SHARED_CONTACT_OWNER}`);
+    assert.equal(tokenOwners.at(-1), SHARED_CONTACT_OWNER);
+    assert.equal(sent.displayName, 'New Sender');
+    assert.deepEqual(sent.emailAddresses, [{ address: 'sender@example.com' }]);
+    const saved = (await response.json()).item;
+    assert.equal(saved.id, userId === SHARED_CONTACT_READER ? SHARED_CONTACT_PREFIX + 'created-contact' : 'created-contact');
+  }
+});
+test('shared sender creation rejects other users, revoked write access and missing confirmation', async () => {
+  const body = { operation: 'create', target: 'shared', confirmed: true,
+    value: { displayName: 'Sender', email: 'sender@example.com' } };
+  reset();
+  assert.equal((await POST(req('contacts', body))).status, 403);
+  assert.equal(graphCalls, 0);
+  user = { id: SHARED_CONTACT_READER };
+  assert.equal((await POST(req('contacts', body))).status, 403);
+  assert.equal(graphCalls, 0);
+  rows.ema_mail_memberships = [{ user_id: SHARED_CONTACT_READER, mailbox: 'unluer@ema-enterprise.de', can_read: true, can_write: false }];
+  assert.equal((await POST(req('contacts', body))).status, 403);
+  assert.equal((await POST(req('contacts', { ...body, confirmed: false }))).status, 409);
+  assert.equal(graphCalls, 0);
+});
 test('owned draft and approved draft can be deleted without Microsoft access; deletion invalidates send approval',async()=>{
   for(const status of ['draft','approved']) {
     reset();

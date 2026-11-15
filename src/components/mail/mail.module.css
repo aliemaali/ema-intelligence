@@ -429,6 +429,34 @@
   font-size: 10px;
   color: #7b94a5;
 }
+.senderContactButton {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 4px 6px;
+  margin-left: -6px;
+  background: transparent;
+  color: inherit;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.senderContactButton:hover, .senderContactButton:focus-visible {
+  border-color: #36b8ad;
+  outline: 2px solid transparent;
+}
+.senderContactButton > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #36b8ad;
+  font-size: 11px;
+  margin-top: 5px;
+}
 .mailBody {
   font-size: 13px;
   line-height: 1.95;

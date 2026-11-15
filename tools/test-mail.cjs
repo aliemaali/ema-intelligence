@@ -53,7 +53,7 @@ const fs = require("node:fs");
           }));
           build.onLoad({ filter: /.*/, namespace: "mock-token" }, () => ({
             contents:
-              "export async function getMicrosoftAccessToken(){return globalThis.__mailFixture.token()}",
+              "export async function getMicrosoftAccessToken(userId){return globalThis.__mailFixture.token(userId)}",
             loader: "js",
           }));
         },

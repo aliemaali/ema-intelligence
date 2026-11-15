@@ -67,6 +67,7 @@ import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { MailFolderSync } from "@/lib/mail/folder-sync";
 import { mailSenderName } from "@/lib/mail/contact-names";
 import { useMailContactNames } from "./useMailContactNames";
+import { MailSenderContact } from "./MailSenderContact";
 import { createClient } from "@/lib/supabase/client";
 import { combinedInboxPage, type MailboxPage } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
@@ -1436,12 +1437,20 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                         )}
                       </div>
                       <div>
-                        <strong>
-                          {mailSenderName(contactNames,selected.from.emailAddress)}
-                        </strong>
+                        <MailSenderContact
+                          key={`${contactScope}:${mailbox}:${selected.id}`}
+                          sender={selected.from.emailAddress}
+                          displayName={mailSenderName(contactNames,selected.from.emailAddress)}
+                          demo={demo}
+                          demoContacts={demoPim.contacts}
+                          onSaved={(contact) => {
+                            if (demo) setDemoPim(old => ({ ...old, contacts: [contact, ...(old.contacts || [{id:'demo-contact',displayName:'Lena Berger',emailAddresses:[{address:'lena.berger@example.com'}]}])] }));
+                            setContactRevision(value => value + 1);
+                            setNotice("Kontakt gespeichert – für Ali und Tuba verfügbar.");
+                          }}
+                          onOpenContacts={() => navigate("contacts")}
+                        />
                         <small>
-                          {selected.from.emailAddress.address}
-                          <br />
                           An:{" "}
                           {selected.toRecipients
                             ?.map((a) => a.emailAddress.address)
