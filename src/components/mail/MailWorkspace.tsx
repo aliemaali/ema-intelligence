@@ -65,6 +65,8 @@ import { MailHomeScreen } from "./MailHomeScreen";
 import { MailAutomation } from "./MailAutomation";
 import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { MailFolderSync } from "@/lib/mail/folder-sync";
+import { mailSenderName } from "@/lib/mail/contact-names";
+import { useMailContactNames } from "./useMailContactNames";
 import { createClient } from "@/lib/supabase/client";
 import { combinedInboxPage, type MailboxPage } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
@@ -220,11 +222,14 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
   const [dashboardCache] = useState(() => new MailSessionCache<DashboardSnapshot>(6));
   const [listCache] = useState(() => new MailSessionCache<MailListSnapshot>());
   const [folderSync] = useState(() => new MailFolderSync());
+  const [contactScope,setContactScope] = useState<string|null>(null);
+  const [contactRevision,setContactRevision] = useState(0);
   const clearMailAccess = useCallback(() => {
     listCache.clear(); dashboardCache.clear(); folderSync.clear();
     requestVersion.current++; detailVersion.current++;
     setAccounts([]); setMessages([]); setSelected(null); setDrafts([]); setCursor(null);
     setAttachments([]); setComposer(null); setPreviewFile(null); setAnalysis(null); setReading(false);
+    setContactScope(null);
   }, [listCache, dashboardCache, folderSync]);
   const messagesRef = useRef(messages); messagesRef.current = messages;
   const displayedList = useRef('');
@@ -240,6 +245,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
   const [demoPim, setDemoPim] = useState<
     Partial<Record<"calendar" | "contacts" | "tasks", MailPimItem[]>>
   >({});
+  const contactNames = useMailContactNames({demo,scope:contactScope,revision:contactRevision,demoRecords:demoPim.contacts});
   const [taskOpen, setTaskOpen] = useState(false),
     [taskTitle, setTaskTitle] = useState(""),
     [due, setDue] = useState("");
@@ -416,15 +422,16 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
     void api("mailboxes").then(d => {
       if (!active) return;
       if (cacheUser && d.cacheOwner === cacheUser) {
+        const prefix = 'ema-mail-cache-v2:';
+        const namespace = `${prefix}${cacheUser}:${mailAccountScope(d.mailboxes)}:`;
         try {
-          const prefix = 'ema-mail-cache-v2:';
-          const namespace = `${prefix}${cacheUser}:${mailAccountScope(d.mailboxes)}:`;
           // Purge previous users and obsolete rights before restoring any snapshots.
           for (const key of Object.keys(localStorage)) if (key.startsWith('ema-mail-cache-') && !key.startsWith(namespace)) localStorage.removeItem(key);
           listCache.bindStorage(localStorage, namespace + 'lists');
           dashboardCache.bindStorage(localStorage, namespace + 'dashboard');
           folderSync.cache.bindStorage(localStorage, namespace + 'folders');
         } catch { /* Mail remains available when browser storage is disabled. */ }
+        setContactScope(namespace);
       }
       setAccounts(d.mailboxes);
     }).catch(e => { if (active) { clear(); setNotice(e.message); } });
@@ -909,7 +916,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         background
         revision={messages}
       />
-      {view === "home" ? <MailDashboard cache={dashboardCache} folderSync={folderSync} onAccessLost={clearMailAccess} key={JSON.stringify([dashboardMailbox,mailAccountScope(accounts)])}
+      {view === "home" ? <MailDashboard cache={dashboardCache} folderSync={folderSync} contactNames={contactNames} onAccessLost={clearMailAccess} key={JSON.stringify([dashboardMailbox,mailAccountScope(accounts)])}
         theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={dashboardMailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { detailVersion.current++; setAllMailboxes(value === "all"); if (value !== "all") setMailbox(value); setSelected(null); setReading(false); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
@@ -1282,8 +1289,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                         >
                           <div className={s.senderRow}>
                             <strong>
-                              {m.from.emailAddress.name ||
-                                m.from.emailAddress.address}
+                              {mailSenderName(contactNames,m.from.emailAddress)}
                             </strong>
                             <time>{formatTime(m.receivedDateTime)}</time>
                           </div>
@@ -1426,14 +1432,12 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
                     <div className={s.senderDetail}>
                       <div className={s.avatar}>
                         {initials(
-                          selected.from.emailAddress.name ||
-                            selected.from.emailAddress.address,
+                          mailSenderName(contactNames,selected.from.emailAddress),
                         )}
                       </div>
                       <div>
                         <strong>
-                          {selected.from.emailAddress.name ||
-                            selected.from.emailAddress.address}
+                          {mailSenderName(contactNames,selected.from.emailAddress)}
                         </strong>
                         <small>
                           {selected.from.emailAddress.address}
@@ -1676,6 +1680,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
               </>
             ) : (
               <MailPim
+                onContactsChanged={() => setContactRevision(value => value + 1)}
                 key={view}
                 mode={view}
                 demo={demo}

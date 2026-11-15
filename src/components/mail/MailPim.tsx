@@ -101,11 +101,13 @@ export function MailPim({
   demo,
   demoRecords,
   onDemoChange,
+  onContactsChanged,
 }: {
   mode: Mode;
   demo: boolean;
   demoRecords?: Item[];
   onDemoChange?: (items: Item[]) => void;
+  onContactsChanged?: () => void;
 }) {
   const [items, setItems] = useState<Item[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
@@ -331,6 +333,7 @@ export function MailPim({
         await load();
       }
       setEditor(null);
+      if(mode === 'contacts') onContactsChanged?.();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -348,6 +351,7 @@ export function MailPim({
           confirmed: true,
         });
       updateItems(items.filter((i) => i.id !== deleting.id));
+      if(mode === 'contacts') onContactsChanged?.();
       setDeleting(null);
     } catch (e) {
       setError((e as Error).message);

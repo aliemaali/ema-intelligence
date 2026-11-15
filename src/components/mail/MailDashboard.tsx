@@ -11,6 +11,7 @@ import { MailSwipeRow } from "./MailSwipeRow";
 import s from "./mail.module.css";
 import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { MailFolderSync } from "@/lib/mail/folder-sync";
+import { mailSenderName, type ContactNames } from "@/lib/mail/contact-names";
 
 import { combinedInboxPage, sumMailboxStats } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
@@ -41,6 +42,7 @@ export type DashboardSnapshot = { messages: Message[]; events: MailPimItem[]; st
 type Props = {
   cache: MailSessionCache<DashboardSnapshot>;
   folderSync: MailFolderSync;
+  contactNames: ContactNames;
   onAccessLost: () => void;
   theme: "light" | "dark";
   onToggleTheme: () => void;
@@ -62,7 +64,7 @@ type Props = {
   notice?: string;
 };
 const clock = (value: string) => graphDate(value).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
-export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
+export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
   const cacheKey = JSON.stringify([demo,mailbox,mailAccountScope(accounts)]);
   const cached = cache.get(cacheKey);
   const [messages, setMessages] = useState<Message[]>(() => cached?.messages || []);
@@ -241,8 +243,8 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
             if (demo) { cache.clear(); void refresh(true); }
           }}>
             <button className={s.inboxMessage} data-unread={!message.isRead} onClick={() => onOpen(message)}>
-              <span className={s.inboxAvatar} data-color={index % 5}>{(message.from.emailAddress.name || message.from.emailAddress.address).split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase()}</span>
-              <span className={s.inboxMessageBody}><span className={s.inboxSender}><strong>{message.from.emailAddress.name || message.from.emailAddress.address}</strong><time>{berlinDay(new Date(message.receivedDateTime)) === berlinDay(now) ? clock(message.receivedDateTime) : new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" })}</time>{!message.isRead && <i aria-label="Ungelesen" />}</span><strong className={s.inboxSubject}>{message.subject || "(Kein Betreff)"}</strong><span className={s.inboxPreview}>{message.bodyPreview}</span>{mailbox === "all" && message.sourceMailbox && <small className={s.inboxSource}>{accounts.find(a => a.mailbox === message.sourceMailbox)?.address || message.sourceMailbox}</small>}</span>
+              <span className={s.inboxAvatar} data-color={index % 5}>{mailSenderName(contactNames,message.from.emailAddress).split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase()}</span>
+              <span className={s.inboxMessageBody}><span className={s.inboxSender}><strong title={message.from.emailAddress.address}>{mailSenderName(contactNames,message.from.emailAddress)}</strong><time>{berlinDay(new Date(message.receivedDateTime)) === berlinDay(now) ? clock(message.receivedDateTime) : new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" })}</time>{!message.isRead && <i aria-label="Ungelesen" />}</span><strong className={s.inboxSubject}>{message.subject || "(Kein Betreff)"}</strong><span className={s.inboxPreview}>{message.bodyPreview}</span>{mailbox === "all" && message.sourceMailbox && <small className={s.inboxSource}>{accounts.find(a => a.mailbox === message.sourceMailbox)?.address || message.sourceMailbox}</small>}</span>
             </button>
           </MailSwipeRow>)}
         </div>
