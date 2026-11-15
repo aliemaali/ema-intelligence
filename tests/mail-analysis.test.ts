@@ -292,3 +292,25 @@ test('formulating follows the separate business briefing and considers the exist
   };
   assert.equal((await assistDraft(input)).subject,'Project documents');
 }));
+
+test('successive draft instructions revise the latest text including manual corrections',()=>fixture(async()=>{
+  let round=0;
+  const versions=[
+    {subject:'Termin',body:'Guten Tag, passt Dienstag um 10 Uhr?'},
+    {subject:'Termin am Mittwoch',body:'Hallo, passt Mittwoch um 11 Uhr?'},
+  ];
+  globalThis.fetch=async(_url,init)=>{
+    const request=JSON.parse(String(init?.body)),source=JSON.parse(request.input);
+    assert.match(request.instructions,/aktuelle Änderungswunsch hat Vorrang/);
+    if(round===0)assert.match(source.body,/Dienstag um 10 Uhr/);
+    else {
+      assert.match(source.body,/Mittwoch um 11 Uhr/);
+      assert.match(source.body,/Bitte per Du/);
+      assert.ok(!source.body.includes('Dienstag um 10 Uhr'));
+    }
+    return Response.json(completed(versions[round++]));
+  };
+  const first=await assistDraft({mailbox:'me',mode:'formulate',subject:'',body:'',instructions:'Termin Dienstag um 10 Uhr vorschlagen.'});
+  const second=await assistDraft({mailbox:'me',mode:'formulate',subject:first.subject,body:first.body.replace('Dienstag um 10 Uhr','Mittwoch um 11 Uhr'),instructions:'Bitte per Du.'});
+  assert.equal(second.body,versions[1].body);assert.equal(round,2);
+}));

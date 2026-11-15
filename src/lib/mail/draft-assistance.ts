@@ -26,7 +26,7 @@ export const draftSuggestionSchema = z.object({
 
 export async function assistDraft(input: DraftAssistanceInput) {
   const operation = input.mode === "formulate"
-    ? "Formuliere eine vollständige, freundliche und professionelle E-Mail anhand des Auftrags und der Stichpunkte. Nutze den Auftrag für die gewünschte Aussage, Sprache, Anrede und den Ton. Berücksichtige einen vorhandenen Entwurf als Kontext. Formuliere Stichpunkte zu einem flüssigen Text aus. Bei fehlenden Details verwende neutrale Formulierungen; erfinde keine Namen, Preise oder Termine. Gib die fertige E-Mail mit passendem Betreff zurück, ohne Erklärungen davor oder danach."
+    ? "Formuliere eine vollständige, freundliche und professionelle E-Mail anhand des Auftrags und der Stichpunkte. Nutze den Auftrag für die gewünschte Aussage, Sprache, Anrede und den Ton. Ist bereits ein Entwurf vorhanden, überarbeite genau diesen anhand des neuesten Änderungswunsches. Erhalte unveränderte Inhalte und manuelle Bearbeitungen; ersetze gezielt die vom Nutzer korrigierten Angaben. Der aktuelle Änderungswunsch hat Vorrang vor widersprechenden Angaben im bisherigen Entwurf. Formuliere Stichpunkte zu einem flüssigen Text aus. Bei fehlenden Details verwende neutrale Formulierungen; erfinde keine Namen, Preise oder Termine. Gib die fertige E-Mail mit passendem Betreff zurück, ohne Erklärungen davor oder danach."
     : input.mode === "improve"
     ? "Verbessere Rechtschreibung, Grammatik, Klarheit und professionellen, freundlichen Stil. Behalte die Sprache des Originals sowie die gewählte Du-/Sie-Anrede bei."
     : `Übersetze Betreff und Nachrichtentext vollständig und sinngenau ins ${input.mode === "de" ? "Deutsche" : "Englische"}.`;

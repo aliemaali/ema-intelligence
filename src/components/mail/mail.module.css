@@ -2833,3 +2833,16 @@
 .mailBody { overflow-wrap: anywhere; }
 .senderDetail > div { min-width: 0; overflow-wrap: anywhere; }
 .reader, .receivedMail, .receivedFrame, .receivedPhoto { touch-action: pan-x pan-y pinch-zoom; }
+
+/* Instructions and the editable result stay in the same AI dialog. */
+.composeWindow .composeAi .aiWorkshop { width:760px; }
+.aiWorkshop .aiInstructions { padding-bottom:18px; border-bottom:1px solid #78909c55; }
+.composeWindow .composeAi .aiWorkshop .briefingInput { min-height:80px; max-height:22dvh; margin-bottom:10px; }
+.aiWorkshop .aiResult h3 { margin:18px 0 0; font-size:15px; }
+.aiWorkshop .aiResult input,
+.aiWorkshop .aiResult textarea { box-sizing:border-box; }
+.composeWindow .composeAi .aiWorkshop .aiResult textarea { min-height:180px; max-height:38dvh; padding:12px; margin-top:6px; flex:none; border:1px solid #78909c55; border-radius:7px; }
+@media(max-width:700px) {
+  .composeWindow .composeAi .aiWorkshop { padding:16px; }
+  .composeWindow .composeAi .aiWorkshop .aiResult textarea { min-height:150px; }
+}
