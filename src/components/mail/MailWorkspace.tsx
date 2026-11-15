@@ -153,7 +153,7 @@ const initials = (name: string) =>
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: string }) {
+export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; cacheUser?: string; firstName?: string }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   useEffect(() => {
     try {
@@ -933,7 +933,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         revision={messages}
       />
       {view === "home" ? <MailDashboard cache={dashboardCache} folderSync={folderSync} contactNames={contactNames} onAccessLost={clearMailAccess} key={JSON.stringify([dashboardMailbox,mailAccountScope(accounts)])}
-        theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={dashboardMailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
+        firstName={firstName || (demo ? "Ali" : undefined)} theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={dashboardMailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { detailVersion.current++; setAllMailboxes(value === "all"); if (value !== "all") setMailbox(value); setSelected(null); setReading(false); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
         onCompose={() => newCompose()}

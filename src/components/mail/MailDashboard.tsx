@@ -12,6 +12,7 @@ import s from "./mail.module.css";
 import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { MailFolderSync } from "@/lib/mail/folder-sync";
 import { mailSenderName, type ContactNames } from "@/lib/mail/contact-names";
+import { MailGreeting } from "./MailGreeting";
 
 import { combinedInboxPage, sumMailboxStats } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
@@ -40,6 +41,7 @@ async function get(path: string, signal?: AbortSignal) {
 }
 export type DashboardSnapshot = { messages: Message[]; events: MailPimItem[]; stats: { unread: number; drafts: number }; partial: boolean; calendarPartial: boolean; revision: unknown; syncPending?: boolean; syncWarning?: string };
 type Props = {
+  firstName?: string;
   cache: MailSessionCache<DashboardSnapshot>;
   folderSync: MailFolderSync;
   contactNames: ContactNames;
@@ -64,7 +66,7 @@ type Props = {
   notice?: string;
 };
 const clock = (value: string) => graphDate(value).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
-export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
+export function MailDashboard({ firstName, cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
   const cacheKey = JSON.stringify([demo,mailbox,mailAccountScope(accounts)]);
   const cached = cache.get(cacheKey);
   const [messages, setMessages] = useState<Message[]>(() => cached?.messages || []);
@@ -238,7 +240,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
       </header>
       {demo && <p className={s.dashboardDemo}>Designvorschau · Beispieldaten</p>}
       <div className={s.inboxHeading}>
-        <h1>Dein Postfach</h1>
+        <MailGreeting firstName={firstName} />
         <button className={`${s.syncPill} ${errors.length ? s.syncWarning : ""}`} disabled={busy || syncing} onClick={() => void refresh(true)} aria-label="Dashboard aktualisieren"><RefreshCw size={12} />{busy ? "Wird geladen" : syncing ? "Wird abgeglichen" : errors.length ? "Bitte prüfen" : syncPending ? "Erster Abgleich läuft" : "Alles aktuell"}</button>
       </div>
       {accounts.length > 1 && <label className={s.inboxMailbox}><span className={s.srOnly}>Postfach auswählen</span><select value={mailbox} onChange={event => onMailbox(event.target.value)} aria-label="Postfach auswählen"><option value="all">Alle Postfächer</option>{accounts.map(account => <option key={account.mailbox} value={account.mailbox}>{account.name || account.address || account.mailbox}</option>)}</select></label>}
