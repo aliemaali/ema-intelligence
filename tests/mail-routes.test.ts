@@ -209,6 +209,45 @@ function req(action: string, body: any) {
     body: JSON.stringify(body),
   });
 }
+test('owned draft and approved draft can be deleted without Microsoft access; deletion invalidates send approval',async()=>{
+  for(const status of ['draft','approved']) {
+    reset();
+    rows.ema_mail_drafts=[{id,user_id:uid,status,payload:{mailbox:'me'},approval_hash:'old-approval'}];
+    globalThis.__mailFixture.token=async()=>{throw new Error('Deleting an EMA draft must not require Microsoft');};
+    const response=await POST(req('draft-delete',{id}));
+    assert.equal(response.status,200); assert.equal((await response.json()).id,id);
+    assert.equal(rows.ema_mail_drafts.length,0); assert.equal(graphCalls,0);
+    assert.ok(rows.ema_mail_audit.some(row=>row.action==='draft_delete_requested'&&row.resource_id===id));
+    assert.equal((await POST(req('send',{id,approvalToken:'a'.repeat(43)}))).status,404);
+  }
+});
+test('draft deletion hides foreign records and preserves sending, scheduled, submitted and uncertain records',async()=>{
+  reset(); rows.ema_mail_drafts=[{id,user_id:'another-user',status:'draft'}];
+  assert.equal((await POST(req('draft-delete',{id}))).status,404);
+  assert.equal(rows.ema_mail_drafts.length,1);
+  for(const status of ['sending','scheduled','submitted','uncertain']) {
+    reset(); rows.ema_mail_drafts=[{id,user_id:uid,status}];
+    assert.equal((await POST(req('draft-delete',{id}))).status,409);
+    assert.equal(rows.ema_mail_drafts.length,1); assert.equal(graphCalls,0);
+  }
+});
+test('atomic draft deletion cannot remove a draft claimed by a concurrent sender',async()=>{
+  reset(); rows.ema_mail_drafts=[{id,user_id:uid,status:'approved'}];
+  globalThis.__mailFixture.admin.from=(table:string)=>table==='ema_mail_audit'
+    ? {insert:async()=>{rows.ema_mail_drafts[0].status='sending';return {error:null};}}
+    : builder(table);
+  assert.equal((await POST(req('draft-delete',{id}))).status,409);
+  assert.equal(rows.ema_mail_drafts[0].status,'sending'); assert.equal(graphCalls,0);
+});
+test('draft deletion requires same-origin POST and rejects malformed IDs or injected ownership',async()=>{
+  reset(); rows.ema_mail_drafts=[{id,user_id:uid,status:'draft'}];
+  const crossSite=new NextRequest('https://ema.example/api/mail/draft-delete',{method:'POST',headers:{origin:'https://other.example','content-type':'application/json'},body:JSON.stringify({id})});
+  assert.equal((await POST(crossSite)).status,403);
+  assert.equal((await POST(req('draft-delete',{id:'invalid'}))).status,400);
+  assert.equal((await POST(req('draft-delete',{id,user_id:uid}))).status,400);
+  assert.ok((await GET(new NextRequest('https://ema.example/api/mail/draft-delete'))).status>=400);
+  assert.equal(rows.ema_mail_drafts.length,1); assert.equal(graphCalls,0);
+});
 test("actual session rejects disabled module before touching database", async () => {
   reset();
   process.env.EMA_MAIL_ENABLED = "false";

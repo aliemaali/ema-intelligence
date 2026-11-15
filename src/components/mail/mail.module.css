@@ -291,6 +291,9 @@
   display: block;
   padding: 19px 20px 18px;
 }
+.draftRow { display:grid; grid-template-columns:minmax(0,1fr) 44px; align-items:center; }
+.draftRow .message { min-width:0; overflow:hidden; }
+.draftDelete { color:#dc5261; min-width:44px; min-height:44px; }
 .message:hover {
   background: #13222c;
 }
