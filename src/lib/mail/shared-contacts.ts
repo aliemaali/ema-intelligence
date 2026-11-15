@@ -1,7 +1,7 @@
 import { MailError, safeGraphUrl } from './graph';
 import { openDeltaCursor, sealDeltaCursor } from './delta-cursor';
 
-// Explicit read-only sharing requested by EMA: Ali's address book to Tuba.
+// Explicit contact sharing requested by EMA: Ali's address book to Tuba.
 // These are verified internal account IDs, never supplied by a browser.
 export const SHARED_CONTACT_OWNER = '028abbe8-ddbd-4010-a278-3d5b34b592be';
 export const SHARED_CONTACT_READER = '0c62c36b-982d-4830-ac5d-9e6af92c39ae';
@@ -9,9 +9,13 @@ export const SHARED_CONTACT_PREFIX = 'ema-shared-contact:';
 export function canReadAliContacts(userId: string) {
   return userId === SHARED_CONTACT_READER;
 }
-export function assertPersonalContactId(id: unknown) {
-  if (typeof id === 'string' && id.startsWith(SHARED_CONTACT_PREFIX))
-    throw new MailError(403, 'Geteilte Kontakte werden von Ali verwaltet.');
+export function sharedContactUpdateId(userId: string, id: unknown, operation: string) {
+  if (typeof id !== 'string' || !id.startsWith(SHARED_CONTACT_PREFIX)) return undefined;
+  if (!canReadAliContacts(userId)) throw new MailError(403, 'Keine Kontaktfreigabe.');
+  if (operation !== 'update') throw new MailError(403, 'Geteilte Kontakte können hier nur bearbeitet werden.');
+  const contactId = id.slice(SHARED_CONTACT_PREFIX.length);
+  if (!contactId.trim() || contactId.length > 1500) throw new MailError(400, 'Ungültiger Kontakt.');
+  return contactId;
 }
 type Contact = { id: string; [key: string]: unknown };
 type Page = { value: Contact[]; '@odata.nextLink'?: string };
@@ -51,7 +55,7 @@ export async function sharedContactsPage(options: {
   }
   return {
     value: page.value.map(item => source === 'shared'
-      ? {...item, id: SHARED_CONTACT_PREFIX + item.id, readOnly: true, sharedBy: 'Ali'}
+      ? {...item, id: SHARED_CONTACT_PREFIX + item.id, readOnly: false, canDelete: false, sharedBy: 'Ali'}
       : item),
     '@odata.nextLink': next,
   };
