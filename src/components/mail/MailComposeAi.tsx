@@ -15,6 +15,8 @@ export function MailComposeAi({ draft, demo, busy, update }: {
 }) {
   const [working, setWorking] = useState<Mode | null>(null);
   const [error, setError] = useState("");
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [briefing, setBriefing] = useState("");
   const [preview, setPreview] = useState<{ source: DraftText; result: MailTranslationResult } | null>(null);
   const [undo, setUndo] = useState<{ before: DraftText; after: DraftText } | null>(null);
   const request = useRef<AbortController | null>(null);
@@ -22,10 +24,11 @@ export function MailComposeAi({ draft, demo, busy, update }: {
   useEffect(() => () => request.current?.abort(), []);
 
   async function run(mode: Mode) {
-    if (busy || request.current || !draft.body.trim()) return;
+    if (busy || request.current || (mode === "formulate" ? !briefing.trim() : !draft.body.trim())) return;
     const source = draftText(draft);
     const controller = new AbortController(); request.current = controller;
     setWorking(mode); setError(""); setPreview(null);
+    if (mode === "formulate") setBriefingOpen(false);
     try {
       let result: MailTranslationResult;
       if (demo) {
@@ -35,7 +38,8 @@ export function MailComposeAi({ draft, demo, busy, update }: {
       } else {
         const response = await fetch("/api/mail/draft-assist", {
           method: "POST", signal: controller.signal, headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mailbox: source.mailbox, subject: source.subject, body: source.body, mode }),
+          body: JSON.stringify({ mailbox: source.mailbox, subject: source.subject, body: source.body, mode,
+            ...(mode === "formulate" ? { instructions: briefing.trim() } : {}) }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "KI-Textbearbeitung fehlgeschlagen.");
@@ -55,6 +59,7 @@ export function MailComposeAi({ draft, demo, busy, update }: {
   }
   return <div className={s.composeAi}>
     <div className={s.translationControls} role="group" aria-label="KI für deinen Entwurf">
+      <button type="button" disabled={busy || !!working} onClick={() => setBriefingOpen(true)}><Sparkles size={14} /> E-Mail formulieren</button>
       <button type="button" disabled={busy || !!working || !draft.body.trim()} onClick={() => void run("improve")}><Sparkles size={14} /> Text verbessern</button>
       <button type="button" aria-label="Entwurf ins Deutsche übersetzen" disabled={busy || !!working || !draft.body.trim()} onClick={() => void run("de")}><span aria-hidden="true">🇩🇪</span> Deutsch</button>
       <button type="button" aria-label="Entwurf ins Englische übersetzen" disabled={busy || !!working || !draft.body.trim()} onClick={() => void run("en")}><span aria-hidden="true">🇬🇧</span> English</button>
@@ -62,9 +67,20 @@ export function MailComposeAi({ draft, demo, busy, update }: {
         if (!sameDraftText(undo.after, latest.current)) return;
         update({ subject: undo.before.subject, body: undo.before.body, bodyHtml: undo.before.bodyHtml }); setUndo(null);
       }}><Undo2 size={13} /> Rückgängig</button>}
-      {working && <span role="status">{working === "improve" ? "Text wird verbessert …" : "Wird übersetzt …"}</span>}
+      {working && <span role="status">{working === "formulate" ? "E-Mail wird formuliert …" : working === "improve" ? "Text wird verbessert …" : "Wird übersetzt …"}</span>}
     </div>
     {error && <p role="alert" className={s.translationHint}>{error}</p>}
+    {briefingOpen && <MailDialog title="Was soll die E-Mail sagen?" onClose={() => setBriefingOpen(false)}>
+      <p>Beschreibe kurz den Inhalt und den gewünschten Ton. Stichpunkte reichen. Du kannst auch „auf Englisch“ dazuschreiben.</p>
+      <label>Anweisung oder Stichpunkte
+        <textarea className={s.briefingInput} rows={6} maxLength={4000} value={briefing} onChange={event => setBriefing(event.target.value)}
+          placeholder="Zum Beispiel: Den Kunden freundlich um die fehlenden Projektunterlagen bitten. Kurz und professionell." />
+      </label>
+      <footer>
+        <button type="button" className={s.subtle} onClick={() => setBriefingOpen(false)}>Abbrechen</button>
+        <button type="button" className={s.primary} disabled={busy || !briefing.trim()} onClick={() => void run("formulate")}>Text erstellen</button>
+      </footer>
+    </MailDialog>}
     {preview && <MailDialog title="KI-Vorschlag prüfen" onClose={() => setPreview(null)}>
       <p>{demo ? "Beispielvorschlag für Projektunterlagen (Demo)." : "Bitte den Vorschlag prüfen. Mit Übernehmen ersetzt du Betreff und Nachrichtentext."}</p>
       <p><b>Betreff:</b> {preview.result.subject}</p>

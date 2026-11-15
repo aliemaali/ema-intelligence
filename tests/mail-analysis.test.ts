@@ -270,3 +270,25 @@ test('stale AI results and undo snapshots cannot overwrite later text, formattin
   for(const update of [{body:'Later edit'},{subject:'Later subject'},{bodyHtml:'<b>Original</b>'},{mailbox:'info@example.com'}])assert.equal(sameDraftText(snapshot,{...original,...update}),false);
   assert.notEqual(snapshot,original);
 });
+
+test('formulating a new email accepts an empty draft and requires a bounded briefing',()=>{
+  const input={mailbox:'me',mode:'formulate',subject:'',body:'',instructions:'Bitte freundlich um die Unterlagen bitten.'};
+  assert.equal(draftAssistanceSchema.safeParse(input).success,true);
+  for(const instructions of ['', ' ', 'x'.repeat(4001)])assert.equal(draftAssistanceSchema.safeParse({...input,instructions}).success,false);
+  assert.equal(draftAssistanceSchema.safeParse({...input,body:'x'.repeat(23000),instructions:'x'.repeat(1000)}).success,false);
+  assert.equal(draftAssistanceSchema.safeParse({...input,mode:'improve',body:'Text'}).success,false);
+});
+test('formulating follows the separate business briefing and considers the existing draft without action capabilities',()=>fixture(async()=>{
+  const input=draftAssistanceSchema.parse({mailbox:'me',mode:'formulate',subject:'',body:'Vorhandener Kontext',instructions:'Kurz und freundlich auf Englisch um Unterlagen bitten.'});
+  globalThis.fetch=async(_url,init)=>{
+    const request=JSON.parse(String(init?.body)),source=JSON.parse(request.input);
+    assert.match(source.body,/Kurz und freundlich auf Englisch/);
+    assert.match(source.body,/Vorhandener Kontext/);
+    assert.ok(!request.instructions.includes(input.instructions!));
+    assert.match(request.instructions,/vollständige, freundliche und professionelle E-Mail/);
+    assert.match(request.instructions,/keine Namen, Preise oder Termine/i);
+    assert.equal(request.tools,undefined);assert.equal(request.store,false);
+    return Response.json(completed({subject:'Project documents',body:'Hello,\n\nCould you please send us the project documents?'}));
+  };
+  assert.equal((await assistDraft(input)).subject,'Project documents');
+}));

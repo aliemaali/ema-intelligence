@@ -1962,3 +1962,22 @@ test('draft AI requires the current sender permission, POST, valid source and AI
   assert.equal(graphCalls,0);assert.equal(rows.ema_mail_analysis,undefined);
   user=null;assert.equal((await POST(req('draft-assist',input))).status,401);
 });
+
+test('draft formulation starts from a briefing without an existing email and caches different briefings separately',async()=>{
+  reset();const previousKey=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='test-only';
+  let calls=0;globalThis.__mailFixture.admin.rpc=async()=>({data:true,error:null});
+  globalThis.fetch=async(url,init)=>{
+    calls++;assert.equal(String(url),'https://api.openai.com/v1/responses');
+    const source=JSON.parse(JSON.parse(String(init?.body)).input);
+    assert.match(source.body,/Auftrag und Stichpunkte/);
+    return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({subject:'Unterlagen',body:'Bitte senden Sie uns die Unterlagen.'})}]}]});
+  };
+  const input={mailbox:'me',subject:'',body:'',mode:'formulate',instructions:'Bitte freundlich um Unterlagen bitten.'};
+  try{
+    assert.equal((await POST(req('draft-assist',{...input,instructions:''}))).status,400);assert.equal(calls,0);
+    const first=await POST(req('draft-assist',input));assert.equal(first.status,200);assert.equal((await first.json()).cached,false);
+    const again=await POST(req('draft-assist',input));assert.equal(again.status,200);assert.equal((await again.json()).cached,true);assert.equal(calls,1);
+    assert.equal((await POST(req('draft-assist',{...input,instructions:'Bitte auf Englisch um Unterlagen bitten.'}))).status,200);assert.equal(calls,2);
+    assert.equal(rows.ema_mail_drafts,undefined);assert.equal(rows.ema_mail_insights,undefined);
+  }finally{if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;}
+});

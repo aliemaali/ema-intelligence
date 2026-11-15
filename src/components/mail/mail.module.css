@@ -478,6 +478,7 @@
 .composeAi .translationControls { gap:6px; margin-bottom:8px; }
 .composeAi .translationControls button { font-size:11px; padding:6px 8px; }
 .aiDraftText { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.7; max-height:45dvh; overflow:auto; margin-bottom:14px; }
+.composeWindow .composeAi .briefingInput { width:100%; box-sizing:border-box; min-height:140px; max-height:35dvh; padding:12px; margin:8px 0 12px; flex:none; resize:vertical; }
 .attachment {
   display: flex;
   gap: 12px;
