@@ -71,6 +71,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
   const [events, setEvents] = useState<MailPimItem[]>(() => cached?.events || []);
   const [stats, setStats] = useState<{ unread: number; drafts: number } | null>(() => cached?.stats || null);
   const [busy, setBusy] = useState(!cached);
+  const [calendarLoading, setCalendarLoading] = useState(!cached);
   const [syncing, setSyncing] = useState(false);
   const [syncPending, setSyncPending] = useState(cached?.syncPending || false);
   const [errors, setErrors] = useState<string[]>(cached?.syncWarning ? [cached.syncWarning] : []);
@@ -84,6 +85,14 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
   const controller = useRef<AbortController | null>(null);
   const demoDeleted = useRef(new Set<string>());
   const listRef = useRef<HTMLElement>(null);
+  useEffect(() => folderSync.subscribe((box, folder) => {
+    const boxes = mailbox === 'all' ? accounts.map(account => account.mailbox) : [mailbox];
+    if (folder !== 'inbox' || !boxes.includes(box)) return;
+    const page = folderSync.cachedFolder(boxes, 'inbox');
+    if (!page) return;
+    setMessages(page.messages); setPartial(Boolean(page.cursor)); setBusy(false);
+    setSyncPending(Boolean(page.pending));
+  }), [folderSync, mailbox, accounts]);
   const refresh = useCallback(async (force = false) => {
     if (!demo && !accounts.length) return;
     const fresh = cache.get(cacheKey, 55000);
@@ -101,6 +110,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
     controller.current = request;
     const current = ++version.current;
     setBusy(!cache.get(cacheKey));
+    setCalendarLoading(!cache.get(cacheKey));
     setSyncing(true);
     setErrors([]);
     setNow(new Date());
@@ -112,6 +122,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
       setEvents(demoRecords ?? [{ id: "demo-overview", subject: "Projektbesprechung Chemnitz", start: { dateTime: day.toISOString() }, end: { dateTime: new Date(day.getTime() + 1800000).toISOString() }, location: { displayName: "Microsoft Teams" } }]);
       controller.current = null;
       setBusy(false);
+      setCalendarLoading(false);
       setSyncing(false);
       return;
     }
@@ -129,10 +140,31 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
           .then(data => ({ messages: data.messages, cursor: data.hasMore, pending: combinedPending, syncWarning: [...syncWarnings].join(' ') || undefined }))
       : folderSync.page(get, mailbox, 'inbox', '', undefined, force);
     const statsRequest = Promise.all(boxes.map(box => get(`dashboard-stats?${new URLSearchParams({ mailbox: box })}`, request.signal))).then(sumMailboxStats);
+    const active = () => !request.signal.aborted && version.current === current;
+    const checkAccess = (error: { status?: number }) => {
+      if (active() && [401,403].includes(error?.status || 0)) {
+        request.abort(); cache.clear(); folderSync.clear();
+        setMessages([]); setStats(null); setEvents([]);
+        controller.current = null; setBusy(false); setCalendarLoading(false); setSyncing(false);
+        onAccessLost();
+      }
+      throw error;
+    };
     const results = await Promise.allSettled([
-      messagesRequest,
-      get(`calendar?${new URLSearchParams(todayRange())}`, request.signal),
-      statsRequest,
+      messagesRequest.then(data => {
+        if (active()) {
+          setMessages(data.messages); setPartial(Boolean(data.cursor));
+          setSyncPending(Boolean(data.pending)); setBusy(false);
+        }
+        return data;
+      }, checkAccess),
+      get(`calendar?${new URLSearchParams(todayRange())}`, request.signal).then(data => {
+        if (active()) {
+          setEvents(data.value || []); setCalendarPartial(Boolean(data['@odata.nextLink'])); setCalendarLoading(false);
+        }
+        return data;
+      }),
+      statsRequest.then(data => { if (active()) setStats(data); return data; }, checkAccess),
     ]);
     if (request.signal.aborted || version.current !== current) return;
     const problems: string[] = [];
@@ -164,6 +196,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
     controller.current = null;
     setErrors(problems);
     setBusy(false);
+    setCalendarLoading(false);
     setSyncing(false);
   }, [demo, mailbox, accounts, demoRecords, demoDraftCount, cache, cacheKey, revision, folderSync, onAccessLost]);
   useEffect(() => {
@@ -217,7 +250,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
       <section className={s.inboxStats} aria-label="Postfachübersicht">
         <button onClick={() => { setUnreadOnly(true); listRef.current?.scrollIntoView({ block: "nearest" }); }}><span><Mail size={21} /></span><div><strong>{count(stats?.unread, hasStatsError)}</strong><small>Ungelesen</small></div></button>
         <button onClick={() => onFolder("drafts")} title="Gespeicherte Entwürfe"><span><PenLine size={21} /></span><div><strong>{count(stats?.drafts, hasStatsError)}</strong><small>Entwürfe</small></div></button>
-        <button onClick={() => onNavigate("calendar")} title="Termine heute im persönlichen Kalender"><span><CalendarDays size={21} /></span><div><strong>{busy && !events.length ? "–" : hasCalendarError ? "–" : `${events.length}${calendarPartial ? "+" : ""}`}</strong><small>Termine</small></div></button>
+        <button onClick={() => onNavigate("calendar")} title="Termine heute im persönlichen Kalender"><span><CalendarDays size={21} /></span><div><strong>{calendarLoading && !events.length ? "–" : hasCalendarError ? "–" : `${events.length}${calendarPartial ? "+" : ""}`}</strong><small>Termine</small></div></button>
       </section>
       {notice && <p className={s.dashboardFootnote} role="status">{notice}</p>}
       {errors.length > 0 && <div className={s.dashboardErrors} role="status">{errors.map(error => <p key={error}>{error}</p>)}<button onClick={() => void refresh(true)}>Erneut laden</button></div>}
@@ -227,7 +260,7 @@ export function MailDashboard({ cache, folderSync, contactNames, onAccessLost, d
           <time>{next.isAllDay ? "Heute" : next.start ? clock(next.start.dateTime) : "–"}</time>
           <button className={s.inboxNextTitle} onClick={() => onNavigate("calendar")}><strong>{next.subject || "Termin"}</strong><small>{next.isOnlineMeeting ? "Microsoft Teams" : next.location?.displayName || "Kalendertermin"}{!next.isAllDay && nextMinutes && nextMinutes > 0 ? ` · ${nextMinutes} Min.` : ""}</small></button>
           {join && <a href={join} target="_blank" rel="noopener noreferrer">Beitreten</a>}
-        </div> : <div className={s.inboxNextEmpty}><CalendarDays size={22} /><p>{busy ? "Termine werden geladen …" : hasCalendarError ? "Kalender derzeit nicht verfügbar" : "Heute keine weiteren Termine"}</p><button onClick={() => onNavigate("calendar")}>Kalender öffnen</button></div>}
+        </div> : <div className={s.inboxNextEmpty}><CalendarDays size={22} /><p>{calendarLoading ? "Termine werden geladen …" : hasCalendarError ? "Kalender derzeit nicht verfügbar" : "Heute keine weiteren Termine"}</p><button onClick={() => onNavigate("calendar")}>Kalender öffnen</button></div>}
       </section>
       <section ref={listRef} className={s.inboxMailSection} aria-label="Neueste E-Mails">
         <div className={s.inboxSectionHeading}><h2>Neueste E-Mails</h2><button onClick={() => onNavigate("mail")}>Alle ansehen</button></div>

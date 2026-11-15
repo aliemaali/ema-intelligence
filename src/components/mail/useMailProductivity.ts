@@ -27,7 +27,7 @@ export const emptyProductivity: ProductivityData = {
   schedules: [],
   schedulerConfigured: false,
 };
-export function useMailProductivity(demo: boolean, mailbox: string) {
+export function useMailProductivity(demo: boolean, mailbox: string, enabled = true) {
   const cache = useRef<Record<string, ProductivityData>>({});
   const currentMailbox = useRef(mailbox);
   currentMailbox.current = mailbox;
@@ -71,6 +71,7 @@ export function useMailProductivity(demo: boolean, mailbox: string) {
         j = await r.json();
       if (!r.ok) throw new Error(j.error);
       if (currentMailbox.current === mailbox) {
+        cache.current[mailbox] = j;
         setValue(j);
         setError("");
       }
@@ -79,7 +80,9 @@ export function useMailProductivity(demo: boolean, mailbox: string) {
     }
   }, [demo, mailbox]);
   useEffect(() => {
+    if (!enabled) return;
     let active = true;
+    const controller = new AbortController();
     setValue(cache.current[mailbox] || emptyProductivity);
     if (demo) {
       setValue(
@@ -98,11 +101,13 @@ export function useMailProductivity(demo: boolean, mailbox: string) {
     }
     fetch(`/api/mail/productivity?${new URLSearchParams({ mailbox })}`, {
       cache: "no-store",
+      signal: controller.signal,
     })
       .then(async (r) => {
         const j = await r.json();
         if (!r.ok) throw new Error(j.error);
         if (active) {
+          cache.current[mailbox] = j;
           setValue(j);
           setError("");
         }
@@ -112,8 +117,9 @@ export function useMailProductivity(demo: boolean, mailbox: string) {
       });
     return () => {
       active = false;
+      controller.abort();
     };
-  }, [demo, mailbox]);
+  }, [demo, mailbox, enabled]);
   return { data, update, refresh, error };
 }
 export async function mailPost(action: string, body: unknown) {

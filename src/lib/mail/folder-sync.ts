@@ -33,9 +33,18 @@ export class MailFolderSync {
   readonly cache = new MailSessionCache<Snapshot>(24);
   private pending = new Map<string, Promise<Page>>();
   private generation = 0;
+  private listeners = new Set<(mailbox: string, folder: string) => void>();
+  subscribe(listener: (mailbox: string, folder: string) => void) {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
   cachedInbox(mailboxes: string[], limit = 30): Page | undefined {
-    const pages = mailboxes.map(mailbox => this.cache.get(JSON.stringify([mailbox, 'inbox'])));
-    if (!pages.length || pages.some(page => !page || Date.now() - page.checkedAt >= 55000)) return;
+    return this.cachedFolder(mailboxes, 'inbox', limit, 55000);
+  }
+  /** A verified head can be painted while the slower delta reconciliation continues. */
+  cachedFolder(mailboxes: string[], folder: string, limit = 30, maxAge = Infinity): Page | undefined {
+    const pages = mailboxes.map(mailbox => this.cache.get(JSON.stringify([mailbox, folder])));
+    if (!pages.length || pages.some(page => !page || Date.now() - page.checkedAt >= maxAge)) return;
     const available = pages as Snapshot[];
     const messages = available.flatMap((page, index) => page.messages.map(message => ({...message, sourceMailbox: mailboxes[index]})))
       .sort((a,b) => Date.parse(b.receivedDateTime) - Date.parse(a.receivedDateTime) || a.sourceMailbox.localeCompare(b.sourceMailbox) || a.id.localeCompare(b.id));
@@ -70,7 +79,12 @@ export class MailFolderSync {
   }
   private async fetchPage(get: Get, key: string, params: URLSearchParams, cursor: string | undefined, generation: number, force: boolean, resetCursor = false): Promise<Page> {
     let snapshot = this.cache.get(key);
-    const save = (value: Snapshot) => { if (generation === this.generation) this.cache.set(key, value); };
+    const save = (value: Snapshot) => {
+      if (generation !== this.generation) return;
+      this.cache.set(key, value);
+      const [mailbox, folder] = JSON.parse(key);
+      for (const listener of this.listeners) listener(mailbox, folder);
+    };
     if (cursor) {
       let page: Page;
       try { page = await get(`messages?${params}`); }

@@ -8,6 +8,70 @@ import { combinedInboxPage } from '../src/lib/mail/combined-inbox';
 const message = (id: string, isRead = false): Message => ({ id, subject: id, bodyPreview: 'Preview', receivedDateTime: `2026-11-${id === 'new' ? '15' : '14'}T10:00:00Z`, isRead, hasAttachments: false, from: { emailAddress: { address: 'sender@example.com' } } });
 function storage() { const data = new Map<string,string>(); return { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key,value); }, removeItem: (key: string) => { data.delete(key); } }; }
 
+test('verified messages are available to the UI before a slow delta request finishes', async () => {
+  const sync = new MailFolderSync();
+  const updates: string[][] = [];
+  const unsubscribe = sync.subscribe((box, folder) => {
+    assert.equal(box, 'me'); assert.equal(folder, 'inbox');
+    updates.push(sync.cachedFolder(['me'], 'inbox')!.messages.map(message => message.id));
+  });
+  let finish!: (value: any) => void;
+  let started!: () => void;
+  const deltaStarted = new Promise<void>(resolve => { started = resolve; });
+  let settled = false;
+  const request = sync.page(async path => {
+    if (path.startsWith('messages?')) return { messages: [message('old')], cursor: 'older-page' };
+    return new Promise(resolve => { finish = resolve; started(); });
+  }, 'me', 'inbox').then(page => { settled = true; return page; });
+  await deltaStarted;
+  assert.equal(settled, false, 'delta may remain slow while the head is visible');
+  assert.deepEqual(updates, [['old']]);
+  assert.equal(sync.cachedFolder(['me'], 'sentitems'), undefined);
+  finish({ changes: [message('new')], next: null, delta: 'checkpoint' });
+  const result = await request;
+  assert.deepEqual(result.messages.map(message => message.id), ['new', 'old']);
+  assert.deepEqual(updates.at(-1), ['new', 'old']);
+  unsubscribe(); const count = updates.length;
+  await sync.page(async path => path.startsWith('messages?') ? { messages: [], cursor: null } : { changes: [], next: null, delta: 'next' }, 'me', 'inbox', '', undefined, true);
+  assert.equal(updates.length, count, 'unmounted views receive no updates');
+});
+
+test('logout prevents a late delta from publishing messages to the UI or storage', async () => {
+  const sync = new MailFolderSync(), disk = storage(); sync.cache.bindStorage(disk, 'account');
+  let updates = 0; sync.subscribe(() => { updates++; });
+  let finish!: (value: any) => void, started!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const request = sync.page(async path => {
+    if (path.startsWith('messages?')) return { messages: [message('old')], cursor: null };
+    return new Promise(resolve => { finish = resolve; started(); });
+  }, 'me', 'inbox');
+  await ready; assert.equal(updates, 1);
+  sync.clear(); finish({ changes: [message('new')], next: null, delta: 'checkpoint' });
+  await request;
+  assert.equal(updates, 1); assert.equal(sync.cachedFolder(['me'], 'inbox'), undefined);
+  assert.equal(disk.getItem('account'), null);
+});
+
+test('combined inbox head is sorted and mailbox-scoped before delta baselines complete', async () => {
+  const sync = new MailFolderSync();
+  const releases: ((value: any) => void)[] = [];
+  let started!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const requests = ['me', 'info@example.com'].map(box => sync.page(async path => {
+    if (path.startsWith('messages?')) return { messages: [message(box === 'me' ? 'old' : 'new')], cursor: null };
+    return new Promise(resolve => { releases.push(resolve); if (releases.length === 2) started(); });
+  }, box, 'inbox'));
+  await ready;
+  const head = sync.cachedFolder(['me', 'info@example.com'], 'inbox')!;
+  assert.deepEqual(head.messages.map(message => message.id), ['new', 'old']);
+  assert.deepEqual(head.messages.map(message => (message as Message & {sourceMailbox:string}).sourceMailbox), ['info@example.com', 'me']);
+  assert.equal(head.pending, true);
+  assert.equal(sync.cachedInbox(['me', 'info@example.com']), undefined, 'an unfinished head must not masquerade as a fresh completed sync');
+  releases.forEach(release => release({ changes: [], next: null, delta: 'checkpoint' }));
+  await Promise.all(requests);
+  assert.equal(sync.cachedInbox(['me', 'info@example.com'])!.pending, false);
+});
+
 test('restart restores mail immediately, verifies the small head and merges changes without reloading history', async () => {
   const disk = storage();
   const first = new MailFolderSync(); first.cache.bindStorage(disk,'user:inbox');

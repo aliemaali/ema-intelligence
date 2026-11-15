@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { Attachment, Message } from '@/lib/mail/model';
 import { fitMailLayout, imageTypes, normalizeCid, receivedDocument, referencedCids, validMailImage } from '@/lib/mail/received-html';
 import s from './mail.module.css';
 
-export function MailMessageBody({ message, attachments, mailbox }: { message: Message; attachments: Attachment[]; mailbox: string }) {
+export const MailMessageBody = memo(function MailMessageBody({ message, attachments, mailbox }: { message: Message; attachments: Attachment[]; mailbox: string }) {
   const html = message.body?.contentType.toLowerCase() === 'html';
   const content = message.body?.content || message.bodyPreview;
   const [inline, setInline] = useState<Record<string,string>>({});
@@ -83,4 +83,4 @@ export function MailMessageBody({ message, attachments, mailbox }: { message: Me
     {photos.map(photo => <figure key={photo.id} className={s.receivedPhoto}><img src={photo.src} alt={photo.name} loading="lazy" /><figcaption>{photo.name}</figcaption></figure>)}
     {failed && <small>Einige eingebettete Bilder konnten nicht geladen werden.</small>}
   </div>;
-}
+});

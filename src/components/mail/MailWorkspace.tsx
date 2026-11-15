@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { MailMessageBody } from "./MailMessageBody";
-import { MailAttachmentPreview } from "./MailAttachmentPreview";
 import {
   Archive,
   ArrowLeft,
@@ -54,15 +54,12 @@ import { validateComposeFiles } from "@/lib/mail/attachments";
 import { sanitizeRichHtml } from "@/lib/mail/rich-text";
 import { replyAllRecipients } from "@/lib/mail/productivity";
 import { useMailProductivity } from "./useMailProductivity";
-import { MailProductivitySettings } from "./MailProductivitySettings";
 import { signatureForAddress } from "@/lib/mail/signature";
 import { MailSignature } from "./MailSignature";
 import { MailComposeFields } from "./MailComposeFields";
-import { MailTeam } from "./MailTeam";
 import { MailSwipeRow } from "./MailSwipeRow";
-import { MailPim, type MailPimItem } from "./MailPim";
+import type { MailPimItem } from "./MailPim";
 import { MailHomeScreen } from "./MailHomeScreen";
-import { MailAutomation } from "./MailAutomation";
 import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { MailFolderSync } from "@/lib/mail/folder-sync";
 import { mailSenderName } from "@/lib/mail/contact-names";
@@ -70,6 +67,11 @@ import { useMailContactNames } from "./useMailContactNames";
 import { MailSenderContact } from "./MailSenderContact";
 import { createClient } from "@/lib/supabase/client";
 import { combinedInboxPage, type MailboxPage } from "@/lib/mail/combined-inbox";
+const MailPim = dynamic(() => import("./MailPim").then(module => module.MailPim), { loading: () => <p role="status">Wird geöffnet …</p> });
+const MailAttachmentPreview = dynamic(() => import("./MailAttachmentPreview").then(module => module.MailAttachmentPreview));
+const MailProductivitySettings = dynamic(() => import("./MailProductivitySettings").then(module => module.MailProductivitySettings));
+const MailTeam = dynamic(() => import("./MailTeam").then(module => module.MailTeam));
+const MailAutomation = dynamic(() => import("./MailAutomation").then(module => module.MailAutomation));
 type Message = BaseMessage & { sourceMailbox?: string };
 const messageKey = (m: Message) => `${m.sourceMailbox || ""}:${m.id}`;
 type Account = {
@@ -254,7 +256,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
   const requestVersion = useRef(0),
     detailVersion = useRef(0),
     composeVersion = useRef(0);
-  const productivity = useMailProductivity(demo, mailbox);
+  const productivity = useMailProductivity(demo, mailbox, view === "settings");
   const account = accounts.find((a) => a.mailbox === mailbox);
   const hasComposer = Boolean(composer);
   const composeRef = useRef<HTMLElement>(null);
@@ -322,7 +324,11 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
       const version = ++requestVersion.current;
       const cached = !next ? listCache.get(listKey) : undefined;
       if (!next && displayedList.current !== listKey) {
-        setMessages(cached?.messages || []); setDrafts(cached?.drafts || []); setCursor(cached?.cursor || null);
+        const boxes = allMailboxes ? accounts.filter(account => account.can_read).map(account => account.mailbox) : [mailbox];
+        const restored = !q && folder !== 'drafts' ? folderSync.cachedFolder(boxes, folder, Math.max(30, cached?.messages.length || 0)) : undefined;
+        const previews = restored?.messages || [];
+        setMessages(cached?.messages || (allMailboxes ? previews : previews.map(message => ({ ...message, sourceMailbox: undefined }))));
+        setDrafts(cached?.drafts || []); setCursor(cached?.cursor || null);
         combinedPages.current = cached?.sources || [];
         displayedList.current = listKey;
       }
@@ -438,6 +444,15 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
     }).catch(e => { if (active) { clear(); setNotice(e.message); } });
     return () => { active = false; subscription.unsubscribe(); };
   }, [demo, cacheUser, listCache, dashboardCache, folderSync, clearMailAccess]);
+  useEffect(() => {
+    if (view !== 'mail' || q || folder === 'drafts') return;
+    return folderSync.subscribe((box, changedFolder) => {
+      const boxes = allMailboxes ? accounts.filter(account => account.can_read).map(account => account.mailbox) : [mailbox];
+      if (changedFolder !== folder || !boxes.includes(box)) return;
+      const page = folderSync.cachedFolder(boxes, folder, Math.max(30, messagesRef.current.length));
+      if (page) setMessages(allMailboxes ? page.messages : page.messages.map(message => ({ ...message, sourceMailbox: undefined })));
+    });
+  }, [view, q, folder, mailbox, allMailboxes, accounts, folderSync]);
   useEffect(() => {
     if (view !== "mail") return;
     const versionRef = requestVersion;
