@@ -5,6 +5,7 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import { MailMessageBody } from "./MailMessageBody";
 import { MailTranslation } from "./MailTranslation";
+import { MailMailboxBadge } from "./MailMailboxBadge";
 import { MailReplyQuote } from "./MailReplyQuote";
 import { makeReplyQuote } from "@/lib/mail/reply-quote";
 import {
@@ -1339,7 +1340,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                             {m.subject}
                           </div>
                           <div className={s.preview}>{m.bodyPreview}</div>
-                          {allMailboxes && <span className={s.badge}>{accounts.find(a => a.mailbox === m.sourceMailbox)?.address || m.sourceMailbox}</span>}
+                          {allMailboxes && m.sourceMailbox && <MailMailboxBadge mailbox={m.sourceMailbox} accounts={accounts} />}
                           {m.hasAttachments ||
                           m.importance === "high" ||
                           m.emaAnalysis?.priority === "high" ? (

@@ -2869,3 +2869,13 @@
 @media (max-width: 650px) {
   .reading .topbar { grid-template-rows: 38px; row-gap: 0; }
 }
+
+/* Stable mailbox names and colors in the inbox and dashboard. */
+.workspace .mailboxBadge { width: fit-content; max-width: 100%; box-sizing: border-box; font-weight: 600; white-space: nowrap; }
+.inboxMessageBody > .mailboxBadge { display: inline-flex; margin-top: 5px; }
+.workspace .mailboxBadge[data-mailbox-tone="info"] { color: #184b9a; background: #e1edff; }
+.workspace .mailboxBadge[data-mailbox-tone="ali"] { color: #14633f; background: #dcf4e7; }
+.workspace .mailboxBadge[data-mailbox-tone="tuba"] { color: #6d329e; background: #f0e4fb; }
+.workspace[data-theme="dark"] .mailboxBadge[data-mailbox-tone="info"] { color: #b6d4ff; background: #203c62; }
+.workspace[data-theme="dark"] .mailboxBadge[data-mailbox-tone="ali"] { color: #a8efc9; background: #174832; }
+.workspace[data-theme="dark"] .mailboxBadge[data-mailbox-tone="tuba"] { color: #e1baff; background: #49305f; }
