@@ -45,7 +45,7 @@ export const draftSchema = z
       .datetime({ offset: true })
       .transform((v) => new Date(v).toISOString())
       .optional(),
-    signatureId: z.enum(["ali-unluer-v1", "tuba-unluer-v1"]).optional(),
+    signatureId: z.enum(["ali-unluer-v1", "tuba-unluer-v1", "info-v1"]).optional(),
     isReadReceiptRequested: z.boolean().optional(),
     isDeliveryReceiptRequested: z.boolean().optional(),
     replyToMessageId: z.string().min(1).max(1500).optional(),

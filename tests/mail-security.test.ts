@@ -489,3 +489,21 @@ test('Tuba signature is bound to her address and sent inline at the same width a
   assert.equal(attachment.isInline, true);
   assert.equal(createHash('sha256').update(Buffer.from(attachment.contentBytes,'base64')).digest('hex'), '0b73b6977bc89901fa51d86cea4af97f15ed612b42e7c0251745fe0ff5a5f3ac');
 });
+
+test('info signature is bound to its mailbox and embeds the approved corporate image', async () => {
+  const { signatureForAddress } = await import('../src/lib/mail/signature');
+  const { assertSignatureSender } = await import('../src/lib/mail/security');
+  const d = draftSchema.parse({...draft(), mailbox:'info@ema-enterprise.de', signatureId:'info-v1'});
+  assert.equal(signatureForAddress(' INFO@ema-enterprise.de '), 'info-v1');
+  assert.doesNotThrow(() => assertSignatureSender(d, 'info@ema-enterprise.de'));
+  assert.throws(() => assertSignatureSender(d, 'unluer@ema-enterprise.de'));
+  assert.throws(() => assertSignatureSender({...d,signatureId:'ali-unluer-v1'}, 'info@ema-enterprise.de'));
+  const message = graphMessage(d, 'info-test');
+  assert.match(message.body.content, /cid:ema-signature-info-v1/);
+  assert.match(message.body.content, /width="320"/);
+  assert.doesNotMatch(message.body.content, /Ali Ünlüer|Geschäftsführer/);
+  const attachment = message.attachments[0] as any;
+  assert.equal(attachment.isInline, true);
+  assert.equal(attachment.contentType, 'image/jpeg');
+  assert.equal(createHash('sha256').update(Buffer.from(attachment.contentBytes,'base64')).digest('hex'), 'd4ef467488e648a88377bc297eae51c0335871ae4c05bae84eb3a5a8032856a3');
+});

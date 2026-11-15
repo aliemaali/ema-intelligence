@@ -21,6 +21,15 @@ export const SIGNATURES = [
     alt: 'Tuba Ünlüer | Prokuristin | EMA Enterprise GmbH | tuba.unluer@ema-enterprise.de | Gabriel-von-Seidl-Str. 56, D-67550 Worms | www.ema-enterprise.de',
     filename: 'EMA-Signatur-Tuba-Unluer.jpeg',
   },
+  {
+    id: 'info-v1',
+    address: 'info@ema-enterprise.de',
+    image: '/mail/signature-info-v1.jpeg',
+    sha256: 'd4ef467488e648a88377bc297eae51c0335871ae4c05bae84eb3a5a8032856a3',
+    cid: 'ema-signature-info-v1',
+    alt: 'EMA Enterprise GmbH | +49 176 620 51 942 | info@ema-enterprise.de | Gabriel-von-Seidl-Str. 56, D-67550 Worms | www.ema-enterprise.de',
+    filename: 'EMA-Signatur-Info.jpeg',
+  },
 ] as const;
 export function signatureById(id?: string) {
   return SIGNATURES.find(signature => signature.id === id);
