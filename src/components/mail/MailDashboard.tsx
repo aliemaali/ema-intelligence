@@ -37,7 +37,7 @@ async function get(path: string, signal?: AbortSignal) {
   if (!response.ok) throw Object.assign(new Error(data.error || "Daten konnten nicht geladen werden."), { status: response.status });
   return data;
 }
-export type DashboardSnapshot = { messages: Message[]; events: MailPimItem[]; stats: { unread: number; drafts: number }; partial: boolean; calendarPartial: boolean; revision: unknown; syncPending?: boolean };
+export type DashboardSnapshot = { messages: Message[]; events: MailPimItem[]; stats: { unread: number; drafts: number }; partial: boolean; calendarPartial: boolean; revision: unknown; syncPending?: boolean; syncWarning?: string };
 type Props = {
   cache: MailSessionCache<DashboardSnapshot>;
   folderSync: MailFolderSync;
@@ -71,7 +71,7 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
   const [busy, setBusy] = useState(!cached);
   const [syncing, setSyncing] = useState(false);
   const [syncPending, setSyncPending] = useState(cached?.syncPending || false);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState<string[]>(cached?.syncWarning ? [cached.syncWarning] : []);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [partial, setPartial] = useState(cached?.partial || false);
   const [calendarPartial, setCalendarPartial] = useState(cached?.calendarPartial || false);
@@ -109,13 +109,15 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
     if (mailbox === "all" && !accounts.length) { controller.current = null; return; }
     const boxes = mailbox === "all" ? accounts.map(a => a.mailbox) : [mailbox];
     let combinedPending = false;
+    const syncWarnings = new Set<string>();
     const messagesRequest = mailbox === "all"
       ? combinedInboxPage<Message>(boxes.map(box => ({ mailbox: box, items: [], cursor: null, started: false })), async (box, cursor) => {
           const page = await folderSync.page(get, box, 'inbox', '', cursor, force);
           combinedPending ||= Boolean(page.pending);
+          if (page.syncWarning) syncWarnings.add(page.syncWarning);
           return page;
         })
-          .then(data => ({ messages: data.messages, cursor: data.hasMore, pending: combinedPending }))
+          .then(data => ({ messages: data.messages, cursor: data.hasMore, pending: combinedPending, syncWarning: [...syncWarnings].join(' ') || undefined }))
       : folderSync.page(get, mailbox, 'inbox', '', undefined, force);
     const statsRequest = Promise.all(boxes.map(box => get(`dashboard-stats?${new URLSearchParams({ mailbox: box })}`, request.signal))).then(sumMailboxStats);
     const results = await Promise.allSettled([
@@ -133,6 +135,7 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
       setMessages(results[0].value.messages);
       setPartial(Boolean(results[0].value.cursor));
       setSyncPending(Boolean(results[0].value.pending));
+      if (results[0].value.syncWarning) problems.push(results[0].value.syncWarning);
     } else problems.push("Posteingang: " + results[0].reason.message);
     if (results[1].status === "fulfilled") {
       setEvents(results[1].value.value || []);
@@ -147,7 +150,7 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
     if (results[2].status === "fulfilled") setStats(results[2].value);
     else problems.push("Übersicht: " + results[2].reason.message);
     if (results[0].status === 'fulfilled' && results[1].status === 'fulfilled' && results[2].status === 'fulfilled') {
-      cache.set(cacheKey, { messages: results[0].value.messages, events: results[1].value.value || [], stats: results[2].value, partial: Boolean(results[0].value.cursor), calendarPartial: Boolean(results[1].value['@odata.nextLink']), revision, syncPending: Boolean(results[0].value.pending) });
+      cache.set(cacheKey, { messages: results[0].value.messages, events: results[1].value.value || [], stats: results[2].value, partial: Boolean(results[0].value.cursor), calendarPartial: Boolean(results[1].value['@odata.nextLink']), revision, syncPending: Boolean(results[0].value.pending), syncWarning: results[0].value.syncWarning });
     }
     controller.current = null;
     setErrors(problems);
