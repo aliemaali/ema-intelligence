@@ -125,7 +125,7 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
     ]);
     if (request.signal.aborted || version.current !== current) return;
     const problems: string[] = [];
-    if (results.some(result => result.status === 'rejected' && [401,403].includes(result.reason?.status))) {
+    if ([results[0],results[2]].some(result => result.status === 'rejected' && [401,403].includes(result.reason?.status))) {
       cache.clear(); folderSync.clear(); setMessages([]); setStats(null); setEvents([]);
       controller.current = null; setBusy(false); setSyncing(false); onAccessLost(); return;
     }
@@ -137,7 +137,13 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
     if (results[1].status === "fulfilled") {
       setEvents(results[1].value.value || []);
       setCalendarPartial(Boolean(results[1].value["@odata.nextLink"]));
-    } else problems.push("Kalender: " + results[1].reason.message);
+    } else {
+      if ([401,403].includes(results[1].reason?.status)) {
+        setEvents([]);
+        cache.update(snapshot => ({ ...snapshot, events: [] }));
+      }
+      problems.push("Kalender: " + results[1].reason.message);
+    }
     if (results[2].status === "fulfilled") setStats(results[2].value);
     else problems.push("Übersicht: " + results[2].reason.message);
     if (results[0].status === 'fulfilled' && results[1].status === 'fulfilled' && results[2].status === 'fulfilled') {

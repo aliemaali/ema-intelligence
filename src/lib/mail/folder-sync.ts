@@ -4,7 +4,7 @@ import { MailSessionCache } from './session-cache';
 export type MessageChange = Partial<Message> & { id: string; '@removed'?: { reason?: string } };
 type Page = { messages: Message[]; cursor: string | null; pending?: boolean };
 type DeltaPage = { changes: MessageChange[]; next: string | null; delta: string | null };
-type Snapshot = Page & { sync: string | null; baseline: boolean; baselineIds: string[]; seen: string[]; checkedAt: number };
+type Snapshot = Page & { sync: string | null; baseline: boolean; continuing?: boolean; baselineIds: string[]; seen: string[]; checkedAt: number };
 type Get = (path: string) => Promise<any>;
 
 export function mergeMailChanges(previous: Message[], changes: MessageChange[], includeOlder = false) {
@@ -63,7 +63,7 @@ export class MailFolderSync {
       }
       return page;
     }
-    if (!force && snapshot && Date.now() - snapshot.checkedAt < 55000) return { ...snapshot, pending: snapshot.baseline };
+    if (!force && snapshot && Date.now() - snapshot.checkedAt < 55000) return { ...snapshot, pending: snapshot.baseline || snapshot.continuing };
     if (!snapshot || snapshot.baseline) {
       const page: Page = await get(`messages?${params}`);
       snapshot = snapshot
@@ -80,7 +80,7 @@ export class MailFolderSync {
         try { delta = await get(`message-delta?${query}`); }
         catch (error) {
           if ((error as { status?: number }).status === 410) {
-            snapshot = { ...snapshot, sync: null, baseline: true, baselineIds: snapshot.messages.map(m => m.id), seen: [], checkedAt: 0 };
+            snapshot = { ...snapshot, sync: null, baseline: true, continuing: false, baselineIds: snapshot.messages.map(m => m.id), seen: [], checkedAt: 0 };
             save(snapshot);
           }
           throw error;
@@ -88,7 +88,7 @@ export class MailFolderSync {
         const seen: Set<string> = new Set(snapshot.seen);
         if (snapshot.baseline) for (const change of delta.changes) if (!change['@removed'] && snapshot.baselineIds.includes(change.id)) seen.add(change.id);
         const latest = this.cache.get(key);
-        snapshot = { ...snapshot, cursor: latest ? latest.cursor : snapshot.cursor, messages: mergeMailChanges(latest?.messages || snapshot.messages, delta.changes), sync: delta.next || delta.delta, seen: [...seen] };
+        snapshot = { ...snapshot, cursor: latest ? latest.cursor : snapshot.cursor, messages: mergeMailChanges(latest?.messages || snapshot.messages, delta.changes), sync: delta.next || delta.delta, continuing: Boolean(delta.next), seen: [...seen] };
         if (!delta.next) {
           if (!delta.delta) throw new Error('Microsoft hat keinen gültigen Abgleichsstand geliefert.');
           if (snapshot.baseline) {
@@ -101,7 +101,7 @@ export class MailFolderSync {
         save(snapshot);
       }
       snapshot = { ...snapshot, checkedAt: Date.now() };
-      save(snapshot); return { ...snapshot, pending: snapshot.baseline };
+      save(snapshot); return { ...snapshot, pending: snapshot.baseline || snapshot.continuing };
     } catch (error) {
       if ([401,403].includes((error as { status?: number }).status || 0)) { this.clear(); throw error; }
       // Existing UI snapshots stay visible; report the failure instead of claiming everything is current.

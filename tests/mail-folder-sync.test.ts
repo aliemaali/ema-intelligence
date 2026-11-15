@@ -67,3 +67,12 @@ test('signed delta cursors reject another user, folder, mailbox or altered token
   for(const scope of ['tuba:me:inbox','ali:me:sentitems','ali:info:inbox']) assert.throws(()=>openDeltaCursor(cursor,scope,'test-secret'));
   assert.throws(()=>openDeltaCursor(cursor+'bad','ali:me:inbox','test-secret'));
 });
+test('large change rounds retain a continuation checkpoint and stay marked as pending until complete',async()=>{
+  const sync=new MailFolderSync();
+  await sync.page(async path=>path.startsWith('messages?') ? {messages:[message('old')],cursor:null} : {changes:[message('old')],next:null,delta:'checkpoint'},'me','inbox');
+  let calls=0;
+  const first=await sync.page(async()=>({changes:[],next:`page-${++calls}`,delta:null}),'me','inbox','',undefined,true);
+  assert.equal(calls,3); assert.equal(first.pending,true);
+  const last=await sync.page(async path=>{assert.ok(path.includes('page-3'));return {changes:[message('new')],next:null,delta:'complete'};},'me','inbox','',undefined,true);
+  assert.equal(last.pending,false); assert.equal(last.messages[0].id,'new');
+});
