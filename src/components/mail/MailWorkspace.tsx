@@ -63,6 +63,7 @@ import { MailSwipeRow } from "./MailSwipeRow";
 import { MailPim, type MailPimItem } from "./MailPim";
 import { MailHomeScreen } from "./MailHomeScreen";
 import { MailAutomation } from "./MailAutomation";
+import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { combinedInboxPage, type MailboxPage } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
 const messageKey = (m: Message) => `${m.sourceMailbox || ""}:${m.id}`;
@@ -81,8 +82,9 @@ type DraftRecord = {
   content_hash: string;
   status: string;
 };
-import { MailDashboard, MailBottomNav, type MailView } from "./MailDashboard";
+import { MailDashboard, MailBottomNav, type MailView, type DashboardSnapshot } from "./MailDashboard";
 type View = MailView;
+type MailListSnapshot = { messages: Message[]; drafts: DraftRecord[]; cursor: string | null; sources: MailboxPage<Message>[] };
 const folderIcons = [Inbox, Send, FileText, Archive, Trash2, Folder];
 const demoAccounts: Account[] = [
   {
@@ -122,7 +124,7 @@ async function api(path: string, body?: unknown) {
       : {}),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || "Anfrage fehlgeschlagen.");
+  if (!response.ok) throw Object.assign(new Error(result.error || "Anfrage fehlgeschlagen."), { status: response.status });
   return result;
 }
 const formatDate = (date: string) =>
@@ -212,6 +214,11 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     mailbox: string;
     messageId: string;
   } | null>(null);
+  const [dashboardCache] = useState(() => new MailSessionCache<DashboardSnapshot>(6));
+  const [listCache] = useState(() => new MailSessionCache<MailListSnapshot>());
+  const messagesRef = useRef(messages); messagesRef.current = messages;
+  const displayedList = useRef('');
+  const listKey = JSON.stringify([demo,allMailboxes ? 'all' : mailbox,folder,q,mailAccountScope(accounts)]);
   const [overviewRevision, setOverviewRevision] = useState(0);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [composeMinimized, setComposeMinimized] = useState(false);
@@ -221,6 +228,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   const [taskOpen, setTaskOpen] = useState(false),
     [taskTitle, setTaskTitle] = useState(""),
     [due, setDue] = useState("");
+  const listLoading = useRef(false);
   const requestVersion = useRef(0),
     detailVersion = useRef(0),
     composeVersion = useRef(0);
@@ -287,10 +295,18 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   }, [demo, accounts]);
 
   const load = useCallback(
-    async (next?: string) => {
+    async (next?: string, force = false) => {
+      if (!demo && !accounts.length) return;
       const version = ++requestVersion.current;
+      const cached = !next ? listCache.get(listKey) : undefined;
+      if (!next && displayedList.current !== listKey) {
+        setMessages(cached?.messages || []); setDrafts(cached?.drafts || []); setCursor(cached?.cursor || null);
+        combinedPages.current = cached?.sources || [];
+        displayedList.current = listKey;
+      }
+      if (!next && !force && listCache.get(listKey,55000)) { setBusy(false); return; }
+      listLoading.current = true;
       setBusy(true);
-      if (!next) { setMessages([]); setCursor(null); }
       try {
         if (demo) {
           setMessages(
@@ -329,8 +345,9 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         if (folder === "drafts") {
           const data = await api("drafts");
           if (version === requestVersion.current) {
-            setDrafts(data.drafts.filter((d: DraftRecord) => (allMailboxes || d.payload.mailbox === mailbox) && ["draft", "approved"].includes(d.status)));
-            setMessages([]);
+            const records = data.drafts.filter((d: DraftRecord) => (allMailboxes || d.payload.mailbox === mailbox) && ["draft", "approved"].includes(d.status));
+            setDrafts(records); setMessages([]); setCursor(null);
+            listCache.set(listKey,{messages:[],drafts:records,cursor:null,sources:[]});
           }
           return;
         }
@@ -339,8 +356,10 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           const data = await combinedInboxPage(sources, (box, page) => api(`messages?${new URLSearchParams({ mailbox: box, folder, q, ...(page ? { cursor: page } : {}) })}`));
           if (version === requestVersion.current) {
             combinedPages.current = data.sources;
-            setMessages(old => next ? [...old, ...data.messages] : data.messages);
-            setCursor(data.hasMore ? "combined" : null);
+            const records = next ? [...messagesRef.current, ...data.messages] : data.messages;
+            const cursor = data.hasMore ? 'combined' : null;
+            setMessages(records); setCursor(cursor);
+            listCache.set(listKey,{messages:records,drafts:[],cursor,sources:data.sources});
           }
           return;
         }
@@ -348,18 +367,22 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
           `messages?${new URLSearchParams({ mailbox, folder, q, ...(next ? { cursor: next } : {}) })}`,
         );
         if (version === requestVersion.current) {
-          setMessages((old) =>
-            next ? [...old, ...data.messages] : data.messages,
-          );
-          setCursor(data.cursor);
+          const records = next ? [...messagesRef.current, ...data.messages] : data.messages;
+          setMessages(records); setCursor(data.cursor);
+          listCache.set(listKey,{messages:records,drafts:[],cursor:data.cursor,sources:[]});
         }
       } catch (e) {
-        if (version === requestVersion.current) setNotice((e as Error).message);
+        if (version === requestVersion.current) {
+          if ([401,403].includes((e as Error & { status?: number }).status || 0)) {
+            listCache.clear(); dashboardCache.clear(); setMessages([]); setDrafts([]); setCursor(null);
+          }
+          setNotice((e as Error).message);
+        }
       } finally {
-        if (version === requestVersion.current) setBusy(false);
+        if (version === requestVersion.current) { listLoading.current = false; setBusy(false); }
       }
     },
-    [demo, folder, mailbox, q, allMailboxes, accounts],
+    [demo, folder, mailbox, q, allMailboxes, accounts, listCache, listKey],
   );
   useEffect(() => {
     if (!demo)
@@ -368,13 +391,15 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         .catch((e) => setNotice(e.message));
   }, [demo]);
   useEffect(() => {
+    if (view !== "mail") return;
     const versionRef = requestVersion;
-    const timer = setTimeout(() => void load(), 250);
+    const timer = setTimeout(() => void load(), q ? 250 : 0);
     return () => {
       clearTimeout(timer);
+      if (listLoading.current) { listLoading.current = false; setBusy(false); }
       versionRef.current++;
     };
-  }, [load]);
+  }, [load,view,q]);
   async function openMessage(message: Message) {
     const source = message.sourceMailbox || mailbox;
     if (message.sourceMailbox) setMailbox(source);
@@ -495,6 +520,8 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     try {
       if (!demo)
         await api("message-action", { mailbox: target.sourceMailbox || mailbox, id: target.id, operation });
+      listCache.clear(); dashboardCache.clear();
+      setOverviewRevision((v) => v + 1);
       if (listVersion !== requestVersion.current) return;
       if (["archive", "trash"].includes(operation)) {
         setMessages((old) => old.filter((m) => messageKey(m) !== messageKey(target)));
@@ -525,7 +552,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         setMessages((old) => old.map(update));
         setSelected((old) => (old ? update(old) : old));
       }
-      setOverviewRevision((v) => v + 1);
+
       setNotice(
         demo
           ? "In der Demo geändert. Kein echtes Postfach verändert."
@@ -626,6 +653,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         },
       });
       if (version === composeVersion.current) setDraftId(result.id);
+      listCache.clear(); dashboardCache.clear();
       setOverviewRevision(v => v + 1);
       setNotice("Entwurf gespeichert.");
     } catch (e) {
@@ -658,6 +686,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       });
       setComposer(null);
       setReview(false);
+      listCache.clear(); dashboardCache.clear();
       setOverviewRevision(v => v + 1);
       setNotice(result.message);
     } catch (e) {
@@ -779,7 +808,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         background
         revision={messages}
       />
-      {view === "home" ? <MailDashboard key={dashboardMailbox}
+      {view === "home" ? <MailDashboard cache={dashboardCache} key={JSON.stringify([dashboardMailbox,mailAccountScope(accounts)])}
         theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={dashboardMailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { detailVersion.current++; setAllMailboxes(value === "all"); if (value !== "all") setMailbox(value); setSelected(null); setReading(false); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
@@ -899,7 +928,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         <button
           className={s.ribbonRefresh}
           disabled={busy}
-          onClick={() => void load()}
+          onClick={() => void load(undefined,true)}
           aria-label="Alle Ordner aktualisieren"
         >
           <RefreshCw size={16} />
@@ -1043,7 +1072,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
                   </button>
                   <h1>{folders.find((f) => f.id === folder)?.name}</h1>
                   <button
-                    onClick={() => void load()}
+                    onClick={() => void load(undefined,true)}
                     disabled={busy}
                     aria-label="Postfach aktualisieren"
                   >
