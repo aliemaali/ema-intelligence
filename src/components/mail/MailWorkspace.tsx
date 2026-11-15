@@ -1866,6 +1866,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
               </>
             ) : (
               <MailComposeFields
+                demo={demo}
                 contactNames={contactNames}
                 draft={composer}
                 onPreview={(index) => {

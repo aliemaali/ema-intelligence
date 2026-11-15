@@ -46,6 +46,7 @@ import {
 } from "@/lib/mail/pim";
 import { analyzeMessage } from "@/lib/mail/analysis";
 import { translateMessage, translationSchema } from "@/lib/mail/translation";
+import { assistDraft, draftAssistanceSchema, draftSuggestionSchema } from "@/lib/mail/draft-assistance";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -78,6 +79,26 @@ async function handle(request: NextRequest) {
       input = JSON.parse(text);
     }
     const admin = mailAdmin();
+    if (action === "draft-assist") {
+      if (!mutating) throw new MailError(405, "Bitte eine KI-Textaktion auswählen.");
+      const value = draftAssistanceSchema.parse(input);
+      await mailboxAccess(session, value.mailbox, "send");
+      const key = digest({ kind: "draft-assist-v1", model: process.env.EMA_MAIL_AI_MODEL || "gpt-5-mini", ...value });
+      const { data: cached, error: cacheError } = await admin.from("ema_mail_analysis").select("result")
+        .eq("user_id", session.user.id).eq("source_hash", key).maybeSingle();
+      if (cacheError) throw new MailError(503, "KI-Zwischenspeicher ist nicht verfügbar.");
+      const saved = draftSuggestionSchema.safeParse(cached?.result);
+      if (saved.success) return json({ suggestion: saved.data, cached: true });
+      const { data: allowed, error } = await admin.rpc("ema_mail_claim_analysis", { p_user_id: session.user.id, p_limit: 20 });
+      if (error) throw new MailError(503, "KI-Limit ist nicht verfügbar.");
+      if (allowed !== true) throw new MailError(429, "Maximal 20 neue KI-Abfragen pro Stunde. Bitte später versuchen.");
+      await audit(session.user.id, `draft_assist_${value.mode}_requested`);
+      const suggestion = await assistDraft(value);
+      const { error: saveError } = await admin.from("ema_mail_analysis")
+        .upsert({ user_id: session.user.id, source_hash: key, result: suggestion }, { onConflict: "user_id,source_hash" });
+      if (saveError) throw new MailError(503, "KI-Vorschlag konnte nicht gespeichert werden. Bitte erneut versuchen.");
+      return json({ suggestion, cached: false });
+    }
     // Explicit connection test: fixed fictional input only; no mailbox access.
     if (action === "analyze-test") {
       if (!mutating)

@@ -1929,3 +1929,36 @@ test('translation requires POST, valid targets, mailbox access, a user session a
   assert.equal((await POST(req('translate',{mailbox:'me',id:'message',target:'de'}))).status,429);
   assert.equal(graphCalls,1); assert.equal(rows.ema_mail_analysis,undefined);
 });
+
+test('draft AI returns a proposal without sending or creating a draft and caches by user, source and operation',async()=>{
+  reset();const previousKey=process.env.OPENAI_API_KEY;process.env.OPENAI_API_KEY='test-only';
+  let calls=0;globalThis.__mailFixture.admin.rpc=async()=>({data:true,error:null});
+  globalThis.fetch=async(url,init)=>{
+    calls++;assert.equal(String(url),'https://api.openai.com/v1/responses');
+    const input=JSON.parse(JSON.parse(String(init?.body)).input);
+    assert.deepEqual(input,{subject:'Unterlagen',body:'bitte senden sie die unterlagen'});
+    return Response.json({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({subject:'Unterlagen',body:'Bitte senden Sie die Unterlagen.'})}]}]});
+  };
+  const input={mailbox:'me',subject:'Unterlagen',body:'bitte senden sie die unterlagen',mode:'improve'};
+  try{
+    let response=await POST(req('draft-assist',input));assert.equal(response.status,200);assert.equal((await response.json()).cached,false);
+    response=await POST(req('draft-assist',input));assert.equal(response.status,200);assert.equal((await response.json()).cached,true);assert.equal(calls,1);
+    assert.equal((await POST(req('draft-assist',{...input,mode:'en'}))).status,200);assert.equal(calls,2);
+    user={id:'33333333-3333-4333-8333-333333333333'};
+    assert.equal((await POST(req('draft-assist',input))).status,200);assert.equal(calls,3);
+    assert.equal(rows.ema_mail_drafts,undefined);assert.equal(rows.ema_mail_insights,undefined);
+    assert.equal(rows.ema_mail_analysis.length,3);
+  }finally{if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;}
+});
+test('draft AI requires the current sender permission, POST, valid source and AI budget',async()=>{
+  reset();const input={mailbox:'team@example.com',subject:'Subject',body:'Body',mode:'en'};
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/draft-assist'))).status,405);
+  assert.equal((await POST(req('draft-assist',{...input,to:['somebody@example.com']}))).status,400);
+  rows.ema_mail_memberships=[{user_id:uid,mailbox:'team@example.com',can_read:true,can_write:true,can_send:false}];
+  assert.equal((await POST(req('draft-assist',input))).status,403);
+  rows.ema_mail_memberships[0].can_send=true;
+  globalThis.__mailFixture.admin.rpc=async()=>({data:false,error:null});
+  assert.equal((await POST(req('draft-assist',input))).status,429);
+  assert.equal(graphCalls,0);assert.equal(rows.ema_mail_analysis,undefined);
+  user=null;assert.equal((await POST(req('draft-assist',input))).status,401);
+});

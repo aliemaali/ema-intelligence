@@ -474,6 +474,10 @@
 .translationHint { margin:0 0 12px; }
 .translationSubject { font-size:15px; line-height:1.5; margin:0 0 12px; overflow-wrap:anywhere; }
 .translationText { overflow-wrap:anywhere; }
+.composeAi { flex-shrink:0; padding:8px 15px 0; }
+.composeAi .translationControls { gap:6px; margin-bottom:8px; }
+.composeAi .translationControls button { font-size:11px; padding:6px 8px; }
+.aiDraftText { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.7; max-height:45dvh; overflow:auto; margin-bottom:14px; }
 .attachment {
   display: flex;
   gap: 12px;

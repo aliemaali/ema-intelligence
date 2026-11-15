@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Paperclip, Save, Send, ShieldCheck, X } from "lucide-react";
 import type { MailDraft } from "@/lib/mail/model";
 import { MailRichEditor } from "./MailRichEditor";
+import { MailComposeAi } from "./MailComposeAi";
 import { MailSignature } from "./MailSignature";
 import { MailRecipientInput } from "./MailRecipientInput";
 import type { ContactNames } from "@/lib/mail/contact-names";
@@ -10,6 +11,7 @@ import s from "./mail.module.css";
 type Account = { mailbox: string; name?: string; can_send: boolean };
 export function MailComposeFields({
   draft,
+  demo,
   accounts,
   contactNames,
   busy,
@@ -20,6 +22,7 @@ export function MailComposeFields({
   onPreview,
 }: {
   draft: MailDraft;
+  demo: boolean;
   accounts: Account[];
   contactNames: ContactNames;
   busy: boolean;
@@ -133,6 +136,7 @@ export function MailComposeFields({
           }
         }}
       >
+        <MailComposeAi draft={draft} demo={demo} busy={busy} update={update} />
         <MailRichEditor
           body={draft.body}
           html={draft.bodyHtml}
