@@ -9,7 +9,7 @@ export function MailGreeting({ firstName }: { firstName?: string }) {
   const [greeting, setGreeting] = useState("Hallo");
   useEffect(() => {
     const update = () => {
-      const hour = Number(berlinHour.format(new Date()));
+      const hour = Number(berlinHour.formatToParts(new Date()).find(part => part.type === "hour")?.value);
       setGreeting(hour >= 5 && hour < 11 ? "Guten Morgen" : hour >= 18 || hour < 5 ? "Guten Abend" : "Hallo");
     };
     update();
