@@ -2846,3 +2846,20 @@
   .composeWindow .composeAi .aiWorkshop { padding:16px; }
   .composeWindow .composeAi .aiWorkshop .aiResult textarea { min-height:150px; }
 }
+
+/* Keep the message heading compact on phones. */
+@media (max-width: 650px) {
+  .mailContent { padding: 12px 16px; }
+  .mailContent h2 { font-size: 20px; line-height: 1.3; margin: 6px 0 10px; letter-spacing: -.3px; }
+  .senderDetail { display: grid; grid-template-columns: 32px minmax(0, 1fr) 50px; align-items: start; gap: 8px; margin-bottom: 12px; }
+  .senderDetail .avatar { width: 32px; height: 32px; margin-top: 3px; font-size: 11px; }
+  .senderDetail time { margin: 4px 0 0; font-size: 9px; line-height: 1.4; }
+  .senderDetail small { margin-top: 2px; line-height: 1.35; }
+  .senderContactButton { width: 100%; padding: 2px 4px; margin-left: -4px; }
+  .senderContactButton strong,
+  .senderContactButton small { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .senderContactButton > span { margin-top: 2px; font-size: 10px; }
+  .mailContent .translationControls { gap: 6px; margin-bottom: 8px; }
+  .mailContent .translationControls button { min-height: 40px; padding: 5px 9px; font-size: 11px; }
+  .mailContent .receivedMail { margin: 10px 0; }
+}
