@@ -1733,4 +1733,3 @@ test('reading a message requests HTML while retaining immutable IDs and mailbox 
   const denied = await GET(new NextRequest('https://ema.example/api/mail/message?id=img-test&mailbox=foreign%40example.com'));
   assert.equal(denied.status,403); assert.equal(calls,1);
 });
-

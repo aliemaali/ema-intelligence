@@ -98,4 +98,3 @@ const fs = require("node:fs");
   console.error(e);
   process.exit(1);
 });
-

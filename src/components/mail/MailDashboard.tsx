@@ -236,4 +236,3 @@ export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, 
     <div className={s.dashboardActions}><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={21} /><span>Neue E-Mail</span></button></div>
   </div>;
 }
-

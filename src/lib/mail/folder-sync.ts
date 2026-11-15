@@ -85,7 +85,7 @@ export class MailFolderSync {
           }
           throw error;
         }
-        const seen = new Set(snapshot.seen);
+        const seen: Set<string> = new Set(snapshot.seen);
         if (snapshot.baseline) for (const change of delta.changes) if (!change['@removed'] && snapshot.baselineIds.includes(change.id)) seen.add(change.id);
         const latest = this.cache.get(key);
         snapshot = { ...snapshot, cursor: latest ? latest.cursor : snapshot.cursor, messages: mergeMailChanges(latest?.messages || snapshot.messages, delta.changes), sync: delta.next || delta.delta, seen: [...seen] };

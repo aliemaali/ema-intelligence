@@ -15,4 +15,3 @@ export default async function MailPage() {
   if(!aal || (aal.nextLevel==='aal2' && aal.currentLevel!=='aal2'))redirect('/mfa?redirectTo=/mail')
   return <MailWorkspace demo={false} cacheUser={user.id}/>
 }
-

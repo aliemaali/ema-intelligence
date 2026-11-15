@@ -32,6 +32,12 @@ export class MailSessionCache<T> {
     } catch { /* Private browsing, quota or blocked storage: retain the in-memory copy. */ }
   }
   keys() { return [...this.entries.keys()]; }
+  update(transform: (value: T, key: string) => T) {
+    for (const [key, entry] of this.entries)
+      this.entries.set(key, { value: transform(entry.value, key), updated: this.clock() - 60000 });
+    this.persist();
+  }
+  invalidate() { this.update(value => value); }
   get(key: string, maxAge = Infinity): T | undefined {
     const entry = this.entries.get(key);
     if (!entry || this.clock() - entry.updated >= maxAge) return undefined;
@@ -51,4 +57,3 @@ export class MailSessionCache<T> {
 export function mailAccountScope(accounts: { mailbox: string; address?: string; can_read?: boolean; can_write?: boolean; can_send?: boolean }[]) {
   return JSON.stringify(accounts.map(a => [a.mailbox,a.address,a.can_read,a.can_write,a.can_send]).sort((a,b) => String(a[0]).localeCompare(String(b[0]))));
 }
-

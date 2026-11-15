@@ -223,6 +223,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
     listCache.clear(); dashboardCache.clear(); folderSync.clear();
     requestVersion.current++; detailVersion.current++;
     setAccounts([]); setMessages([]); setSelected(null); setDrafts([]); setCursor(null);
+    setAttachments([]); setComposer(null); setPreviewFile(null); setAnalysis(null); setReading(false);
   }, [listCache, dashboardCache, folderSync]);
   const messagesRef = useRef(messages); messagesRef.current = messages;
   const displayedList = useRef('');
@@ -555,7 +556,26 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
       if (!demo)
         await api("message-action", { mailbox: target.sourceMailbox || mailbox, id: target.id, operation });
       folderSync.mutate(target.sourceMailbox || mailbox, target.id, operation);
-      listCache.clear(); dashboardCache.clear();
+      const source = target.sourceMailbox || mailbox;
+      const removed = ['trash','archive'].includes(operation);
+      const updateMessage = (message: Message, box: string): Message => {
+        if (message.id !== target.id || (message.sourceMailbox || box) !== source) return message;
+        return { ...message, ...(['read','unread'].includes(operation)
+          ? { isRead: operation === 'read' } : { flag: { flagStatus: operation === 'flag' ? 'flagged' : 'notFlagged' } }) };
+      };
+      const updateMessages = (items: Message[], box: string) => items
+        .filter(m => !(removed && m.id === target.id && (m.sourceMailbox || box) === source))
+        .map(m => updateMessage(m, box));
+      listCache.update((snapshot, key) => {
+        const box = JSON.parse(key)[1];
+        return { ...snapshot, messages: updateMessages(snapshot.messages, box), sources: snapshot.sources.map(page => ({...page,items:updateMessages(page.items,page.mailbox)})) };
+      });
+      dashboardCache.update((snapshot, key) => {
+        const box = JSON.parse(key)[1];
+        const old = snapshot.messages.find(m => m.id === target.id && (m.sourceMailbox || box) === source);
+        const unreadChange = old ? (removed ? (old.isRead ? 0 : -1) : ['read','unread'].includes(operation) ? Number(operation === 'unread') - Number(!old.isRead) : 0) : 0;
+        return { ...snapshot, messages: updateMessages(snapshot.messages, box), stats: { ...snapshot.stats, unread: Math.max(0, snapshot.stats.unread + unreadChange) } };
+      });
       setOverviewRevision((v) => v + 1);
       if (listVersion !== requestVersion.current) return;
       if (["archive", "trash"].includes(operation)) {
@@ -688,7 +708,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
         },
       });
       if (version === composeVersion.current) setDraftId(result.id);
-      listCache.clear(); dashboardCache.clear();
+      listCache.invalidate(); dashboardCache.invalidate();
       setOverviewRevision(v => v + 1);
       setNotice("Entwurf gespeichert.");
     } catch (e) {
@@ -721,7 +741,7 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
       });
       setComposer(null);
       setReview(false);
-      listCache.clear(); dashboardCache.clear();
+      listCache.invalidate(); dashboardCache.invalidate();
       setOverviewRevision(v => v + 1);
       setNotice(result.message);
     } catch (e) {
@@ -1842,4 +1862,3 @@ export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: 
     </main>
   );
 }
-

@@ -44,4 +44,10 @@ test('corrupt or disabled storage never blocks in-memory mail',()=>{
   const cache=new MailSessionCache<string>(); cache.bindStorage({getItem:()=>'{bad',setItem:()=>{throw new Error('quota');},removeItem:()=>{}},'key');
   cache.set('inbox','mail'); assert.equal(cache.get('inbox'),'mail');
 });
-
+test('mutation updates and invalidation retain stale snapshots for immediate restart display',()=>{
+  const data=new Map<string,string>(); const storage={getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>{data.set(k,v);},removeItem:(k:string)=>{data.delete(k);}};
+  const cache=new MailSessionCache<{read:boolean}>(); cache.bindStorage(storage,'user'); cache.set('inbox',{read:false});
+  cache.update(value=>({...value,read:true})); cache.invalidate();
+  const reopened=new MailSessionCache<{read:boolean}>(); reopened.bindStorage(storage,'user');
+  assert.deepEqual(reopened.get('inbox'),{read:true}); assert.equal(reopened.get('inbox',55000),undefined);
+});

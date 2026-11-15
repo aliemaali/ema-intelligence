@@ -1185,4 +1185,3 @@ async function handle(request: NextRequest) {
     );
   }
 }
-
