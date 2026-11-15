@@ -22,7 +22,7 @@ export function MailRecipientInput({id,label,values,contacts,disabled,onChange}:
     <input ref={input} id={id} aria-label={label} role="combobox" aria-autocomplete="list"
       aria-expanded={visible} aria-controls={visible?`${id}-contacts`:undefined}
       aria-activedescendant={visible?`${id}-contact-${highlighted}`:undefined}
-      disabled={disabled} value={values.join('; ')} placeholder="Name oder E-Mail-Adresse hinzufügen"
+      disabled={disabled} value={values.join('; ')}
       autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false}
       onFocus={event=>{setSegment(recipientSegment(event.currentTarget.value,event.currentTarget.selectionStart));setOpen(true);}}
       onSelect={event=>setSegment(recipientSegment(event.currentTarget.value,event.currentTarget.selectionStart))}
