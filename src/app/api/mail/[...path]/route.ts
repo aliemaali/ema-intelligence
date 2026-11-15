@@ -1,4 +1,5 @@
 import { safePushEndpoint } from "@/lib/mail/push";
+import { sealDeltaCursor, openDeltaCursor } from "@/lib/mail/delta-cursor";
 import { productivityEndpoint, visibleProject } from "@/lib/mail/extensions";
 import { deliverMessage } from "@/lib/mail/deliver";
 import { NextRequest, NextResponse } from "next/server";
@@ -294,6 +295,7 @@ async function handle(request: NextRequest) {
         "info@ema-enterprise.de": "info",
       } as Record<string, string>)[address.toLowerCase()] || address;
       return json({
+        cacheOwner: session.user.id,
         mailboxes: [
           {
             mailbox: "me",
@@ -734,6 +736,34 @@ async function handle(request: NextRequest) {
         throw new MailError(503, "Entwurfszähler derzeit nicht verfügbar.");
       return json({ unread: inbox.unreadItemCount, drafts: drafts.count });
     }
+    if (action === "message-delta" && !mutating) {
+      const folder = request.nextUrl.searchParams.get("folder") || "inbox";
+      if (!folders.some(f => f.id === folder) || folder === 'drafts') throw new MailError(400, "Ungültiger Ordner.");
+      const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!; // Server-only; already required by mailAdmin.
+      const scope = JSON.stringify([session.user.id, mailbox, folder]);
+      const cursor = request.nextUrl.searchParams.get('cursor');
+      let path: string;
+      if (cursor) {
+        try {
+          const url = new URL(safeGraphUrl(openDeltaCursor(cursor, scope, secret), root));
+          const suffix = url.pathname.slice(`/v1.0${root}`.length);
+          if (!/^\/mailFolders\/[^/]+\/messages\/delta$/.test(suffix)) throw new Error('Invalid delta path');
+          path = url.href;
+        } catch { throw new MailError(400, 'Ungültiger Abgleichsstand.'); }
+      } else {
+        const query = new URLSearchParams({
+          $top: '100', $orderby: 'receivedDateTime desc',
+          $select: 'id,subject,bodyPreview,receivedDateTime,isRead,from,toRecipients,ccRecipients,importance,hasAttachments,flag,conversationId,replyTo',
+        });
+        path = `${root}/mailFolders/${folder}/messages/delta?${query}`;
+      }
+      const result = await mailGraph<{ value: (Partial<Message> & { id: string; '@removed'?: { reason?: string } })[]; '@odata.nextLink'?: string; '@odata.deltaLink'?: string }>(token, path, {}, root);
+      return json({
+        changes: result.value || [],
+        next: result['@odata.nextLink'] ? sealDeltaCursor(safeGraphUrl(result['@odata.nextLink'], root), scope, secret) : null,
+        delta: result['@odata.deltaLink'] ? sealDeltaCursor(safeGraphUrl(result['@odata.deltaLink'], root), scope, secret) : null,
+      });
+    }
     if (action === "messages" && !mutating) {
       const folder = request.nextUrl.searchParams.get("folder") || "inbox";
       if (!folders.some((f) => f.id === folder))
@@ -1155,3 +1185,4 @@ async function handle(request: NextRequest) {
     );
   }
 }
+

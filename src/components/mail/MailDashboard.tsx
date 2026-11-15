@@ -10,6 +10,7 @@ import type { MailPimItem } from "./MailPim";
 import { MailSwipeRow } from "./MailSwipeRow";
 import s from "./mail.module.css";
 import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
+import { MailFolderSync } from "@/lib/mail/folder-sync";
 
 import { combinedInboxPage, sumMailboxStats } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
@@ -30,15 +31,17 @@ export function MailBottomNav({ view, onNavigate }: { view: MailView; onNavigate
 export function priorityMail(m: Message) {
   return m.importance === "high" || m.flag?.flagStatus === "flagged" || m.emaAnalysis?.priority === "high";
 }
-async function get(path: string, signal: AbortSignal) {
+async function get(path: string, signal?: AbortSignal) {
   const response = await fetch("/api/mail/" + path, { cache: "no-store", signal });
   const data = await response.json();
   if (!response.ok) throw Object.assign(new Error(data.error || "Daten konnten nicht geladen werden."), { status: response.status });
   return data;
 }
-export type DashboardSnapshot = { messages: Message[]; events: MailPimItem[]; stats: { unread: number; drafts: number }; partial: boolean; calendarPartial: boolean; revision: unknown };
+export type DashboardSnapshot = { messages: Message[]; events: MailPimItem[]; stats: { unread: number; drafts: number }; partial: boolean; calendarPartial: boolean; revision: unknown; syncPending?: boolean };
 type Props = {
   cache: MailSessionCache<DashboardSnapshot>;
+  folderSync: MailFolderSync;
+  onAccessLost: () => void;
   theme: "light" | "dark";
   onToggleTheme: () => void;
   demo: boolean;
@@ -59,13 +62,15 @@ type Props = {
   notice?: string;
 };
 const clock = (value: string) => graphDate(value).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
-export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
+export function MailDashboard({ cache, folderSync, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onFolder, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
   const cacheKey = JSON.stringify([demo,mailbox,mailAccountScope(accounts)]);
   const cached = cache.get(cacheKey);
   const [messages, setMessages] = useState<Message[]>(() => cached?.messages || []);
   const [events, setEvents] = useState<MailPimItem[]>(() => cached?.events || []);
   const [stats, setStats] = useState<{ unread: number; drafts: number } | null>(() => cached?.stats || null);
   const [busy, setBusy] = useState(!cached);
+  const [syncing, setSyncing] = useState(false);
+  const [syncPending, setSyncPending] = useState(cached?.syncPending || false);
   const [errors, setErrors] = useState<string[]>([]);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [partial, setPartial] = useState(cached?.partial || false);
@@ -86,7 +91,8 @@ export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrit
     const request = new AbortController();
     controller.current = request;
     const current = ++version.current;
-    setBusy(force || !cache.get(cacheKey));
+    setBusy(!cache.get(cacheKey));
+    setSyncing(true);
     setErrors([]);
     setNow(new Date());
     if (demo) {
@@ -97,14 +103,20 @@ export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrit
       setEvents(demoRecords ?? [{ id: "demo-overview", subject: "Projektbesprechung Chemnitz", start: { dateTime: day.toISOString() }, end: { dateTime: new Date(day.getTime() + 1800000).toISOString() }, location: { displayName: "Microsoft Teams" } }]);
       controller.current = null;
       setBusy(false);
+      setSyncing(false);
       return;
     }
     if (mailbox === "all" && !accounts.length) { controller.current = null; return; }
     const boxes = mailbox === "all" ? accounts.map(a => a.mailbox) : [mailbox];
+    let combinedPending = false;
     const messagesRequest = mailbox === "all"
-      ? combinedInboxPage<Message>(boxes.map(box => ({ mailbox: box, items: [], cursor: null, started: false })), (box, cursor) => get(`messages?${new URLSearchParams({ mailbox: box, folder: "inbox", ...(cursor ? { cursor } : {}) })}`, request.signal))
-          .then(data => ({ messages: data.messages, cursor: data.hasMore }))
-      : get(`messages?${new URLSearchParams({ mailbox, folder: "inbox" })}`, request.signal);
+      ? combinedInboxPage<Message>(boxes.map(box => ({ mailbox: box, items: [], cursor: null, started: false })), async (box, cursor) => {
+          const page = await folderSync.page(get, box, 'inbox', '', cursor, force);
+          combinedPending ||= Boolean(page.pending);
+          return page;
+        })
+          .then(data => ({ messages: data.messages, cursor: data.hasMore, pending: combinedPending }))
+      : folderSync.page(get, mailbox, 'inbox', '', undefined, force);
     const statsRequest = Promise.all(boxes.map(box => get(`dashboard-stats?${new URLSearchParams({ mailbox: box })}`, request.signal))).then(sumMailboxStats);
     const results = await Promise.allSettled([
       messagesRequest,
@@ -113,12 +125,14 @@ export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrit
     ]);
     if (request.signal.aborted || version.current !== current) return;
     const problems: string[] = [];
-    if ([results[0],results[2]].some(result => result.status === 'rejected' && [401,403].includes(result.reason?.status))) {
-      cache.clear(); setMessages([]); setStats(null);
+    if (results.some(result => result.status === 'rejected' && [401,403].includes(result.reason?.status))) {
+      cache.clear(); folderSync.clear(); setMessages([]); setStats(null); setEvents([]);
+      controller.current = null; setBusy(false); setSyncing(false); onAccessLost(); return;
     }
     if (results[0].status === "fulfilled") {
       setMessages(results[0].value.messages);
       setPartial(Boolean(results[0].value.cursor));
+      setSyncPending(Boolean(results[0].value.pending));
     } else problems.push("Posteingang: " + results[0].reason.message);
     if (results[1].status === "fulfilled") {
       setEvents(results[1].value.value || []);
@@ -127,12 +141,13 @@ export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrit
     if (results[2].status === "fulfilled") setStats(results[2].value);
     else problems.push("Übersicht: " + results[2].reason.message);
     if (results[0].status === 'fulfilled' && results[1].status === 'fulfilled' && results[2].status === 'fulfilled') {
-      cache.set(cacheKey, { messages: results[0].value.messages, events: results[1].value.value || [], stats: results[2].value, partial: Boolean(results[0].value.cursor), calendarPartial: Boolean(results[1].value['@odata.nextLink']), revision });
+      cache.set(cacheKey, { messages: results[0].value.messages, events: results[1].value.value || [], stats: results[2].value, partial: Boolean(results[0].value.cursor), calendarPartial: Boolean(results[1].value['@odata.nextLink']), revision, syncPending: Boolean(results[0].value.pending) });
     }
     controller.current = null;
     setErrors(problems);
     setBusy(false);
-  }, [demo, mailbox, accounts, demoRecords, demoDraftCount, cache, cacheKey, revision]);
+    setSyncing(false);
+  }, [demo, mailbox, accounts, demoRecords, demoDraftCount, cache, cacheKey, revision, folderSync, onAccessLost]);
   useEffect(() => {
     void refresh();
     const update = () => { if (!document.hidden) void refresh(); };
@@ -173,7 +188,7 @@ export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrit
       {demo && <p className={s.dashboardDemo}>Designvorschau · Beispieldaten</p>}
       <div className={s.inboxHeading}>
         <h1>Dein Postfach</h1>
-        <button className={`${s.syncPill} ${errors.length ? s.syncWarning : ""}`} disabled={busy} onClick={() => void refresh(true)} aria-label="Dashboard aktualisieren"><RefreshCw size={12} />{busy ? "Wird geladen" : errors.length ? "Bitte prüfen" : "Alles aktuell"}</button>
+        <button className={`${s.syncPill} ${errors.length ? s.syncWarning : ""}`} disabled={busy || syncing} onClick={() => void refresh(true)} aria-label="Dashboard aktualisieren"><RefreshCw size={12} />{busy ? "Wird geladen" : syncing ? "Wird abgeglichen" : errors.length ? "Bitte prüfen" : syncPending ? "Erster Abgleich läuft" : "Alles aktuell"}</button>
       </div>
       {accounts.length > 1 && <label className={s.inboxMailbox}><span className={s.srOnly}>Postfach auswählen</span><select value={mailbox} onChange={event => onMailbox(event.target.value)} aria-label="Postfach auswählen"><option value="all">Alle Postfächer</option>{accounts.map(account => <option key={account.mailbox} value={account.mailbox}>{account.name || account.address || account.mailbox}</option>)}</select></label>}
       {accounts.length <= 1 && box && <p className={s.inboxAddress}>{box.address || box.name || "Mein Postfach"}</p>}
@@ -221,3 +236,4 @@ export function MailDashboard({ cache, demo, mailbox, accounts, canSend, canWrit
     <div className={s.dashboardActions}><button disabled={!canSend} onClick={onCompose} aria-label="Neue E-Mail verfassen"><PenLine size={21} /><span>Neue E-Mail</span></button></div>
   </div>;
 }
+

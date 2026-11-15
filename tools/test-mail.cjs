@@ -77,6 +77,7 @@ const fs = require("node:fs");
   await esbuild.build({ entryPoints: ["tests/mail-combined-inbox.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-combined-inbox.test.cjs" });
   await esbuild.build({ entryPoints: ["tests/mail-received.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-received.test.cjs" });
   await esbuild.build({ entryPoints: ["tests/mail-session-cache.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-session-cache.test.cjs" });
+  await esbuild.build({ entryPoints: ["tests/mail-folder-sync.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-folder-sync.test.cjs" });
   const result = spawnSync(
     process.execPath,
     [
@@ -85,6 +86,7 @@ const fs = require("node:fs");
       ".tmp/mail-combined-inbox.test.cjs",
       ".tmp/mail-received.test.cjs",
       ".tmp/mail-session-cache.test.cjs",
+      ".tmp/mail-folder-sync.test.cjs",
       ".tmp/mail-routes.test.cjs",
       ".tmp/mail-automation.test.cjs",
       ".tmp/mail-analysis.test.cjs",
@@ -96,3 +98,4 @@ const fs = require("node:fs");
   console.error(e);
   process.exit(1);
 });
+

@@ -64,6 +64,8 @@ import { MailPim, type MailPimItem } from "./MailPim";
 import { MailHomeScreen } from "./MailHomeScreen";
 import { MailAutomation } from "./MailAutomation";
 import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
+import { MailFolderSync } from "@/lib/mail/folder-sync";
+import { createClient } from "@/lib/supabase/client";
 import { combinedInboxPage, type MailboxPage } from "@/lib/mail/combined-inbox";
 type Message = BaseMessage & { sourceMailbox?: string };
 const messageKey = (m: Message) => `${m.sourceMailbox || ""}:${m.id}`;
@@ -146,7 +148,7 @@ const initials = (name: string) =>
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-export function MailWorkspace({ demo }: { demo: boolean }) {
+export function MailWorkspace({ demo, cacheUser }: { demo: boolean; cacheUser?: string }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   useEffect(() => {
     try {
@@ -216,6 +218,12 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
   } | null>(null);
   const [dashboardCache] = useState(() => new MailSessionCache<DashboardSnapshot>(6));
   const [listCache] = useState(() => new MailSessionCache<MailListSnapshot>());
+  const [folderSync] = useState(() => new MailFolderSync());
+  const clearMailAccess = useCallback(() => {
+    listCache.clear(); dashboardCache.clear(); folderSync.clear();
+    requestVersion.current++; detailVersion.current++;
+    setAccounts([]); setMessages([]); setSelected(null); setDrafts([]); setCursor(null);
+  }, [listCache, dashboardCache, folderSync]);
   const messagesRef = useRef(messages); messagesRef.current = messages;
   const displayedList = useRef('');
   const listKey = JSON.stringify([demo,allMailboxes ? 'all' : mailbox,folder,q,mailAccountScope(accounts)]);
@@ -353,28 +361,26 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         }
         if (allMailboxes) {
           const sources = next ? combinedPages.current : accounts.filter(a => a.can_read).map(a => ({ mailbox: a.mailbox, items: [], cursor: null, started: false }));
-          const data = await combinedInboxPage(sources, (box, page) => api(`messages?${new URLSearchParams({ mailbox: box, folder, q, ...(page ? { cursor: page } : {}) })}`));
+          const data = await combinedInboxPage(sources, (box, page) => folderSync.page(api, box, folder, q, page, force));
           if (version === requestVersion.current) {
             combinedPages.current = data.sources;
-            const records = next ? [...messagesRef.current, ...data.messages] : data.messages;
+            const records = next ? [...new Map([...messagesRef.current, ...data.messages].map(m => [messageKey(m), m])).values()] : data.messages;
             const cursor = data.hasMore ? 'combined' : null;
             setMessages(records); setCursor(cursor);
             listCache.set(listKey,{messages:records,drafts:[],cursor,sources:data.sources});
           }
           return;
         }
-        const data = await api(
-          `messages?${new URLSearchParams({ mailbox, folder, q, ...(next ? { cursor: next } : {}) })}`,
-        );
+        const data = await folderSync.page(api, mailbox, folder, q, next, force);
         if (version === requestVersion.current) {
-          const records = next ? [...messagesRef.current, ...data.messages] : data.messages;
+          const records = next ? [...new Map([...messagesRef.current, ...data.messages].map(m => [messageKey(m), m])).values()] : data.messages;
           setMessages(records); setCursor(data.cursor);
           listCache.set(listKey,{messages:records,drafts:[],cursor:data.cursor,sources:[]});
         }
       } catch (e) {
         if (version === requestVersion.current) {
           if ([401,403].includes((e as Error & { status?: number }).status || 0)) {
-            listCache.clear(); dashboardCache.clear(); setMessages([]); setDrafts([]); setCursor(null);
+            listCache.clear(); dashboardCache.clear(); folderSync.clear(); setMessages([]); setDrafts([]); setCursor(null);
           }
           setNotice((e as Error).message);
         }
@@ -382,14 +388,34 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         if (version === requestVersion.current) { listLoading.current = false; setBusy(false); }
       }
     },
-    [demo, folder, mailbox, q, allMailboxes, accounts, listCache, listKey],
+    [demo, folder, mailbox, q, allMailboxes, accounts, listCache, listKey, folderSync, dashboardCache],
   );
   useEffect(() => {
-    if (!demo)
-      api("mailboxes")
-        .then((d) => setAccounts(d.mailboxes))
-        .catch((e) => setNotice(e.message));
-  }, [demo]);
+    if (demo) return;
+    let active = true;
+    const clear = clearMailAccess;
+    const { data: { subscription } } = createClient().auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || (session && cacheUser && session.user.id !== cacheUser)) {
+        active = false; clear();
+      }
+    });
+    void api("mailboxes").then(d => {
+      if (!active) return;
+      if (cacheUser && d.cacheOwner === cacheUser) {
+        try {
+          const prefix = 'ema-mail-cache-v1:';
+          const namespace = `${prefix}${cacheUser}:${mailAccountScope(d.mailboxes)}:`;
+          // Purge previous users and obsolete rights before restoring any snapshots.
+          for (const key of Object.keys(localStorage)) if (key.startsWith(prefix) && !key.startsWith(namespace)) localStorage.removeItem(key);
+          listCache.bindStorage(localStorage, namespace + 'lists');
+          dashboardCache.bindStorage(localStorage, namespace + 'dashboard');
+          folderSync.cache.bindStorage(localStorage, namespace + 'folders');
+        } catch { /* Mail remains available when browser storage is disabled. */ }
+      }
+      setAccounts(d.mailboxes);
+    }).catch(e => { if (active) { clear(); setNotice(e.message); } });
+    return () => { active = false; subscription.unsubscribe(); };
+  }, [demo, cacheUser, listCache, dashboardCache, folderSync, clearMailAccess]);
   useEffect(() => {
     if (view !== "mail") return;
     const versionRef = requestVersion;
@@ -400,6 +426,14 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
       versionRef.current++;
     };
   }, [load,view,q]);
+  useEffect(() => {
+    if (demo || view !== 'mail') return;
+    const update = () => { if (!document.hidden && !listLoading.current) void load(); };
+    const timer = window.setInterval(update, 60000);
+    window.addEventListener('focus', update);
+    document.addEventListener('visibilitychange', update);
+    return () => { clearInterval(timer); window.removeEventListener('focus', update); document.removeEventListener('visibilitychange', update); };
+  }, [demo, view, load]);
   async function openMessage(message: Message) {
     const source = message.sourceMailbox || mailbox;
     if (message.sourceMailbox) setMailbox(source);
@@ -520,6 +554,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     try {
       if (!demo)
         await api("message-action", { mailbox: target.sourceMailbox || mailbox, id: target.id, operation });
+      folderSync.mutate(target.sourceMailbox || mailbox, target.id, operation);
       listCache.clear(); dashboardCache.clear();
       setOverviewRevision((v) => v + 1);
       if (listVersion !== requestVersion.current) return;
@@ -808,7 +843,7 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
         background
         revision={messages}
       />
-      {view === "home" ? <MailDashboard cache={dashboardCache} key={JSON.stringify([dashboardMailbox,mailAccountScope(accounts)])}
+      {view === "home" ? <MailDashboard cache={dashboardCache} folderSync={folderSync} onAccessLost={clearMailAccess} key={JSON.stringify([dashboardMailbox,mailAccountScope(accounts)])}
         theme={theme} onToggleTheme={toggleTheme} demo={demo} mailbox={dashboardMailbox} accounts={accounts} canSend={!!account?.can_send} canWrite={!!account?.can_write}
         onMailbox={(value) => { detailVersion.current++; setAllMailboxes(value === "all"); if (value !== "all") setMailbox(value); setSelected(null); setReading(false); setQ(""); setFolder("inbox"); }}
         onNavigate={navigate} onOpen={(message) => { setQ(""); setFolder("inbox"); void openMessage(message); }}
@@ -1807,3 +1842,4 @@ export function MailWorkspace({ demo }: { demo: boolean }) {
     </main>
   );
 }
+
