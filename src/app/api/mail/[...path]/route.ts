@@ -1152,17 +1152,27 @@ async function handle(request: NextRequest) {
     }
     if (action === "contacts" && !mutating) {
       const cursor = request.nextUrl.searchParams.get("cursor");
-      if (
-        cursor &&
-        new URL(safeGraphUrl(cursor, "/me")).pathname !== "/v1.0/me/contacts"
-      )
-        throw new MailError(400, "Ungültige Kontaktseite.");
-      const result = await mailGraph(
+      const scope = JSON.stringify([session.user.id,'me','contacts']);
+      const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      let path = '/me/contacts?$top=100&$select=id,displayName,emailAddresses,businessPhones,companyName';
+      if(cursor) {
+        try {
+          const url = new URL(cursor.startsWith('https://') ? safeGraphUrl(cursor,'/me') : safeGraphUrl(openDeltaCursor(cursor,scope,secret)));
+          if(cursor.startsWith('https://') ? url.pathname !== '/v1.0/me/contacts' : !/^\/v1\.0\/(?:me|users\/[^/]+)\/contacts$/.test(url.pathname)) throw new Error('Invalid contact page');
+          path = url.href;
+        } catch { throw new MailError(400,'Ungültige Kontaktseite.'); }
+      }
+      const result = await mailGraph<{value: unknown[]; '@odata.nextLink'?: string}>(
         token,
-        cursor ||
-          "/me/contacts?$top=100&$select=id,displayName,emailAddresses,businessPhones,companyName",
+        path,
       );
-      return json(result);
+      let next: string | undefined;
+      if(result['@odata.nextLink']) {
+        const url = new URL(safeGraphUrl(result['@odata.nextLink']!));
+        if(!/^\/v1\.0\/(?:me|users\/[^/]+)\/contacts$/.test(url.pathname)) throw new MailError(502,'Ungültige Microsoft-Kontaktseite.');
+        next=sealDeltaCursor(url.href,scope,secret);
+      }
+      return json({...result,'@odata.nextLink':next});
     }
     if (action === "calendar" && !mutating) {
       const requestedStart = request.nextUrl.searchParams.get("start");

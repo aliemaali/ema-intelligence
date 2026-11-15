@@ -1806,6 +1806,28 @@ test('normal pagination signs canonical user and folder IDs and binds replay to 
   assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/messages?${query}`))).status,400);
   assert.equal(graphCalls,before);
 });
+test('contact pagination accepts canonical user IDs only through owner-bound signed continuation links',async()=>{
+  reset(); let requested='';
+  globalThis.fetch=async input=>{
+    graphCalls++; requested=String(input);
+    return Response.json({value:[{id:'contact',displayName:'Saved Contact',emailAddresses:[{address:'sender@example.com'}]}], '@odata.nextLink':"https://graph.microsoft.com/v1.0/users('33333333-3333-4333-8333-333333333333')/contacts?$skiptoken=next"});
+  };
+  const first=await GET(new NextRequest('https://ema.example/api/mail/contacts'));
+  assert.equal(first.status,200); const data=await first.json(); const cursor=data['@odata.nextLink'];
+  assert.ok(cursor); assert.ok(!cursor.startsWith('https://'));
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/contacts?'+new URLSearchParams({cursor})))).status,200);
+  assert.ok(requested.includes('/users/33333333-3333-4333-8333-333333333333/contacts?'));
+  const before=graphCalls;user={id:'44444444-4444-4444-8444-444444444444'};
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/contacts?'+new URLSearchParams({cursor})))).status,400);
+  assert.equal(graphCalls,before);
+});
+test('contact continuation cannot fetch a foreign host or another resource',async()=>{
+  reset();
+  for(const link of ['https://evil.example/contacts','https://graph.microsoft.com/v1.0/me/messages']){
+    assert.equal((await GET(new NextRequest('https://ema.example/api/mail/contacts?'+new URLSearchParams({cursor:link})))).status,400);
+  }
+  assert.equal(graphCalls,0);
+});
 
 test('reading a message requests HTML while retaining immutable IDs and mailbox authorization', async () => {
   reset();
