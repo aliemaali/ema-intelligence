@@ -2863,3 +2863,9 @@
   .mailContent .translationControls button { min-height: 40px; padding: 5px 9px; font-size: 11px; }
   .mailContent .receivedMail { margin: 10px 0; }
 }
+
+/* Searching belongs to the message list; give the open message more space. */
+.reading .topbar .search { display: none; }
+@media (max-width: 650px) {
+  .reading .topbar { grid-template-rows: 38px; row-gap: 0; }
+}
