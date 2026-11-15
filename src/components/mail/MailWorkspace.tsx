@@ -142,13 +142,7 @@ const formatDate = (date: string) =>
   new Date(date).toLocaleDateString("de-DE", {
     timeZone: "Europe/Berlin",
     day: "2-digit",
-    month: "short",
-  });
-const formatTime = (date: string) =>
-  new Date(date).toLocaleTimeString("de-DE", {
-    timeZone: "Europe/Berlin",
-    hour: "2-digit",
-    minute: "2-digit",
+    month: "2-digit",
   });
 const initials = (name: string) =>
   name
@@ -1333,7 +1327,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                             <strong>
                               {mailSenderName(contactNames,m.from.emailAddress)}
                             </strong>
-                            <time>{formatTime(m.receivedDateTime)}</time>
+                            <time dateTime={m.receivedDateTime} title={new Date(m.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })}>{formatDate(m.receivedDateTime)}</time>
                           </div>
                           <div className={s.subject}>
                             {!m.isRead ? <span className={s.dot} /> : null}
@@ -1498,10 +1492,8 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                             .join(", ")}
                         </small>
                       </div>
-                      <time>
+                      <time dateTime={selected.receivedDateTime} title={new Date(selected.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })}>
                         {formatDate(selected.receivedDateTime)}
-                        <br />
-                        {formatTime(selected.receivedDateTime)}
                       </time>
                     </div>
                     <MailTranslation key={`${contactScope}:${mailbox}:${selected.id}`} message={selected} mailbox={mailbox} demo={demo}>

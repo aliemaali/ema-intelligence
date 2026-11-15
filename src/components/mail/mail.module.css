@@ -2880,17 +2880,17 @@
 .workspace[data-theme="dark"] .mailboxBadge[data-mailbox-tone="ali"] { color: #a8efc9; background: #174832; }
 .workspace[data-theme="dark"] .mailboxBadge[data-mailbox-tone="tuba"] { color: #e1baff; background: #49305f; }
 
-/* Larger, easier-to-read mail list typography on phones. */
+/* Comfortable mobile mail list typography. */
 @media (max-width: 650px) {
-  .list .titleRow h1 { font-size: 26px; line-height: 1.25; }
-  .list .tabs button { font-size: 14px; }
-  .messages .senderRow strong { font-size: 17px; line-height: 1.35; }
-  .messages .senderRow time { font-size: 13px; }
-  .messages .subject { font-size: 16px; line-height: 1.4; }
-  .messages .preview { font-size: 15px; line-height: 1.4; }
-  .inboxMessageBody .inboxSender > strong { font-size: 17px; line-height: 1.35; }
-  .inboxMessageBody .inboxSender > time { font-size: 13px; }
-  .inboxMessageBody .inboxSubject { font-size: 16px; line-height: 1.4; }
-  .inboxMessageBody .inboxPreview { font-size: 15px; line-height: 1.4; }
+  .list .titleRow h1 { font-size: 25px; line-height: 1.25; }
+  .list .tabs button { font-size: 13px; }
+  .messages .senderRow strong { font-size: 16px; line-height: 1.35; }
+  .messages .senderRow time { font-size: 12px; }
+  .messages .subject { font-size: 15px; line-height: 1.4; }
+  .messages .preview { font-size: 14px; line-height: 1.4; }
+  .inboxMessageBody .inboxSender > strong { font-size: 16px; line-height: 1.35; }
+  .inboxMessageBody .inboxSender > time { font-size: 12px; }
+  .inboxMessageBody .inboxSubject { font-size: 15px; line-height: 1.4; }
+  .inboxMessageBody .inboxPreview { font-size: 14px; line-height: 1.4; }
   .workspace .mailboxBadge { font-size: 11px; }
 }
