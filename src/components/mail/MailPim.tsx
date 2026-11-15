@@ -6,6 +6,8 @@ import { MailCalendarMonth } from "./MailCalendarMonth";
 import { monthDays, teamsJoinUrl } from "@/lib/mail/calendar";
 type Item = {
   id: string;
+  readOnly?: boolean;
+  sharedBy?: string;
   subject?: string;
   displayName?: string;
   emailAddresses?: { address: string }[];
@@ -408,7 +410,7 @@ export function MailPim({
           </h1>
           <p>
             {mode === "contacts"
-              ? "Deine Microsoft-Kontakte"
+              ? "Deine Microsoft-Kontakte und für dich freigegebene Kontakte"
               : "Persönliche Erinnerungen mit EMA-Push-Anbindung"}
           </p>
           <button
@@ -443,6 +445,7 @@ export function MailPim({
                   (item.due_at &&
                     new Date(item.due_at).toLocaleString("de-DE"))}
             </small>
+            {item.sharedBy ? <small>Geteilt von {item.sharedBy}</small> : null}
             <div className={s.aiActions}>
               {mode === "tasks" ? (
                 <button disabled={busy} onClick={() => void toggleTask(item)}>
@@ -452,14 +455,14 @@ export function MailPim({
                 <>
                   <button
                     disabled={
-                      busy ||
+                      busy || item.readOnly === true ||
                       (mode === "calendar" && item.isOrganizer === false)
                     }
                     onClick={() => void edit(item)}
                   >
                     Bearbeiten
                   </button>
-                  <button disabled={busy} onClick={() => setDeleting(item)}>
+                  <button disabled={busy || item.readOnly === true} onClick={() => setDeleting(item)}>
                     {mode === "calendar"
                       ? "Termin entfernen"
                       : "Kontakt entfernen"}

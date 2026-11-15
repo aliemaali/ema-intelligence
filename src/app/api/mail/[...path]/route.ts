@@ -1,3 +1,5 @@
+import { getMicrosoftAccessToken } from "@/lib/microsoft/session";
+import { canReadAliContacts, SHARED_CONTACT_OWNER, assertPersonalContactId, sharedContactsPage } from "@/lib/mail/shared-contacts";
 import { safePushEndpoint } from "@/lib/mail/push";
 import { sealDeltaCursor, openDeltaCursor } from "@/lib/mail/delta-cursor";
 import { productivityEndpoint, visibleProject } from "@/lib/mail/extensions";
@@ -588,6 +590,7 @@ async function handle(request: NextRequest) {
       mutating
     ) {
       assertPimConfirmation(input.confirmed);
+      if (action === "contacts") assertPersonalContactId(input.id);
       if (action === "reminder-action") {
         const id = uuid.parse(input.id),
           complete = z.boolean().parse(input.complete);
@@ -1151,6 +1154,30 @@ async function handle(request: NextRequest) {
       });
     }
     if (action === "contacts" && !mutating) {
+      if (canReadAliContacts(session.user.id)) {
+        // Sharing also requires Tuba's existing access to Ali's mailbox.
+        await mailboxAccess(session, 'unluer@ema-enterprise.de');
+        return json(await sharedContactsPage({
+          userId: session.user.id,
+          cursor: request.nextUrl.searchParams.get('cursor'),
+          secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          getPage: async (source, path) => {
+            if (source === 'personal') return mailGraph(token, path);
+            const [owner, connection] = await Promise.all([
+              admin.from('profiles').select('is_active,email').eq('id', SHARED_CONTACT_OWNER).maybeSingle(),
+              admin.from('microsoft_connections').select('microsoft_email').eq('user_id', SHARED_CONTACT_OWNER).maybeSingle(),
+            ]);
+            if (owner.error || connection.error || owner.data?.is_active !== true ||
+                owner.data?.email?.toLowerCase() !== 'unluer@ema-enterprise.de' ||
+                connection.data?.microsoft_email?.toLowerCase() !== 'unluer@ema-enterprise.de')
+              throw new MailError(403, 'Die Kontaktfreigabe von Ali ist derzeit nicht verfügbar.');
+            const sharedToken = await getMicrosoftAccessToken(SHARED_CONTACT_OWNER);
+            if (!sharedToken) throw new MailError(409, 'Ali muss seine Microsoft-Verbindung erneuern.');
+            return mailGraph(sharedToken, path);
+          },
+        }));
+      }
+
       const cursor = request.nextUrl.searchParams.get("cursor");
       const scope = JSON.stringify([session.user.id,'me','contacts']);
       const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!;
