@@ -13,5 +13,5 @@ export default async function MailPage() {
   if(!canUseMail(profile))redirect('/apps')
   const {data:aal}=await db.auth.mfa.getAuthenticatorAssuranceLevel()
   if(!aal || (aal.nextLevel==='aal2' && aal.currentLevel!=='aal2'))redirect('/mfa?redirectTo=/mail')
-  return <MailWorkspace demo={false}/>
+  return <MailWorkspace demo={false} cacheUser={user.id}/>
 }

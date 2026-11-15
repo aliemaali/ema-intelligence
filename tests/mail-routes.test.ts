@@ -10,9 +10,39 @@ import { draftSchema } from "../src/lib/mail/model";
 import { GET as cronGet } from "../src/app/api/cron/ema-mail/route";
 import { runMailWorker, cronAuthorized } from "../src/lib/mail/background";
 import { digest } from "../src/lib/mail/security";
+import { sealDeltaCursor } from "../src/lib/mail/delta-cursor";
 declare global {
   var __mailFixture: any;
 }
+test('delta route returns signed continuation, binds it to the folder, and enforces mailbox access', async () => {
+  reset();
+  let requested = '';
+  globalThis.fetch = async (input) => {
+    graphCalls++; requested = String(input);
+    return Response.json({ value: [{ id: 'changed', isRead: true }], '@odata.deltaLink': 'https://graph.microsoft.com/v1.0/me/mailFolders/opaque/messages/delta?$deltatoken=next' });
+  };
+  const response = await GET(new NextRequest('https://ema.example/api/mail/message-delta?mailbox=me&folder=inbox'));
+  assert.equal(response.status,200);
+  assert.ok(requested.includes('/mailFolders/inbox/messages/delta?'));
+  const data = await response.json(); assert.ok(data.delta); assert.equal(data.changes[0].isRead,true);
+  const cursorQuery = new URLSearchParams({mailbox:'me',folder:'inbox',cursor:data.delta});
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/message-delta?${cursorQuery}`))).status,200);
+  assert.ok(requested.includes('/mailFolders/opaque/messages/delta?'));
+  const before=graphCalls; cursorQuery.set('folder','sentitems');
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/message-delta?${cursorQuery}`))).status,400);
+  assert.equal(graphCalls,before);
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/message-delta?mailbox=other@example.com&folder=inbox'))).status,403);
+  assert.equal(graphCalls,before);
+});
+test('delta route rejects signed URLs for non-delta resources and preserves expired-state status',async()=>{
+  reset(); const scope=JSON.stringify([uid,'me','inbox']);
+  const cursor=sealDeltaCursor('https://graph.microsoft.com/v1.0/me/messages',scope,process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const query=new URLSearchParams({mailbox:'me',folder:'inbox',cursor});
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/message-delta?${query}`))).status,400);
+  assert.equal(graphCalls,0);
+  globalThis.fetch=async()=>new Response(null,{status:410});
+  assert.equal((await GET(new NextRequest('https://ema.example/api/mail/message-delta?mailbox=me&folder=inbox'))).status,410);
+});
 const uid = "11111111-1111-4111-8111-111111111111",
   id = "22222222-2222-4222-8222-222222222222";
 let rows: Record<string, any[]> = {},

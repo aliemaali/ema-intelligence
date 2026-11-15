@@ -32,3 +32,22 @@ test('cached scope changes when account identity or access rights change, not wh
   assert.notEqual(mailAccountScope([a,b]),mailAccountScope([a,{...b,can_read:false}]));
   assert.notEqual(mailAccountScope([a]),mailAccountScope([{...a,address:'tuba@example.com'}]));
 });
+test('persistent snapshots survive restart without renewing freshness and disappear on clear',()=>{
+  const data = new Map<string,string>(); const storage={getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>{data.set(k,v);},removeItem:(k:string)=>{data.delete(k);}};
+  let now=1000; const a=new MailSessionCache<string>(2,()=>now); a.bindStorage(storage,'ali'); a.set('inbox','mail');
+  now+=60000; const b=new MailSessionCache<string>(2,()=>now); b.bindStorage(storage,'ali');
+  assert.equal(b.get('inbox'),'mail'); assert.equal(b.get('inbox',55000),undefined);
+  const other=new MailSessionCache<string>(); other.bindStorage(storage,'tuba'); assert.equal(other.get('inbox'),undefined);
+  b.clear(); const c=new MailSessionCache<string>(); c.bindStorage(storage,'ali'); assert.equal(c.get('inbox'),undefined);
+});
+test('corrupt or disabled storage never blocks in-memory mail',()=>{
+  const cache=new MailSessionCache<string>(); cache.bindStorage({getItem:()=>'{bad',setItem:()=>{throw new Error('quota');},removeItem:()=>{}},'key');
+  cache.set('inbox','mail'); assert.equal(cache.get('inbox'),'mail');
+});
+test('mutation updates and invalidation retain stale snapshots for immediate restart display',()=>{
+  const data=new Map<string,string>(); const storage={getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>{data.set(k,v);},removeItem:(k:string)=>{data.delete(k);}};
+  const cache=new MailSessionCache<{read:boolean}>(); cache.bindStorage(storage,'user'); cache.set('inbox',{read:false});
+  cache.update(value=>({...value,read:true})); cache.invalidate();
+  const reopened=new MailSessionCache<{read:boolean}>(); reopened.bindStorage(storage,'user');
+  assert.deepEqual(reopened.get('inbox'),{read:true}); assert.equal(reopened.get('inbox',55000),undefined);
+});
