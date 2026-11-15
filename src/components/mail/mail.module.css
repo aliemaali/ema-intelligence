@@ -2773,3 +2773,4 @@
 .receivedFrame { max-width: 100%; }
 .mailBody { overflow-wrap: anywhere; }
 .senderDetail > div { min-width: 0; overflow-wrap: anywhere; }
+.reader, .receivedMail, .receivedFrame, .receivedPhoto { touch-action: pan-x pan-y pinch-zoom; }
