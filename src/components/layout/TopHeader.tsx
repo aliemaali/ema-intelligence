@@ -19,7 +19,7 @@ export function TopHeader() {
 
       <div className="flex items-center gap-2">
         <ThemeToggle /><div id="ema-voice-header-action" className="contents" />
-        <Link href="/microsoft" className="mobile-header-action" title="Microsoft 365" aria-label="Outlook-Kontakte, Kalender und Teams öffnen">
+        <Link href="/microsoft" className="mobile-header-action" title="Gemeinsame Kontakte" aria-label="Gemeinsame Kontakte öffnen">
           <MicrosoftTeamsIcon className="h-6 w-6" />
         </Link>
         <Link href="/calendar" className="mobile-header-action relative" title="Benachrichtigungen" aria-label="Benachrichtigungen und EMA-Kalender öffnen">

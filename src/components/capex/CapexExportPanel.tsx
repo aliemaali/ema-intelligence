@@ -42,7 +42,7 @@ export function CapexExportPanel({ project, calc }: CapexExportPanelProps) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Nicht angemeldet.')
     const path = `${user.id}/${project.projectId}/${Date.now()}_${fileName}`
-    const { error: uploadError } = await supabase.storage.from('project-documents').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600' })
+    const { error: uploadError } = await supabase.storage.from('ema-dms').upload(path, blob, { contentType: 'application/pdf', cacheControl: '3600' })
     if (uploadError) throw uploadError
     const result = await createDocumentRecord({
       projectId: project.projectId,
@@ -54,7 +54,7 @@ export function CapexExportPanel({ project, calc }: CapexExportPanelProps) {
       documentType: 'sonstiges',
     })
     if (result.error) {
-      await supabase.storage.from('project-documents').remove([path])
+      await supabase.storage.from('ema-dms').remove([path])
       throw new Error(result.error)
     }
   }

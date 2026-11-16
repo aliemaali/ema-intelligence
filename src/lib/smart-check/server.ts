@@ -55,8 +55,8 @@ export async function loadAttachments(supabase:any,userId:string,ids:string[]) {
   const {data,error}=await supabase.from('documents').select('id,user_id,project_id,file_name,file_path,mime_type,file_size_bytes,sha256,storage_bucket').eq('user_id',userId).eq('is_archived',false).in('id',ids)
   if(error || data?.length!==ids.length)throw new CheckError('Eine Datei ist nicht mehr verfügbar.',403)
   return Promise.all(data.map(async(doc:any)=>{
-    if(doc.storage_bucket!=='ema-dms' || !doc.file_path.startsWith(`${userId}/smart-check/`) || doc.file_size_bytes>MAX_FILE)throw new CheckError('Ungültige Prüfdatei.',403)
-    const {data:blob,error}=await supabase.storage.from('ema-dms').download(doc.file_path)
+    if(!['ema-dms','project-documents','project-imports','template-documents','contact-documents'].includes(doc.storage_bucket) || !doc.file_path.startsWith(`${userId}/`) || doc.file_size_bytes>MAX_FILE)throw new CheckError('Ungültige Prüfdatei.',403)
+    const {data:blob,error}=await supabase.storage.from(doc.storage_bucket).download(doc.file_path)
     if(error || !blob)throw new CheckError('Originaldatei konnte nicht geladen werden.',502)
     const bytes=new Uint8Array(await blob.arrayBuffer());validateFile(doc.mime_type,bytes)
     if(doc.sha256!==fingerprint(bytes))throw new CheckError('Dateiinhalt wurde verändert.',409)

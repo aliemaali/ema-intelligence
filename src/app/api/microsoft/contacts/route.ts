@@ -1,47 +1,16 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { graphFetch } from '@/lib/microsoft/graph'
-import { getMicrosoftAccessToken } from '@/lib/microsoft/session'
-
-type GraphContact = {
-  id: string
-  displayName?: string
-  givenName?: string
-  surname?: string
-  companyName?: string
-  jobTitle?: string
-  emailAddresses?: { address?: string; name?: string }[]
-  businessPhones?: string[]
-  mobilePhone?: string
-}
-
-export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Nicht angemeldet' }, { status: 401 })
-
-  try {
-    const accessToken = await getMicrosoftAccessToken(user.id)
-    if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
-
-    const query = '/me/contacts?$top=250&$orderby=displayName&$select=id,displayName,givenName,surname,companyName,jobTitle,emailAddresses,businessPhones,mobilePhone'
-    const result = await graphFetch<{ value: GraphContact[] }>(accessToken, query)
-    const contacts = (result.value || []).map((contact) => {
-      const email = contact.emailAddresses?.find((item) => item.address)?.address || ''
-      const phone = contact.mobilePhone || contact.businessPhones?.[0] || ''
-      const name = contact.displayName || [contact.givenName, contact.surname].filter(Boolean).join(' ') || email || 'Unbenannter Kontakt'
-      return {
-        id: contact.id,
-        name,
-        company: contact.companyName || '',
-        role: contact.jobTitle || '',
-        email,
-        phone,
-        initials: name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || '–',
-      }
-    })
-    return NextResponse.json({ contacts })
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Kontakte konnten nicht geladen werden.' }, { status: 502 })
-  }
+import {NextRequest,NextResponse} from 'next/server';
+import {mailSession,mailboxAccess} from '@/lib/mail/server';
+import {emaContactsPage} from '@/lib/ema/contacts';
+import {MailError} from '@/lib/mail/graph';
+export async function GET(request:NextRequest){
+  try{
+    const session=await mailSession();const {token}=await mailboxAccess(session,'me');
+    const result=await emaContactsPage(session,token,request.nextUrl.searchParams.get('cursor'));
+    const contacts=(result.value||[]).map((raw:unknown)=>{
+      const item=raw as {id:string;displayName?:string;companyName?:string;emailAddresses?:{address:string}[];businessPhones?:string[]};
+      const name=item.displayName||item.emailAddresses?.[0]?.address||'Kontakt';
+      return {id:item.id,name,company:item.companyName||'',role:'',email:item.emailAddresses?.[0]?.address||'',phone:item.businessPhones?.[0]||'',initials:name.split(/\s+/).slice(0,2).map(part=>part[0]||'').join('')};
+    });
+    return NextResponse.json({contacts,next:result['@odata.nextLink']||null},{headers:{'Cache-Control':'private, no-store'}});
+  }catch(error){return NextResponse.json({error:error instanceof MailError?error.message:'Kontakte konnten nicht geladen werden.'},{status:error instanceof MailError?error.status:502,headers:{'Cache-Control':'private, no-store'}});}
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { notifyEmaDataChanged } from '@/lib/ema/updates'
 import Link from 'next/link'
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -34,6 +35,7 @@ export function PlaudTaskList({ initialItems,view='all' }:{ initialItems:PlaudTa
         await completePlaudItem(id)
         setItems((current) => current.map((item) => item.id === id ? { ...item,status:'completed' as const } : item))
         setMessage('Eintrag als erledigt gespeichert und synchronisiert.')
+        notifyEmaDataChanged()
         router.refresh()
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'Der Eintrag konnte nicht aktualisiert werden.')
@@ -47,6 +49,7 @@ export function PlaudTaskList({ initialItems,view='all' }:{ initialItems:PlaudTa
         await deletePlaudItem(id)
         setItems((current) => current.filter((item) => item.id !== id))
         setMessage('Erledigter Eintrag wurde gelöscht.')
+        notifyEmaDataChanged()
         router.refresh()
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'Der Eintrag konnte nicht gelöscht werden.')

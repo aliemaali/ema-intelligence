@@ -1,4 +1,5 @@
 'use client'
+import {notifyEmaDataChanged} from '@/lib/ema/updates'
 
 import { ThemeToggle } from '@/components/ThemeRuntime'
 
@@ -105,7 +106,7 @@ export default function PhotoCheck({officePreparationUrl='/office/vertrieb/smart
       setMessage(mode==='ai'?'Aufnahmen auswerten und technische Hinweise prüfen …':'Unterlagen-Check erstellen – ohne Bildanalyse …')
       const payload={...input,area:'cabinet' as const,notes:PV_CHECK_TASK,title:input.title.trim()||'PV-Eignung des Zählerschranks',attachmentIds:uploaded.map(asset=>asset.id),attachmentEvidence:uploaded.map(asset=>({fileId:asset.id,kind:asset.kind||'other'})),mode,aiConsent:mode==='ai'&&consent}
       const data=await readResponse(await fetch('/api/smart-check/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})) as Report
-      setReport(data);setInput({...data.input,mode:'rules',aiConsent:false,previousReportId:data.id});setConsent(false);setSelected([])
+      notifyEmaDataChanged();setReport(data);setInput({...data.input,mode:'rules',aiConsent:false,previousReportId:data.id});setConsent(false);setSelected([])
       setHistory(old=>[{id:data.id,display_name:data.input.title,version:data.version,created_at:data.result.createdAt},...old].slice(0,30))
       requestAnimationFrame(()=>resultPanel.current?.scrollIntoView({behavior:'smooth',block:'start'}))
     }catch(cause){setError(cause instanceof Error?cause.message:'Der Check konnte nicht abgeschlossen werden.')}

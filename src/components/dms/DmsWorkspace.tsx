@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { createDmsFolder, findDmsDuplicate, registerDmsUpload } from '@/lib/actions/dms.actions'
+import { createDmsFolder, findDmsDuplicate, registerDmsUpload, linkDmsDocumentToProject } from '@/lib/actions/dms.actions'
 import { DmsFolderDeleteButton } from '@/components/dms/DmsFolderDeleteButton'
 import { DmsDocumentList } from '@/components/dms/DmsDocumentList'
 import type { DmsDataRoom, DmsDocument, DmsFolder, DmsProjectOption } from '@/lib/dms/types'
@@ -106,6 +106,7 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
     const duplicate = await findDmsDuplicate(fingerprint)
     if (duplicate.error) throw new Error(duplicate.error)
     if (duplicate.document) {
+      if(projectId){const linked=await linkDmsDocumentToProject(duplicate.document.id,projectId);if(linked.error)throw new Error(linked.error);}
       toast.info(`„${file.name}“ ist bereits im DMS gespeichert.`)
       return
     }
@@ -131,6 +132,7 @@ export function DmsWorkspace({ userId, documents, folders, dataRooms, projects }
       dataRoomProfile: isZip ? profile : undefined,
     })
     if (registered.duplicate) {
+      if(projectId){const linked=await linkDmsDocumentToProject(registered.duplicate.id,projectId);if(linked.error)throw new Error(linked.error);}
       await supabase.storage.from('ema-dms').remove([objectName])
       toast.info(`„${file.name}“ ist bereits im DMS gespeichert.`)
       return

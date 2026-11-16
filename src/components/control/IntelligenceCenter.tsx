@@ -1,5 +1,6 @@
 'use client'
 
+import { listenForEmaChanges } from '@/lib/ema/updates'
 import { ThemeToggle } from '@/components/ThemeRuntime'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -28,7 +29,7 @@ export function IntelligenceCenter(seed:Seed) {
     if(result[1].status==='fulfilled')setOffice({...result[1].value,connected:true});else setOffice({connected:false,pending:0,enabled:false})
     setBusy(false)
   },[])
-  useEffect(()=>{void refresh();return()=>currentRequest.current?.abort()},[refresh])
+  useEffect(()=>{void refresh();const stop=listenForEmaChanges(()=>{void refresh()});return()=>{stop();currentRequest.current?.abort()}},[refresh])
   const ask=(text?:string)=>{window.dispatchEvent(new CustomEvent('ema:assistant-open',{detail:{text:(text||command).trim().slice(0,2000)}}));setCommand('')}
   const openTasks=seed.items.filter(item=>item.kind!=='appointment')
   const appointments=[...(overview?.events||[]).map(event=>({id:event.id,title:event.title,start:event.start,kind:'outlook'})),...seed.items.filter(item=>item.kind==='appointment'&&item.dueAt&&Date.parse(item.dueAt)>=Date.now()).map(item=>({id:item.id,title:item.title,start:item.dueAt!,kind:'plaud'}))].sort((a,b)=>Date.parse(a.start)-Date.parse(b.start))
@@ -46,7 +47,7 @@ export function IntelligenceCenter(seed:Seed) {
       <a className={styles.stat} href="/office/eingangsrechnungen"><Ring icon={FileText} color="#80f48e"/><div className={styles.statText}><strong>{office?.connected?office.pending:'—'}</strong><b>Belege</b><small>Zur Prüfung</small><Spark color="#80f48e"/></div></a>
     </section>
     {error?<p role="status" className={styles.error}>{error}</p>:null}
-    {overview?.reconnect?<p className={styles.caption}>Kalenderverbindung erforderlich. <Link href="/microsoft">Kalender verbinden →</Link></p>:null}
+    {overview?.reconnect?<p className={styles.caption}>Kalenderverbindung erforderlich. <Link href="/mail?view=settings">Kalender verbinden →</Link></p>:null}
     <div className={styles.lowerGrid}><section className={styles.agenda}><div className={styles.sectionTop}><h2><Target size={21}/>Dein nächster Schritt</h2><button className={styles.refresh} onClick={()=>void refresh()} disabled={busy} aria-label="Überblick aktualisieren"><RefreshCw size={16}/></button></div><Link href={next?'/calendar':due?'/assistant':seed.draftProjects.length?'/expose':'/projects'} className={styles.agendaContent}><Ring icon={CalendarDays} color="#83f167"/><div className={styles.agendaInfo}><strong>{next?next.title:due?due.title:seed.draftProjects.length?'Exposé-Entwurf prüfen':'Projekte im Blick behalten'}</strong><small>{next?`${day(next.start)} · ${time(next.start)} · Vorbereitung öffnen`:due?`Fällig: ${day(due.dueAt!)} · Erinnerung öffnen`:seed.draftProjects.length?`${seed.draftProjects.length} Projekte mit gespeicherten Entwürfen`:'Keine offenen Termine geladen · Projektübersicht öffnen'}</small></div><CalendarArtwork time={next?time(next.start):'EMA'}/></Link></section><ConnectedAreas/></div>
     {seed.dataWarning?<p className={styles.error}>Einige Aufgaben oder Projektinformationen konnten nicht geladen werden.</p>:null}
     <details className={styles.details}><summary>Projekte & offene Aufgaben</summary><ul>{seed.projects.map(project=><li key={project.id}><Link href={`/projects/${project.id}/overview`}>{project.name}{project.incomplete?' · Standort ergänzen':''}</Link></li>)}</ul><div className={styles.footerLink}><Link href="/projects/new">+ Neues Projekt</Link><Link href="/tasks">Aufgaben & Erinnerungen</Link><Link href="/project-import">Datei importieren</Link><Link href="/partner-submissions">Einreichungen</Link></div></details>

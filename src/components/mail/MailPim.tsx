@@ -1,5 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { listenForEmaChanges } from "@/lib/ema/updates";
+import { officeDirectory, mergedDirectory, type DirectoryContact } from "@/lib/ema/office-directory";
+import { LegacyCalendarImport } from "./LegacyCalendarImport";
 import { MailDialog } from "./MailDialog";
 import s from "./mail.module.css";
 import { MailCalendarMonth } from "./MailCalendarMonth";
@@ -9,6 +12,7 @@ type Item = {
   readOnly?: boolean;
   canDelete?: boolean;
   sharedBy?: string;
+  officeHref?: string;
   subject?: string;
   displayName?: string;
   emailAddresses?: { address: string }[];
@@ -104,12 +108,14 @@ const samples: Record<Mode, Item[]> = {
 export function MailPim({
   mode,
   demo,
+  cacheUser,
   demoRecords,
   onDemoChange,
   onContactsChanged,
   onCalendarChanged,
 }: {
   mode: Mode;
+  cacheUser?: string;
   demo: boolean;
   demoRecords?: Item[];
   onDemoChange?: (items: Item[]) => void;
@@ -126,6 +132,15 @@ export function MailPim({
     [fields, setFields] = useState<Record<string, string>>({}),
     [completed, setCompleted] = useState(false),
     [requestId, setRequestId] = useState("");
+  const [officeContacts,setOfficeContacts]=useState<DirectoryContact[]>([]);
+  const [officeNotice,setOfficeNotice]=useState('');
+  useEffect(()=>{
+    if(mode!=='contacts'||demo)return;
+    const controller=new AbortController();
+    void officeDirectory(controller.signal).then(items=>{if(!controller.signal.aborted){setOfficeContacts(items);setOfficeNotice('');}}).catch(()=>{if(!controller.signal.aborted)setOfficeNotice('Office-Kontakte sind derzeit nicht verbunden.');});
+    return()=>controller.abort();
+  },[mode,demo]);
+  const directory = mode==='contacts' ? mergedDirectory(items,officeContacts) as Item[] : items;
   const [month, setMonth] = useState(
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
@@ -209,6 +224,14 @@ export function MailPim({
     void load();
     return invalidateLoad;
   }, [load, invalidateLoad]);
+  useEffect(()=>{
+    if(demo)return;
+    return listenForEmaChanges(()=>{
+      if(busy||editor)return;
+      void load();
+      if(mode==='contacts'){const controller=new AbortController();void officeDirectory(controller.signal).then(setOfficeContacts).catch(()=>undefined);}
+    });
+  },[demo,mode,busy,editor,load]);
   async function edit(item?: Item) {
     if (mode === "calendar" && item?.id && !demo) {
       setBusy(true);
@@ -406,6 +429,7 @@ export function MailPim({
   }
   return (
     <>
+      {mode === "calendar" && !demo && cacheUser && <LegacyCalendarImport userId={cacheUser} onImported={() => { void load(); onCalendarChanged?.(); }}/>}
       {mode === "calendar" ? (
         <MailCalendarMonth
           month={month}
@@ -451,7 +475,8 @@ export function MailPim({
         </label>
       ) : null}
       {error ? <p role="status">{error}</p> : null}
-      {(mode === "calendar" ? [] : items)
+      {mode==='contacts' && officeNotice && <p role="status">{officeNotice} <a href="/office/kontakte">Office öffnen</a></p>}
+      {(mode === "calendar" ? [] : directory)
         .filter((i) => mode !== "tasks" || completed || !i.completed_at)
         .map((item) => (
           <article className={s.auxItem} key={item.id}>
@@ -465,11 +490,12 @@ export function MailPim({
             </small>
             {item.sharedBy ? <small>Geteilt von {item.sharedBy}</small> : null}
             <div className={s.aiActions}>
+              {item.officeHref && <a className={s.subtle} href={item.officeHref}>Geschäftsdaten in Office</a>}
               {mode === "tasks" ? (
                 <button disabled={busy} onClick={() => void toggleTask(item)}>
                   {item.completed_at ? "Wieder öffnen" : "Erledigen"}
                 </button>
-              ) : (
+              ) : item.id.startsWith('office:') ? null : (
                 <>
                   <button
                     disabled={

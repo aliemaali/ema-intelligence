@@ -1,4 +1,6 @@
 "use client";
+import { EMA_DATA_CHANNEL } from "@/lib/ema/updates";
+import { officeDirectory, mergedDirectory } from "@/lib/ema/office-directory";
 import { useEffect, useState } from 'react';
 import { contactNameIndex, loadNameContacts, type ContactNames, type NameContact } from '@/lib/mail/contact-names';
 import { MailSessionCache } from '@/lib/mail/session-cache';
@@ -19,11 +21,13 @@ export function useMailContactNames({demo,scope,revision,demoRecords}: {demo:boo
       if(inFlight || (!force && Date.now()-checkedAt<300000) || controller.signal.aborted)return;
       inFlight=true;
       try {
-        const contacts=await loadNameContacts(async path=>{
+        const officeRequest=officeDirectory(controller.signal).catch(()=>[]);
+        const personal=await loadNameContacts(async path=>{
           const response=await fetch('/api/mail/'+path,{cache:'no-store',signal:controller.signal});
           if(!response.ok)throw Object.assign(new Error('Kontakte nicht verfügbar.'),{status:response.status});
           return response.json();
         });
+        const contacts=mergedDirectory(personal,await officeRequest);
         if(controller.signal.aborted)return;
         // Persist only the fields needed for display, never phone numbers or other contact data.
         const minimal=contacts.map(contact=>({id:contact.id,displayName:contact.displayName,emailAddresses:contact.emailAddresses}));
@@ -38,9 +42,13 @@ export function useMailContactNames({demo,scope,revision,demoRecords}: {demo:boo
     };
     void refresh(true);
     const update=()=>{if(!document.hidden)void refresh();};
+    const invalidate=()=>{checkedAt=0;update();};
+    let channel:BroadcastChannel|undefined;
+    try{channel=new BroadcastChannel(EMA_DATA_CHANNEL);channel.onmessage=invalidate;}catch{}
+    window.addEventListener('ema:data-changed',invalidate);
     const timer=window.setInterval(update,300000);
-    window.addEventListener('focus',update);document.addEventListener('visibilitychange',update);
-    return ()=>{controller.abort();clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
+    window.addEventListener('focus',invalidate);document.addEventListener('visibilitychange',invalidate);
+    return ()=>{controller.abort();channel?.close();window.removeEventListener('ema:data-changed',invalidate);clearInterval(timer);window.removeEventListener('focus',invalidate);document.removeEventListener('visibilitychange',invalidate);};
   },[demo,scope,revision,demoRecords,cache]);
   return names;
 }

@@ -81,11 +81,13 @@ const fs = require("node:fs");
   await esbuild.build({ entryPoints: ["tests/mail-contact-names.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-contact-names.test.cjs" });
   await esbuild.build({ entryPoints: ["tests/mail-recipient-contacts.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-recipient-contacts.test.cjs" });
   await esbuild.build({ entryPoints: ["tests/mail-upcoming.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/mail-upcoming.test.cjs" });
+  await esbuild.build({ entryPoints: ["tests/ema-shared.test.ts"], bundle: true, platform: "node", format: "cjs", outfile: ".tmp/ema-shared.test.cjs" });
   const result = spawnSync(
     process.execPath,
     [
       "--test",
       ".tmp/mail-security.test.cjs",
+      ".tmp/ema-shared.test.cjs",
       ".tmp/mail-upcoming.test.cjs",
       ".tmp/mail-combined-inbox.test.cjs",
       ".tmp/mail-received.test.cjs",

@@ -16,7 +16,12 @@ export async function POST(request:Request){
     const input=parsed.data
     await Promise.all([assertProject(supabase,user.id,input.projectId),assertFolder(supabase,user.id,input.folderId)])
     const files=await loadAttachments(supabase,user.id,input.attachmentIds)
-    if(files.some(f=>f.project_id && f.project_id!==input.projectId))throw new CheckError('Eine Datei gehört zu einem anderen Projekt.',403)
+    const otherProjectFiles=files.filter(f=>f.project_id && f.project_id!==input.projectId)
+    if(otherProjectFiles.length){
+      if(!input.projectId)throw new CheckError('Bitte das Projekt der verknüpften Datei auswählen.',403)
+      const {data:links,error}=await supabase.from('dms_document_links').select('document_id').eq('user_id',user.id).eq('entity_type','project').eq('entity_id',input.projectId).in('document_id',otherProjectFiles.map(file=>file.id))
+      if(error || otherProjectFiles.some(file=>!links?.some(link=>link.document_id===file.id)))throw new CheckError('Eine Datei gehört zu einem anderen Projekt.',403)
+    }
     let version=1,checkId=randomUUID()
     if(input.previousReportId){const {data:previous}=await supabase.from('documents').select('ai_extracted_data,version').eq('id',input.previousReportId).eq('user_id',user.id).like('source_record_id','smart-check:%').eq('analysis_status','completed').maybeSingle();if(!previous || previous.ai_extracted_data?.kind!=='ema-smart-check')throw new CheckError('Vorherige Prüfung nicht gefunden.',404);version=previous.version+1;checkId=previous.ai_extracted_data.checkId}
     if(input.mode==='ai'){

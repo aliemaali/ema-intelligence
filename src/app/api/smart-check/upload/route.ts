@@ -13,8 +13,12 @@ export async function POST(request:Request){
     await Promise.all([assertProject(supabase,user.id,projectId),assertFolder(supabase,user.id,folderId)])
     const bytes=new Uint8Array(await file.arrayBuffer());validateFile(file.type,bytes)
     const sha=fingerprint(bytes)
-    const {data:existing}=await supabase.from('documents').select('id,file_name,mime_type').eq('user_id',user.id).eq('sha256',sha).eq('is_archived',false).like('file_path',`${user.id}/smart-check/%`).maybeSingle()
-    if(existing)return Response.json({document:existing},{headers:privateHeaders})
+    const {data:existing,error:lookupError}=await supabase.from('documents').select('id,file_name,mime_type').eq('user_id',user.id).eq('sha256',sha).eq('is_archived',false).in('storage_bucket',['ema-dms','project-documents','project-imports','template-documents','contact-documents']).like('file_path',`${user.id}/%`).order('created_at',{ascending:true}).limit(1).maybeSingle()
+    if(lookupError)throw new Error('Vorhandene Originaldatei konnte nicht geprüft werden')
+    if(existing){
+      if(projectId){const {error}=await supabase.from('dms_document_links').upsert({user_id:user.id,document_id:existing.id,entity_type:'project',entity_id:projectId},{onConflict:'document_id,entity_type,entity_id'});if(error)throw new Error('Projektverknüpfung konnte nicht gespeichert werden')}
+      return Response.json({document:existing,reused:true},{headers:privateHeaders})
+    }
     const ext=file.type==='application/pdf'?'pdf':file.type==='image/png'?'png':'jpg'
     path=`${user.id}/smart-check/assets/${randomUUID()}.${ext}`
     const {error:uploadError}=await supabase.storage.from('ema-dms').upload(path,bytes,{contentType:file.type,upsert:false})

@@ -39,7 +39,7 @@ function serverFixture({authenticated=true,active=true,role='admin',mfa=false,fo
  const calls:any[]=[];const builder:any={select(){return this},eq(key:string,value:any){calls.push({key,value});return this},async maybeSingle(){return {data:foreign?null:{id:'project-a',role,is_active:active}}}};
  const supabase={auth:{async getUser(){return {data:{user:authenticated?{id:'user-a'}:null}}},mfa:{async getAuthenticatorAssuranceLevel(){return {data:{nextLevel:mfa?'aal2':'aal1',currentLevel:'aal1'}}}}},from(table:string){calls.push({table});return builder}};
  const source=readFileSync('src/lib/smart-check/server.ts','utf8').replace(/^import .*\n/gm,'').replaceAll('export ','');
- const api=new Function('createHash','createClient',stripTypeScriptTypes(source)+';return {checkContext,assertProject,assertFolder,sameOrigin,validateFile};')(createHash,async()=>supabase);
+ const api=new Function('createHash','createClient',stripTypeScriptTypes(source)+';return {checkContext,assertProject,assertFolder,sameOrigin,validateFile,loadAttachments};')(createHash,async()=>supabase);
  return {api,calls,supabase};
 }
 test('anonymous, suspended, partner and incomplete-MFA accounts are denied',async()=>{for(const options of [{authenticated:false},{active:false},{role:'partner'},{mfa:true}])await assert.rejects(serverFixture(options).api.checkContext());const f=serverFixture();assert.equal((await f.api.checkContext()).user.id,'user-a');});
@@ -243,4 +243,18 @@ test('open protection evidence asks for a specific accessible photo, not just re
  assert.match(result.criteria!.find(c=>c.id==='protection')!.nextStep,/Nahaufnahme.*lesbaren Beschriftungen/);
  assert.match(result.criteria!.find(c=>c.id==='protection')!.nextStep,/keine Abdeckungen öffnen/);
  assert.match(result.criteria!.find(c=>c.id==='metering')!.nextStep,/frontal näher aufnehmen/);
+});
+
+test('Smart Check reuses an owned central Office original and verifies bytes instead of requiring another file copy',async()=>{
+  const {api}=serverFixture();const bytes=Buffer.from('%PDF-1.7\n1 0 obj <<>> endobj');
+  const hash=createHash('sha256').update(bytes).digest('hex');
+  let doc={id:'original',user_id:'user-a',project_id:null,file_name:'technik.pdf',file_path:'user-a/office/original.pdf',mime_type:'application/pdf',file_size_bytes:bytes.length,sha256:hash,storage_bucket:'ema-dms'};
+  const calls:any[]=[];
+  const builder:any={select(){return this;},eq(key:string,value:unknown){calls.push({key,value});return this;},async in(){return {data:[doc],error:null};}};
+  const db:any={from(){return builder;},storage:{from(bucket:string){calls.push({bucket});return {async download(){return {data:new Blob([bytes]),error:null};}};}}};
+  assert.equal((await api.loadAttachments(db,'user-a',['original']))[0].id,'original');
+  assert.ok(calls.some(call=>call.key==='user_id'&&call.value==='user-a'));
+  assert.ok(calls.some(call=>call.bucket==='ema-dms'));
+  doc={...doc,file_path:'user-b/private.pdf'};await assert.rejects(api.loadAttachments(db,'user-a',['original']));
+  doc={...doc,file_path:'user-a/office/original.pdf',sha256:'changed'};await assert.rejects(api.loadAttachments(db,'user-a',['original']));
 });

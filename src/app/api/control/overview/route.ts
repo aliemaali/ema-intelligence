@@ -1,3 +1,4 @@
+import { EVENT_TITLE_EXPAND, personalEventTitle } from "@/lib/mail/event-title";
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getMicrosoftAccessToken } from '@/lib/microsoft/session'
@@ -17,11 +18,11 @@ export async function GET() {
   try { token = await getMicrosoftAccessToken(user.id) }
   catch { return NextResponse.json({ ...empty, connected: false, reconnect: true }, { headers }) }
   if (!token) return NextResponse.json({ ...empty, connected: false, reconnect: true }, { headers })
-  const params = new URLSearchParams({ startDateTime: new Date().toISOString(), endDateTime: new Date(Date.now()+7*86400000).toISOString(), '$top':'12', '$orderby':'start/dateTime', '$select':'id,subject,start,end,isCancelled' })
+  const params = new URLSearchParams({ startDateTime: new Date().toISOString(), endDateTime: new Date(Date.now()+7*86400000).toISOString(), '$expand':EVENT_TITLE_EXPAND, '$top':'12', '$orderby':'start/dateTime', '$select':'id,subject,start,end,isCancelled,responseStatus' })
   let events: { id: string; title: string; start: string; end: string }[] = [], calendarAvailable = true
   try {
-    const result = await graphFetch<{ value?: { id: string; subject?: string; isCancelled?: boolean; start?: { dateTime?: string }; end?: { dateTime?: string } }[] }>(token, `/me/calendarView?${params}`, { headers: { Prefer: 'outlook.timezone="UTC"' }, signal: AbortSignal.timeout(8000) })
-    events = (result.value || []).filter(event => !event.isCancelled && event.start?.dateTime).map(event => ({ id: event.id, title: event.subject || 'Termin', start: event.start!.dateTime!.replace(/Z?$/, 'Z'), end: (event.end?.dateTime || '').replace(/Z?$/, 'Z') }))
+    const result = await graphFetch<{ value?: { id: string; subject?: string; isCancelled?: boolean; responseStatus?: {response:string}; singleValueExtendedProperties?: {id:string;value:string}[]; start?: { dateTime?: string }; end?: { dateTime?: string } }[] }>(token, `/me/calendarView?${params}`, { headers: { Prefer: 'outlook.timezone="UTC"' }, signal: AbortSignal.timeout(8000) })
+    events = (result.value || []).map(personalEventTitle).filter(event => !event.isCancelled && event.responseStatus?.response!=='declined' && event.start?.dateTime).map(event => ({ id: event.id, title: event.subject || 'Termin', start: event.start!.dateTime!.replace(/Z?$/, 'Z'), end: (event.end?.dateTime || '').replace(/Z?$/, 'Z') }))
   } catch { calendarAvailable = false }
   return NextResponse.json({ ...empty, connected: true, reconnect: false, events, calendarAvailable, updatedAt: new Date().toISOString() }, { headers })
 }

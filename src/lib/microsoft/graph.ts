@@ -102,13 +102,14 @@ export async function refreshMicrosoftToken(refreshToken: string) {
 }
 
 export async function graphFetch<T>(accessToken: string, path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  headers.set('Content-Type', 'application/json');
+  const prefer = headers.get('Prefer') || '';
+  if (!/IdType=/i.test(prefer)) headers.set('Prefer', [prefer, 'IdType="ImmutableId"'].filter(Boolean).join(', '));
   const response = await fetch(path.startsWith('https://') ? path : `https://graph.microsoft.com/v1.0${path}`, {
     ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
+    headers,
     cache: 'no-store',
   })
 

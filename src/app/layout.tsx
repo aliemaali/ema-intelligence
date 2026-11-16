@@ -1,10 +1,10 @@
+import { SharedDataRefresh } from "@/components/SharedDataRefresh";
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { ThemeRuntime } from '@/components/ThemeRuntime'
 import { themeInitScript } from '@/lib/theme-init'
 import { Toaster } from 'sonner'
 import { AuthProvider } from '@/lib/hooks/useAuth'
-import { DashboardCalendarShortcut } from '@/components/calendar/DashboardCalendarShortcut'
 import { DashboardTemplateShortcut } from '@/components/templates/DashboardTemplateShortcut'
 import { EmaVoiceGate } from '@/components/layout/EmaVoiceGate'
 import '@/styles/globals.css'
@@ -56,11 +56,10 @@ export default function RootLayout({
     <html lang="de" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeInitScript }} /></head>
       <body className={`${inter.variable} premium-root font-sans antialiased`}>
-        <ThemeRuntime>
+        <ThemeRuntime><SharedDataRefresh />
           <AuthProvider>
             {children}
             <EmaVoiceGate />
-            <DashboardCalendarShortcut />
             <DashboardTemplateShortcut />
             <Toaster
               position="top-center"

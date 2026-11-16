@@ -36,7 +36,7 @@ export const MORE_ITEMS: MenuEntry[] = [
     { label: 'Kontaktarchiv', href: '/archive/contacts', icon: Archive },
   ] },
   { label: 'Kommunikation', icon: Mail, children: [
-    { label: 'Microsoft 365', href: '/microsoft', icon: Mail },
+    { label: 'Gemeinsame Kontakte', href: '/microsoft', icon: Users },
     { label: 'Versandcenter', href: '/versandcenter', icon: Send },
   ] },
   { label: 'Einstellungen', icon: Settings, children: [

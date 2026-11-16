@@ -414,7 +414,7 @@ export function DataCenterAnalyzerForm() {
               if (file.size > 20 * 1024 * 1024) { uploadFailed = true; continue }
               const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
               const storagePath = `${user.id}/${result.projectId}/${crypto.randomUUID()}-${safeName}`
-              const { error } = await supabase.storage.from('project-documents').upload(storagePath, file, { contentType: file.type, upsert: false })
+              const { error } = await supabase.storage.from('ema-dms').upload(storagePath, file, { contentType: file.type, upsert: false })
               if (error) { uploadFailed = true; continue }
               const record = await createDocumentRecord({
                 projectId: result.projectId,

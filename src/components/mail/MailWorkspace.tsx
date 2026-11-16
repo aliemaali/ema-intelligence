@@ -1,4 +1,6 @@
 "use client";
+import { notifyEmaDataChanged } from "@/lib/ema/updates";
+import { EMA_ROUTES, type MailInitialView } from "@/lib/ema/routes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -152,7 +154,7 @@ const initials = (name: string) =>
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; cacheUser?: string; firstName?: string }) {
+export function MailWorkspace({ demo, cacheUser, firstName, initialView = "home" }: { demo: boolean; cacheUser?: string; firstName?: string; initialView?: MailInitialView }) {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   useEffect(() => {
     try {
@@ -184,7 +186,8 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
   const [accounts, setAccounts] = useState<Account[]>(demo ? demoAccounts : []);
   const [mailbox, setMailbox] = useState("me"),
     [folder, setFolder] = useState("inbox"),
-    [view, setView] = useState<View>("home");
+    [view, setView] = useState<View>(initialView);
+  useEffect(() => { setView(initialView); }, [initialView]);
   const [messages, setMessages] = useState<Message[]>(demo ? demoMessages : []),
     [selected, setSelected] = useState<Message | null>(
       demo ? demoMessages[0] : null,
@@ -688,6 +691,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
           id: selected.id,
           attachmentId: file.id,
         });
+        notifyEmaDataChanged();
         setNotice(
           result.duplicate
             ? "Dokument liegt bereits im DMS."
@@ -924,6 +928,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
     }
   }
   function navigate(next: View) {
+    if(next==='tasks'&&!demo){window.location.assign(EMA_ROUTES.tasks);return;}
     detailVersion.current++;
     setView(next); setNavOpen(false); setReading(false);
     if (next === "mail") { setFolder("inbox"); setFilter("all"); setQ(""); }
@@ -1725,8 +1730,9 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
               </>
             ) : (
               <MailPim
-                onCalendarChanged={() => { dashboardCache.invalidate(); setOverviewRevision(value => value + 1); }}
-                onContactsChanged={() => setContactRevision(value => value + 1)}
+                cacheUser={cacheUser}
+                onCalendarChanged={() => { notifyEmaDataChanged(); dashboardCache.invalidate(); setOverviewRevision(value => value + 1); }}
+                onContactsChanged={() => { notifyEmaDataChanged(); setContactRevision(value => value + 1); }}
                 key={view}
                 mode={view}
                 demo={demo}

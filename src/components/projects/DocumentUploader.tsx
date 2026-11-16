@@ -3,6 +3,8 @@
 import { useState, useRef, useTransition } from 'react'
 import { Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import {findDmsDuplicate,linkDmsDocumentToProject} from '@/lib/actions/dms.actions'
+import {notifyEmaDataChanged} from '@/lib/ema/updates'
 import { createDocumentRecord } from '@/lib/actions/document.actions'
 import { LoadingSpinner } from '@/components/ui'
 import { DOCUMENT_TYPE_LABELS } from '@/lib/types/constants'
@@ -41,6 +43,14 @@ export function DocumentUploader({ projectId, userId }: DocumentUploaderProps) {
     setUploading(true)
 
     try {
+      if(file.size<=0||file.size>52_428_800)throw new Error('Datei darf maximal 50 MB groß sein.');
+      const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))).map(value=>value.toString(16).padStart(2,'0')).join('');
+      const existing=await findDmsDuplicate(hash);
+      if(existing.error)throw new Error(existing.error);
+      if(existing.document){
+        const linked=await linkDmsDocumentToProject(existing.document.id,projectId);if(linked.error)throw new Error(linked.error);
+        notifyEmaDataChanged();toast.success('Vorhandenes Original mit dem Projekt verknüpft.');setFile(null);setDisplayName('');return;
+      }
       // Storage path: {userId}/{projectId}/{timestamp}_{filename}
       const ext       = file.name.split('.').pop()
       const timestamp = Date.now()
@@ -48,7 +58,7 @@ export function DocumentUploader({ projectId, userId }: DocumentUploaderProps) {
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from('project-documents')
+        .from('ema-dms')
         .upload(storagePath, file, {
           cacheControl: '3600',
           upsert:       false,
@@ -73,16 +83,16 @@ export function DocumentUploader({ projectId, userId }: DocumentUploaderProps) {
       if (result.error) {
         toast.error(result.error)
         // Clean up storage if DB insert failed
-        await supabase.storage.from('project-documents').remove([storagePath])
+        await supabase.storage.from('ema-dms').remove([storagePath])
         return
       }
 
-      toast.success('Dokument hochgeladen')
+      notifyEmaDataChanged();toast.success(result.duplicate?'Vorhandenes Original mit dem Projekt verknüpft.':'Dokument zentral gespeichert.')
       setFile(null)
       setDisplayName('')
       setDocType('sonstiges')
 
-    } finally {
+    } catch(error){toast.error(error instanceof Error?error.message:'Dokument konnte nicht gespeichert werden.');} finally {
       setUploading(false)
     }
   }

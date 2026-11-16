@@ -1,3 +1,5 @@
+import { legacyCalendarEvent, legacyEventTimes, LEGACY_CALENDAR_PROPERTY } from "@/lib/ema/legacy-calendar";
+import { emaContactsPage } from "@/lib/ema/contacts";
 import { EVENT_TITLE_PROPERTY, EVENT_TITLE_EXPAND, personalEventTitle } from "@/lib/mail/event-title";
 import { withInvitation } from "@/lib/mail/invitation-server";
 import { isInvitation } from "@/lib/mail/invitations";
@@ -1203,6 +1205,32 @@ async function handle(request: NextRequest) {
         throw new MailError(502, "Erinnerung konnte nicht angelegt werden.");
       return json({ reminder: data }, 201);
     }
+    if (action === "calendar-import" && mutating) {
+      const value=z.object({events:z.array(legacyCalendarEvent).min(1).max(10),confirmed:z.literal(true)}).strict().parse(input);
+      const {token:ownToken}=await mailboxAccess(session,"me","write");
+      const results=await Promise.all(value.events.map(async event=>{
+        try {
+          const times=legacyEventTimes(event);
+          if(event.projectId)await visibleProject(session,event.projectId);
+          const filter=`singleValueExtendedProperties/Any(ep: ep/id eq '${LEGACY_CALENDAR_PROPERTY}' and ep/value eq '${event.id}')`;
+          const found=await mailGraph<{value:{id:string}[]}>(ownToken,`/me/events?${new URLSearchParams({$filter:filter,$select:'id',$top:'1'})}`,{},"/me");
+          if(found.value?.[0]?.id)return {id:event.id,eventId:found.value[0].id,existing:true};
+          const hash=createHash('sha256').update(`${session.user.id}:calendar-import:${event.id}`).digest('hex');
+          const transactionId=`${hash.slice(0,8)}-${hash.slice(8,12)}-5${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
+          const reminder={none:0,'15m':15,'1h':60,'1d':1440,'3d':4320,'7d':10080}[event.reminder];
+          await audit(session.user.id,"legacy_calendar_import",event.id);
+          const item=await mailGraph<{id:string}>(ownToken,"/me/events",{method:"POST",body:JSON.stringify({
+            subject:event.title,start:{dateTime:times.start,timeZone:"UTC"},end:{dateTime:times.end,timeZone:"UTC"},
+            transactionId,attendees:[],isOnlineMeeting:false,isReminderOn:reminder>0,reminderMinutesBeforeStart:reminder,
+            body:{contentType:"Text",content:event.projectId?`EMA-Projekt: /projects/${event.projectId}/overview`:"Aus dem früheren EMA-Gerätekalender übernommen."},
+            singleValueExtendedProperties:[{id:LEGACY_CALENDAR_PROPERTY,value:event.id}],
+          })},"/me");
+          if(!item?.id)throw new Error('Missing confirmation');
+          return {id:event.id,eventId:item.id,existing:false};
+        }catch{return {id:event.id,error:"Übernahme nicht bestätigt. Original bleibt erhalten."};}
+      }));
+      return json({results});
+    }
     if (action === "event-title" && mutating) {
       const values = z.object({ id: resourceId, title: z.string().trim().min(1).max(250), confirmed: z.literal(true) }).strict().parse(input);
       const { token: ownToken } = await mailboxAccess(session, "me", "write");
@@ -1243,41 +1271,7 @@ async function handle(request: NextRequest) {
       });
     }
     if (action === "contacts" && !mutating) {
-      if (canReadAliContacts(session.user.id)) {
-        const sharedAccess = await sharedContactAccess(session);
-        return json(await sharedContactsPage({
-          userId: session.user.id,
-          cursor: request.nextUrl.searchParams.get('cursor'),
-          secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          getPage: async (source, path) => mailGraph(
-            source === 'personal' ? token : sharedAccess.token,
-            path,
-          ),
-        }));
-      }
-
-      const cursor = request.nextUrl.searchParams.get("cursor");
-      const scope = JSON.stringify([session.user.id,'me','contacts']);
-      const secret = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-      let path = '/me/contacts?$top=100&$select=id,displayName,emailAddresses,businessPhones,companyName';
-      if(cursor) {
-        try {
-          const url = new URL(cursor.startsWith('https://') ? safeGraphUrl(cursor,'/me') : safeGraphUrl(openDeltaCursor(cursor,scope,secret)));
-          if(cursor.startsWith('https://') ? url.pathname !== '/v1.0/me/contacts' : !/^\/v1\.0\/(?:me|users\/[^/]+)\/contacts$/.test(url.pathname)) throw new Error('Invalid contact page');
-          path = url.href;
-        } catch { throw new MailError(400,'Ungültige Kontaktseite.'); }
-      }
-      const result = await mailGraph<{value: unknown[]; '@odata.nextLink'?: string}>(
-        token,
-        path,
-      );
-      let next: string | undefined;
-      if(result['@odata.nextLink']) {
-        const url = new URL(safeGraphUrl(result['@odata.nextLink']!));
-        if(!/^\/v1\.0\/(?:me|users\/[^/]+)\/contacts$/.test(url.pathname)) throw new MailError(502,'Ungültige Microsoft-Kontaktseite.');
-        next=sealDeltaCursor(url.href,scope,secret);
-      }
-      return json({...result,'@odata.nextLink':next});
+      return json(await emaContactsPage(session, token, request.nextUrl.searchParams.get("cursor")));
     }
     if (action === "calendar" && !mutating) {
       const requestedStart = request.nextUrl.searchParams.get("start");
@@ -1307,24 +1301,26 @@ async function handle(request: NextRequest) {
         $select:
           "id,subject,start,end,location,attendees,bodyPreview,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider,isCancelled,responseStatus",
       });
-      const cursor = request.nextUrl.searchParams.get("cursor");
-      if (cursor) {
-        const page = new URL(safeGraphUrl(cursor, root));
-        if (
-          page.pathname !== `/v1.0${root}/calendarView` ||
-          !requestedStart ||
-          Date.parse(page.searchParams.get("startDateTime") || "") !==
-            start.getTime() ||
-          Date.parse(page.searchParams.get("endDateTime") || "") !==
-            end.getTime()
-        )
-          throw new MailError(
-            400,
-            "Ungültige Kalenderseite oder abweichender Zeitraum.",
-          );
+      const cursor=request.nextUrl.searchParams.get("cursor");
+      const scope=JSON.stringify([session.user.id,mailbox,'calendar',start.toISOString(),end.toISOString()]);
+      const secret=process.env.SUPABASE_SERVICE_ROLE_KEY!;
+      const validatePage=(link:string)=>{
+        const page=new URL(safeGraphUrl(link));
+        if(!/^\/v1\.0\/(?:me|users\/[^/]+)\/calendarView$/.test(page.pathname) ||
+          Date.parse(page.searchParams.get('startDateTime')||'')!==start.getTime() ||
+          Date.parse(page.searchParams.get('endDateTime')||'')!==end.getTime())throw new MailError(400,'Ungültige Kalenderseite oder abweichender Zeitraum.');
+        return page.href;
+      };
+      let path=`${root}/calendarView?${params}`;
+      if(cursor){
+        if(!requestedStart || !requestedEnd)throw new MailError(400,'Kalenderzeitraum für Folgeseite fehlt.');
+        try{
+          path=validatePage(cursor.startsWith('https://')?safeGraphUrl(cursor,root):openDeltaCursor(cursor,scope,secret));
+        }catch{throw new MailError(400,'Ungültige Kalenderseite oder abweichender Zeitraum.');}
       }
-      const result = await mailGraph<{ value?: { subject?: string; singleValueExtendedProperties?: { id: string; value: string }[] }[]; '@odata.nextLink'?: string }>(token, cursor || `${root}/calendarView?${params}`, {}, root);
-      return json({ ...result, value: (result.value || []).map(personalEventTitle) });
+      const result=await mailGraph<{value?:{subject?:string;singleValueExtendedProperties?:{id:string;value:string}[]}[];'@odata.nextLink'?:string}>(token,path,{},cursor?undefined:root);
+      const next=result['@odata.nextLink']?sealDeltaCursor(validatePage(result['@odata.nextLink']),scope,secret):undefined;
+      return json({...result,value:(result.value||[]).map(personalEventTitle),'@odata.nextLink':next});
     }
     throw new MailError(404, "Unbekannte Mail-Funktion.");
   } catch (error) {

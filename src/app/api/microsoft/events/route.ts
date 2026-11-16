@@ -1,3 +1,4 @@
+import { EVENT_TITLE_EXPAND, personalEventTitle } from "@/lib/mail/event-title";
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { graphFetch } from '@/lib/microsoft/graph'
@@ -24,8 +25,9 @@ export async function GET(request: NextRequest) {
     query.searchParams.set('startDateTime', start)
     query.searchParams.set('endDateTime', end)
     query.searchParams.set('$top', '250')
+    query.searchParams.set('$expand', EVENT_TITLE_EXPAND)
     query.searchParams.set('$orderby', 'start/dateTime')
-    query.searchParams.set('$select', 'id,subject,start,end,location,attendees,isOnlineMeeting,onlineMeeting,webLink,bodyPreview')
+    query.searchParams.set('$select', 'id,subject,start,end,location,attendees,isOnlineMeeting,onlineMeeting,webLink,bodyPreview,isCancelled,responseStatus')
 
     const rawEvents: any[] = []
     let nextPage: string | undefined = query.toString()
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
       pageCount += 1
     }
 
-    const events = rawEvents.map((event) => ({
+    const events = rawEvents.map(personalEventTitle).filter(event => !event.isCancelled && event.responseStatus?.response !== 'declined').map((event) => ({
       id: event.id,
       title: event.subject || 'Termin',
       start: event.start?.dateTime || '',
@@ -62,69 +64,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const accessToken = await authenticatedToken()
-    if (!accessToken) return NextResponse.json({ error: 'Microsoft nicht verbunden' }, { status: 401 })
-
-    const body = await request.json()
-    const title = String(body.title || '').trim()
-    const start = String(body.start || '').trim()
-    const end = String(body.end || '').trim()
-    const attendees = Array.isArray(body.attendees) ? body.attendees.map(String).map((email: string) => email.trim()).filter(Boolean) : []
-
-    if (!title || !start || !end) {
-      return NextResponse.json({ error: 'Titel, Beginn und Ende sind erforderlich.' }, { status: 400 })
-    }
-    if (new Date(end).getTime() <= new Date(start).getTime()) {
-      return NextResponse.json({ error: 'Das Terminende muss nach dem Beginn liegen.' }, { status: 400 })
-    }
-
-    const project = String(body.project || '').trim()
-    const notes = String(body.notes || '').trim()
-    const description = [project ? `EMA-Projekt: ${project}` : '', notes].filter(Boolean).join('\n\n')
-    const isOnlineMeeting = body.isOnlineMeeting !== false
-    const requestedReminder = Number(body.reminderMinutes)
-    const reminderMinutes = Number.isFinite(requestedReminder)
-      ? Math.min(Math.max(Math.round(requestedReminder), 0), 40320)
-      : null
-
-    const eventPayload = {
-      subject: title,
-      body: { contentType: 'Text', content: description || 'Erstellt über EMA Intelligence.' },
-      start: { dateTime: start, timeZone: 'Europe/Berlin' },
-      end: { dateTime: end, timeZone: 'Europe/Berlin' },
-      location: { displayName: String(body.location || '').trim() },
-      attendees: attendees.map((email: string) => ({
-        emailAddress: { address: email },
-        type: 'required',
-      })),
-      allowNewTimeProposals: true,
-      isOnlineMeeting,
-      ...(reminderMinutes !== null ? {
-        isReminderOn: reminderMinutes > 0,
-        reminderMinutesBeforeStart: reminderMinutes,
-      } : {}),
-      ...(isOnlineMeeting ? { onlineMeetingProvider: 'teamsForBusiness' } : {}),
-    }
-
-    const event = await graphFetch<any>(accessToken, '/me/events', {
-      method: 'POST',
-      headers: { Prefer: 'outlook.timezone="Europe/Berlin"' },
-      body: JSON.stringify(eventPayload),
-    })
-
-    return NextResponse.json({
-      event: {
-        id: event.id,
-        title: event.subject,
-        start: event.start?.dateTime,
-        end: event.end?.dateTime,
-        joinUrl: event.onlineMeeting?.joinUrl || '',
-        webLink: event.webLink || '',
-      },
-    }, { status: 201 })
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Termin konnte nicht erstellt werden.' }, { status: 502 })
-  }
+export async function POST() {
+  return NextResponse.json({error:'Termine bitte im gemeinsamen EMA-Kalender anlegen.',destination:'/mail?view=calendar'},{status:410,headers:{'Cache-Control':'private, no-store'}})
 }

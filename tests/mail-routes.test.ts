@@ -1183,7 +1183,7 @@ test("scheduled dispatcher ignores legacy followups and creates no reminders", a
   assert.equal(rows.ema_mail_followups[0].state, "pending");
   assert.ok(!rows.ema_reminders?.length);
 });
-test("project documents include only own linked DMS records when mail is enabled", async () => {
+test("project documents use the central DMS independently of the mail feature", async () => {
   reset();
   const projectId = "33333333-3333-4333-8333-333333333333";
   rows.documents = [
@@ -1230,7 +1230,7 @@ test("project documents include only own linked DMS records when mail is enabled
   process.env.EMA_MAIL_ENABLED = "false";
   assert.deepEqual(
     (await getDocuments(projectId)).map((d) => d.id),
-    ["direct"],
+    ["linked", "direct"],
   );
 });
 
@@ -2121,4 +2121,93 @@ test('Intelligence overview requires authentication and handles disconnected cal
 test('legacy project email page leads to the standalone mail app',async()=>{
   const {default:page}=await import('../src/app/projects/[id]/mail/page');
   assert.throws(()=>page(),/Redirect: \/mail/);
+});
+
+test('legacy calendar and contacts pages open the owning app rather than independent editors',async()=>{
+  const {default:calendar}=await import('../src/app/calendar/page');
+  const {default:contacts}=await import('../src/app/microsoft/page');
+  assert.throws(()=>calendar(),/Redirect: \/mail\?view=calendar/);
+  assert.throws(()=>contacts(),/Redirect: \/mail\?view=contacts/);
+});
+test('legacy calendar import uses a durable source marker and deterministic transaction ID, no attendees',async()=>{
+  reset();const event={id:'12345678-1234-4234-8234-123456789abc',title:'Besprechung',date:'2026-11-17',time:'15:30',endTime:'16:00',reminder:'1d'};
+  const calls:{url:string;init?:RequestInit}[]=[];
+  globalThis.fetch=async(input,init)=>{calls.push({url:String(input),init});return Response.json(init?.method==='POST'?{id:'shared-event'}:{value:[]});};
+  const first=await POST(req('calendar-import',{events:[event],confirmed:true}));assert.equal(first.status,200);
+  assert.equal((await first.json()).results[0].eventId,'shared-event');
+  const payload=JSON.parse(String(calls[1].init?.body));
+  assert.equal(payload.start.dateTime,'2026-11-17T14:30:00.000Z');assert.deepEqual(payload.attendees,[]);
+  assert.equal(payload.singleValueExtendedProperties[0].value,event.id);assert.equal(payload.reminderMinutesBeforeStart,1440);
+  assert.match(payload.transactionId,/^[a-f0-9-]{36}$/);
+  calls.length=0;
+  await POST(req('calendar-import',{events:[event],confirmed:true}));
+  assert.equal(JSON.parse(String(calls[1].init?.body)).transactionId,payload.transactionId);
+});
+test('repeated legacy imports find the existing Microsoft event without creating another',async()=>{
+  reset();let posts=0;
+  globalThis.fetch=async(_input,init)=>{if(init?.method==='POST')posts++;return Response.json({value:[{id:'already-imported'}]});};
+  const response=await POST(req('calendar-import',{events:[{id:'12345678-1234-4234-8234-123456789abc',title:'Besprechung',date:'2026-11-17',time:'15:30'}],confirmed:true}));
+  assert.equal(response.status,200);assert.equal((await response.json()).results[0].eventId,'already-imported');assert.equal(posts,0);
+});
+test('unconfirmed migration does not write and failed imports never report success',async()=>{
+  reset();let count=0;globalThis.fetch=async()=>{count++;return new Response(null,{status:403});};
+  const events=[{id:'12345678-1234-4234-8234-123456789abc',title:'Besprechung',date:'2026-11-17',time:'15:30'}];
+  assert.equal((await POST(req('calendar-import',{events,confirmed:false}))).status,400);assert.equal(count,0);
+  const response=await POST(req('calendar-import',{events,confirmed:true}));assert.equal(response.status,200);
+  const result=(await response.json()).results[0];assert.equal(result.eventId,undefined);assert.ok(result.error);
+});
+test('project document links resolve the real central storage bucket, not the former project-only bucket',async()=>{
+  reset();const {getDocumentUrl}=await import('../src/lib/actions/document.actions');
+  rows.documents=[{id:'office-original',user_id:uid,is_archived:false,file_path:'own/file.pdf',storage_bucket:'ema-dms'},
+    {id:'foreign',user_id:'foreign',is_archived:false,file_path:'other/file.pdf',storage_bucket:'foreign-bucket'}];
+  const buckets:string[]=[];globalThis.__mailFixture.db.storage={from:(bucket:string)=>{buckets.push(bucket);return {createSignedUrl:async()=>({data:{signedUrl:'https://example.test/signed'},error:null})};}};
+  assert.equal((await getDocumentUrl('own/file.pdf')).url,'https://example.test/signed');assert.deepEqual(buckets,['ema-dms']);
+});
+
+test('shared calendar pagination follows Microsoft canonical aliases but binds cursors to user, mailbox and range',async()=>{
+  reset();const query=new URLSearchParams({mailbox:'me',start:'2026-11-16T00:00:00Z',end:'2026-12-16T00:00:00Z'});
+  const next='https://graph.microsoft.com/v1.0/users/canonical/calendarView?'+new URLSearchParams({startDateTime:query.get('start')!,endDateTime:query.get('end')!,$skiptoken:'next'});
+  let requested='';globalThis.fetch=async input=>{requested=String(input);return Response.json({value:[],'@odata.nextLink':next});};
+  const first=await GET(new NextRequest(`https://ema.example/api/mail/calendar?${query}`));assert.equal(first.status,200);
+  const cursor=(await first.json())['@odata.nextLink'];assert.ok(cursor);assert.ok(!cursor.startsWith('https://'));
+  query.set('cursor',cursor);assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/calendar?${query}`))).status,200);
+  assert.ok(requested.includes('/users/canonical/calendarView'));
+  query.set('end','2026-12-17T00:00:00Z');assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/calendar?${query}`))).status,400);
+});
+
+test('legacy contact reads use the same canonical contact IDs as the Mail address book',async()=>{
+  reset();const {GET:legacy}=await import('../src/app/api/microsoft/contacts/route');
+  globalThis.fetch=async()=>Response.json({value:[{id:'shared-id',displayName:'Person',emailAddresses:[{address:'person@example.com'}],businessPhones:[]}]});
+  const canonical=await GET(new NextRequest('https://ema.example/api/mail/contacts'));
+  const old=await legacy(new NextRequest('https://ema.example/api/microsoft/contacts'));
+  assert.equal(old.status,200);assert.equal((await old.json()).contacts[0].id,(await canonical.json()).value[0].id);
+});
+test('all Microsoft readers request immutable identities while preserving their required timezone',async()=>{
+  reset();const {graphFetch}=await import('../src/lib/microsoft/graph');let prefer='';
+  globalThis.fetch=async(_input,init)=>{prefer=new Headers(init?.headers).get('Prefer')||'';return Response.json({value:[]});};
+  await graphFetch('test','/me/calendarView',{headers:{Prefer:'outlook.timezone="UTC"'}});
+  assert.ok(prefer.includes('IdType="ImmutableId"'));assert.ok(prefer.includes('outlook.timezone="UTC"'));
+});
+
+
+test('project upload verifies actual bytes and reuses the same central original by hash',async()=>{
+  reset();const {createDocumentRecord}=await import('../src/lib/actions/document.actions');
+  const {createHash}=await import('node:crypto');const bytes=new Blob(['same central original']);
+  rows.projects=[{id,user_id:uid,is_archived:false}];
+  rows.documents=[{id,user_id:uid,is_archived:false,sha256:createHash('sha256').update('same central original').digest('hex'),file_path:`${uid}/office/original.pdf`,storage_bucket:'ema-dms'}];
+  const removed:string[]=[];
+  globalThis.__mailFixture.db.storage={from:()=>({download:async()=>({data:bytes,error:null}),remove:async(paths:string[])=>{removed.push(...paths);return {error:null};}})};
+  const result=await createDocumentRecord({projectId:id,displayName:'Projektdatei',fileName:'copy.pdf',filePath:`${uid}/new/copy.pdf`,fileSizeBytes:9999,mimeType:'application/pdf',documentType:'sonstiges'});
+  assert.equal(result.documentId,id);assert.equal(result.duplicate,true);assert.equal(rows.documents.length,1);
+  assert.equal(rows.dms_document_links[0].document_id,id);assert.equal(rows.dms_document_links[0].entity_id,id);
+  assert.deepEqual(removed,[`${uid}/new/copy.pdf`]);
+});
+test('project upload rejects another owner before storage access and project links cannot cross owners',async()=>{
+  reset();const {createDocumentRecord}=await import('../src/lib/actions/document.actions');
+  let reads=0;globalThis.__mailFixture.db.storage={from:()=>{reads++;throw new Error('must not read');}};
+  const result=await createDocumentRecord({projectId:id,displayName:'Fremd',fileName:'file.pdf',filePath:'other/file.pdf',fileSizeBytes:10,mimeType:'application/pdf',documentType:'sonstiges'});
+  assert.ok(result.error);assert.equal(reads,0);
+  const {linkDmsDocumentToProject}=await import('../src/lib/actions/dms.actions');
+  rows.projects=[{id,user_id:uid,is_archived:false}];rows.documents=[{id,user_id:'other',is_archived:false}];
+  assert.ok((await linkDmsDocumentToProject(id,id)).error);assert.equal(rows.dms_document_links,undefined);
 });

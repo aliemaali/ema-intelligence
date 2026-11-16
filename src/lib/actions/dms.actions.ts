@@ -12,6 +12,7 @@ const uploadSchema = z.object({
   fileSizeBytes: z.number().int().positive().max(52_428_800),
   mimeType: z.string().trim().min(1).max(160),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  storageBucket: z.enum(['ema-dms','project-documents']).default('ema-dms'),
   folderId: z.string().uuid().nullable().optional(),
   projectId: z.string().uuid().nullable().optional(),
   documentType: z.enum(['expose', 'lageplan', 'netzanschluss', 'pachtvertrag', 'genehmigung', 'gutachten', 'bild', 'nda', 'loi', 'spa', 'sonstiges']).default('sonstiges'),
@@ -89,7 +90,7 @@ export async function registerDmsUpload(input: z.input<typeof uploadSchema>) {
       file_path: values.filePath,
       file_size_bytes: values.fileSizeBytes,
       mime_type: values.mimeType,
-      storage_bucket: 'ema-dms',
+      storage_bucket: values.storageBucket,
       source_app: 'external',
       source_kind: values.isDataRoom ? 'data_room' : 'project',
       sha256: values.sha256,
@@ -228,4 +229,18 @@ export async function deleteDmsFolder(folderId: string) {
   if (!data) return { error: 'Ordner nicht gefunden.' }
   revalidateDms()
   return { success: true }
+}
+
+export async function linkDmsDocumentToProject(documentId:string,projectId:string) {
+  if(!z.string().uuid().safeParse(documentId).success||!z.string().uuid().safeParse(projectId).success)return {error:'Ungültige Dokument- oder Projektzuordnung.'};
+  const {supabase,user}=await requireUser();
+  const [{data:document,error:documentError},{data:project,error:projectError}]=await Promise.all([
+    supabase.from('documents').select('id,file_path,storage_bucket').eq('id',documentId).eq('user_id',user.id).eq('is_archived',false).maybeSingle(),
+    supabase.from('projects').select('id').eq('id',projectId).eq('user_id',user.id).eq('is_archived',false).maybeSingle(),
+  ]);
+  if(documentError||projectError||!document||!project)return {error:'Dokument oder Projekt ist nicht verfügbar.'};
+  const {error}=await supabase.from('dms_document_links').upsert({document_id:document.id,user_id:user.id,entity_type:'project',entity_id:project.id},{onConflict:'document_id,entity_type,entity_id'});
+  if(error)return {error:'Dokument konnte nicht mit dem Projekt verknüpft werden.'};
+  revalidateDms();revalidatePath(`/projects/${project.id}/documents`);
+  return {success:true,document};
 }

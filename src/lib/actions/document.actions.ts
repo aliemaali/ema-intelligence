@@ -1,8 +1,9 @@
 "use server";
 
+import {createHash} from "node:crypto";
+import {registerDmsUpload,linkDmsDocumentToProject} from "./dms.actions";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { isMailEnabled } from "@/lib/mail/model";
 import { createClient } from "@/lib/supabase/server";
 import type { DocumentType } from "@/lib/types/database.types";
 
@@ -32,14 +33,14 @@ export async function getDocuments(projectId: string) {
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
-  if (!isMailEnabled()) return data ?? [];
   const { data: links, error: linkError } = await supabase
     .from("dms_document_links")
     .select("document_id")
     .eq("user_id", userId)
     .eq("entity_type", "project")
     .eq("entity_id", projectId);
-  if (linkError || !links?.length) return data ?? [];
+  if (linkError) throw new Error("Dokumentverknüpfungen konnten nicht geladen werden.");
+  if (!links?.length) return data ?? [];
   const { data: linked, error: linkedError } = await supabase
     .from("documents")
     .select("*")
@@ -76,27 +77,24 @@ export async function createDocumentRecord(params: {
 }) {
   const { supabase, userId } = await requireUser();
 
-  // activity_log insert is handled by DB trigger on documents insert
-  const { data, error } = await supabase
-    .from("documents")
-    .insert({
-      project_id: params.projectId,
-      user_id: userId,
-      document_type: params.documentType,
-      display_name: params.displayName,
-      file_name: params.fileName,
-      file_path: params.filePath,
-      file_size_bytes: params.fileSizeBytes,
-      mime_type: params.mimeType,
-      version: 1,
-    } as never)
-    .select("id")
-    .single();
-
-  if (error) return { error: error.message };
-
+  if(!params.filePath.startsWith(`${userId}/`))return {error:'Ungültiger Speicherpfad.'};
+  let bucket:'ema-dms'|'project-documents'='ema-dms';
+  let downloaded=await supabase.storage.from(bucket).download(params.filePath);
+  if(downloaded.error||!downloaded.data){bucket='project-documents';downloaded=await supabase.storage.from(bucket).download(params.filePath);}
+  if(downloaded.error||!downloaded.data)return {error:'Originaldatei konnte nicht geprüft werden.'};
+  if(downloaded.data.size>52_428_800)return {error:'Datei darf maximal 50 MB groß sein.'};
+  const bytes=new Uint8Array(await downloaded.data.arrayBuffer());
+  const hash=createHash('sha256').update(bytes).digest('hex');
+  const result=await registerDmsUpload({projectId:params.projectId,displayName:params.displayName,fileName:params.fileName,filePath:params.filePath,fileSizeBytes:bytes.length,mimeType:params.mimeType||'application/octet-stream',documentType:params.documentType,sha256:hash,storageBucket:bucket});
+  if(result.error)return {error:result.error};
+  if(result.duplicate){
+    const linked=await linkDmsDocumentToProject(result.duplicate.id,params.projectId);
+    if(linked.error)return {error:linked.error};
+    if(linked.document && (linked.document.file_path!==params.filePath||linked.document.storage_bucket!==bucket))await supabase.storage.from(bucket).remove([params.filePath]);
+    return {success:true,documentId:result.duplicate.id,duplicate:true};
+  }
   revalidatePath(`/projects/${params.projectId}/documents`);
-  return { success: true, documentId: data.id };
+  return {success:true,documentId:result.documentId};
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,11 +105,12 @@ export async function getDocumentUrl(
   filePath: string,
   externalProvider?: string | null,
 ) {
-  const { supabase } = await requireUser();
-  const bucketName =
-    externalProvider === "project-imports"
-      ? "project-imports"
-      : "project-documents";
+  const { supabase, userId } = await requireUser();
+  const { data: document, error: recordError } = await supabase.from("documents")
+    .select("storage_bucket").eq("file_path", filePath).eq("user_id", userId)
+    .eq("is_archived", false).limit(1).maybeSingle();
+  if (recordError) return { error: "Dokumentzuordnung konnte nicht geprüft werden." };
+  const bucketName = document?.storage_bucket || (externalProvider === "project-imports" ? "project-imports" : "project-documents");
 
   const { data, error } = await supabase.storage
     .from(bucketName)

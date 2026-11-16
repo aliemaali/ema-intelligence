@@ -1,4 +1,5 @@
 "use client";
+import { officeDirectory, mergedDirectory } from "@/lib/ema/office-directory";
 import { useEffect, useRef, useState } from "react";
 import { UserPlus } from "lucide-react";
 import { MailDialog } from "./MailDialog";
@@ -50,8 +51,9 @@ function SenderContactDialog({ sender, displayName, demo, demoContacts, onSaved,
             if (!response.ok) throw new Error("Kontakte konnten nicht geprüft werden. Bitte erneut versuchen.");
             return response.json();
           });
+        const directory=demo?contacts:mergedDirectory(contacts,await officeDirectory(controller.signal).catch(()=>[]));
         if (!controller.signal.aborted) {
-          setExisting(contacts.find(contact => contact.emailAddresses?.some(email =>
+          setExisting(directory.find(contact => contact.emailAddresses?.some(email =>
             email.address?.trim().toLowerCase() === sender.address.trim().toLowerCase())) || null);
           setChecking(false);
         }
