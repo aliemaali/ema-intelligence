@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  Pencil,
   CalendarDays,
   Video,
 } from "lucide-react";
@@ -255,10 +256,12 @@ export function MailCalendarMonth({
                   ) : null}
                   <button
                     type="button"
-                    disabled={busy || item.isOrganizer === false}
+                    disabled={busy}
+                    aria-label={item.isOrganizer === false ? "Titel ändern" : "Termin bearbeiten"}
+                    title={item.isOrganizer === false ? "Titel ändern" : "Termin bearbeiten"}
                     onClick={() => onEdit(item)}
                   >
-                    Bearbeiten / Teams
+                    {item.isOrganizer === false ? <Pencil size={18} aria-hidden="true" /> : "Bearbeiten / Teams"}
                   </button>
                   <button
                     type="button"
@@ -270,8 +273,8 @@ export function MailCalendarMonth({
                 </div>
                 {item.isOrganizer === false ? (
                   <small>
-                    Einladung eines anderen Organisators. Den Termin kann nur
-                    dieser ändern.
+                    Deinen angezeigten Titel kannst du ändern. Zeit und Teilnehmer
+                    legt der Organisator fest.
                   </small>
                 ) : null}
               </article>

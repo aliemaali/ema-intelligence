@@ -1,3 +1,4 @@
+import { EVENT_TITLE_PROPERTY, EVENT_TITLE_EXPAND, personalEventTitle } from "@/lib/mail/event-title";
 import { withInvitation } from "@/lib/mail/invitation-server";
 import { isInvitation } from "@/lib/mail/invitations";
 import { sharedContactAccess } from "@/lib/mail/shared-contact-access";
@@ -1202,6 +1203,18 @@ async function handle(request: NextRequest) {
         throw new MailError(502, "Erinnerung konnte nicht angelegt werden.");
       return json({ reminder: data }, 201);
     }
+    if (action === "event-title" && mutating) {
+      const values = z.object({ id: resourceId, title: z.string().trim().min(1).max(250), confirmed: z.literal(true) }).strict().parse(input);
+      const { token: ownToken } = await mailboxAccess(session, "me", "write");
+      const path = `/me/events/${encodeURIComponent(values.id)}`;
+      // Authorize against this user's own calendar before writing personal metadata.
+      await mailGraph(ownToken, `${path}?$select=id`, {}, "/me");
+      await audit(session.user.id, "event_title_changed", values.id);
+      await mailGraph(ownToken, path, { method: "PATCH", body: JSON.stringify({
+        singleValueExtendedProperties: [{ id: EVENT_TITLE_PROPERTY, value: values.title }],
+      }) }, "/me");
+      return json({ ok: true });
+    }
     if (action === "calendar-options" && !mutating) {
       const calendar = await mailGraph<{
         allowedOnlineMeetingProviders?: string[];
@@ -1221,12 +1234,12 @@ async function handle(request: NextRequest) {
     if (action === "event" && !mutating) {
       const id = resourceId.parse(request.nextUrl.searchParams.get("id"));
       return json({
-        item: await mailGraph(
+        item: personalEventTitle(await mailGraph<{ subject?: string; singleValueExtendedProperties?: { id: string; value: string }[] }>(
           token,
-          `/me/events/${encodeURIComponent(id)}?$select=id,subject,start,end,location,attendees,body,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider`,
+          `/me/events/${encodeURIComponent(id)}?$select=id,subject,start,end,location,attendees,body,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider&$expand=${encodeURIComponent(EVENT_TITLE_EXPAND)}`,
           {},
           "/me",
-        ),
+        )),
       });
     }
     if (action === "contacts" && !mutating) {
@@ -1288,6 +1301,7 @@ async function handle(request: NextRequest) {
       const params = new URLSearchParams({
         startDateTime: start.toISOString(),
         endDateTime: end.toISOString(),
+        $expand: EVENT_TITLE_EXPAND,
         $top: "100",
         $orderby: "start/dateTime",
         $select:
@@ -1309,9 +1323,8 @@ async function handle(request: NextRequest) {
             "Ungültige Kalenderseite oder abweichender Zeitraum.",
           );
       }
-      return json(
-        await mailGraph(token, cursor || `${root}/calendarView?${params}`, {}, root),
-      );
+      const result = await mailGraph<{ value?: { subject?: string; singleValueExtendedProperties?: { id: string; value: string }[] }[]; '@odata.nextLink'?: string }>(token, cursor || `${root}/calendarView?${params}`, {}, root);
+      return json({ ...result, value: (result.value || []).map(personalEventTitle) });
     }
     throw new MailError(404, "Unbekannte Mail-Funktion.");
   } catch (error) {

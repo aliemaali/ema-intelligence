@@ -1725,6 +1725,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
               </>
             ) : (
               <MailPim
+                onCalendarChanged={() => { dashboardCache.invalidate(); setOverviewRevision(value => value + 1); }}
                 onContactsChanged={() => setContactRevision(value => value + 1)}
                 key={view}
                 mode={view}

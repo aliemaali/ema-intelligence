@@ -107,12 +107,14 @@ export function MailPim({
   demoRecords,
   onDemoChange,
   onContactsChanged,
+  onCalendarChanged,
 }: {
   mode: Mode;
   demo: boolean;
   demoRecords?: Item[];
   onDemoChange?: (items: Item[]) => void;
   onContactsChanged?: () => void;
+  onCalendarChanged?: () => void;
 }) {
   const [items, setItems] = useState<Item[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
@@ -128,6 +130,7 @@ export function MailPim({
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
   const [selectedDay, setSelectedDay] = useState(() => new Date());
+  const titleOnly = mode === "calendar" && Boolean(editor?.id) && editor?.isOrganizer === false;
   const [teamsMeeting, setTeamsMeeting] = useState(false);
   const [teamsAvailable, setTeamsAvailable] = useState<boolean | null>(null);
   useEffect(() => {
@@ -243,7 +246,9 @@ export function MailPim({
             companyName: item?.companyName || "",
             phone: item?.businessPhones?.[0] || "",
           }
-        : mode === "calendar"
+        : mode === "calendar" && item?.isOrganizer === false
+          ? { subject: item.subject || "" }
+          : mode === "calendar"
           ? {
               subject: item?.subject || "",
               start: dateInput(
@@ -281,6 +286,14 @@ export function MailPim({
   async function save() {
     setBusy(true);
     try {
+      if (titleOnly) {
+        if (demo) updateItems(items.map(item => item.id === editor?.id ? { ...item, subject: fields.subject.trim() } : item));
+        else {
+          await request("event-title", { id: editor?.id, title: fields.subject, confirmed: true });
+          await load();
+        }
+        setEditor(null); onCalendarChanged?.(); return;
+      }
       const v = value();
       if (demo) {
         updateItems([
@@ -339,6 +352,7 @@ export function MailPim({
       }
       setEditor(null);
       if(mode === 'contacts') onContactsChanged?.();
+      if(mode === 'calendar') onCalendarChanged?.();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -357,6 +371,7 @@ export function MailPim({
         });
       updateItems(items.filter((i) => i.id !== deleting.id));
       if(mode === 'contacts') onContactsChanged?.();
+      if(mode === 'calendar') onCalendarChanged?.();
       setDeleting(null);
     } catch (e) {
       setError((e as Error).message);
@@ -492,7 +507,7 @@ export function MailPim({
             review
               ? "Änderung prüfen"
               : mode === "calendar"
-                ? "Termin bearbeiten"
+                ? titleOnly ? "Titel ändern" : "Termin bearbeiten"
                 : mode === "contacts"
                   ? "Kontakt bearbeiten"
                   : "Erinnerung anlegen"
@@ -504,14 +519,14 @@ export function MailPim({
           {review ? (
             <>
               <p>
-                {mode === "calendar"
+                {titleOnly ? "Der Titel gilt für deine Ansicht in EMA. Der Originaltitel beim Organisator bleibt unverändert." : mode === "calendar"
                   ? "Einladungen und Aktualisierungen können E-Mails an Teilnehmer auslösen. Prüfe die Angaben vor deiner Freigabe."
                   : "Bitte die Angaben prüfen."}
                 {demo
                   ? " In dieser Demo werden keine Nachrichten versendet."
                   : ""}
               </p>
-              {mode === "calendar" ? (
+              {mode === "calendar" && !titleOnly ? (
                 <p>
                   <b>Microsoft Teams:</b>{" "}
                   {teamsMeeting
@@ -549,17 +564,19 @@ export function MailPim({
                 e.preventDefault();
                 setError("");
                 if (
-                  mode === "calendar" &&
+                  mode === "calendar" && !titleOnly &&
                   new Date(fields.end).getTime() <=
                     new Date(fields.start).getTime()
                 ) {
                   setError("Das Ende muss nach dem Beginn liegen.");
                   return;
                 }
+                if (titleOnly) { void save(); return; }
                 setReview(true);
               }}
             >
-              {mode === "calendar" ? (
+              {titleOnly && <p>Dieser Titel wird für deine Ansicht in EMA gespeichert. Der Originaltermin bleibt unverändert.</p>}
+              {mode === "calendar" && !titleOnly ? (
                 <>
                   <label className={s.checkLabel}>
                     <input
@@ -602,7 +619,7 @@ export function MailPim({
                   ) : null}
                 </>
               ) : null}
-              {editor?.isOnlineMeeting ? (
+              {editor?.isOnlineMeeting && !titleOnly ? (
                 <p>
                   Notizen des bestehenden Online-Meetings bleiben erhalten,
                   damit der Einwahllink unverändert bleibt.
@@ -657,8 +674,8 @@ export function MailPim({
                 </label>
               ))}
               <footer>
-                <button className={s.primary} type="submit">
-                  Angaben prüfen
+                <button className={s.primary} type="submit" disabled={busy}>
+                  {titleOnly ? "Titel speichern" : "Angaben prüfen"}
                 </button>
               </footer>
             </form>

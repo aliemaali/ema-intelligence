@@ -2052,3 +2052,49 @@ test('dashboard calendar reads the selected shared mailbox and includes cancella
   query.set('mailbox','forbidden@example.com');
   assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/calendar?${query}`))).status,403);
 });
+
+test('personal event title writes only an EMA property on the users own event copy', async () => {
+  reset(); const calls:{url:string;init?:RequestInit}[]=[];
+  globalThis.fetch=async(input,init)=>{
+    calls.push({url:String(input),init});
+    return Response.json({id:'invited-event',subject:'Organizer original',isOrganizer:false});
+  };
+  const response=await POST(req('event-title',{id:'invited-event',title:'Reonic Gespräch',confirmed:true}));
+  assert.equal(response.status,200);
+  assert.ok(calls[0].url.includes('/me/events/invited-event?'));
+  assert.equal(calls[1].init?.method,'PATCH');
+  const body=JSON.parse(String(calls[1].init?.body));
+  assert.deepEqual(Object.keys(body),['singleValueExtendedProperties']);
+  assert.equal(body.singleValueExtendedProperties[0].value,'Reonic Gespräch');
+  assert.equal(body.subject,undefined);
+  assert.equal(body.attendees,undefined);
+  assert.equal(body.start,undefined);
+  assert.equal(body.end,undefined);
+});
+test('personal title rejects unconfirmed, empty, overlong or injected event changes before Graph access', async()=>{
+  for(const value of [
+    {id:'event',title:'New',confirmed:false},
+    {id:'event',title:'  ',confirmed:true},
+    {id:'event',title:'x'.repeat(251),confirmed:true},
+    {id:'event',title:'New',confirmed:true,subject:'Injected'},
+    {id:'event',title:'New',confirmed:true,mailbox:'other@example.com'},
+  ]) {
+    reset(); let count=0;globalThis.fetch=async()=>{count++;return Response.json({});};
+    const response=await POST(req('event-title',value));
+    assert.ok(response.status>=400);assert.equal(count,0);
+  }
+});
+test('personal titles are applied consistently to calendar and individual event responses',async()=>{
+  const {EVENT_TITLE_PROPERTY}=await import('../src/lib/mail/event-title');
+  for(const action of ['event?id=event','calendar?start=2026-11-16T00:00:00Z&end=2026-12-16T00:00:00Z']) {
+    reset();let requested='';
+    const item={id:'event',subject:'Original invitation',isOrganizer:false,singleValueExtendedProperties:[{id:EVENT_TITLE_PROPERTY,value:'Mein Titel'}]};
+    globalThis.fetch=async input=>{requested=String(input);return Response.json(action.startsWith('event')?item:{value:[item]});};
+    const response=await GET(new NextRequest(`https://ema.example/api/mail/${action}`));
+    assert.equal(response.status,200);
+    assert.match(decodeURIComponent(requested),/singleValueExtendedProperties/);
+    const data=await response.json();const actual=data.item||data.value[0];
+    assert.equal(actual.subject,'Mein Titel');assert.equal(actual.originalSubject,'Original invitation');
+    assert.equal(actual.isOrganizer,false);
+  }
+});

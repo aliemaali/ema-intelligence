@@ -56,3 +56,13 @@ test('combined inbox loads only the personal calendar; individual mailbox select
   assert.equal(result.warning, undefined);
   assert.equal(upcomingEvents(result.value as ReturnType<typeof event>[], now)[0].id, 'reonic');
 });
+
+test('personal event titles do not mutate the organizer subject or other properties', async()=>{
+  const {personalEventTitle,EVENT_TITLE_PROPERTY}=await import('../src/lib/mail/event-title');
+  const original={subject:'Original',isOrganizer:false,singleValueExtendedProperties:[{id:EVENT_TITLE_PROPERTY,value:'Mein Titel'}]};
+  const display=personalEventTitle(original);
+  assert.equal(display.subject,'Mein Titel');assert.equal(display.originalSubject,'Original');
+  assert.equal(original.subject,'Original');assert.equal(display.isOrganizer,false);
+  assert.equal(personalEventTitle({subject:'Original'}).subject,'Original');
+  assert.equal(personalEventTitle({...original,singleValueExtendedProperties:[{id:EVENT_TITLE_PROPERTY,value:''}]}).subject,'Original');
+});
