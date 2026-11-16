@@ -42,6 +42,7 @@ export const MORE_ITEMS: MenuEntry[] = [
   { label: 'Einstellungen', icon: Settings, children: [
     { label: 'Einstellungen öffnen', href: '/settings', icon: Settings },
     { label: 'Archivübersicht', href: '/archive', icon: Archive },
+    { label: 'Dubletten prüfen', href: '/system/review', icon: Users },
   ] },
 ]
 

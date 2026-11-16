@@ -2211,3 +2211,41 @@ test('project upload rejects another owner before storage access and project lin
   rows.projects=[{id,user_id:uid,is_archived:false}];rows.documents=[{id,user_id:'other',is_archived:false}];
   assert.ok((await linkDmsDocumentToProject(id,id)).error);assert.equal(rows.dms_document_links,undefined);
 });
+
+
+test('project event assignment stores only a personal reference and does not send or recreate the meeting',async()=>{
+  reset();rows.projects=[{id,user_id:uid,is_archived:false,project_name:'Chemnitz'}];
+  let patched:any;let url='';globalThis.fetch=async(input,init)=>{url=String(input);patched=JSON.parse(String(init?.body));return new Response(null,{status:204});};
+  const response=await POST(req('event-project',{mailbox:'me',id:'event-id',projectId:id,confirmed:true}));
+  assert.equal(response.status,200);assert.ok(url.includes('/me/events/event-id'));
+  assert.deepEqual(Object.keys(patched),['singleValueExtendedProperties']);assert.equal(patched.singleValueExtendedProperties[0].value,id);
+});
+test('project event assignments reject archived and foreign projects without touching Microsoft',async()=>{
+  for(const project of [{id,user_id:'foreign',is_archived:false},{id,user_id:uid,is_archived:true}]){
+    reset();rows.projects=[project];let mutations=0;globalThis.fetch=async()=>{mutations++;return new Response(null,{status:204});};
+    assert.equal((await POST(req('event-project',{id:'event',projectId:id,confirmed:true}))).status,403);assert.equal(mutations,0);
+  }
+});
+test('project-options returns active owned masters and project events reject invisible project IDs',async()=>{
+  reset();rows.projects=[{id,user_id:uid,is_archived:false,project_name:'Owned'},{id:'foreign',user_id:'other',is_archived:false},{id:'archived',user_id:uid,is_archived:true}];
+  const result=await GET(new NextRequest('https://ema.example/api/mail/project-options'));assert.equal(result.status,200);assert.equal((await result.json()).projects.length,1);
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/project-events?projectId=33333333-3333-4333-8333-333333333333`))).status,403);assert.equal(graphCalls,0);
+});
+test('project event list reads linked original events and applies the same personal title',async()=>{
+  reset();rows.projects=[{id,user_id:uid,is_archived:false,project_name:'Project'}];let path='';
+  const {EVENT_TITLE_PROPERTY}=await import('../src/lib/mail/event-title');
+  globalThis.fetch=async(input)=>{path=decodeURIComponent(String(input));return Response.json({value:[{id:'linked',subject:'Organizer',start:{dateTime:'2026-11-17T14:30:00'},end:{dateTime:'2026-11-17T15:00:00'},singleValueExtendedProperties:[{id:EVENT_TITLE_PROPERTY,value:'My title'}]}]});};
+  const response=await GET(new NextRequest(`https://ema.example/api/mail/project-events?projectId=${id}`));assert.equal(response.status,200);assert.equal((await response.json()).events[0].subject,'My title');assert.ok(path.includes('EMAProjectId'));assert.ok(path.includes(id));
+});
+
+
+test('duplicate original download requires an active owned document and its recorded allowed bucket',async()=>{
+  reset();const {GET:download}=await import('../src/app/api/system/document-url/route');
+  rows.documents=[{id,user_id:'foreign',is_archived:false,storage_bucket:'ema-dms',file_path:'foreign/file.pdf'}];
+  let calls=0;globalThis.__mailFixture.db.storage={from:(bucket:string)=>{calls++;assert.equal(bucket,'ema-dms');return {createSignedUrl:async()=>({data:{signedUrl:'https://example.test/signed'},error:null})};}};
+  const query=()=>new NextRequest(`https://ema.example/api/system/document-url?id=${id}`);
+  assert.equal((await download(query())).status,404);assert.equal(calls,0);
+  rows.documents[0].user_id=uid;assert.equal((await download(query())).status,303);assert.equal(calls,1);
+  rows.documents[0].is_archived=true;assert.equal((await download(query())).status,404);assert.equal(calls,1);
+  user=null;assert.equal((await download(query())).status,401);
+});

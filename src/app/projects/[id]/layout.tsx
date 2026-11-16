@@ -15,6 +15,7 @@ interface ProjectLayoutProps {
 
 const TABS = [
   { key: 'overview', label: 'Übersicht' },
+  { key: 'context', label: 'Verknüpft' },
   { key: 'deal', label: 'Deal' },
   { key: 'documents', label: 'Dokumente' },
   { key: 'investors', label: 'Investoren' },

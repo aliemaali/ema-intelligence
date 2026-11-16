@@ -1,4 +1,5 @@
 "use client";
+import { MailProjectAssignment } from "./MailProjectAssignment";
 import { notifyEmaDataChanged } from "@/lib/ema/updates";
 import { EMA_ROUTES, type MailInitialView } from "@/lib/ema/routes";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -1499,6 +1500,7 @@ export function MailWorkspace({ demo, cacheUser, firstName, initialView = "home"
                         {formatDate(selected.receivedDateTime)}
                       </time>
                     </div>
+                    {!demo && <MailProjectAssignment key={`project:${mailbox}:${selected.id}`} id={selected.id} kind="message" mailbox={mailbox}/> }
                     <MailInvitation key={`${mailbox}:${selected.id}`} message={selected} mailbox={mailbox}
                       canRespond={!demo && Boolean(account?.can_write && account?.can_send)}
                       onResponded={() => { setOverviewRevision(v => v + 1); void load(); }} />

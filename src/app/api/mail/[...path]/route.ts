@@ -1,3 +1,4 @@
+import { projectEventsEndpoint } from '@/lib/ema/project-events';
 import { legacyCalendarEvent, legacyEventTimes, LEGACY_CALENDAR_PROPERTY } from "@/lib/ema/legacy-calendar";
 import { emaContactsPage } from "@/lib/ema/contacts";
 import { EVENT_TITLE_PROPERTY, EVENT_TITLE_EXPAND, personalEventTitle } from "@/lib/mail/event-title";
@@ -83,6 +84,8 @@ async function handle(request: NextRequest) {
         throw new MailError(413, "Nachricht zu groß.");
       input = JSON.parse(text);
     }
+    const projectResult=await projectEventsEndpoint(request,action,input,session);
+    if(projectResult)return projectResult;
     const admin = mailAdmin();
     if (action === "draft-assist") {
       if (!mutating) throw new MailError(405, "Bitte eine KI-Textaktion auswählen.");

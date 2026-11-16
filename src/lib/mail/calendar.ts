@@ -1,4 +1,4 @@
-import { fromZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 export function berlinDay(now = new Date()) {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
@@ -49,8 +49,8 @@ export function eventOnDay(
   if (!event.start || !event.end) return false;
   const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
   return (
-    graphDate(event.start.dateTime).getTime() < next.getTime() &&
-    graphDate(event.end.dateTime).getTime() > calendarDay(day).getTime()
+    graphDate(event.start.dateTime).getTime() < fromZonedTime(`${dayKey(next)}T00:00:00`, 'Europe/Berlin').getTime() &&
+    graphDate(event.end.dateTime).getTime() > fromZonedTime(`${dayKey(day)}T00:00:00`, 'Europe/Berlin').getTime()
   );
 }
 export function teamsJoinUrl(value?: string) {
@@ -70,4 +70,20 @@ export function teamsJoinUrl(value?: string) {
   } catch {
     return null;
   }
+}
+
+/** Calendar fields and agenda always use the company's Berlin timezone. */
+export function berlinCalendarDate(value = berlinDay()) {
+  return new Date(`${value}T12:00:00`);
+}
+export function berlinDateInput(value: string) {
+  return formatInTimeZone(graphDate(value), 'Europe/Berlin', "yyyy-MM-dd'T'HH:mm");
+}
+export function berlinInputToIso(value: string) {
+  const instant = fromZonedTime(value, 'Europe/Berlin');
+  if (!Number.isFinite(instant.getTime()) || berlinDateInput(instant.toISOString()) !== value.slice(0,16)) throw new Error('Ungültige Uhrzeit in Europe/Berlin.');
+  return instant.toISOString();
+}
+export function berlinTime(value:string) {
+  return graphDate(value).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Berlin'});
 }

@@ -1,4 +1,5 @@
 "use client";
+import { MailProjectAssignment } from "./MailProjectAssignment";
 import { Fragment } from "react";
 import {
   ChevronLeft,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   dayKey,
+  berlinDay, berlinCalendarDate, berlinTime,
   eventOnDay,
   graphDate,
   isoWeek,
@@ -28,7 +30,9 @@ export function MailCalendarMonth({
   onNew,
   onEdit,
   onRemove,
+  live = false,
 }: {
+  live?: boolean;
   month: Date;
   selected: Date;
   items: MailPimItem[];
@@ -40,7 +44,7 @@ export function MailCalendarMonth({
   onRemove: (item: MailPimItem) => void;
 }) {
   const days = monthDays(month),
-    today = dayKey(new Date());
+    today = berlinDay();
   const sorted = [...items].sort(
     (a, b) =>
       graphDate(a.start?.dateTime || "").getTime() -
@@ -75,7 +79,7 @@ export function MailCalendarMonth({
           <button
             type="button"
             onClick={() => {
-              const now = new Date();
+              const now = berlinCalendarDate();
               onMonth(new Date(now.getFullYear(), now.getMonth(), 1));
               onSelect(now);
             }}
@@ -241,7 +245,7 @@ export function MailCalendarMonth({
                   <small>
                     {item.isAllDay
                       ? "Ganztägig"
-                      : `${graphDate(item.start!.dateTime).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })} – ${graphDate(item.end!.dateTime).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`}
+                      : `${berlinTime(item.start!.dateTime)} – ${berlinTime(item.end!.dateTime)}`}
                     {item.location?.displayName
                       ? ` · ${item.location.displayName}`
                       : ""}
@@ -271,6 +275,7 @@ export function MailCalendarMonth({
                     Entfernen
                   </button>
                 </div>
+                {live && <MailProjectAssignment id={item.id} kind="event"/>}
                 {item.isOrganizer === false ? (
                   <small>
                     Deinen angezeigten Titel kannst du ändern. Zeit und Teilnehmer

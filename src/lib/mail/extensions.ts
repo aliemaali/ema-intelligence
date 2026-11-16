@@ -25,6 +25,7 @@ export async function visibleProject(session: MailSession, value: unknown) {
     .select("id,project_name")
     .eq("id", projectId)
     .eq("user_id", session.user.id)
+    .eq("is_archived",false)
     .maybeSingle();
   if (error || !data) throw new MailError(403, "Projekt nicht verfügbar.");
   return data;

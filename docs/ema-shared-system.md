@@ -44,3 +44,14 @@ Office endpoints require a current Office session and company permissions. Micro
 ## Verification
 
 Behavioral tests cover source reference merging, canonical navigation, legacy-import retries, owner/company boundaries, central storage resolution, Office project links without copying originals, and shared Smart Check originals. Live database inspection confirms Office documents already exist in the central Intelligence DMS. Authenticated Microsoft/Office end-to-end checks require the respective signed-in sessions; automated fixtures do not substitute for those checks.
+
+
+## Compact assistant and project context
+
+Intelligence now shows the assistant input, three open tasks, upcoming Microsoft events and actionable connection status. Office sign-in is distinct from a transient connection failure, with a direct sign-in link. Manual retry also reloads server-side task/project data. Removed decorative app satellites and duplicated module content from this view; the app launcher remains the navigation hub.
+
+The project “Verknüpft” tab opens the same email originals via existing `ema_mail_project_links`, the same DMS documents, and calendar events marked with the personal `EMAProjectId` extended property. Mail readers and calendar agendas offer explicit project assignment. This changes references only, never sends a message or creates a calendar copy. Project options and assignments require active owned projects; mailbox access and MFA are checked on each API request. Recurring series are labeled and open in the canonical calendar.
+
+Calendar agenda and editor fields consistently use Europe/Berlin, including on browsers with a different system timezone. DST gaps are rejected instead of silently shifting user input.
+
+`/system/review` compares only active owned document metadata and authorized contact directories. SHA-256 matches are exact; matching legacy names/sizes remain suggestions. Differing known hashes are never called identical. Office and Microsoft representations of the same correspondent are legitimate references, so contact candidate groups are scoped to their source. Originals open through a short-lived authorized redirect. This review makes no automatic merges, archives, or deletions; unverified business entities require review in their owning app. Document scans are bounded to 5,000 rows and report partial/error states explicitly.

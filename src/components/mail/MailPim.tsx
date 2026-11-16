@@ -6,7 +6,7 @@ import { LegacyCalendarImport } from "./LegacyCalendarImport";
 import { MailDialog } from "./MailDialog";
 import s from "./mail.module.css";
 import { MailCalendarMonth } from "./MailCalendarMonth";
-import { monthDays, teamsJoinUrl } from "@/lib/mail/calendar";
+import { monthDays, teamsJoinUrl, berlinCalendarDate, berlinDateInput, berlinInputToIso, dayKey } from "@/lib/mail/calendar";
 type Item = {
   id: string;
   readOnly?: boolean;
@@ -67,15 +67,7 @@ async function request(path: string, value?: unknown) {
   return data;
 }
 const utc = (s: string) => s + (/Z$|[+-]\d\d:\d\d$/.test(s) ? "" : "Z");
-const dateInput = (s?: string) =>
-  s
-    ? new Date(
-        new Date(utc(s)).getTime() -
-          new Date(utc(s)).getTimezoneOffset() * 60000,
-      )
-        .toISOString()
-        .slice(0, 16)
-    : "";
+const dateInput = (s?:string)=>s ? berlinDateInput(s) : '';
 const samples: Record<Mode, Item[]> = {
   calendar: [
     {
@@ -142,9 +134,9 @@ export function MailPim({
   },[mode,demo]);
   const directory = mode==='contacts' ? mergedDirectory(items,officeContacts) as Item[] : items;
   const [month, setMonth] = useState(
-    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    () => new Date(berlinCalendarDate().getFullYear(), berlinCalendarDate().getMonth(), 1),
   );
-  const [selectedDay, setSelectedDay] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState(() => berlinCalendarDate());
   const titleOnly = mode === "calendar" && Boolean(editor?.id) && editor?.isOrganizer === false;
   const [teamsMeeting, setTeamsMeeting] = useState(false);
   const [teamsAvailable, setTeamsAvailable] = useState<boolean | null>(null);
@@ -162,15 +154,16 @@ export function MailPim({
       active = false;
     };
   }, [mode, demo]);
+  useEffect(()=>{
+    if(mode!=='calendar')return;
+    const date=new URLSearchParams(window.location.search).get('date');
+    if(date && /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date))){const selected=berlinCalendarDate(date);setMonth(new Date(selected.getFullYear(),selected.getMonth(),1));setSelectedDay(selected);}
+  },[mode]);
   const loadGeneration = useRef(0);
   const days = monthDays(month);
-  const rangeStart = days[0].toISOString();
+  const rangeStart = berlinInputToIso(`${dayKey(days[0])}T00:00`);
   const lastDay = days[days.length - 1];
-  const rangeEnd = new Date(
-    lastDay.getFullYear(),
-    lastDay.getMonth(),
-    lastDay.getDate() + 1,
-  ).toISOString();
+  const rangeEnd = berlinInputToIso(`${dayKey(new Date(lastDay.getFullYear(),lastDay.getMonth(),lastDay.getDate()+1))}T00:00`);
   const load = useCallback(
     async (next?: string) => {
       const generation = ++loadGeneration.current;
@@ -249,18 +242,6 @@ export function MailPim({
     setEditor(item || {});
     setReview(false);
     setTeamsMeeting(item?.onlineMeetingProvider === "teamsForBusiness");
-    const initialStart = new Date(
-      selectedDay.getFullYear(),
-      selectedDay.getMonth(),
-      selectedDay.getDate(),
-      9,
-    );
-    const initialEnd = new Date(
-      selectedDay.getFullYear(),
-      selectedDay.getMonth(),
-      selectedDay.getDate(),
-      10,
-    );
     setFields(
       mode === "contacts"
         ? {
@@ -275,9 +256,9 @@ export function MailPim({
           ? {
               subject: item?.subject || "",
               start: dateInput(
-                item?.start?.dateTime || initialStart.toISOString(),
+                item?.start?.dateTime || berlinInputToIso(`${dayKey(selectedDay)}T09:00`),
               ),
-              end: dateInput(item?.end?.dateTime || initialEnd.toISOString()),
+              end: dateInput(item?.end?.dateTime || berlinInputToIso(`${dayKey(selectedDay)}T10:00`)),
               location: item?.location?.displayName || "",
               notes: item?.body?.content || item?.bodyPreview || "",
               attendees:
@@ -293,8 +274,8 @@ export function MailPim({
       ? {
           ...fields,
           teamsMeeting,
-          start: new Date(fields.start).toISOString(),
-          end: new Date(fields.end).toISOString(),
+          start: berlinInputToIso(fields.start),
+          end: berlinInputToIso(fields.end),
           attendees: fields.attendees
             .split(/[;,]/)
             .map((s) => s.trim())
@@ -332,8 +313,8 @@ export function MailPim({
               : mode === "calendar"
                 ? {
                     subject: fields.subject,
-                    start: { dateTime: new Date(fields.start).toISOString() },
-                    end: { dateTime: new Date(fields.end).toISOString() },
+                    start: { dateTime: berlinInputToIso(fields.start) },
+                    end: { dateTime: berlinInputToIso(fields.end) },
                     location: { displayName: fields.location },
                     attendees: fields.attendees
                       .split(/[;,]/)
@@ -432,6 +413,7 @@ export function MailPim({
       {mode === "calendar" && !demo && cacheUser && <LegacyCalendarImport userId={cacheUser} onImported={() => { void load(); onCalendarChanged?.(); }}/>}
       {mode === "calendar" ? (
         <MailCalendarMonth
+          live={!demo}
           month={month}
           selected={selectedDay}
           items={items}
@@ -483,10 +465,10 @@ export function MailPim({
             <strong>{item.subject || item.displayName || item.title}</strong>
             <small>
               {item.start
-                ? new Date(utc(item.start.dateTime)).toLocaleString("de-DE")
+                ? new Date(utc(item.start.dateTime)).toLocaleString("de-DE", {timeZone:"Europe/Berlin"})
                 : item.emailAddresses?.map((a) => a.address).join(", ") ||
                   (item.due_at &&
-                    new Date(item.due_at).toLocaleString("de-DE"))}
+                    new Date(item.due_at).toLocaleString("de-DE", {timeZone:"Europe/Berlin"}))}
             </small>
             {item.sharedBy ? <small>Geteilt von {item.sharedBy}</small> : null}
             <div className={s.aiActions}>
