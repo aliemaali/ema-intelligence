@@ -2038,3 +2038,17 @@ test('cancelled invitations and meeting replies cannot be accepted', async () =>
     assert.equal((await POST(req('invitation-response', { mailbox: 'me', id: 'invite', response: 'accept', confirmed: true }))).status, 409);
   }
 });
+
+test('dashboard calendar reads the selected shared mailbox and includes cancellation and response status', async () => {
+  reset(); rows.ema_mail_memberships=[{user_id:uid,mailbox:'team@example.com',can_read:true,can_write:false,can_send:false}];
+  let requested=''; globalThis.fetch=async input=>{requested=String(input); return Response.json({value:[{id:'appointment',responseStatus:{response:'accepted'}}]});};
+  const query=new URLSearchParams({mailbox:'team@example.com',start:'2026-11-16T00:00:00Z',end:'2026-12-16T00:00:00Z'});
+  const response=await GET(new NextRequest(`https://ema.example/api/mail/calendar?${query}`));
+  assert.equal(response.status,200);
+  const url=new URL(requested);
+  assert.equal(url.pathname,'/v1.0/users/team%40example.com/calendarView');
+  assert.ok(url.searchParams.get('$select')?.includes('isCancelled,responseStatus'));
+  assert.equal((await response.json()).value[0].responseStatus.response,'accepted');
+  query.set('mailbox','forbidden@example.com');
+  assert.equal((await GET(new NextRequest(`https://ema.example/api/mail/calendar?${query}`))).status,403);
+});

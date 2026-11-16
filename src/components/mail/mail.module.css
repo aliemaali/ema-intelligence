@@ -2904,3 +2904,7 @@
 .invitationActions button { border: 1px solid #28caa577; border-radius: 9px; padding: 9px 12px; background: #28caa51a; color: inherit; cursor: pointer; }
 .invitationActions button:disabled { opacity: .5; cursor: wait; }
 .invitationCard a { color: #28caa5; }
+
+.inboxNextBody > time { display: grid; gap: 3px; text-align: center; }
+.inboxNextBody > time > span { font-size: 11px; font-weight: 500; }
+.inboxNextBody > time > strong { font-size: inherit; }

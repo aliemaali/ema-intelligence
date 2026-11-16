@@ -1291,13 +1291,13 @@ async function handle(request: NextRequest) {
         $top: "100",
         $orderby: "start/dateTime",
         $select:
-          "id,subject,start,end,location,attendees,bodyPreview,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider",
+          "id,subject,start,end,location,attendees,bodyPreview,isOrganizer,isOnlineMeeting,isAllDay,onlineMeeting,onlineMeetingProvider,isCancelled,responseStatus",
       });
       const cursor = request.nextUrl.searchParams.get("cursor");
       if (cursor) {
-        const page = new URL(safeGraphUrl(cursor, "/me"));
+        const page = new URL(safeGraphUrl(cursor, root));
         if (
-          page.pathname !== "/v1.0/me/calendarView" ||
+          page.pathname !== `/v1.0${root}/calendarView` ||
           !requestedStart ||
           Date.parse(page.searchParams.get("startDateTime") || "") !==
             start.getTime() ||
@@ -1310,7 +1310,7 @@ async function handle(request: NextRequest) {
           );
       }
       return json(
-        await mailGraph(token, cursor || `/me/calendarView?${params}`),
+        await mailGraph(token, cursor || `${root}/calendarView?${params}`, {}, root),
       );
     }
     throw new MailError(404, "Unbekannte Mail-Funktion.");

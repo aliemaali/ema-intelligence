@@ -20,6 +20,8 @@ type Item = {
   bodyPreview?: string;
   body?: { content: string };
   attendees?: { emailAddress: { address: string } }[];
+  isCancelled?: boolean;
+  responseStatus?: { response: string };
   isOrganizer?: boolean;
   isOnlineMeeting?: boolean;
   isAllDay?: boolean;

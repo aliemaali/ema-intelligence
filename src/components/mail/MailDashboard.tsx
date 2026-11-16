@@ -4,7 +4,8 @@ import Image from "next/image";
 import { CalendarDays, Home, Mail, PenLine, RefreshCw, Search, Settings, Sun, Moon, Users } from "lucide-react";
 import { demoMessages } from "@/lib/mail/demo";
 import type { Message as BaseMessage } from "@/lib/mail/model";
-import { berlinDay, graphDate, teamsJoinUrl, todayRange } from "@/lib/mail/calendar";
+import { berlinDay, graphDate, teamsJoinUrl } from "@/lib/mail/calendar";
+import { loadUpcomingCalendar, upcomingDay, upcomingEvents } from "@/lib/mail/upcoming";
 import { fromZonedTime } from "date-fns-tz";
 import type { MailPimItem } from "./MailPim";
 import { MailSwipeRow } from "./MailSwipeRow";
@@ -69,7 +70,7 @@ type Props = {
 };
 const clock = (value: string) => graphDate(value).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
 export function MailDashboard({ firstName, cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
-  const cacheKey = JSON.stringify([demo,mailbox,mailAccountScope(accounts)]);
+  const cacheKey = JSON.stringify(["upcoming-30d-v1",demo,mailbox,mailAccountScope(accounts)]);
   const cached = cache.get(cacheKey);
   const [messages, setMessages] = useState<Message[]>(() => cached?.messages || []);
   const [events, setEvents] = useState<MailPimItem[]>(() => cached?.events || []);
@@ -162,7 +163,7 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
         }
         return data;
       }, checkAccess),
-      get(`calendar?${new URLSearchParams(todayRange())}`, request.signal).then(data => {
+      loadUpcomingCalendar<MailPimItem>(get, boxes, request.signal).then(data => {
         if (active()) {
           setEvents(data.value || []); setCalendarPartial(Boolean(data['@odata.nextLink'])); setCalendarLoading(false);
         }
@@ -183,6 +184,7 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
       if (results[0].value.syncWarning) problems.push(results[0].value.syncWarning);
     } else problems.push("Posteingang: " + results[0].reason.message);
     if (results[1].status === "fulfilled") {
+      if (results[1].value.warning) problems.push(results[1].value.warning);
       setEvents(results[1].value.value || []);
       setCalendarPartial(Boolean(results[1].value["@odata.nextLink"]));
     } else {
@@ -220,8 +222,7 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
   }, [refresh, revision]);
   const list = unreadOnly ? messages.filter(m => !m.isRead) : messages;
   const hasCalendarError = errors.some(error => error.startsWith("Kalender:"));
-  const upcoming = events.filter(event => demo || (event.end && graphDate(event.end.dateTime).getTime() > now.getTime()))
-    .sort((a, b) => (a.start ? graphDate(a.start.dateTime).getTime() : 0) - (b.start ? graphDate(b.start.dateTime).getTime() : 0));
+  const upcoming = demo ? [...events].sort((a, b) => (a.start ? graphDate(a.start.dateTime).getTime() : 0) - (b.start ? graphDate(b.start.dateTime).getTime() : 0)) : upcomingEvents(events, now);
   const next = upcoming[0];
   const join = teamsJoinUrl(next?.onlineMeeting?.joinUrl);
   const nextMinutes = next?.start && next.end ? Math.round((graphDate(next.end.dateTime).getTime() - graphDate(next.start.dateTime).getTime()) / 60000) : null;
@@ -254,10 +255,10 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
       <section className={s.inboxNext} aria-label="Nächster Termin">
         <p className={s.inboxEyebrow}>Als Nächstes</p>
         {next ? <div className={s.inboxNextBody}>
-          <time>{next.isAllDay ? "Heute" : next.start ? clock(next.start.dateTime) : "–"}</time>
+          <time dateTime={next.start?.dateTime}><span>{next.start ? upcomingDay(next.start.dateTime, now) : "Termin"}</span><strong>{next.isAllDay ? "Ganztägig" : next.start ? clock(next.start.dateTime) : "–"}</strong></time>
           <button className={s.inboxNextTitle} onClick={() => onNavigate("calendar")}><strong>{next.subject || "Termin"}</strong><small>{next.isOnlineMeeting ? "Microsoft Teams" : next.location?.displayName || "Kalendertermin"}{!next.isAllDay && nextMinutes && nextMinutes > 0 ? ` · ${nextMinutes} Min.` : ""}</small></button>
           {join && <a href={join} target="_blank" rel="noopener noreferrer">Beitreten</a>}
-        </div> : <div className={s.inboxNextEmpty}><CalendarDays size={22} /><p>{calendarLoading ? "Termine werden geladen …" : hasCalendarError ? "Kalender derzeit nicht verfügbar" : "Heute keine weiteren Termine"}</p><button onClick={() => onNavigate("calendar")}>Kalender öffnen</button></div>}
+        </div> : <div className={s.inboxNextEmpty}><CalendarDays size={22} /><p>{calendarLoading ? "Termine werden geladen …" : hasCalendarError ? "Kalender derzeit nicht verfügbar" : "Keine anstehenden Termine in den nächsten 30 Tagen"}</p><button onClick={() => onNavigate("calendar")}>Kalender öffnen</button></div>}
       </section>
       <section ref={listRef} className={s.inboxMailSection} aria-label="Neueste E-Mails">
         <div className={s.inboxSectionHeading}><h2>Neueste E-Mails</h2><button onClick={() => onNavigate("mail")}>Alle ansehen</button></div>
