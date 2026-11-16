@@ -312,6 +312,8 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
         setAttachments(files.attachments);
         setAnalysis(detail.analysis ?? null);
         setReading(true);
+        if (!detail.message.isRead && accounts.find(a => a.mailbox === target)?.can_write)
+          void messageAction("read", { ...detail.message, sourceMailbox: target }, true);
       })
       .catch((e) => setNotice(e.message));
   }, [demo, accounts]);
@@ -478,6 +480,9 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
     setAnalysis(message.emaAnalysis ?? null);
     setReading(true);
     setAttachments([]);
+    const markingRead = !message.isRead && accounts.find(a => a.mailbox === source)?.can_write
+      ? messageAction("read", message, true)
+      : Promise.resolve(false);
     if (demo) {
       if (message.hasAttachments)
         setAttachments([
@@ -493,12 +498,13 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
       return;
     }
     try {
-      const [detail, files] = await Promise.all([
+      const [detail, files, markedRead] = await Promise.all([
         api(`message?${new URLSearchParams({ mailbox: source, id: message.id })}`),
         api(`attachments?${new URLSearchParams({ mailbox: source, id: message.id })}`),
+        markingRead,
       ]);
       if (version === detailVersion.current) {
-        setSelected({ ...detail.message, sourceMailbox: message.sourceMailbox });
+        setSelected({ ...detail.message, ...(markedRead ? { isRead: true } : {}), sourceMailbox: message.sourceMailbox });
         setAnalysis(detail.analysis ?? null);
         setAttachments(files.attachments);
       }
@@ -600,8 +606,9 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
   async function messageAction(
     operation: string,
     target: Message | null = selected,
+    automatic = false,
   ) {
-    if (!target || busy) return;
+    if (!target || (busy && !automatic)) return false;
     const listVersion = requestVersion.current;
     const selectionVersion = detailVersion.current;
     setSwipedId(null);
@@ -631,7 +638,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
         return { ...snapshot, messages: updateMessages(snapshot.messages, box), stats: { ...snapshot.stats, unread: Math.max(0, snapshot.stats.unread + unreadChange) } };
       });
       setOverviewRevision((v) => v + 1);
-      if (listVersion !== requestVersion.current) return;
+      if (listVersion !== requestVersion.current) return true;
       if (["archive", "trash"].includes(operation)) {
         setMessages((old) => old.filter((m) => messageKey(m) !== messageKey(target)));
         if (
@@ -644,33 +651,22 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
           setReading(false);
         }
       } else {
-        const update = (m: Message) =>
-          messageKey(m) !== messageKey(target)
-            ? m
-            : {
-                ...m,
-                ...(["read", "unread"].includes(operation)
-                  ? { isRead: operation === "read" }
-                  : {
-                      flag: {
-                        flagStatus:
-                          operation === "flag" ? "flagged" : "notFlagged",
-                      },
-                    }),
-              };
+        const update = (m: Message) => updateMessage(m, mailbox);
         setMessages((old) => old.map(update));
         setSelected((old) => (old ? update(old) : old));
       }
 
-      setNotice(
+      if (!automatic) setNotice(
         demo
           ? "In der Demo geändert. Kein echtes Postfach verändert."
           : operation === "trash"
             ? "Nachricht in den Papierkorb verschoben."
             : "Nachricht aktualisiert.",
       );
+      return true;
     } catch (e) {
-      setNotice((e as Error).message);
+      setNotice(automatic ? `Die E-Mail konnte nicht als gelesen markiert werden: ${(e as Error).message}` : (e as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -960,7 +956,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
         onFolder={(id) => { setQ(""); changeFolder(id); }}
         onSearch={(query) => { navigate("mail"); setQ(query.trim().slice(0,180)); }}
         demoDraftCount={drafts.filter(d => (allMailboxes || d.payload.mailbox === mailbox) && ["draft", "approved"].includes(d.status)).length}
-        onTrash={(message) => messageAction("trash", message)} revision={overviewRevision} demoRecords={demoPim.calendar} notice={notice}
+        onTrash={async (message) => { await messageAction("trash", message); }} revision={overviewRevision} demoRecords={demoPim.calendar} notice={notice}
       /> : <>
       <header className={s.topbar}>
         <Link href="/apps" className={s.brand}>
@@ -1317,7 +1313,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                         }
                         open={swipedId === messageKey(m)}
                         onOpenChange={(open) => setSwipedId(open ? messageKey(m) : null)}
-                        onDelete={() => messageAction("trash", m)}
+                        onDelete={async () => { await messageAction("trash", m); }}
                       >
                         <button
                           className={`${s.message} ${selected && messageKey(selected) === messageKey(m) ? s.selected : ""}`}
