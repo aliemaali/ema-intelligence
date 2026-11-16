@@ -252,8 +252,8 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
       </form>
       {notice && <p className={s.dashboardFootnote} role="status">{notice}</p>}
       {errors.length > 0 && <div className={s.dashboardErrors} role="status">{errors.map(error => <p key={error}>{error}</p>)}<button onClick={() => void refresh(true)}>Erneut laden</button></div>}
-      <section className={s.inboxNext} aria-label="Nächster Termin">
-        <p className={s.inboxEyebrow}>Als Nächstes</p>
+      <section className={s.inboxNext} aria-label="Termine">
+        <p className={s.inboxEyebrow}>Termine</p>
         {next ? <div className={s.inboxNextBody}>
           <time dateTime={next.start?.dateTime}><span>{next.start ? upcomingDay(next.start.dateTime, now) : "Termin"}</span><strong>{next.isAllDay ? "Ganztägig" : next.start ? clock(next.start.dateTime) : "–"}</strong></time>
           <button className={s.inboxNextTitle} onClick={() => onNavigate("calendar")}><strong>{next.subject || "Termin"}</strong><small>{next.isOnlineMeeting ? "Microsoft Teams" : next.location?.displayName || "Kalendertermin"}{!next.isAllDay && nextMinutes && nextMinutes > 0 ? ` · ${nextMinutes} Min.` : ""}</small></button>
