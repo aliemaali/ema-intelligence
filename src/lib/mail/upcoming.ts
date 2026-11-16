@@ -26,6 +26,13 @@ export function upcomingDay(value: string, now = new Date()) {
   return date.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit' });
 }
 
+/** The combined inbox is a mail filter; the start card remains the user's calendar.
+ * Shared mailbox mail permissions do not grant access to its calendar.
+ */
+export function dashboardCalendarMailboxes(mailbox: string) {
+  return mailbox === 'all' ? ['me'] : [mailbox];
+}
+
 /** Keep each cursor within the mailbox and range from the original request. */
 export async function loadUpcomingCalendar<T>(get: (path: string, signal?: AbortSignal) => Promise<any>, boxes: string[], signal: AbortSignal, now = new Date()) {
   const range = upcomingRange(now);

@@ -5,7 +5,7 @@ import { CalendarDays, Home, Mail, PenLine, RefreshCw, Search, Settings, Sun, Mo
 import { demoMessages } from "@/lib/mail/demo";
 import type { Message as BaseMessage } from "@/lib/mail/model";
 import { berlinDay, graphDate, teamsJoinUrl } from "@/lib/mail/calendar";
-import { loadUpcomingCalendar, upcomingDay, upcomingEvents } from "@/lib/mail/upcoming";
+import { dashboardCalendarMailboxes, loadUpcomingCalendar, upcomingDay, upcomingEvents } from "@/lib/mail/upcoming";
 import { fromZonedTime } from "date-fns-tz";
 import type { MailPimItem } from "./MailPim";
 import { MailSwipeRow } from "./MailSwipeRow";
@@ -70,7 +70,7 @@ type Props = {
 };
 const clock = (value: string) => graphDate(value).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
 export function MailDashboard({ firstName, cache, folderSync, contactNames, onAccessLost, demo, mailbox, accounts, canSend, canWrite, onMailbox, onNavigate, onOpen, onCompose, onSearch, onTrash, revision, demoRecords, demoDraftCount, notice, theme, onToggleTheme }: Props) {
-  const cacheKey = JSON.stringify(["upcoming-30d-v1",demo,mailbox,mailAccountScope(accounts)]);
+  const cacheKey = JSON.stringify(["personal-upcoming-30d-v2",demo,mailbox,mailAccountScope(accounts)]);
   const cached = cache.get(cacheKey);
   const [messages, setMessages] = useState<Message[]>(() => cached?.messages || []);
   const [events, setEvents] = useState<MailPimItem[]>(() => cached?.events || []);
@@ -163,7 +163,7 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
         }
         return data;
       }, checkAccess),
-      loadUpcomingCalendar<MailPimItem>(get, boxes, request.signal).then(data => {
+      loadUpcomingCalendar<MailPimItem>(get, dashboardCalendarMailboxes(mailbox), request.signal).then(data => {
         if (active()) {
           setEvents(data.value || []); setCalendarPartial(Boolean(data['@odata.nextLink'])); setCalendarLoading(false);
         }

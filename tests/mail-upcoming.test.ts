@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { loadUpcomingCalendar, upcomingDay, upcomingEvents, upcomingRange } from '../src/lib/mail/upcoming';
+import { dashboardCalendarMailboxes, loadUpcomingCalendar, upcomingDay, upcomingEvents, upcomingRange } from '../src/lib/mail/upcoming';
 const now = new Date('2026-11-16T17:22:00Z');
 const event = (id: string, start: string, extra = {}) => ({ id, start: {dateTime:start}, end:{dateTime:new Date(Date.parse(start) + 1800000).toISOString()}, ...extra });
 test('next appointment includes tomorrow and later, excludes ended, declined and cancelled events', () => {
@@ -40,4 +40,19 @@ test('unavailable shared calendar retains available appointments and reports par
   },['me','team@example.com'],new AbortController().signal,now);
   assert.deepEqual(result.value,[{id:'own-event'}]);assert.ok(result.warning);
   await assert.rejects(loadUpcomingCalendar(async()=>{throw new Error('offline');},['me'],new AbortController().signal,now),/offline/);
+});
+
+test('combined inbox loads only the personal calendar; individual mailbox selection stays explicit', async () => {
+  assert.deepEqual(dashboardCalendarMailboxes('all'), ['me']);
+  assert.deepEqual(dashboardCalendarMailboxes('team@example.com'), ['team@example.com']);
+  const called: string[] = [];
+  const result = await loadUpcomingCalendar(async path => {
+    const mailbox = new URLSearchParams(path.split('?')[1]).get('mailbox')!;
+    called.push(mailbox);
+    if (mailbox !== 'me') throw Object.assign(new Error('calendar not shared'), { status: 403 });
+    return { value: [event('reonic', '2026-11-17T14:30:00Z', { responseStatus: { response: 'accepted' } })] };
+  }, dashboardCalendarMailboxes('all'), new AbortController().signal, now);
+  assert.deepEqual(called, ['me']);
+  assert.equal(result.warning, undefined);
+  assert.equal(upcomingEvents(result.value as ReturnType<typeof event>[], now)[0].id, 'reonic');
 });
