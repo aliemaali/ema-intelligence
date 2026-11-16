@@ -1984,3 +1984,57 @@ test('draft formulation starts from a briefing without an existing email and cac
     assert.equal(rows.ema_mail_drafts,undefined);assert.equal(rows.ema_mail_insights,undefined);
   }finally{if(previousKey===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=previousKey;}
 });
+
+test('meeting requests appear in inbox with associated event, normal mail makes no extra Graph request', async () => {
+  reset();
+  const calls: string[] = [];
+  globalThis.fetch = async input => {
+    const url = String(input); calls.push(url);
+    if (url.includes('/messages/invite?')) return Response.json({ id: 'invite', event: { id: 'calendar-event', start: { dateTime: '2026-11-17T14:30:00', timeZone: 'UTC' }, location: { displayName: 'Teams' } } });
+    return Response.json({ value: [ { id: 'invite', '@odata.type': '#microsoft.graph.eventMessageRequest', subject: 'Besprechung' }, { id: 'mail', subject: 'Normal' } ] });
+  };
+  const response = await GET(new NextRequest('https://ema.example/api/mail/messages?mailbox=me&folder=inbox'));
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.messages[0].event.id, 'calendar-event');
+  assert.equal(data.messages[0]['@odata.type'], '#microsoft.graph.eventMessageRequest');
+  assert.equal(data.messages[1].id, 'mail');
+  assert.equal(calls.length, 2);
+  assert.ok(calls[1].includes('$expand=microsoft.graph.eventMessage/event'));
+});
+test('missing calendar event never hides the invitation email', async () => {
+  reset();
+  globalThis.fetch = async input => String(input).includes('/messages/invite?')
+    ? new Response(null, { status: 404 })
+    : Response.json({ value: [{ id: 'invite', '@odata.type': '#microsoft.graph.eventMessageRequest', subject: 'Besprechung' }] });
+  const response = await GET(new NextRequest('https://ema.example/api/mail/messages?mailbox=me&folder=inbox'));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).messages[0].id, 'invite');
+});
+test('invitation response requires explicit confirmation, mailbox write and send rights, and uses associated event ID', async () => {
+  reset();
+  const calls: { url: string; init: RequestInit | undefined }[] = [];
+  globalThis.fetch = async (input, init) => {
+    calls.push({ url: String(input), init });
+    return init?.method === 'POST' ? new Response(null, { status: 202 })
+      : Response.json({ id: 'invite', '@odata.type': '#microsoft.graph.eventMessageRequest', event: { id: 'actual-event', isOrganizer: false } });
+  };
+  assert.equal((await POST(req('invitation-response', { mailbox: 'me', id: 'invite', response: 'accept' }))).status, 400);
+  assert.equal(calls.length, 0);
+  rows.ema_mail_memberships = [{ user_id: uid, mailbox: 'team@example.com', can_read: true, can_write: true, can_send: false }];
+  assert.equal((await POST(req('invitation-response', { mailbox: 'team@example.com', id: 'invite', response: 'accept', confirmed: true }))).status, 403);
+  assert.equal(calls.length, 0);
+  assert.equal((await POST(req('invitation-response', { mailbox: 'me', id: 'invite', response: 'accept', confirmed: true }))).status, 200);
+  assert.ok(calls[1].url.endsWith('/me/events/actual-event/accept'));
+  assert.deepEqual(JSON.parse(String(calls[1].init?.body)), { sendResponse: true });
+});
+test('cancelled invitations and meeting replies cannot be accepted', async () => {
+  for (const message of [
+    { '@odata.type': '#microsoft.graph.eventMessageRequest', event: { id: 'event', isCancelled: true } },
+    { '@odata.type': '#microsoft.graph.eventMessageResponse', event: { id: 'event' } },
+    { '@odata.type': '#microsoft.graph.message', event: { id: 'event' } },
+  ]) {
+    reset(); globalThis.fetch = async () => Response.json(message);
+    assert.equal((await POST(req('invitation-response', { mailbox: 'me', id: 'invite', response: 'accept', confirmed: true }))).status, 409);
+  }
+});

@@ -13,6 +13,7 @@ import { MailSessionCache, mailAccountScope } from "@/lib/mail/session-cache";
 import { MailFolderSync } from "@/lib/mail/folder-sync";
 import { mailSenderName, type ContactNames } from "@/lib/mail/contact-names";
 import { MailGreeting } from "./MailGreeting";
+import { MailInvitation } from "./MailInvitation";
 import { MailMailboxBadge } from "./MailMailboxBadge";
 
 import { combinedInboxPage, sumMailboxStats } from "@/lib/mail/combined-inbox";
@@ -273,7 +274,7 @@ export function MailDashboard({ firstName, cache, folderSync, contactNames, onAc
           }}>
             <button className={s.inboxMessage} data-unread={!message.isRead} onClick={() => onOpen(message)}>
               <span className={s.inboxAvatar} data-color={index % 5}>{mailSenderName(contactNames,message.from.emailAddress).split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase()}</span>
-              <span className={s.inboxMessageBody}><span className={s.inboxSender}><strong title={message.from.emailAddress.address}>{mailSenderName(contactNames,message.from.emailAddress)}</strong><time dateTime={message.receivedDateTime} title={new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })}>{new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" })}</time>{!message.isRead && <i aria-label="Ungelesen" />}</span><strong className={s.inboxSubject}>{message.subject || "(Kein Betreff)"}</strong><span className={s.inboxPreview}>{message.bodyPreview}</span>{mailbox === "all" && message.sourceMailbox && <MailMailboxBadge mailbox={message.sourceMailbox} accounts={accounts} />}</span>
+              <span className={s.inboxMessageBody}><span className={s.inboxSender}><strong title={message.from.emailAddress.address}>{mailSenderName(contactNames,message.from.emailAddress)}</strong><time dateTime={message.receivedDateTime} title={new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })}>{new Date(message.receivedDateTime).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit" })}</time>{!message.isRead && <i aria-label="Ungelesen" />}</span><strong className={s.inboxSubject}>{message.subject || "(Kein Betreff)"}</strong><span className={s.inboxPreview}>{message.bodyPreview}</span><MailInvitation message={message} compact />{mailbox === "all" && message.sourceMailbox && <MailMailboxBadge mailbox={message.sourceMailbox} accounts={accounts} />}</span>
             </button>
           </MailSwipeRow>)}
         </div>

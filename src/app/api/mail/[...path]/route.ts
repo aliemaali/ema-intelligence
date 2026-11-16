@@ -1,3 +1,5 @@
+import { withInvitation } from "@/lib/mail/invitation-server";
+import { isInvitation } from "@/lib/mail/invitations";
 import { sharedContactAccess } from "@/lib/mail/shared-contact-access";
 import { canReadAliContacts, SHARED_CONTACT_OWNER, SHARED_CONTACT_PREFIX, sharedContactUpdateId, sharedContactsPage } from "@/lib/mail/shared-contacts";
 import { safePushEndpoint } from "@/lib/mail/push";
@@ -765,7 +767,7 @@ async function handle(request: NextRequest) {
         : result });
     }
     const permission =
-      mutating && action === "message-action" ? "write" : "read";
+      mutating && ["message-action", "invitation-response"].includes(action) ? "write" : "read";
     const { mailbox, token } = await mailboxAccess(
       session,
       mutating
@@ -774,6 +776,21 @@ async function handle(request: NextRequest) {
       permission,
     );
     const root = mailboxRoot(mailbox);
+    if (action === "invitation-response" && mutating) {
+      const id = idSchema.parse(input.id);
+      const response = z.enum(["accept", "tentativelyAccept", "decline"]).parse(input.response);
+      if (input.confirmed !== true) throw new MailError(400, "Bitte die Terminantwort bestätigen.");
+      // A response sends mail as this mailbox; require both write and send access.
+      await mailboxAccess(session, mailbox, "send");
+      const message = await mailGraph<Message>(token, `${messagePath(mailbox, id)}?$expand=microsoft.graph.eventMessage/event`, {}, root, "html");
+      if (!isInvitation(message) || message['@odata.type'] === '#microsoft.graph.eventMessageResponse' || !message.event?.id || message.event.isCancelled || message.event.isOrganizer)
+        throw new MailError(409, "Diese Einladung kann nicht beantwortet werden.");
+      await audit(session.user.id, `invitation_${response}`, id);
+      await mailGraph(token, `${root}/events/${encodeURIComponent(message.event.id)}/${response}`, {
+        method: "POST", body: JSON.stringify({ sendResponse: true }),
+      }, root);
+      return json({ ok: true });
+    }
     if (action === "dashboard-stats" && !mutating) {
       const [inbox, drafts] = await Promise.all([
         mailGraph<{ unreadItemCount: number }>(
@@ -822,7 +839,7 @@ async function handle(request: NextRequest) {
         return sealDeltaCursor(url.href, scope, secret);
       };
       return json({
-        changes: result.value || [],
+        changes: await Promise.all((result.value || []).map(m => withInvitation(token, mailbox, m))),
         next: continuation(result['@odata.nextLink']),
         delta: continuation(result['@odata.deltaLink']),
       });
@@ -876,7 +893,8 @@ async function handle(request: NextRequest) {
             .eq("mailbox", mailbox)
             .in("message_id", ids)
         : { data: [] };
-      const mapped = (result.value ?? []).map((m) => ({
+      const enriched = await Promise.all((result.value ?? []).map(m => withInvitation(token, mailbox, m)));
+      const mapped = enriched.map((m) => ({
         ...m,
         emaAnalysis:
           insights?.find((i) => i.message_id === m.id)?.result ?? null,
@@ -908,7 +926,7 @@ async function handle(request: NextRequest) {
         .eq("mailbox", mailbox)
         .eq("message_id", id)
         .maybeSingle();
-      return json({ message, analysis: insight?.result ?? null });
+      return json({ message: await withInvitation(token, mailbox, message), analysis: insight?.result ?? null });
     }
     if (action === "attachments" && !mutating) {
       const id = idSchema.parse(request.nextUrl.searchParams.get("id"));

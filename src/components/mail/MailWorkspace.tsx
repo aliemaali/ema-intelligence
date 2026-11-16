@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { MailInvitation } from "./MailInvitation";
 import { MailMessageBody } from "./MailMessageBody";
 import { MailTranslation } from "./MailTranslation";
 import { MailMailboxBadge } from "./MailMailboxBadge";
@@ -1330,6 +1331,7 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                             {m.subject}
                           </div>
                           <div className={s.preview}>{m.bodyPreview}</div>
+                          <MailInvitation message={m} compact />
                           {allMailboxes && m.sourceMailbox && <MailMailboxBadge mailbox={m.sourceMailbox} accounts={accounts} />}
                           {m.hasAttachments ||
                           m.importance === "high" ||
@@ -1492,6 +1494,9 @@ export function MailWorkspace({ demo, cacheUser, firstName }: { demo: boolean; c
                         {formatDate(selected.receivedDateTime)}
                       </time>
                     </div>
+                    <MailInvitation key={`${mailbox}:${selected.id}`} message={selected} mailbox={mailbox}
+                      canRespond={!demo && Boolean(account?.can_write && account?.can_send)}
+                      onResponded={() => { setOverviewRevision(v => v + 1); void load(); }} />
                     <MailTranslation key={`${contactScope}:${mailbox}:${selected.id}`} message={selected} mailbox={mailbox} demo={demo}>
                       <MailMessageBody key={`${mailbox}:${selected.id}`} message={selected} attachments={attachments} mailbox={mailbox} />
                     </MailTranslation>

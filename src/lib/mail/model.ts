@@ -76,7 +76,22 @@ export const draftSchema = z
   });
 export type MailDraft = z.infer<typeof draftSchema>;
 export type Address = { emailAddress: { address: string; name?: string } };
+export type InvitationEvent = {
+  id: string;
+  subject?: string;
+  start?: { dateTime: string; timeZone?: string };
+  end?: { dateTime: string; timeZone?: string };
+  location?: { displayName?: string };
+  isAllDay?: boolean;
+  isCancelled?: boolean;
+  isOrganizer?: boolean;
+  responseStatus?: { response: string };
+  onlineMeeting?: { joinUrl?: string };
+};
 export type Message = {
+  "@odata.type"?: string;
+  meetingMessageType?: string;
+  event?: InvitationEvent | null;
   emaAnalysis?: import("./analysis").MailAnalysis | null;
   id: string;
   subject: string;

@@ -2894,3 +2894,13 @@
   .inboxMessageBody .inboxPreview { font-size: 14px; line-height: 1.4; }
   .workspace .mailboxBadge { font-size: 11px; }
 }
+
+.invitationCompact { display: flex; align-items: center; gap: 7px; margin-top: 7px; color: #28caa5; font-size: 12px; line-height: 1.4; white-space: normal; }
+.invitationCompact svg { flex-shrink: 0; }
+.invitationCard { margin: 18px 0; padding: 16px; border: 1px solid #28caa555; border-radius: 14px; background: #28caa510; overflow-wrap: anywhere; }
+.invitationCard > strong { display: flex; align-items: center; gap: 8px; }
+.invitationCard p { margin: 9px 0; }
+.invitationActions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.invitationActions button { border: 1px solid #28caa577; border-radius: 9px; padding: 9px 12px; background: #28caa51a; color: inherit; cursor: pointer; }
+.invitationActions button:disabled { opacity: .5; cursor: wait; }
+.invitationCard a { color: #28caa5; }
