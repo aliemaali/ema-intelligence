@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Bell, CalendarDays, CheckSquare, Grid2X2, Mic, RefreshCw, Send, Sparkles } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeRuntime'
@@ -46,7 +47,10 @@ export function IntelligenceCenter(seed:Seed) {
   return <div className={`${styles.center} ${styles.simple}`}>
     <header className={styles.brandbar}><Link href="/apps"><strong>EMA</strong> <span>Intelligence</span></Link><div className={styles.brandTools}><ThemeToggle/><Link href="/apps" aria-label="EMA Hauptseite öffnen"><Grid2X2 size={21}/></Link><Link href="/settings" className={styles.avatar} aria-label="Mein Profil">{seed.firstName.slice(0,1)}</Link></div></header>
     <section className={styles.assistantIntro}>
-      <span className={styles.caption}>Dein persönlicher Assistent</span><h1>Hallo, {seed.firstName}.</h1><p>Was möchtest du erledigen?</p>
+      <div className={styles.introHeading}>
+        <div className={styles.introText}><span className={styles.caption}>Dein persönlicher Assistent</span><h1>Hallo, {seed.firstName}.</h1><p>Was möchtest du erledigen?</p></div>
+        <Image className={styles.introGlobe} src="/brand/ema-control-globe.webp" width={800} height={800} sizes="(max-width: 600px) 42vw, 240px" alt="" priority />
+      </div>
       <form className={styles.command} onSubmit={event=>{event.preventDefault();ask();}}><Sparkles aria-hidden="true"/><input aria-label="Auftrag an EMA" value={command} maxLength={2000} onChange={event=>setCommand(event.target.value)} placeholder="Auftrag eingeben …"/><button type={command.trim()?'submit':'button'} className={styles.keyboard} aria-label={command.trim()?'Auftrag senden':'Mit EMA sprechen'} onClick={()=>{if(!command.trim())ask();}}>{command.trim()?<Send size={20}/>:<Mic size={20}/>}</button></form>
     </section>
     <section className={styles.connectionBar} aria-label="Verbindungen" aria-busy={busy}>
