@@ -2098,3 +2098,27 @@ test('personal titles are applied consistently to calendar and individual event 
     assert.equal(actual.isOrganizer,false);
   }
 });
+
+test('Intelligence overview requests only calendar data and never loads inboxes or mail dismissals', async()=>{
+  reset();const {GET:overview}=await import('../src/app/api/control/overview/route');
+  const calls:string[]=[];
+  globalThis.__mailFixture.db.from=()=>{throw new Error('Overview must not query legacy mail tables');};
+  globalThis.fetch=async input=>{calls.push(String(input));return Response.json({value:[{id:'meeting',subject:'Projektgespräch',start:{dateTime:'2026-11-17T14:30:00'},end:{dateTime:'2026-11-17T15:00:00'}}]});};
+  const response=await overview();assert.equal(response.status,200);
+  const data=await response.json();assert.equal(data.events[0].title,'Projektgespräch');
+  assert.deepEqual(data.messages,[]);assert.deepEqual(data.mailboxes,[]);
+  assert.equal(calls.length,1);assert.equal(new URL(calls[0]).pathname,'/v1.0/me/calendarView');
+});
+test('Intelligence overview requires authentication and handles disconnected calendar without any mail access',async()=>{
+  const {GET:overview}=await import('../src/app/api/control/overview/route');
+  reset();user=null;
+  assert.equal((await overview()).status,401);assert.equal(graphCalls,0);
+  reset();globalThis.__mailFixture.token=async()=>null;
+  const response=await overview();assert.equal(response.status,200);
+  const data=await response.json();assert.equal(data.reconnect,true);assert.deepEqual(data.messages,[]);assert.equal(graphCalls,0);
+});
+
+test('legacy project email page leads to the standalone mail app',async()=>{
+  const {default:page}=await import('../src/app/projects/[id]/mail/page');
+  assert.throws(()=>page(),/Redirect: \/mail/);
+});
