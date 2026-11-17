@@ -12,6 +12,7 @@ import { runMailWorker, cronAuthorized } from "../src/lib/mail/background";
 import { digest } from "../src/lib/mail/security";
 import { sealDeltaCursor } from "../src/lib/mail/delta-cursor";
 import { SHARED_CONTACT_OWNER, SHARED_CONTACT_READER, SHARED_CONTACT_PREFIX } from "../src/lib/mail/shared-contacts";
+import webpush from "web-push";
 declare global {
   var __mailFixture: any;
 }
@@ -862,6 +863,52 @@ test("actual worker with no analysis or push finishes job without Graph or AI ca
   assert.equal((await runMailWorker()).jobs, 1);
   assert.equal(rows.ema_mail_jobs[0].state, "done");
   assert.equal(graphCalls, 0);
+});
+
+test("new-mail pushes go only to this user's EMA Mail registrations", async () => {
+  const previousSend = webpush.sendNotification;
+  const previousPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const previousPrivate = process.env.VAPID_PRIVATE_KEY;
+  const keys = webpush.generateVAPIDKeys();
+  const sent: string[] = [];
+  webpush.sendNotification = async (subscription, payload) => {
+    sent.push(subscription.endpoint);
+    assert.equal(JSON.parse(String(payload)).title, "EMA Mail");
+    return { statusCode: 201, body: "", headers: {} };
+  };
+  try {
+    for (const includeMail of [false, true]) {
+      reset();
+      sent.length = 0;
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = keys.publicKey;
+      process.env.VAPID_PRIVATE_KEY = keys.privateKey;
+      rows.ema_mail_sync = [{ user_id: uid, mailbox: "me", enabled: true, analyze: false, push: true }];
+      const job = { id, user_id: uid, mailbox: "me", message_id: "msg", state: "processing", attempts: 1, lease_id: "lease", leased_until: new Date(Date.now() + 60000).toISOString(), analysis_done: true, push_state: "pending" };
+      rows.ema_mail_jobs = [{ ...job }];
+      const device = { user_id: uid, p256dh: "key", auth_key: "auth" };
+      rows.ema_push_subscriptions = [
+        // More than the delivery limit: filtering must happen in the query.
+        ...Array.from({ length: 6 }, (_, n) => ({ ...device, id: `legacy-${n}`, endpoint: `https://web.push.apple.com/legacy-${n}`, device_label: "iPhone Intelligence" })),
+        { ...device, id: "unclassified", endpoint: "https://web.push.apple.com/unclassified", device_label: null },
+        { ...device, id: "foreign", user_id: "other-user", endpoint: "https://web.push.apple.com/foreign", device_label: "EMA Mail · Home-Bildschirm" },
+        ...(includeMail ? [{ ...device, id: "mail", endpoint: "https://web.push.apple.com/mail", device_label: "EMA Mail · Home-Bildschirm" }] : []),
+      ];
+      globalThis.__mailFixture.admin.rpc = async (name: string) => ({ data: name === "ema_mail_claim_job" ? [{ ...job }] : [], error: null });
+      const result = await runMailWorker();
+      assert.equal(result.errors, 0);
+      assert.equal(result.jobs, 1);
+      assert.deepEqual(sent, includeMail ? ["https://web.push.apple.com/mail"] : []);
+      assert.equal(rows.ema_mail_jobs[0].push_state, includeMail ? "sent" : "no_devices");
+      assert.equal(graphCalls, 0);
+      assert.equal(rows.ema_push_subscriptions.length, includeMail ? 9 : 8, "Intelligence subscriptions remain available for reminders");
+    }
+  } finally {
+    webpush.sendNotification = previousSend;
+    if (previousPublic === undefined) delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    else process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = previousPublic;
+    if (previousPrivate === undefined) delete process.env.VAPID_PRIVATE_KEY;
+    else process.env.VAPID_PRIVATE_KEY = previousPrivate;
+  }
 });
 
 test("signature policy rejects missing signature, wrong sender and changed sender before send", async () => {

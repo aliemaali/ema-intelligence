@@ -174,6 +174,10 @@ async function pushNewMail(job: MailJob, deadline: number) {
     .from("ema_push_subscriptions")
     .select("id,endpoint,p256dh,auth_key")
     .eq("user_id", job.user_id)
+    // Intelligence and Mail share this table, but have separate service workers.
+    // Match Mail's registration label before limiting so legacy devices neither
+    // receive email alerts nor crowd out the user's Mail registrations.
+    .eq("device_label", "EMA Mail · Home-Bildschirm")
     .limit(5);
   if (error) throw new MailError(503, "Geräte konnten nicht geladen werden.");
   const { data: claim, error: claimError } = await db
